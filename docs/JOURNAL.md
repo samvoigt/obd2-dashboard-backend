@@ -54,3 +54,28 @@ not catch, and lessons about process. Short on purpose.
   - `--clear-secrets` (above);
   - the Ktor bearer provider cannot change its `401` body;
   - `Precondition.exists` is not public.
+
+## 2026-09-26 — M3, the archive lane
+
+- **`Content-Encoding: gzip` on a stored object means Cloud Storage decompresses
+  it on download.** A `.jsonl.gz` would arrive as plain JSONL under a `.gz`
+  name. Objects are stored as gzip files (`application/gzip`) instead. Found
+  while validating the M3.3 plan, before any object was written.
+- **The contract gives a `409` two shapes** (`{missingFrom}` in §6.2–6.3, and
+  the §14.2 error body in §6.4). The server sends both at once.
+- **Mutation runs earn their keep.** Four of 46 mutations first
+  survived, and each showed a real gap in the tests, not in the code. One
+  survivor came from a mistake that a *later* step quietly repaired: a replay
+  that ignored `409`'s `missingFrom` still finished, because `/complete`'s own
+  `409` put it right. **A test that only checks the end state can miss a wrong
+  path to it.**
+- **The mutation runner confused "compiled and passed" with "compile error"**,
+  because Ktor's log line "413 Payload Too Larg**e:**" matched `e: `. Fixed by
+  deciding on the exit code first.
+- **JUnit 4 needs `void` tests.** `= runBlocking { … }` returns its last
+  expression, and the class fails to initialise. Use `runBlocking<Unit>`.
+- **zsh does not split an unquoted variable into words**, so `$CMD args` runs a
+  program named after the whole string. Use a function.
+- **Deleted objects stay 7 days in soft delete.** The live check uploaded two of
+  the app's real logs, with a real VIN, to the private bucket, and deleted
+  them; they are recoverable until the soft-delete window passes.

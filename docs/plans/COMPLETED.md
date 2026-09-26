@@ -76,3 +76,70 @@ by `curl`, and by the admin tool.
 - passcode login and rate limiting (M5, the first place a passcode is checked);
 - closing live sockets when a token is rotated (M4, with a Firestore listener);
 - refusing `remove-car` while the car has sessions (M3).
+
+## M3 — The archive lane  ✅ 2026-09-26
+
+The server side of contract §6: `PUT /v1/sessions/{id}`, `POST …/chunks` and
+`POST …/complete`. Every line is stored byte for byte and acknowledged only once
+durable. A replay tool behaves as the tablet does, and admin commands see and
+delete sessions. Decisions 17 and 18.
+
+- **`:archive`, pure:**
+  - `LineBlock` keeps the tablet's bytes;
+  - `ChunkBody` inflates under a 1 MiB cap, enforced while inflating (a 1 GiB
+    gzip bomb stops in milliseconds);
+  - strict UTF-8 JSON-object checks, reading only the v3 session header, and
+    keeping unknown types and fields;
+  - `Trim.plan`, the contract's line hash;
+  - `ArchiveService`: store then advance, with conditional index writes;
+    assembly that refuses a corrupt index; the reset of decision 18;
+    live-created sessions allowed for M4.
+- **`:archive-gcp`:**
+  - `GcsSegmentStore` stores gzip files; a writer that throws creates no
+    object (proved on real Cloud Storage);
+  - `FirestoreSessionIndex`: every conditional change is a transaction.
+
+  Both use Google's `libraries-bom`, so Firestore and Storage agree on Guava
+  and gRPC. The bucket is `obd2-dashboard-backend-sessions`: private,
+  `us-east4`, uniform access, kept indefinitely, with a 7-day soft delete.
+- **`:server`:**
+  - the three routes: capped reads, gzip, and §14.2 bodies (a `409` carries
+    both its shapes);
+  - `503` with `Retry-After` for storage failures only;
+  - `SESSIONS_BUCKET` required.
+- **`:replay` (`scripts/replay.sh`):**
+  - upgrades v1/v2 to v3 by rewriting line 0 only;
+  - chunks by log time, lines and 1 MiB;
+  - every §6.4 reaction, lost answers and duplicates on demand, positions saved
+    and resumed;
+  - the token from `OBD2_TOKEN` or a file, never an argument.
+- **Admin:** `sessions` (no VIN), `session <id>` (the VIN, only there),
+  `delete-session`; `remove-car` refuses while a car has sessions.
+- **Tests:** 154 across seven modules, 89 of them new in M3. **46 mutations**
+  were killed by failing tests (10 + 12 + 10 + 11 + 3 across M3.1–M3.6). The
+  mutation runs found four weak spots, all fixed:
+  - untested contiguity;
+  - a redundant cleanup (removed, and its rule written into the interface);
+  - a `409` handler whose mistake a later `409` hid;
+  - server acks that were never exercised.
+- **Verified live, 2026-09-26, on the deployed revision `00004`:**
+  - two of the app's real sessions (33,091 and 42,477 lines) replayed through
+    30% lost answers and 20% duplicates;
+  - a third stopped at line 6000 and resumed in a separate run;
+  - each download matched its source byte for byte (`cmp`), and lines after
+    the header were identical to the app's own files;
+  - `wrong_car` came back with the contract's exact body, `401` with no token,
+    and re-`PUT` and re-`complete` were idempotent;
+  - `remove-car` refused while sessions remained;
+  - everything was deleted afterwards.
+
+**Never met a tablet.** No session from the real app has been uploaded: the
+tablet's shipper is its M33.6, and its first real upload is its M33.8. Every
+v3 session record the server has seen was written by the replay tool or a test,
+not by the app, and **signal units** in those records are empty (the replay
+cannot know them). M4 needs a real v3 log for units.
+
+**Left for later, on purpose:**
+- the live lane, which may create a session before its `PUT` (M4);
+- showing sessions on the site, and merging live rows with archive rows (M6);
+- `max-instances` 1 (M4).

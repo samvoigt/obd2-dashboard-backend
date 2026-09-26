@@ -39,14 +39,19 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
-Modules: `:registry` (pure), `:registry-firestore`, `:server`, `:tools`.
+Modules: `:registry` and `:archive` (pure, where the rules and most tests
+live), `:registry-firestore` and `:archive-gcp` (Google), `:server`, `:tools`,
+`:replay`.
 
 ```
 ./gradlew test                  # unit tests, all modules
 ./gradlew :server:buildFatJar   # server/build/libs/server.jar
-GCP_PROJECT=obd2-dashboard-backend ./gradlew :server:run   # real Firestore, as the user
-scripts/admin.sh list           # the admin tool (cars, tokens, passcodes)
+GCP_PROJECT=obd2-dashboard-backend SESSIONS_BUCKET=obd2-dashboard-backend-sessions \
+  ./gradlew :server:run         # real Firestore and bucket, as the user
+scripts/admin.sh list           # the admin tool (cars, tokens, passcodes, sessions)
+scripts/replay.sh --help        # the tablet's archive lane, faults included
 scripts/firestore-smoke.sh      # throwaway car through the real Firestore
+scripts/archive-smoke.sh        # throwaway session through the real bucket
 ```
 
 Warnings fail the build (`allWarningsAsErrors`), as in the app. `gcloud` needs

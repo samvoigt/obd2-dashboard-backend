@@ -17,8 +17,8 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M0** | Skeleton: Ktor server, health check, tests, Dockerfile | ✅ |
 | **M1** | Deployed to Cloud Run; one shared tablet key | ✅ |
 | **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
-| **M3** | Archive lane (contract §6), and the replay tool | **planned**: [`plans/M3-ARCHIVE.md`](plans/M3-ARCHIVE.md) |
-| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | |
+| **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
+| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | next |
 | **M5** | Crew messages (contract §5.4) | |
 | **M6** | Past sessions on the site | |
 | **M7** | Dashboards: crew views and mirrored tablet layouts | |
@@ -89,7 +89,7 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 | `GET /health` | Liveness | ✅ |
 | `GET /api/cars` | Landing page data: slug and name, never secrets | ✅ M2 |
 | `GET /v1/whoami` | Which car a token belongs to (backend-only diagnostic, not in the contract) | ✅ M2 |
-| `PUT /v1/sessions/{id}`, `POST …/chunks`, `POST …/complete` | Archive lane (contract §6) | M3 |
+| `PUT /v1/sessions/{id}`, `POST …/chunks`, `POST …/complete` | Archive lane (contract §6) | ✅ M3 |
 | `GET /v1/live` | Live lane WebSocket (contract §5) | M4 |
 | `/`, `/cars/{slug}` | Landing and live car page | M4 |
 | `GET /api/cars/{slug}/live` | SSE: snapshot, live records, message states | M4 |
@@ -99,10 +99,14 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 
 ---
 
-## Milestones after M2
+## Milestones after M3
 
-M3 depends on M2's `CarAuthProvider` (`CAR_AUTH`), `ApiError` (§14.2 bodies) and
-`CarRegistry.principalFor`; M4's socket uses `principalFor` after the upgrade.
+What M4 builds on:
+- M2's `CarRegistry.principalFor`, which the socket uses after the upgrade;
+- M3's `SessionIndex`, which already allows a session the live lane creates
+  before its `PUT` (`ackedThrough = −1`, no line 0).
+
+**M4 needs a real v3 log** for signal units. The replay's are empty.
 
 **The replay tool is what lets M3–M5 be built without a car.** It is a CLI that
 plays session logs into the server as a tablet would, through both lanes, with
@@ -111,26 +115,6 @@ at once, on different tokens, is the multi-car test. The app's `test-data/`
 logs are format v1, so the tool upgrades them to v3 (adding `id`, `device`,
 `wall`, a zeroed `session.seq`). Once the tablet writes real v3 logs, ask for
 one to be committed as a fixture.
-
-### M3 — Archive lane (contract §6)
-
-- `PUT /v1/sessions/{id}`: stores line 0 verbatim. Idempotent. A session is
-  bound to the car whose token opened it; another car's token gets
-  `400 wrong_car` (§14.2).
-- `POST …/chunks`:
-  - gzip body, ≤1 MB uncompressed (`413` over that);
-  - idempotent by `(sessionId, index)`;
-  - `409 {missingFrom}` for a chunk that starts past the end;
-  - `ackedThrough` sent only once the lines are in Cloud Storage.
-- `POST …/complete`: checks the record count and the sha256 over the stored
-  lines, answers `409 {missingFrom}` if lines are missing, then joins the chunks
-  into one `.jsonl.gz`.
-- Firestore session index: car, id, started, device, app, line count, complete.
-  The VIN is stored but never returned publicly.
-- The replay tool (archive half).
-- **Done when:** a replay with random dropped responses and repeated chunks
-  stores a session whose sha256 matches the source, and one left unfinished
-  completes on a later run.
 
 ### M4 — Live lane and first website (contract §5.1–5.3)
 

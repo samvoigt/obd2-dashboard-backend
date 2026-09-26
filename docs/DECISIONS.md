@@ -341,3 +341,54 @@ need it. A live map of the car is part of the point.
 
 **Revisit if.** Storage cost matters, or someone asks for their data to be
 deleted.
+
+---
+
+## 17. The archive: segments by line range, Firestore as the authority, store then advance
+
+**Decision.**
+- Every run of lines the server accepts is written to Cloud Storage as its own
+  gzip file, `sessions/{id}/segments/{first}-{last}.jsonl.gz`, verbatim. Line 0
+  is segment `0-0`.
+- A segment **counts only once it is in the session's Firestore document**,
+  appended in a transaction that succeeds only if `ackedThrough` is still what
+  the request read.
+- `ackedThrough` is answered only after both writes. A completed session is one
+  `sessions/{id}/session.jsonl.gz`, and its segments are then deleted.
+- Objects are gzip *files* (`application/gzip`), not gzip-*encoded*, so a
+  download is exactly the app's own `.jsonl.gz`.
+
+**Why.**
+- Contract §6.2 makes an ack a promise of durability. Storing first makes the
+  promise true by construction.
+- The condition makes two instances racing over one session safe without a
+  lock. The loser's object is an orphan nobody names, swept on completion, and
+  every answer is a fresh read, so it is always true.
+- Firestore rather than the bucket listing is the authority, because a listing
+  cannot tell an orphan from a segment.
+- `complete` refuses to assemble a list that is not contiguous, or a segment
+  that does not hold the lines it claims, rather than trusting the hash alone.
+
+**Revisit if.** Sessions grow past about 12,000 segments, where the document's
+segment list nears Firestore's 1 MiB limit (about 16 days at one chunk every
+2 minutes). Then move segments to a subcollection.
+
+---
+
+## 18. A hash mismatch resends from line 1, at most twice
+
+**Decision.** If `/complete`'s SHA-256 does not match the stored lines, the
+server:
+- keeps line 0 (a `PUT` already refuses a different one);
+- discards the rest;
+- sets `ackedThrough = 0`;
+- answers `409 {missingFrom: 1}`.
+
+The tablet resends everything, which is §6.4's ordinary `409`. **After two such
+resets**, the next mismatch is `400 bad_record`.
+
+**Why.** A mismatch means the two sides hold different bytes, and the server
+cannot know which lines differ. Resending is the only repair within the
+contract. The limit stops a tablet and server that disagree about the bytes
+themselves (a hashing bug, say) from resending the same session forever. No
+contract change was needed.
