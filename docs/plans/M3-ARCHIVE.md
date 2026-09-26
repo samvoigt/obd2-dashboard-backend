@@ -459,6 +459,36 @@ In `:server`, under `authenticate(CAR_AUTH)`:
 
 ### M3.5 — The replay tool  `opus`
 
+> ✅ **Done 2026-09-26.** `:replay`:
+> - `SessionFile` loads `.jsonl`/`.gz`, drops a cut-short last line, and
+>   upgrades v1/v2 by rewriting line 0 alone. The id is stable per
+>   (token, source).
+> - `Replayer` handles every §6.4 status; chunks by log time, lines and 1 MiB;
+>   injects lost answers and duplicates; saves its position after every ack.
+> - `Replay` is the Clikt CLI. The token comes from `OBD2_TOKEN` or
+>   `--token-file`, and it refuses cleanly without one.
+> - `scripts/replay.sh`.
+>
+> **One change from the plan:** there is no `--resume`. Positions are always
+> saved and a rerun always resumes, as on the tablet; `--fresh` forgets them.
+>
+> **14 tests against the real server module over real HTTP** (Netty on a free
+> port, in-memory stores, a 30-second timeout on every test):
+> - v1 in six 2-minute chunks; v2 gzipped;
+> - 30% lost answers with 30% duplicates;
+> - stop, then resume from the saved position;
+> - **a lost position that trusts the server's `ackedThrough`**;
+> - a session lost mid-run → `404`, re-open, then `409` from line 1;
+> - a 2 MB backlog split with no `413`, and a real `413` halved;
+> - two cars at once, a wrong token, and storage outages waited out;
+> - the upgrade's fields, the partial line, a stable id.
+>
+> Every stored session was compared byte for byte. **11 mutations killed.** Two
+> first survived, and they showed weak tests, since tightened:
+> - a `409` that ignored `missingFrom` was rescued later by `/complete`'s own
+>   `409`;
+> - trusting its own chunk end over `ackedThrough` was never exercised.
+
 > **Validated against what M3.1–M3.4 built, 2026-09-26, before building.** One
 > conflict with an earlier rule, resolved here:
 >
@@ -523,6 +553,20 @@ It also:
   - a wrong token stops with the `401` explained.
 
 ### M3.6 — Sessions in the admin tool  `sonnet`
+
+> **Validated against what M3.1–M3.5 built, 2026-09-26, before building.** No
+> conflict. Now fixed by what exists:
+>
+> - **The tool builds the archive as well as the registry.** Its factory takes
+>   `(project, bucket)` and returns both. `admin.sh` passes `--bucket` from
+>   `env.sh`. Tests hand it the fakes.
+> - **`delete-session` is `ArchiveService.delete`**: objects first, then the
+>   index entry, so nothing is left that the index no longer names.
+> - **The "size" column is dropped.** `SegmentStore` has no size call, and
+>   adding one to Cloud Storage for a listing is not worth it. Lines
+>   (`ackedThrough + 1`) say more.
+> - **The VIN appears only in `session <id>`**, never in the `sessions` list
+>   (decision 16: the admin tool is its one place, and there, only on request).
 
 `admin.sh` gains:
 - `sessions [car]`: id, car, started, lines, complete, size;

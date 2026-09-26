@@ -1,0 +1,701 @@
+{"type":"session","v":1,"started":"2026-09-09T10:50:59.876517Z","protocol":"ISO 15765-4 CAN, 11-bit ID, 500 kbaud","vin":"TSTVEHCLE00000001","pids":39,"seq":0,"at":0}
+{"type":"sample","seq":1,"at":262107,"signal":"engine.rpm","value":3997.1}
+{"type":"sample","seq":2,"at":263107,"signal":"vehicle.speed","value":6.0}
+{"type":"sample","seq":3,"at":264107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":4,"at":265107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":5,"at":266107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":6,"at":267107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":7,"at":268107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":8,"at":269107,"signal":"engine.rpm","value":4507.8}
+{"type":"sample","seq":9,"at":270107,"signal":"vehicle.speed","value":62.0}
+{"type":"sample","seq":10,"at":271107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":11,"at":272107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":12,"at":273107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":13,"at":274107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":14,"at":275107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":15,"at":276107,"signal":"engine.rpm","value":1916.1}
+{"type":"sample","seq":16,"at":277107,"signal":"vehicle.speed","value":26.0}
+{"type":"sample","seq":17,"at":278107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":18,"at":279107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":19,"at":280107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":20,"at":281107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":21,"at":282107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":22,"at":283107,"signal":"engine.rpm","value":4183.5}
+{"type":"sample","seq":23,"at":284107,"signal":"vehicle.speed","value":139.0}
+{"type":"sample","seq":24,"at":285107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":25,"at":286107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":26,"at":287107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":27,"at":288107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":28,"at":289107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":29,"at":290107,"signal":"engine.rpm","value":1234.7}
+{"type":"sample","seq":30,"at":291107,"signal":"vehicle.speed","value":108.0}
+{"type":"sample","seq":31,"at":292107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":32,"at":293107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":33,"at":294107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":34,"at":295107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":35,"at":296107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":36,"at":297107,"signal":"engine.rpm","value":958.9}
+{"type":"sample","seq":37,"at":298107,"signal":"vehicle.speed","value":23.0}
+{"type":"sample","seq":38,"at":299107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":39,"at":300107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":40,"at":301107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":41,"at":302107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":42,"at":303107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":43,"at":304107,"signal":"engine.rpm","value":1893.2}
+{"type":"sample","seq":44,"at":305107,"signal":"vehicle.speed","value":129.0}
+{"type":"sample","seq":45,"at":306107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":46,"at":307107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":47,"at":308107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":48,"at":309107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":49,"at":310107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":50,"at":311107,"signal":"engine.rpm","value":3810.1}
+{"type":"sample","seq":51,"at":312107,"signal":"vehicle.speed","value":143.0}
+{"type":"sample","seq":52,"at":313107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":53,"at":314107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":54,"at":315107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":55,"at":316107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":56,"at":317107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":57,"at":318107,"signal":"engine.rpm","value":1794.2}
+{"type":"sample","seq":58,"at":319107,"signal":"vehicle.speed","value":166.0}
+{"type":"sample","seq":59,"at":320107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":60,"at":321107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":61,"at":322107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":62,"at":323107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":63,"at":324107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":64,"at":325107,"signal":"engine.rpm","value":4306.6}
+{"type":"sample","seq":65,"at":326107,"signal":"vehicle.speed","value":107.0}
+{"type":"sample","seq":66,"at":327107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":67,"at":328107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":68,"at":329107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":69,"at":330107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":70,"at":331107,"signal":"engine.coolant_temperature","value":79.0}
+{"type":"sample","seq":71,"at":332107,"signal":"engine.rpm","value":1902.2}
+{"type":"sample","seq":72,"at":333107,"signal":"vehicle.speed","value":150.0}
+{"type":"sample","seq":73,"at":334107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":74,"at":335107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":75,"at":336107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":76,"at":337107,"signal":"engine.coolant_temperature","value":85.0}
+{"type":"sample","seq":77,"at":338107,"signal":"engine.coolant_temperature","value":86.0}
+{"type":"sample","seq":78,"at":339107,"signal":"engine.rpm","value":2191.0}
+{"type":"sample","seq":79,"at":340107,"signal":"vehicle.speed","value":1.0}
+{"type":"sample","seq":80,"at":341107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":81,"at":342107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":82,"at":343107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":83,"at":344107,"signal":"engine.coolant_temperature","value":92.0}
+{"type":"sample","seq":84,"at":345107,"signal":"engine.coolant_temperature","value":93.0}
+{"type":"sample","seq":85,"at":346107,"signal":"engine.rpm","value":4594.0}
+{"type":"sample","seq":86,"at":347107,"signal":"vehicle.speed","value":40.0}
+{"type":"sample","seq":87,"at":348107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":88,"at":349107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":89,"at":350107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":90,"at":351107,"signal":"engine.coolant_temperature","value":99.0}
+{"type":"sample","seq":91,"at":352107,"signal":"engine.coolant_temperature","value":70.0}
+{"type":"sample","seq":92,"at":353107,"signal":"engine.rpm","value":4290.7}
+{"type":"sample","seq":93,"at":354107,"signal":"vehicle.speed","value":87.0}
+{"type":"sample","seq":94,"at":355107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":95,"at":356107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":96,"at":357107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":97,"at":358107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":98,"at":359107,"signal":"engine.coolant_temperature","value":77.0}
+{"type":"sample","seq":99,"at":360107,"signal":"engine.rpm","value":2189.4}
+{"type":"sample","seq":100,"at":361107,"signal":"vehicle.speed","value":55.0}
+{"type":"sample","seq":101,"at":362107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":102,"at":363107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":103,"at":364107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":104,"at":365107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":105,"at":366107,"signal":"engine.coolant_temperature","value":84.0}
+{"type":"sample","seq":106,"at":367107,"signal":"engine.rpm","value":5586.1}
+{"type":"sample","seq":107,"at":368107,"signal":"vehicle.speed","value":86.0}
+{"type":"sample","seq":108,"at":369107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":109,"at":370107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":110,"at":371107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":111,"at":372107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":112,"at":373107,"signal":"engine.coolant_temperature","value":91.0}
+{"type":"sample","seq":113,"at":374107,"signal":"engine.rpm","value":1311.1}
+{"type":"sample","seq":114,"at":375107,"signal":"vehicle.speed","value":97.0}
+{"type":"sample","seq":115,"at":376107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":116,"at":377107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":117,"at":378107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":118,"at":379107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":119,"at":380107,"signal":"engine.coolant_temperature","value":98.0}
+{"type":"sample","seq":120,"at":381107,"signal":"engine.rpm","value":1283.6}
+{"type":"sample","seq":121,"at":382107,"signal":"vehicle.speed","value":88.0}
+{"type":"sample","seq":122,"at":383107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":123,"at":384107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":124,"at":385107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":125,"at":386107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":126,"at":387107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":127,"at":388107,"signal":"engine.rpm","value":3818.6}
+{"type":"sample","seq":128,"at":389107,"signal":"vehicle.speed","value":11.0}
+{"type":"sample","seq":129,"at":390107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":130,"at":391107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":131,"at":392107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":132,"at":393107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":133,"at":394107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":134,"at":395107,"signal":"engine.rpm","value":4448.7}
+{"type":"sample","seq":135,"at":396107,"signal":"vehicle.speed","value":137.0}
+{"type":"sample","seq":136,"at":397107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":137,"at":398107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":138,"at":399107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":139,"at":400107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":140,"at":401107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":141,"at":402107,"signal":"engine.rpm","value":1424.1}
+{"type":"sample","seq":142,"at":403107,"signal":"vehicle.speed","value":96.0}
+{"type":"sample","seq":143,"at":404107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":144,"at":405107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":145,"at":406107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":146,"at":407107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":147,"at":408107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":148,"at":409107,"signal":"engine.rpm","value":1194.0}
+{"type":"sample","seq":149,"at":410107,"signal":"vehicle.speed","value":75.0}
+{"type":"sample","seq":150,"at":411107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":151,"at":412107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":152,"at":413107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":153,"at":414107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":154,"at":415107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":155,"at":416107,"signal":"engine.rpm","value":4947.0}
+{"type":"sample","seq":156,"at":417107,"signal":"vehicle.speed","value":158.0}
+{"type":"sample","seq":157,"at":418107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":158,"at":419107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":159,"at":420107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":160,"at":421107,"signal":"engine.coolant_temperature","value":79.0}
+{"type":"sample","seq":161,"at":422107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":162,"at":423107,"signal":"engine.rpm","value":5227.3}
+{"type":"sample","seq":163,"at":424107,"signal":"vehicle.speed","value":92.0}
+{"type":"sample","seq":164,"at":425107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":165,"at":426107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":166,"at":427107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":167,"at":428107,"signal":"engine.coolant_temperature","value":86.0}
+{"type":"sample","seq":168,"at":429107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":169,"at":430107,"signal":"engine.rpm","value":3686.8}
+{"type":"sample","seq":170,"at":431107,"signal":"vehicle.speed","value":180.0}
+{"type":"sample","seq":171,"at":432107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":172,"at":433107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":173,"at":434107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":174,"at":435107,"signal":"engine.coolant_temperature","value":93.0}
+{"type":"sample","seq":175,"at":436107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":176,"at":437107,"signal":"engine.rpm","value":1147.8}
+{"type":"sample","seq":177,"at":438107,"signal":"vehicle.speed","value":169.0}
+{"type":"sample","seq":178,"at":439107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":179,"at":440107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":180,"at":441107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":181,"at":442107,"signal":"engine.coolant_temperature","value":70.0}
+{"type":"sample","seq":182,"at":443107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":183,"at":444107,"signal":"engine.rpm","value":1939.5}
+{"type":"sample","seq":184,"at":445107,"signal":"vehicle.speed","value":74.0}
+{"type":"sample","seq":185,"at":446107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":186,"at":447107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":187,"at":448107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":188,"at":449107,"signal":"engine.coolant_temperature","value":77.0}
+{"type":"sample","seq":189,"at":450107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":190,"at":451107,"signal":"engine.rpm","value":5726.1}
+{"type":"sample","seq":191,"at":452107,"signal":"vehicle.speed","value":59.0}
+{"type":"sample","seq":192,"at":453107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":193,"at":454107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":194,"at":455107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":195,"at":456107,"signal":"engine.coolant_temperature","value":84.0}
+{"type":"sample","seq":196,"at":457107,"signal":"engine.coolant_temperature","value":85.0}
+{"type":"sample","seq":197,"at":458107,"signal":"engine.rpm","value":5132.4}
+{"type":"sample","seq":198,"at":459107,"signal":"vehicle.speed","value":97.0}
+{"type":"sample","seq":199,"at":460107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":200,"at":461107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":201,"at":462107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":202,"at":463107,"signal":"engine.coolant_temperature","value":91.0}
+{"type":"sample","seq":203,"at":464107,"signal":"engine.coolant_temperature","value":92.0}
+{"type":"sample","seq":204,"at":465107,"signal":"engine.rpm","value":2189.9}
+{"type":"sample","seq":205,"at":466107,"signal":"vehicle.speed","value":162.0}
+{"type":"sample","seq":206,"at":467107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":207,"at":468107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":208,"at":469107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":209,"at":470107,"signal":"engine.coolant_temperature","value":98.0}
+{"type":"sample","seq":210,"at":471107,"signal":"engine.coolant_temperature","value":99.0}
+{"type":"sample","seq":211,"at":472107,"signal":"engine.rpm","value":4970.6}
+{"type":"sample","seq":212,"at":473107,"signal":"vehicle.speed","value":41.0}
+{"type":"sample","seq":213,"at":474107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":214,"at":475107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":215,"at":476107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":216,"at":477107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":217,"at":478107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":218,"at":479107,"signal":"engine.rpm","value":2650.9}
+{"type":"sample","seq":219,"at":480107,"signal":"vehicle.speed","value":53.0}
+{"type":"sample","seq":220,"at":481107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":221,"at":482107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":222,"at":483107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":223,"at":484107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":224,"at":485107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":225,"at":486107,"signal":"engine.rpm","value":4150.9}
+{"type":"sample","seq":226,"at":487107,"signal":"vehicle.speed","value":179.0}
+{"type":"sample","seq":227,"at":488107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":228,"at":489107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":229,"at":490107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":230,"at":491107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":231,"at":492107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":232,"at":493107,"signal":"engine.rpm","value":5483.3}
+{"type":"sample","seq":233,"at":494107,"signal":"vehicle.speed","value":165.0}
+{"type":"sample","seq":234,"at":495107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":235,"at":496107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":236,"at":497107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":237,"at":498107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":238,"at":499107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":239,"at":500107,"signal":"engine.rpm","value":1157.0}
+{"type":"sample","seq":240,"at":501107,"signal":"vehicle.speed","value":162.0}
+{"type":"sample","seq":241,"at":502107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":242,"at":503107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":243,"at":504107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":244,"at":505107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":245,"at":506107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":246,"at":507107,"signal":"engine.rpm","value":1655.7}
+{"type":"sample","seq":247,"at":508107,"signal":"vehicle.speed","value":62.0}
+{"type":"sample","seq":248,"at":509107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":249,"at":510107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":250,"at":511107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":251,"at":512107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":252,"at":513107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":253,"at":514107,"signal":"engine.rpm","value":1617.0}
+{"type":"sample","seq":254,"at":515107,"signal":"vehicle.speed","value":97.0}
+{"type":"sample","seq":255,"at":516107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":256,"at":517107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":257,"at":518107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":258,"at":519107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":259,"at":520107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":260,"at":521107,"signal":"engine.rpm","value":2149.7}
+{"type":"sample","seq":261,"at":522107,"signal":"vehicle.speed","value":163.0}
+{"type":"sample","seq":262,"at":523107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":263,"at":524107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":264,"at":525107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":265,"at":526107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":266,"at":527107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":267,"at":528107,"signal":"engine.rpm","value":4240.8}
+{"type":"sample","seq":268,"at":529107,"signal":"vehicle.speed","value":56.0}
+{"type":"sample","seq":269,"at":530107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":270,"at":531107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":271,"at":532107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":272,"at":533107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":273,"at":534107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":274,"at":535107,"signal":"engine.rpm","value":4223.1}
+{"type":"sample","seq":275,"at":536107,"signal":"vehicle.speed","value":14.0}
+{"type":"sample","seq":276,"at":537107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":277,"at":538107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":278,"at":539107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":279,"at":540107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":280,"at":541107,"signal":"engine.coolant_temperature","value":79.0}
+{"type":"sample","seq":281,"at":542107,"signal":"engine.rpm","value":1945.2}
+{"type":"sample","seq":282,"at":543107,"signal":"vehicle.speed","value":8.0}
+{"type":"sample","seq":283,"at":544107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":284,"at":545107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":285,"at":546107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":286,"at":547107,"signal":"engine.coolant_temperature","value":85.0}
+{"type":"sample","seq":287,"at":548107,"signal":"engine.coolant_temperature","value":86.0}
+{"type":"sample","seq":288,"at":549107,"signal":"engine.rpm","value":4825.2}
+{"type":"sample","seq":289,"at":550107,"signal":"vehicle.speed","value":102.0}
+{"type":"sample","seq":290,"at":551107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":291,"at":552107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":292,"at":553107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":293,"at":554107,"signal":"engine.coolant_temperature","value":92.0}
+{"type":"sample","seq":294,"at":555107,"signal":"engine.coolant_temperature","value":93.0}
+{"type":"sample","seq":295,"at":556107,"signal":"engine.rpm","value":2138.7}
+{"type":"sample","seq":296,"at":557107,"signal":"vehicle.speed","value":54.0}
+{"type":"sample","seq":297,"at":558107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":298,"at":559107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":299,"at":560107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":300,"at":561107,"signal":"engine.coolant_temperature","value":99.0}
+{"type":"sample","seq":301,"at":562107,"signal":"engine.coolant_temperature","value":70.0}
+{"type":"sample","seq":302,"at":563107,"signal":"engine.rpm","value":5365.7}
+{"type":"sample","seq":303,"at":564107,"signal":"vehicle.speed","value":145.0}
+{"type":"sample","seq":304,"at":565107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":305,"at":566107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":306,"at":567107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":307,"at":568107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":308,"at":569107,"signal":"engine.coolant_temperature","value":77.0}
+{"type":"sample","seq":309,"at":570107,"signal":"engine.rpm","value":5181.8}
+{"type":"sample","seq":310,"at":571107,"signal":"vehicle.speed","value":80.0}
+{"type":"sample","seq":311,"at":572107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":312,"at":573107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":313,"at":574107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":314,"at":575107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":315,"at":576107,"signal":"engine.coolant_temperature","value":84.0}
+{"type":"sample","seq":316,"at":577107,"signal":"engine.rpm","value":1863.1}
+{"type":"sample","seq":317,"at":578107,"signal":"vehicle.speed","value":127.0}
+{"type":"sample","seq":318,"at":579107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":319,"at":580107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":320,"at":581107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":321,"at":582107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":322,"at":583107,"signal":"engine.coolant_temperature","value":91.0}
+{"type":"sample","seq":323,"at":584107,"signal":"engine.rpm","value":2778.2}
+{"type":"sample","seq":324,"at":585107,"signal":"vehicle.speed","value":164.0}
+{"type":"sample","seq":325,"at":586107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":326,"at":587107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":327,"at":588107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":328,"at":589107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":329,"at":590107,"signal":"engine.coolant_temperature","value":98.0}
+{"type":"sample","seq":330,"at":591107,"signal":"engine.rpm","value":3094.3}
+{"type":"sample","seq":331,"at":592107,"signal":"vehicle.speed","value":67.0}
+{"type":"sample","seq":332,"at":593107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":333,"at":594107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":334,"at":595107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":335,"at":596107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":336,"at":597107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":337,"at":598107,"signal":"engine.rpm","value":1498.2}
+{"type":"sample","seq":338,"at":599107,"signal":"vehicle.speed","value":143.0}
+{"type":"sample","seq":339,"at":600107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":340,"at":601107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":341,"at":602107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":342,"at":603107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":343,"at":604107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":344,"at":605107,"signal":"engine.rpm","value":3494.9}
+{"type":"sample","seq":345,"at":606107,"signal":"vehicle.speed","value":149.0}
+{"type":"sample","seq":346,"at":607107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":347,"at":608107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":348,"at":609107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":349,"at":610107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":350,"at":611107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":351,"at":612107,"signal":"engine.rpm","value":2942.2}
+{"type":"sample","seq":352,"at":613107,"signal":"vehicle.speed","value":149.0}
+{"type":"sample","seq":353,"at":614107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":354,"at":615107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":355,"at":616107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":356,"at":617107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":357,"at":618107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":358,"at":619107,"signal":"engine.rpm","value":2797.0}
+{"type":"sample","seq":359,"at":620107,"signal":"vehicle.speed","value":56.0}
+{"type":"sample","seq":360,"at":621107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":361,"at":622107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":362,"at":623107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":363,"at":624107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":364,"at":625107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":365,"at":626107,"signal":"engine.rpm","value":5786.6}
+{"type":"sample","seq":366,"at":627107,"signal":"vehicle.speed","value":35.0}
+{"type":"sample","seq":367,"at":628107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":368,"at":629107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":369,"at":630107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":370,"at":631107,"signal":"engine.coolant_temperature","value":79.0}
+{"type":"sample","seq":371,"at":632107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":372,"at":633107,"signal":"engine.rpm","value":3347.6}
+{"type":"sample","seq":373,"at":634107,"signal":"vehicle.speed","value":23.0}
+{"type":"sample","seq":374,"at":635107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":375,"at":636107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":376,"at":637107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":377,"at":638107,"signal":"engine.coolant_temperature","value":86.0}
+{"type":"sample","seq":378,"at":639107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":379,"at":640107,"signal":"engine.rpm","value":4578.9}
+{"type":"sample","seq":380,"at":641107,"signal":"vehicle.speed","value":28.0}
+{"type":"sample","seq":381,"at":642107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":382,"at":643107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":383,"at":644107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":384,"at":645107,"signal":"engine.coolant_temperature","value":93.0}
+{"type":"sample","seq":385,"at":646107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":386,"at":647107,"signal":"engine.rpm","value":1564.2}
+{"type":"sample","seq":387,"at":648107,"signal":"vehicle.speed","value":40.0}
+{"type":"sample","seq":388,"at":649107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":389,"at":650107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":390,"at":651107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":391,"at":652107,"signal":"engine.coolant_temperature","value":70.0}
+{"type":"sample","seq":392,"at":653107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":393,"at":654107,"signal":"engine.rpm","value":4760.4}
+{"type":"sample","seq":394,"at":655107,"signal":"vehicle.speed","value":108.0}
+{"type":"sample","seq":395,"at":656107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":396,"at":657107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":397,"at":658107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":398,"at":659107,"signal":"engine.coolant_temperature","value":77.0}
+{"type":"sample","seq":399,"at":660107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":400,"at":661107,"signal":"engine.rpm","value":3782.0}
+{"type":"sample","seq":401,"at":662107,"signal":"vehicle.speed","value":98.0}
+{"type":"sample","seq":402,"at":663107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":403,"at":664107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":404,"at":665107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":405,"at":666107,"signal":"engine.coolant_temperature","value":84.0}
+{"type":"sample","seq":406,"at":667107,"signal":"engine.coolant_temperature","value":85.0}
+{"type":"sample","seq":407,"at":668107,"signal":"engine.rpm","value":2708.1}
+{"type":"sample","seq":408,"at":669107,"signal":"vehicle.speed","value":119.0}
+{"type":"sample","seq":409,"at":670107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":410,"at":671107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":411,"at":672107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":412,"at":673107,"signal":"engine.coolant_temperature","value":91.0}
+{"type":"sample","seq":413,"at":674107,"signal":"engine.coolant_temperature","value":92.0}
+{"type":"sample","seq":414,"at":675107,"signal":"engine.rpm","value":3445.6}
+{"type":"sample","seq":415,"at":676107,"signal":"vehicle.speed","value":141.0}
+{"type":"sample","seq":416,"at":677107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":417,"at":678107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":418,"at":679107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":419,"at":680107,"signal":"engine.coolant_temperature","value":98.0}
+{"type":"sample","seq":420,"at":681107,"signal":"engine.coolant_temperature","value":99.0}
+{"type":"sample","seq":421,"at":682107,"signal":"engine.rpm","value":5103.9}
+{"type":"sample","seq":422,"at":683107,"signal":"vehicle.speed","value":2.0}
+{"type":"sample","seq":423,"at":684107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":424,"at":685107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":425,"at":686107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":426,"at":687107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":427,"at":688107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":428,"at":689107,"signal":"engine.rpm","value":4201.4}
+{"type":"sample","seq":429,"at":690107,"signal":"vehicle.speed","value":29.0}
+{"type":"sample","seq":430,"at":691107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":431,"at":692107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":432,"at":693107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":433,"at":694107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":434,"at":695107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":435,"at":696107,"signal":"engine.rpm","value":4208.6}
+{"type":"sample","seq":436,"at":697107,"signal":"vehicle.speed","value":137.0}
+{"type":"sample","seq":437,"at":698107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":438,"at":699107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":439,"at":700107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":440,"at":701107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":441,"at":702107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":442,"at":703107,"signal":"engine.rpm","value":4554.4}
+{"type":"sample","seq":443,"at":704107,"signal":"vehicle.speed","value":164.0}
+{"type":"sample","seq":444,"at":705107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":445,"at":706107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":446,"at":707107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":447,"at":708107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":448,"at":709107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":449,"at":710107,"signal":"engine.rpm","value":2500.9}
+{"type":"sample","seq":450,"at":711107,"signal":"vehicle.speed","value":75.0}
+{"type":"sample","seq":451,"at":712107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":452,"at":713107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":453,"at":714107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":454,"at":715107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":455,"at":716107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":456,"at":717107,"signal":"engine.rpm","value":2973.8}
+{"type":"sample","seq":457,"at":718107,"signal":"vehicle.speed","value":116.0}
+{"type":"sample","seq":458,"at":719107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":459,"at":720107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":460,"at":721107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":461,"at":722107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":462,"at":723107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":463,"at":724107,"signal":"engine.rpm","value":816.2}
+{"type":"sample","seq":464,"at":725107,"signal":"vehicle.speed","value":67.0}
+{"type":"sample","seq":465,"at":726107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":466,"at":727107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":467,"at":728107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":468,"at":729107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":469,"at":730107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":470,"at":731107,"signal":"engine.rpm","value":5659.4}
+{"type":"sample","seq":471,"at":732107,"signal":"vehicle.speed","value":45.0}
+{"type":"sample","seq":472,"at":733107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":473,"at":734107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":474,"at":735107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":475,"at":736107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":476,"at":737107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":477,"at":738107,"signal":"engine.rpm","value":3338.4}
+{"type":"sample","seq":478,"at":739107,"signal":"vehicle.speed","value":27.0}
+{"type":"sample","seq":479,"at":740107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":480,"at":741107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":481,"at":742107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":482,"at":743107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":483,"at":744107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":484,"at":745107,"signal":"engine.rpm","value":5152.6}
+{"type":"sample","seq":485,"at":746107,"signal":"vehicle.speed","value":76.0}
+{"type":"sample","seq":486,"at":747107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":487,"at":748107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":488,"at":749107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":489,"at":750107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":490,"at":751107,"signal":"engine.coolant_temperature","value":79.0}
+{"type":"sample","seq":491,"at":752107,"signal":"engine.rpm","value":5008.3}
+{"type":"sample","seq":492,"at":753107,"signal":"vehicle.speed","value":129.0}
+{"type":"sample","seq":493,"at":754107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":494,"at":755107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":495,"at":756107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":496,"at":757107,"signal":"engine.coolant_temperature","value":85.0}
+{"type":"sample","seq":497,"at":758107,"signal":"engine.coolant_temperature","value":86.0}
+{"type":"sample","seq":498,"at":759107,"signal":"engine.rpm","value":3844.9}
+{"type":"sample","seq":499,"at":760107,"signal":"vehicle.speed","value":39.0}
+{"type":"sample","seq":500,"at":761107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":501,"at":762107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":502,"at":763107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":503,"at":764107,"signal":"engine.coolant_temperature","value":92.0}
+{"type":"sample","seq":504,"at":765107,"signal":"engine.coolant_temperature","value":93.0}
+{"type":"sample","seq":505,"at":766107,"signal":"engine.rpm","value":2669.6}
+{"type":"sample","seq":506,"at":767107,"signal":"vehicle.speed","value":41.0}
+{"type":"sample","seq":507,"at":768107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":508,"at":769107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":509,"at":770107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":510,"at":771107,"signal":"engine.coolant_temperature","value":99.0}
+{"type":"sample","seq":511,"at":772107,"signal":"engine.coolant_temperature","value":70.0}
+{"type":"sample","seq":512,"at":773107,"signal":"engine.rpm","value":3496.9}
+{"type":"sample","seq":513,"at":774107,"signal":"vehicle.speed","value":135.0}
+{"type":"sample","seq":514,"at":775107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":515,"at":776107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":516,"at":777107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":517,"at":778107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":518,"at":779107,"signal":"engine.coolant_temperature","value":77.0}
+{"type":"sample","seq":519,"at":780107,"signal":"engine.rpm","value":5392.5}
+{"type":"sample","seq":520,"at":781107,"signal":"vehicle.speed","value":153.0}
+{"type":"sample","seq":521,"at":782107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":522,"at":783107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":523,"at":784107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":524,"at":785107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":525,"at":786107,"signal":"engine.coolant_temperature","value":84.0}
+{"type":"sample","seq":526,"at":787107,"signal":"engine.rpm","value":2420.8}
+{"type":"sample","seq":527,"at":788107,"signal":"vehicle.speed","value":4.0}
+{"type":"sample","seq":528,"at":789107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":529,"at":790107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":530,"at":791107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":531,"at":792107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":532,"at":793107,"signal":"engine.coolant_temperature","value":91.0}
+{"type":"sample","seq":533,"at":794107,"signal":"engine.rpm","value":1359.3}
+{"type":"sample","seq":534,"at":795107,"signal":"vehicle.speed","value":92.0}
+{"type":"sample","seq":535,"at":796107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":536,"at":797107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":537,"at":798107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":538,"at":799107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":539,"at":800107,"signal":"engine.coolant_temperature","value":98.0}
+{"type":"sample","seq":540,"at":801107,"signal":"engine.rpm","value":5193.6}
+{"type":"sample","seq":541,"at":802107,"signal":"vehicle.speed","value":78.0}
+{"type":"sample","seq":542,"at":803107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":543,"at":804107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":544,"at":805107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":545,"at":806107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":546,"at":807107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":547,"at":808107,"signal":"engine.rpm","value":1997.3}
+{"type":"sample","seq":548,"at":809107,"signal":"vehicle.speed","value":61.0}
+{"type":"sample","seq":549,"at":810107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":550,"at":811107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":551,"at":812107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":552,"at":813107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":553,"at":814107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":554,"at":815107,"signal":"engine.rpm","value":5190.0}
+{"type":"sample","seq":555,"at":816107,"signal":"vehicle.speed","value":20.0}
+{"type":"sample","seq":556,"at":817107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":557,"at":818107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":558,"at":819107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":559,"at":820107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":560,"at":821107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":561,"at":822107,"signal":"engine.rpm","value":1228.3}
+{"type":"sample","seq":562,"at":823107,"signal":"vehicle.speed","value":124.0}
+{"type":"sample","seq":563,"at":824107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":564,"at":825107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":565,"at":826107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":566,"at":827107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":567,"at":828107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":568,"at":829107,"signal":"engine.rpm","value":4880.1}
+{"type":"sample","seq":569,"at":830107,"signal":"vehicle.speed","value":136.0}
+{"type":"sample","seq":570,"at":831107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":571,"at":832107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":572,"at":833107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":573,"at":834107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":574,"at":835107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":575,"at":836107,"signal":"engine.rpm","value":4629.2}
+{"type":"sample","seq":576,"at":837107,"signal":"vehicle.speed","value":32.0}
+{"type":"sample","seq":577,"at":838107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":578,"at":839107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":579,"at":840107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":580,"at":841107,"signal":"engine.coolant_temperature","value":79.0}
+{"type":"sample","seq":581,"at":842107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":582,"at":843107,"signal":"engine.rpm","value":4098.8}
+{"type":"sample","seq":583,"at":844107,"signal":"vehicle.speed","value":140.0}
+{"type":"sample","seq":584,"at":845107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":585,"at":846107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":586,"at":847107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":587,"at":848107,"signal":"engine.coolant_temperature","value":86.0}
+{"type":"sample","seq":588,"at":849107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":589,"at":850107,"signal":"engine.rpm","value":1625.6}
+{"type":"sample","seq":590,"at":851107,"signal":"vehicle.speed","value":135.0}
+{"type":"sample","seq":591,"at":852107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":592,"at":853107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":593,"at":854107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":594,"at":855107,"signal":"engine.coolant_temperature","value":93.0}
+{"type":"sample","seq":595,"at":856107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":596,"at":857107,"signal":"engine.rpm","value":5162.2}
+{"type":"sample","seq":597,"at":858107,"signal":"vehicle.speed","value":108.0}
+{"type":"sample","seq":598,"at":859107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":599,"at":860107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":600,"at":861107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":601,"at":862107,"signal":"engine.coolant_temperature","value":70.0}
+{"type":"sample","seq":602,"at":863107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":603,"at":864107,"signal":"engine.rpm","value":5621.8}
+{"type":"sample","seq":604,"at":865107,"signal":"vehicle.speed","value":138.0}
+{"type":"sample","seq":605,"at":866107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":606,"at":867107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":607,"at":868107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":608,"at":869107,"signal":"engine.coolant_temperature","value":77.0}
+{"type":"sample","seq":609,"at":870107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":610,"at":871107,"signal":"engine.rpm","value":4576.3}
+{"type":"sample","seq":611,"at":872107,"signal":"vehicle.speed","value":176.0}
+{"type":"sample","seq":612,"at":873107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":613,"at":874107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":614,"at":875107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":615,"at":876107,"signal":"engine.coolant_temperature","value":84.0}
+{"type":"sample","seq":616,"at":877107,"signal":"engine.coolant_temperature","value":85.0}
+{"type":"sample","seq":617,"at":878107,"signal":"engine.rpm","value":1805.8}
+{"type":"sample","seq":618,"at":879107,"signal":"vehicle.speed","value":79.0}
+{"type":"sample","seq":619,"at":880107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":620,"at":881107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":621,"at":882107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":622,"at":883107,"signal":"engine.coolant_temperature","value":91.0}
+{"type":"sample","seq":623,"at":884107,"signal":"engine.coolant_temperature","value":92.0}
+{"type":"sample","seq":624,"at":885107,"signal":"engine.rpm","value":2795.0}
+{"type":"sample","seq":625,"at":886107,"signal":"vehicle.speed","value":171.0}
+{"type":"sample","seq":626,"at":887107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":627,"at":888107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":628,"at":889107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":629,"at":890107,"signal":"engine.coolant_temperature","value":98.0}
+{"type":"sample","seq":630,"at":891107,"signal":"engine.coolant_temperature","value":99.0}
+{"type":"sample","seq":631,"at":892107,"signal":"engine.rpm","value":4049.4}
+{"type":"sample","seq":632,"at":893107,"signal":"vehicle.speed","value":112.0}
+{"type":"sample","seq":633,"at":894107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":634,"at":895107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":635,"at":896107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":636,"at":897107,"signal":"engine.coolant_temperature","value":75.0}
+{"type":"sample","seq":637,"at":898107,"signal":"engine.coolant_temperature","value":76.0}
+{"type":"sample","seq":638,"at":899107,"signal":"engine.rpm","value":5298.1}
+{"type":"sample","seq":639,"at":900107,"signal":"vehicle.speed","value":115.0}
+{"type":"sample","seq":640,"at":901107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":641,"at":902107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":642,"at":903107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":643,"at":904107,"signal":"engine.coolant_temperature","value":82.0}
+{"type":"sample","seq":644,"at":905107,"signal":"engine.coolant_temperature","value":83.0}
+{"type":"sample","seq":645,"at":906107,"signal":"engine.rpm","value":1405.0}
+{"type":"sample","seq":646,"at":907107,"signal":"vehicle.speed","value":57.0}
+{"type":"sample","seq":647,"at":908107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":648,"at":909107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":649,"at":910107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":650,"at":911107,"signal":"engine.coolant_temperature","value":89.0}
+{"type":"sample","seq":651,"at":912107,"signal":"engine.coolant_temperature","value":90.0}
+{"type":"sample","seq":652,"at":913107,"signal":"engine.rpm","value":1120.1}
+{"type":"sample","seq":653,"at":914107,"signal":"vehicle.speed","value":5.0}
+{"type":"sample","seq":654,"at":915107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":655,"at":916107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":656,"at":917107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":657,"at":918107,"signal":"engine.coolant_temperature","value":96.0}
+{"type":"sample","seq":658,"at":919107,"signal":"engine.coolant_temperature","value":97.0}
+{"type":"sample","seq":659,"at":920107,"signal":"engine.rpm","value":3741.5}
+{"type":"sample","seq":660,"at":921107,"signal":"vehicle.speed","value":58.0}
+{"type":"sample","seq":661,"at":922107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":662,"at":923107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":663,"at":924107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":664,"at":925107,"signal":"engine.coolant_temperature","value":73.0}
+{"type":"sample","seq":665,"at":926107,"signal":"engine.coolant_temperature","value":74.0}
+{"type":"sample","seq":666,"at":927107,"signal":"engine.rpm","value":3742.2}
+{"type":"sample","seq":667,"at":928107,"signal":"vehicle.speed","value":1.0}
+{"type":"sample","seq":668,"at":929107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":669,"at":930107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":670,"at":931107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":671,"at":932107,"signal":"engine.coolant_temperature","value":80.0}
+{"type":"sample","seq":672,"at":933107,"signal":"engine.coolant_temperature","value":81.0}
+{"type":"sample","seq":673,"at":934107,"signal":"engine.rpm","value":1155.0}
+{"type":"sample","seq":674,"at":935107,"signal":"vehicle.speed","value":161.0}
+{"type":"sample","seq":675,"at":936107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":676,"at":937107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":677,"at":938107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":678,"at":939107,"signal":"engine.coolant_temperature","value":87.0}
+{"type":"sample","seq":679,"at":940107,"signal":"engine.coolant_temperature","value":88.0}
+{"type":"sample","seq":680,"at":941107,"signal":"engine.rpm","value":1094.4}
+{"type":"sample","seq":681,"at":942107,"signal":"vehicle.speed","value":17.0}
+{"type":"sample","seq":682,"at":943107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":683,"at":944107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":684,"at":945107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":685,"at":946107,"signal":"engine.coolant_temperature","value":94.0}
+{"type":"sample","seq":686,"at":947107,"signal":"engine.coolant_temperature","value":95.0}
+{"type":"sample","seq":687,"at":948107,"signal":"engine.rpm","value":5327.1}
+{"type":"sample","seq":688,"at":949107,"signal":"vehicle.speed","value":84.0}
+{"type":"sample","seq":689,"at":950107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":690,"at":951107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":691,"at":952107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":692,"at":953107,"signal":"engine.coolant_temperature","value":71.0}
+{"type":"sample","seq":693,"at":954107,"signal":"engine.coolant_temperature","value":72.0}
+{"type":"sample","seq":694,"at":955107,"signal":"engine.rpm","value":1154.3}
+{"type":"sample","seq":695,"at":956107,"signal":"vehicle.speed","value":60.0}
+{"type":"sample","seq":696,"at":957107,"signal":"diagnostics.mil","flag":false}
+{"type":"sample","seq":697,"at":958107,"signal":"fuel.system_1_status","code":2,"text":"Closed loop, using oxygen sensor feedback to determine fuel mix"}
+{"type":"sample","seq":698,"at":959107,"signal":"diagnostics.monitors_complete","flags":["Catalyst","Misfire"]}
+{"type":"sample","seq":699,"at":960107,"signal":"engine.coolant_temperature","value":78.0}
+{"type":"sample","seq":700,"at":961107,"signal":"engine.coolant_temperature","value":79.0}
