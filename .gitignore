@@ -1,0 +1,21 @@
+# Gradle files
+.gradle/
+build/
+.kotlin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Log/OS Files
+*.log
+.DS_Store
+
+# IntelliJ
+*.iml
+.idea/
+
+# Secrets: service-account keys and local env never go in git
+*.json.key
+service-account*.json
+.env
+
+# Claude Code local settings (machine-specific permissions)
+.claude/settings.local.json
