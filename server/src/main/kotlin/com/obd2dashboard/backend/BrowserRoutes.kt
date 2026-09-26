@@ -23,7 +23,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -39,7 +41,7 @@ data class CarSummary(val slug: String, val name: String, val state: String)
  * Public (decision 11). **Nothing here can carry a VIN**: records reach the hub
  * with it already removed (M4.1), and this adds no field that could hold one.
  */
-fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock) {
+fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock, auth: CrewAuth, crew: CrewMessages) {
     get("/api/cars") {
         val now = clock.instant()
         call.respond(registry.list().map { CarSummary(it.slug.value, it.name, hub.status(it.slug.value).freshness(now).wire) })
@@ -58,6 +60,8 @@ fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock) {
         )
         sse {
             val slug = call.parameters["slug"]!!
+            // Crew or public is decided once, at connect: only a crew stream ever carries a message (M5).
+            val isCrew = registry.get(Slug.parse(slug))?.let { call.isCrew(auth, it) } ?: false
             val keepAlive = launch {
                 // Proxies close a quiet stream; a comment every 15 s is not an event to the page.
                 while (true) {
@@ -66,7 +70,20 @@ fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock) {
                 }
             }
             try {
-                hub.subscribe(slug).collect { event -> encode(event, clock)?.let { send(it) } }
+                var first = true
+                hub.subscribe(slug).collect { event ->
+                    encode(event, clock, isCrew)?.let { send(it) }
+                    if (first && isCrew) {
+                        // The hub's snapshot knows nothing of messages: the crew's recent ones follow it at once.
+                        // Fetched after subscribing, so a change in between also arrives as an update.
+                        crew.expire(slug)
+                        send("messages" to buildJsonObject {
+                            put("serverNow", clock.millis())
+                            put("messages", Json.encodeToJsonElement(crew.messages.recent(slug).map(MessageView::of)))
+                        })
+                    }
+                    first = false
+                }
             } finally {
                 keepAlive.cancel()
             }
@@ -82,7 +99,7 @@ private suspend fun ServerSSESession.send(event: Pair<String, JsonObject>) =
  * stream must not carry: **a crew message never reaches a public stream** (M5).
  * Every event carries `serverNow` for the page's clock offset.
  */
-internal fun encode(event: BrowserEvent, clock: Clock): Pair<String, JsonObject>? {
+internal fun encode(event: BrowserEvent, clock: Clock, crew: Boolean = false): Pair<String, JsonObject>? {
     val now = clock.instant()
     return when (event) {
         is BrowserEvent.Snapshot -> "snapshot" to snapshotJson(event.snapshot, now.toEpochMilli(), clock)
@@ -98,7 +115,10 @@ internal fun encode(event: BrowserEvent, clock: Clock): Pair<String, JsonObject>
                 put("records", JsonArray(u.records))
             }
             is LiveUpdate.Status -> "status" to statusJson(u.status, now.toEpochMilli(), clock)
-            is LiveUpdate.MessageChanged -> null
+            is LiveUpdate.MessageChanged -> if (!crew) null else "message" to buildJsonObject {
+                put("serverNow", now.toEpochMilli())
+                put("message", Json.encodeToJsonElement(MessageView.of(u.message)))
+            }
         }
     }
 }

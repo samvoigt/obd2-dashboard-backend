@@ -88,8 +88,9 @@ fun Application.module(
         // answers them with its own 404 before the request reaches us.
         get("/health") { call.respond(Health(status = "ok")) }
 
-        browserRoutes(registry, hub, clock)
+        browserRoutes(registry, hub, clock, crewAuth, crew)
         crewRoutes(registry, crewAuth, loginLimiter)
+        messageRoutes(registry, crewAuth, crew)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.

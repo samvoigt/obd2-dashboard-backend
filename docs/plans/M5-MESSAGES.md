@@ -374,6 +374,26 @@ in its next sync.
 
 ### M5.5 — The crew API and crew-only events  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `MessageRoutes.kt`: `POST`/`DELETE`/`GET` messages, all crew-only, with
+>   `MessageView`.
+> - The SSE route decides crew or public at connect. A crew stream gets a
+>   `messages` event after its snapshot and `message` events after that; a
+>   public one, neither.
+>
+> **4 tests**:
+> - `401`s, and another car's login not counting;
+> - a send with its lifetime and default, five bad ones, and a form-encoded
+>   one;
+> - clear and the recent list;
+> - **the whole path on real Netty**: a crew `POST` → the tablet's socket →
+>   `received`/`displayed` → the crew stream, **while a public stream's raw
+>   bytes never held the text, the id, or a `message` event**.
+>
+> **6 mutations killed**, "everyone is crew" among them. **Found:** Ktor writes
+> SSE fields as `event: name`, with a space. My test first looked for
+> `event:name`.
+
 > **Validated against what M5.1–M5.4 built, 2026-09-26, before building.** One
 > gap, resolved here:
 >
@@ -406,6 +426,21 @@ in its next sync.
 - Mutations killed.
 
 ### M5.6 — The replay answers messages  `sonnet`
+
+> **Validated against what M5.1–M5.5 built, 2026-09-26, before building.** One
+> hazard in the JDK's client, designed out here:
+>
+> - **The JDK's `WebSocket` allows one send in flight.** The main loop sends
+>   batches, and replying `received`/`displayed` from the listener's callback
+>   would collide with them. So every send goes through a `Mutex` in `Socket`,
+>   and the listener's replies are launched into the replay's own coroutine
+>   scope.
+> - **It behaves as the app's `CrewMessages` does**, read from its code: one
+>   message at a time; `received` once per id on arrival; `displayed` once per id
+>   unless `--no-widget`; the earlier deadline kept on a duplicate; taken down by
+>   `clear`, by a sync that leaves it out, or by `ttlMs`.
+> - **Its log lines** (`message …`, `clear …`, `taken down: …`) are what the
+>   tests read. Crew sends in the tests go through the real API, with a login.
 
 `:replay`, `--live`:
 - `received` at once, `displayed` unless `--no-widget`;
