@@ -7,7 +7,8 @@ gcloud services enable --project "$PROJECT" \
   run.googleapis.com \
   cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
-  secretmanager.googleapis.com
+  secretmanager.googleapis.com \
+  firestore.googleapis.com
 
 if ! gcloud artifacts repositories describe "$REPO" --project "$PROJECT" --location "$REGION" >/dev/null 2>&1; then
   # REST rather than `gcloud artifacts repositories create`: gcloud 418 sends
@@ -26,6 +27,26 @@ if ! gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT" >/d
   gcloud iam service-accounts create "${RUNTIME_SA%%@*}" --project "$PROJECT" \
     --display-name "obd2-backend Cloud Run runtime"
 fi
+
+# Cars live in Firestore (decision 9). The location is permanent once created,
+# so it is the service's own region, never a default.
+if ! gcloud firestore databases describe --database="(default)" --project "$PROJECT" >/dev/null 2>&1; then
+  gcloud firestore databases create --database="(default)" --project "$PROJECT" \
+    --location "$REGION" --type firestore-native
+fi
+
+# Retried: enabling an API makes Google add its own service agents to the project
+# policy, and a binding made at that moment fails with "concurrent policy
+# changes" (JOURNAL 2026-09-26).
+for attempt in 1 2 3 4 5; do
+  if gcloud projects add-iam-policy-binding "$PROJECT" \
+      --member "serviceAccount:$RUNTIME_SA" \
+      --role roles/datastore.user --condition None >/dev/null 2>&1; then
+    break
+  fi
+  [[ $attempt == 5 ]] && { echo "could not grant roles/datastore.user" >&2; exit 1; }
+  sleep $((attempt * 3))
+done
 
 # The key is generated here and never printed. Read it with scripts/tablet-key.sh.
 if ! gcloud secrets describe "$SECRET" --project "$PROJECT" >/dev/null 2>&1; then

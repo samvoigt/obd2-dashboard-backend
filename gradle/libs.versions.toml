@@ -10,6 +10,7 @@ ktor = "3.6.0"
 logback = "1.6.4"
 junit = "4.13.2"
 kotest = "6.2.4"
+firestore = "3.48.0"
 
 [libraries]
 ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
@@ -23,6 +24,7 @@ ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-conte
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+google-cloud-firestore = { group = "com.google.cloud", name = "google-cloud-firestore", version.ref = "firestore" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }

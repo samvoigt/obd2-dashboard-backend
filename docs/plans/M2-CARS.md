@@ -195,6 +195,21 @@ A new pure-Kotlin module, `:registry`, shared by the server and the tool:
 
 ### M2.2 — Firestore  `sonnet`
 
+> ✅ **Done 2026-09-26.** `:registry-firestore`:
+> - `FirestoreCarStore`, with `connect(projectId)` that refuses a blank project,
+>   and a small `ApiFuture.await()`.
+> - **One change from the validation:** `delete` is a **transaction**, reading
+>   and deleting only if the document exists. The Java client keeps
+>   `Precondition.exists` package-private, so it cannot be called.
+> - `gcp-setup.sh` enables Firestore and creates `(default)` in `us-east4`
+>   (confirmed: `us-east4`, `FIRESTORE_NATIVE`). It also grants
+>   `roles/datastore.user` to `obd2-backend-run`, **retried**, because the first
+>   run hit "concurrent policy changes" while Google added the Firestore service
+>   agent. It then ran twice cleanly.
+> - Four unit tests of the field mapping.
+> - `scripts/firestore-smoke.sh` passed all 15 checks against the real database.
+>   It leaves the `cars` collection empty, which was confirmed through REST.
+
 > **Validated against what M2.1 built, 2026-09-26, before building.** One
 > conflict, resolved here:
 >
@@ -254,6 +269,29 @@ installed. The in-memory store covers the logic, and the smoke test covers the
 mapping.
 
 ### M2.3 — The admin tool  `sonnet`
+
+> **Validated against what M2.1–M2.2 built, 2026-09-26, before building.** No
+> conflict. Now fixed by what exists:
+>
+> - **`:tools` depends on `:registry-firestore`**, which brings `:registry`.
+>   Commands are handed a `CarRegistry`, so tests use `InMemoryCarStore` and only
+>   `main` calls `FirestoreCarStore.connect`.
+> - **The project is a required `--project` option** on the root command, filled
+>   in by `admin.sh` from `env.sh`. `connect` already refuses a blank one.
+> - **Passcode entry goes through a small interface.** `System.console()` is
+>   null under tests and under Gradle, so the real reader refuses to run without
+>   a terminal rather than echoing the passcode. Tests supply their own. The
+>   passcode stays a `CharArray` and is cleared after use, as `Passcodes` expects.
+> - **Confirmations** (for `rotate-token` and `remove-car`) read from an input
+>   the tests can supply.
+> - **`RegistryException` messages are shown as they are** (M2.1 wrote them for
+>   a person), on stderr, with exit code 1.
+> - **`slf4j-nop` in `:tools`:** the Firestore client prints three SLF4J
+>   warnings when it finds no logger (seen in the smoke test). They are noise
+>   in a tool whose output a person reads. The server has logback, so it is
+>   unaffected.
+> - **Clikt 5.1.0**, with `SuspendingCliktCommand`, because the registry is
+>   `suspend`.
 
 A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
 `installDist` if it is out of date, then runs it with the project from

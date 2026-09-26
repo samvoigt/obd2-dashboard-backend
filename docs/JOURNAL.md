@@ -25,3 +25,13 @@ not catch, and lessons about process. Short on purpose.
   `python@3.13` and setting `CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.13` in
   `~/.zshrc`. If gcloud breaks the same way after a Homebrew cleanup, check
   that path first.
+
+## 2026-09-26 — M2.2, Firestore
+
+- **Google's policy race, again.** A project IAM binding made right after
+  creating the Firestore database failed with "concurrent policy changes":
+  Google was adding its own Firestore service agent at that moment. This is the
+  same race as the first deploy. `gcp-setup.sh` now retries the binding.
+  **Expect it after enabling any API.**
+- **`Precondition.exists` is package-private** in the Firestore Java client, so
+  "delete only if it exists" is a transaction instead.
