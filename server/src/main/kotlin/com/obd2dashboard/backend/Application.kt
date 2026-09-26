@@ -22,6 +22,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.ktor.server.sse.SSE
 import kotlinx.serialization.Serializable
 
 /**
@@ -68,16 +69,14 @@ fun Application.module(
     install(ContentNegotiation) { json() }
     install(Authentication) { carTokens(registry) }
     installLive(hub)
+    install(SSE)
 
     routing {
         // Not /healthz: Cloud Run's front end reserves paths ending in "z" and
         // answers them with its own 404 before the request reaches us.
         get("/health") { call.respond(Health(status = "ok")) }
 
-        // The landing page's list: public, so named fields only (PublicCar), never a Car.
-        get("/api/cars") {
-            call.respond(registry.list().map { PublicCar(it.slug.value, it.name) })
-        }
+        browserRoutes(registry, hub, clock)
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
         liveRoutes(registry, archive, hub, live, clock)

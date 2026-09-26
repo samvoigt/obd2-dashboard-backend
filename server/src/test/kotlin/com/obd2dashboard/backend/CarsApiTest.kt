@@ -45,7 +45,9 @@ class CarsApiTest {
 
         cars.size shouldBe 1
         // Fails the moment any field is added: making one public must be a decision.
-        cars.single().jsonObject.keys shouldBe setOf("slug", "name")
+        // `state` was that decision, in M4 (the landing page shows who is live).
+        cars.single().jsonObject.keys shouldBe setOf("slug", "name", "state")
+        cars.single().jsonObject.getValue("state").jsonPrimitive.content shouldBe "offline"
         body shouldNotContain issued.token
         body shouldNotContain car.tokenHash
         body shouldNotContain car.tokenHint

@@ -383,6 +383,29 @@ Mutations killed.
 
 ### M4.4 — The browser's stream  `opus`
 
+> ✅ **Done 2026-09-26.** `BrowserRoutes.kt`:
+> - `GET /api/cars` → `CarSummary(slug, name, state)`;
+> - `GET /api/cars/{slug}/live`: SSE behind a route-scoped `KnownCar` plugin
+>   (`404` before the stream), events `snapshot`, `session`, `records`,
+>   `status`, each with `serverNow`, and a comment every 15 s.
+>
+> **Found:** Ktor's test engine buffers a response until it ends, and an SSE
+> stream never does, so the first tests hung. A probe on real Netty showed the
+> server right (the snapshot goes out at once, the keep-alive after 15 s). The
+> browser tests now run **on real Netty**, with the JDK's HTTP client reading
+> raw SSE lines and its WebSocket playing the tablet.
+>
+> **5 browser tests:**
+> - `404`s;
+> - the event order through a real tablet socket, ending `offline`;
+> - a mid-session snapshot with its history;
+> - **raw bytes from two browsers searched: no VIN**, although both the
+>   session record and a batch record carried one;
+> - landing-page states.
+>
+> The field-pin test is now `{slug, name, state}`. **6 mutations killed**,
+> among them **the VIN strip in `:live`, caught end to end** here.
+
 > **Validated against what M4.1–M4.3 built, 2026-09-26, before building.** One
 > design gap, resolved here:
 >
@@ -421,6 +444,26 @@ Mutations killed.
 - Mutations killed (above all: the VIN strip).
 
 ### M4.5 — The replay learns the live lane  `opus`
+
+> **Validated against what M4.1–M4.4 built, 2026-09-26, before building.** No
+> conflict. Now fixed by what exists:
+>
+> - **The JDK's WebSocket client works against this server's route**, with the
+>   subprotocol and without deflate (M4.4's tests use it).
+> - **`--live` runs both lanes**, as the app does; `--no-archive` leaves the
+>   archive out. Both are paced by log time at the same `--speed`.
+> - **A snapshot is built from the log up to the current point**: the latest
+>   `signals` after line 0, the latest `fault`, every `stopped`, and the latest
+>   sample per signal. After a reconnect it carries on from where it is, never
+>   going back (§5.3).
+> - **Coalescing is by 200 ms of `at`** (a line without `at` takes the one
+>   before it): the latest sample per signal, and every other record in full.
+> - **Units come from the appendix's table rows**
+>   (``| `name` | Quantity | unit | value |``), `—` meaning none. They are
+>   applied when an old log is upgraded; a v3 log's own units are never
+>   touched.
+> - **Tests read the hub directly** for the final state, and the replay's own
+>   log lines for its reconnect choices.
 
 `:replay`:
 - **`--live`**: the JDK WebSocket client, the subprotocol, the token header.
