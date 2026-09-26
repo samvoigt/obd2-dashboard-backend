@@ -104,13 +104,14 @@ passcode login yet (M5); M2 only *stores* the passcode.
 ## Prerequisites (Sam)
 
 1. ~~Fix `gcloud`~~ ✅ 2026-09-26: Python 3.13, with `CLOUDSDK_PYTHON` set.
-2. **Admin credentials, once:**
-   ```
-   ! gcloud auth application-default login
-   ! gcloud auth application-default set-quota-project obd2-dashboard-backend
-   ```
-3. **The first car's slug and name**, and its passcode, which Sam types into the
-   tool (M2.6).
+2. ~~Admin credentials~~ ✅ 2026-09-26: ADC login, quota project
+   `obd2-dashboard-backend`.
+3. ~~Firestore API~~ ✅ enabled 2026-09-26; `us-east4` confirmed available. No
+   database yet. **Creating one fixes its location permanently** (M2.2).
+
+Registering Sam's real cars is **not** part of M2. It is
+`scripts/admin.sh add-car` whenever he wants, and a token is only useful once
+the tablet has its Cars page (contract §10.5).
 
 ---
 
@@ -225,22 +226,22 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
   contains **only** `slug` and `name`. That test fails if a future field leaks.
 - The response is empty (`[]`) when there are no cars, not a `404`.
 
-### M2.6 — Retire the shared key, deploy, and register the first car  `sonnet`
+### M2.6 — Retire the shared key, and deploy  `sonnet`
 
 1. Remove `TABLET_API_KEY`, `TabletAuth.kt`, `/tablet/ping`, and
    `scripts/tablet-key.sh`. Remove the secret lines from `gcp-setup.sh` and
    `--set-secrets` from `deploy.sh`. Pass the project ID to the service as an
    environment variable instead.
 2. Deploy.
-3. **With Sam:** `scripts/admin.sh add-car <slug> --name "…"`, then
-   `set-passcode`. The token goes into the tablet's Cars page when the tablet
-   has one (contract §10.5). Until then, Sam keeps it.
-4. Verify against the live service:
+3. Register a throwaway car, `smoke-<random>`, with the admin tool.
+4. Verify against the live service, using that car:
    - `/v1/whoami` with the token → `200`, the car;
    - with a wrong token → `401`, the §14.2 body;
    - `/api/cars` lists the car, and contains no other fields;
    - `/tablet/ping` → `404`.
-   The token is read into a shell variable, never printed.
+   The token is read into a shell variable, never printed. Then remove the
+   throwaway car, check that `/api/cars` no longer lists it, and check that its
+   token now gets `401`.
 5. **Ask Sam, then** delete the `tablet-api-key` secret, and remove the runtime
    account's access to it.
 6. Close M2:
