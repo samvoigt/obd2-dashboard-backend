@@ -36,6 +36,7 @@ fun main(args: Array<String>) {
             val third = messages.send(car, "PUSH", "push", Duration.ofMinutes(1)).message.also { ids += it.id }
             check("recent query (car + sentAt desc)", messages.recent(car, 20).map { it.id } == listOf(third.id, second.message.id, first.id))
             check("sync frame carries the active one", messages.syncFrame(car).contains(third.id))
+            check("deleteCar removes all three (remove-car)", store.deleteCar(car) == 3 && messages.recent(car, 20).isEmpty())
         } catch (e: Exception) {
             println("  FAIL  ${e.javaClass.simpleName}: ${e.message}")
             failures++

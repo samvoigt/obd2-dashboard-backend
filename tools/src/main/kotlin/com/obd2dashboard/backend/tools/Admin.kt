@@ -13,8 +13,10 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
+import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
+import com.obd2dashboard.backend.live.MessageStore
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.IssuedToken
 import com.obd2dashboard.backend.registry.RegistryException
@@ -39,6 +41,7 @@ fun main(args: Array<String>) {
                 registry = CarRegistry(FirestoreCarStore.connect(project)),
                 sessions = index,
                 archive = ArchiveService(index, GcsSegmentStore.connect(project, bucket)),
+                messages = FirestoreMessageStore.connect(project),
             )
         },
         io = ConsoleIo,
@@ -70,7 +73,7 @@ class Admin(
 }
 
 /** What subcommands share, set by [Admin.run]. */
-class Tools(val registry: CarRegistry, val sessions: SessionIndex, val archive: ArchiveService)
+class Tools(val registry: CarRegistry, val sessions: SessionIndex, val archive: ArchiveService, val messages: MessageStore)
 
 /**
  * A subcommand that talks to the registry. A refusal from the registry is
@@ -212,7 +215,9 @@ class RemoveCar(private val io: AdminIo) :
         val typed = io.readLine("Type the slug again to remove $car: ")
         if (typed?.trim() != car.value) throw CliktError("Not removed.")
         registry.removeCar(car)
-        echo("Removed $car.")
+        // Its messages were a record for its sessions, which are gone (M5.8).
+        val messages = tools.messages.deleteCar(car.value)
+        echo("Removed $car, and its $messages message(s).")
     }
 }
 

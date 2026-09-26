@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import Chart from './Chart.svelte'
+  import MessagePanel from './MessagePanel.svelte'
+  import { applyList, applyOne, type CrewMessage } from './lib/messages'
   import {
     applyRecords, applySession, applySnapshot, applyStatus, defaultChart, empty, format, freshness,
     label, numericSignals, series, unitOf, type LiveState,
@@ -14,6 +16,9 @@
   let chosen: string[] = $state([])
   let notFound = $state(false)
   let connected = $state(false)
+  let crew = $state(false)
+  let messages: CrewMessage[] = $state([])
+  let reconnect: () => void = () => {}
 
   const fresh = $derived(freshness(live, now))
   const bannerText = $derived(
@@ -44,27 +49,47 @@
     chosen = [...new Set(next)]
   }
 
+  async function checkCrew() {
+    const r = await fetch(`/api/cars/${slug}/crew`).catch(() => null)
+    crew = r?.ok ? ((await r.json()) as { crew: boolean }).crew : false
+    if (!crew) messages = []
+  }
+
   onMount(() => {
+    let source: EventSource | null = null
     // EventSource reconnects by itself; each snapshot is the whole truth (M4.4).
-    const source = new EventSource(`/api/cars/${slug}/live`)
-    const on = (name: string, apply: (s: LiveState, e: Record<string, unknown>, t: number) => LiveState) =>
-      source.addEventListener(name, (ev) => {
-        connected = true
-        live = apply(live, JSON.parse((ev as MessageEvent).data), Date.now())
+    // Crew or public is decided when it connects (M5.5), so a login or logout opens a new one.
+    const open = () => {
+      source?.close()
+      const s = new EventSource(`/api/cars/${slug}/live`)
+      source = s
+      const on = (name: string, apply: (st: LiveState, e: Record<string, unknown>, t: number) => LiveState) =>
+        s.addEventListener(name, (ev) => {
+          connected = true
+          live = apply(live, JSON.parse((ev as MessageEvent).data), Date.now())
+        })
+      on('snapshot', (_st, e, t) => applySnapshot(e, t))
+      on('session', applySession)
+      on('records', applyRecords)
+      on('status', applyStatus)
+      s.addEventListener('messages', (ev) => {
+        messages = applyList((JSON.parse((ev as MessageEvent).data) as { messages: CrewMessage[] }).messages)
       })
-    on('snapshot', (_s, e, t) => applySnapshot(e, t))
-    on('session', applySession)
-    on('records', applyRecords)
-    on('status', applyStatus)
-    source.onerror = async () => {
-      connected = false
-      if (source.readyState === EventSource.CLOSED) {
-        const r = await fetch(`/api/cars/${slug}/live`, { method: 'HEAD' }).catch(() => null)
-        notFound = r?.status === 404
+      s.addEventListener('message', (ev) => {
+        messages = applyOne(messages, (JSON.parse((ev as MessageEvent).data) as { message: CrewMessage }).message)
+      })
+      s.onerror = async () => {
+        connected = false
+        if (s.readyState === EventSource.CLOSED) {
+          const r = await fetch(`/api/cars/${slug}/live`, { method: 'HEAD' }).catch(() => null)
+          notFound = r?.status === 404
+        }
       }
     }
+    reconnect = async () => { await checkCrew(); open() }
+    reconnect()
     const tick = setInterval(() => (now = Date.now()), 250)
-    return () => { clearInterval(tick); source.close() }
+    return () => { clearInterval(tick); source?.close() }
   })
 </script>
 
@@ -88,6 +113,8 @@
         {#if live.session.device} · device {String(live.session.device).slice(0, 8)}{/if}
       </p>
     {/if}
+
+    <MessagePanel {slug} {crew} list={messages} offsetMs={live.offsetMs} {now} onCrewChange={() => reconnect()} />
 
     {#if live.fault && Array.isArray(live.fault.codes) && live.fault.codes.length > 0}
       <p class="fault">Trouble codes: {(live.fault.codes as string[]).join(', ')}</p>

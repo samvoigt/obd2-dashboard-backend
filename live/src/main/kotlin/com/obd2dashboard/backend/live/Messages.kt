@@ -65,6 +65,9 @@ public interface MessageStore {
 
     /** The most recent [limit] messages for [car], newest first. */
     public suspend fun recent(car: String, limit: Int): List<Message>
+
+    /** Deletes every message for [car], when the car itself is removed. Returns how many. */
+    public suspend fun deleteCar(car: String): Int
 }
 
 public class InMemoryMessageStore : MessageStore {
@@ -87,6 +90,12 @@ public class InMemoryMessageStore : MessageStore {
 
     override suspend fun recent(car: String, limit: Int): List<Message> =
         messages.values.filter { it.car == car }.sortedByDescending { it.sentAt }.take(limit)
+
+    override suspend fun deleteCar(car: String): Int {
+        val ids = messages.values.filter { it.car == car }.map { it.id }
+        ids.forEach { messages.remove(it) }
+        return ids.size
+    }
 }
 
 /**

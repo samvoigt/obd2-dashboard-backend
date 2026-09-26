@@ -54,11 +54,23 @@ public class FirestoreMessageStore(private val db: Firestore) : MessageStore {
         messages.whereEqualTo(CAR, car).orderBy(SENT_AT, Query.Direction.DESCENDING).limit(limit)
             .get().await().documents.mapNotNull { it.toMessage() }
 
+    /** In batches of [DELETE_BATCH], within Firestore's 500 writes per batch. */
+    override suspend fun deleteCar(car: String): Int {
+        var deleted = 0
+        while (true) {
+            val page = messages.whereEqualTo(CAR, car).limit(DELETE_BATCH).get().await().documents
+            if (page.isEmpty()) return deleted
+            db.batch().apply { page.forEach { delete(it.reference) } }.commit().await()
+            deleted += page.size
+        }
+    }
+
     public companion object {
         public const val COLLECTION: String = "messages"
         private const val CAR = "car"
         private const val STATE = "state"
         private const val SENT_AT = "sentAt"
+        private const val DELETE_BATCH = 400
 
         public fun connect(projectId: String): FirestoreMessageStore {
             require(projectId.isNotBlank()) { "a Google Cloud project ID is required" }

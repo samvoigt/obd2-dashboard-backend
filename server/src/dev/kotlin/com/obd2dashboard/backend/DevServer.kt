@@ -12,6 +12,7 @@ import com.obd2dashboard.backend.registry.Slug
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import java.io.File
+import kotlin.random.asKotlinRandom
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -23,14 +24,19 @@ import kotlinx.coroutines.runBlocking
 fun main() {
     val registry = CarRegistry(InMemoryCarStore())
     val token = runBlocking { registry.addCar(Slug.parse("dev-car"), "Dev car") }.token
-    File(System.getProperty("devTokenFile", "build/dev-token")).apply {
+    // A generated crew passcode too (M5.7), for logging in to the page locally. Never printed.
+    val passcode = (1..12).map { "abcdefghjkmnpqrstuvwxyz23456789".random(java.security.SecureRandom().asKotlinRandom()) }.joinToString("")
+    runBlocking { registry.setPasscode(Slug.parse("dev-car"), passcode.toCharArray()) }
+    fun private(name: String, text: String) = File(System.getProperty("devTokenFile", "build/dev-token")).resolveSibling(name).apply {
         parentFile.mkdirs()
-        writeText(token)
+        writeText(text)
         setReadable(false, false)
         setReadable(true, true)
     }
+    private("dev-token", token)
+    private("dev-passcode", passcode)
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    println("Dev server on http://localhost:$port (car dev-car; token in build/dev-token)")
+    println("Dev server on http://localhost:$port (car dev-car; token and crew passcode in build/dev-token, build/dev-passcode)")
     embeddedServer(Netty, port = port, host = "127.0.0.1") {
         module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) })
     }.start(wait = true)

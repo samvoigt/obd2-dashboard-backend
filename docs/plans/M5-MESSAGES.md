@@ -514,7 +514,49 @@ file with Vitest.
   - `--no-widget` stopping at received;
   - phone width.
 
+> **✅ Done, 2026-09-26.** `web/src/MessagePanel.svelte` below the banner, and
+> `web/src/lib/messages.ts` (7 Vitest tests here, 23 in all; type check clean).
+> The page asks `/crew` and reopens its stream after a login or logout.
+> Looked at in Chrome at `localhost:5173` against the dev server, with a real
+> drive (`outback-2026-09-24-evening-drive`) replayed live at real speed:
+> - logged out: only the passcode form; a wrong passcode says so and empties
+>   the field;
+> - login (kept across a reload); PIT NOW → "On the driver's screen" in 3 s;
+> - Clear, and the replay's `taken down: … (clear)`;
+> - free text with an emoji counted as one (21/40), 1-minute lifetime: the
+>   replay took it down at the minute (`its time ran out`), the page said Expired;
+> - BOX THIS LAP then FUEL: the first shows Replaced;
+> - logout: the form again, `/crew` false, a send is 401;
+> - `--no-widget`: "On the tablet, not on screen". FUEL, still active, was
+>   in the new replay's sync;
+> - 500 px wide (Chrome's narrowest): no sideways scroll;
+> - a cookie-less stream of the same page over 8 s: 55 events, no text, id or
+>   `message` event.
+>
+> Found by looking: the panel lacked the page's box (`.panel` is scoped to
+> `CarPage`), so it now has its own, when logged in. Mutations: 16 in
+> `messages.ts`, all killed after two tests were added (age at 60 s; age with a
+> clock offset). The password field opens the browser's password manager over
+> the page, so in Chrome the passcode was filled by script, not typed.
+
 ### M5.8 — Deploy, and prove it live  `sonnet`
+
+> **Validated against what M5.1–M5.7 built, 2026-09-26, before building.**
+> - **Step 2 is through the API, not the deployed page** (as M5.7 settled):
+>   `curl` logs in with the passcode from a `chmod 600` file, keeps the cookie in
+>   a `chmod 600` jar in the scratchpad, sends and clears, and follows the crew
+>   stream for the states. The deployed page is looked at in Chrome **logged
+>   out**, for step 4, with screenshots.
+> - **Cleanup had no tool for messages**, and `remove-car` would have left
+>   them, to turn up in the recent list of a later car with the same slug. Now
+>   `MessageStore.deleteCar`, called by `remove-car` after the car goes
+>   (tested; the live smoke checks it on Firestore; 3 mutations killed).
+>   Sessions still must be deleted first, one by one, as before.
+> - **Step 3 relies on the replay reconnecting after `1012`** (M3) and the
+>   message coming back in its `hello` sync: the log should show no
+>   `taken down` for it, and the crew stream should still say displayed.
+> - `gcp-setup.sh` is idempotent. It was run for M5.1–M5.4 (the composite
+>   index is READY), and runs again here for the secret.
 
 1. `gcp-setup.sh` (the secret), then deploy. Check `CREW_COOKIE_KEY` is
    mounted from the secret and never printed.

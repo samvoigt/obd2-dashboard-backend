@@ -5,6 +5,9 @@ import com.github.ajalt.clikt.testing.test
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
+import com.obd2dashboard.backend.live.InMemoryMessageStore
+import com.obd2dashboard.backend.live.Message
+import com.obd2dashboard.backend.live.MessageState
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
 import com.obd2dashboard.backend.registry.Passcodes
@@ -18,6 +21,7 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import java.security.SecureRandom
+import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
@@ -27,7 +31,12 @@ class AdminTest {
     private val sessions = InMemorySessionIndex()
     private val segments = InMemorySegmentStore()
     private val archive = ArchiveService(sessions, segments)
-    private val tools = Tools(registry, sessions, archive)
+    private val messages = InMemoryMessageStore()
+    private val tools = Tools(registry, sessions, archive, messages)
+
+    private fun message(id: String, car: String) = runBlocking {
+        messages.create(Message(id, car, "PIT NOW", "pit", Instant.EPOCH, Instant.EPOCH.plusSeconds(60), MessageState.Cleared))
+    }
     private val yaris = Slug.parse("yaris")
 
     /** Answers prompts from queues; records every prompt shown. */
@@ -168,17 +177,27 @@ class AdminTest {
     @Test
     fun `remove-car with the wrong slug typed changes nothing`() {
         val token = tokenIn(run("add-car yaris --name Yaris").stdout)
+        message("m_1", "yaris")
         val result = run("remove-car yaris", FakeIo(lines = listOf("yaris2")))
         result.statusCode shouldBe 1
         result.stderr shouldContain "Not removed."
         runBlocking { registry.authenticate(token)?.slug } shouldBe yaris
+        runBlocking { messages.get("m_1") }.shouldNotBeNull()
     }
 
     @Test
-    fun `remove-car with the slug typed removes it and revokes the token`() {
+    fun `remove-car with the slug typed removes it, revokes the token, and deletes its messages only`() {
         val token = tokenIn(run("add-car yaris --name Yaris").stdout)
-        run("remove-car yaris", FakeIo(lines = listOf("yaris"))).statusCode shouldBe 0
+        message("m_1", "yaris")
+        message("m_2", "yaris")
+        message("m_3", "outback")
+        run("remove-car yaris", FakeIo(lines = listOf("yaris"))).let {
+            it.statusCode shouldBe 0
+            it.stdout shouldContain "Removed yaris, and its 2 message(s)."
+        }
         runBlocking { registry.authenticate(token) }.shouldBeNull()
+        runBlocking { messages.recent("yaris", 10) } shouldHaveSize 0
+        runBlocking { messages.get("m_3") }.shouldNotBeNull()
     }
 
     @Test
