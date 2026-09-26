@@ -1,8 +1,10 @@
 # OBD2 Dashboard Backend — working notes for Claude
 
 The server side of the in-car race dashboard at `../obd2-dashboard` (an Android
-app on a tablet). The server **captures and logs** what the tablet sends, and
-**serves a website** with the car's data live. Kotlin + Ktor, deployed to
+app on a tablet). Each registered car's tablet **streams live** to the server.
+The server **captures the stream as a session** and **serves a website** per car
+with live dashboards. The crew can **send the car messages** ("Pit Now").
+There can be several cars at once. Kotlin + Ktor, deployed to
 Google Cloud Run.
 
 ## Read these first
@@ -11,6 +13,8 @@ Google Cloud Run.
   before starting work.**
 - `docs/DECISIONS.md` — what was decided and *why*. Add to it; don't silently
   reverse one.
+- `docs/PROTOCOL.md` — the tablet connection. Still a draft until M3; after
+  that, `protocol-fixtures/` is the contract both repos test against.
 - `docs/JOURNAL.md` — measurements from real deployments and process lessons.
 - The app's `CLAUDE.md` and `docs/` in `../obd2-dashboard`. The server's
   conventions follow the app's. When the two repos share a format, the app's
@@ -21,7 +25,8 @@ Google Cloud Run.
 The app keeps a rule (its decision 33) that facts about a specific vehicle belong
 in `test-data/` beside the capture that proves them, and never in code, types or
 copy. The same rule applies here. Readings arrive as the app describes them, and
-the server stores and forwards them without knowing which car sent them.
+the server stores and forwards them without knowing which vehicle sent them.
+It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14.
 
 ## Build
 
