@@ -1,11 +1,15 @@
 # Protocol
 
 **The contract is the app's `docs/TELEMETRY-CONTRACT.md`, v1, final, at app
-commit `2210082`** (decision 15):
+commit `4644ab7`** (decision 15):
 
-- On GitHub: https://github.com/samvoigt/obd2-dashboard/blob/2210082/docs/TELEMETRY-CONTRACT.md
+- On GitHub: https://github.com/samvoigt/obd2-dashboard/blob/4644ab7/docs/TELEMETRY-CONTRACT.md
 - Locally: `../obd2-dashboard/docs/TELEMETRY-CONTRACT.md`. Check it is still at
   that version with `git -C ../obd2-dashboard log -1 --format=%h -- docs/TELEMETRY-CONTRACT.md`.
+
+**Re-pinned 2026-09-26** from `2210082` to `4644ab7` (Sam). The difference is
+§10 only: the server address is built into the app, and only sessions streamed
+live are archived. Nothing on the wire changed.
 
 Read the contract's body. Its §§12–14 are the record of how it was agreed, and
 everything in them is already folded into the body.

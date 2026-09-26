@@ -14,7 +14,7 @@ Google Cloud Run.
 - `docs/DECISIONS.md` — what was decided and *why*. Add to it; don't silently
   reverse one.
 - **The telemetry contract**, the app's `docs/TELEMETRY-CONTRACT.md`, v1, final,
-  pinned at app commit `2210082`. It is the protocol (decision 15), and
+  pinned at app commit `4644ab7`. It is the protocol (decision 15), and
   `docs/PROTOCOL.md` says where to find it and what this side committed to.
   **Never edit it from here**: a change is a v2, agreed through Sam.
 - `docs/plans/` — the plan for the current milestone. Each step is **validated

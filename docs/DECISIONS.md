@@ -303,8 +303,10 @@ new signals need no server change.
 ## 15. The telemetry contract v1 is the protocol
 
 **Decision.** The protocol between tablet and server is the app's
-[`docs/TELEMETRY-CONTRACT.md`](https://github.com/samvoigt/obd2-dashboard/blob/2210082/docs/TELEMETRY-CONTRACT.md),
-**v1, final, at app commit `2210082`**. It was written by the tablet side,
+[`docs/TELEMETRY-CONTRACT.md`](https://github.com/samvoigt/obd2-dashboard/blob/4644ab7/docs/TELEMETRY-CONTRACT.md),
+**v1, final, at app commit `4644ab7`** (re-pinned from `2210082` on 2026-09-26,
+Sam: the change was to §10 only, the server address built into the app and
+only streamed sessions archived, with nothing on the wire). It was written by the tablet side,
 reviewed by this side, and agreed by both (its §§12–14). In summary:
 
 - **Live lane:** one WebSocket at `/v1/live`, subprotocol `obd2-telemetry.v1`.

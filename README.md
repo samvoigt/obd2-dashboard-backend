@@ -11,7 +11,7 @@ M3 done: the archive lane. A tablet uploads each session in chunks
 acknowledged only once durable, and a completed session is one `.jsonl.gz`
 whose SHA-256 matches the tablet's. Cars (M2) each have their own token. The
 live lane and website come next, in M4. See [`docs/PLAN.md`](docs/PLAN.md). The
-protocol is the app's [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/2210082/docs/TELEMETRY-CONTRACT.md).
+protocol is the app's [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/4644ab7/docs/TELEMETRY-CONTRACT.md).
 
 ## Building
 

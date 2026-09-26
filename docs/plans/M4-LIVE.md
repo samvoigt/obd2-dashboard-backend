@@ -1,7 +1,7 @@
 # M4 — The live lane and the first website
 
 **Status: drafted 2026-09-26, written against the code as it stands after M3,
-the telemetry contract v1 (§5.1–5.3 and §7), and the app's own live plan (its
+the telemetry contract v1 at app commit `4644ab7` (§5.1–5.3 and §7), and the app's own live plan (its
 M34, `docs/plans/TELEMETRY-LIVE.md`, which is the app's *next* milestone).
 Nothing is built.**
 
@@ -37,11 +37,10 @@ disagree, the contract wins.
   `TelemetrySettings.kt`). **The service's name, region and project are
   therefore permanent**: recreating or renaming it would strand every tablet
   until an app update.
-- **The contract changed after our pin**, in §10 only. That section is
+- **The contract changed after the old pin**, in §10 only. That section is
   orientation, not wire format, and the change is the two facts above. No
-  message, field or rule of §5–§8 moved. **Re-pinning to `4644ab7` is Sam's
-  call** (decision 15 says a change is agreed through him). Until then, this
-  plan builds to `2210082`, which is identical on the wire.
+  message, field or rule of §5–§8 moved. **Sam re-pinned it to `4644ab7` on
+  2026-09-26** (decision 15, `PROTOCOL.md`).
 - **Cloud Run as deployed would break the live lane in two ways** (checked
   2026-09-26 on the running service):
   - **`timeoutSeconds: 300`**: every WebSocket and browser stream would be cut
