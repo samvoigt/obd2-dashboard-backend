@@ -11,6 +11,8 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
+private const val CLEAR = "{\"t\":\"clear\",\"id\":\"m_1\"}"
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class LiveHubTest {
     private val clock = MutableClock()
@@ -21,6 +23,8 @@ class LiveHubTest {
         val closes = mutableListOf<Short>()
         override fun superseded() { superseded++ }
         override fun close(code: Short, reason: String) { closes += code }
+        val sent = mutableListOf<String>()
+        override fun send(frame: String) { sent += frame }
     }
 
     private fun events(list: List<BrowserEvent>) = list.map {
@@ -30,6 +34,7 @@ class LiveHubTest {
                 is LiveUpdate.SessionStarted -> "session"
                 is LiveUpdate.Records -> "records(${u.records.size})"
                 is LiveUpdate.Status -> "status(${u.status.freshness(clock.now).wire})"
+                is LiveUpdate.MessageChanged -> "message(${u.message.state.wire})"
             }
         }
     }
@@ -149,6 +154,28 @@ class LiveHubTest {
         job.join()
         ended shouldBe true
         hub.subscriberCount("yaris") shouldBe 0
+    }
+
+    @Test
+    fun `frames reach the attached tablet, and not a superseded one`() = runTest {
+        hub.toTablet("yaris", "x") shouldBe false // none attached: the message waits for the next sync
+        val first = FakeTablet()
+        hub.attach("yaris", first)
+        val second = FakeTablet()
+        hub.attach("yaris", second)
+        hub.toTablet("yaris", CLEAR) shouldBe true
+        second.sent shouldBe listOf(CLEAR)
+        first.sent shouldBe emptyList()
+    }
+
+    @Test
+    fun `published updates reach the car's browsers`() = runTest(UnconfinedTestDispatcher()) {
+        val seen = mutableListOf<BrowserEvent>()
+        val job = launch { hub.subscribe("yaris").collect { seen += it } }
+        val m = Message("m_1", "yaris", "PIT NOW", "pit", clock.now, clock.now.plusSeconds(60), MessageState.Queued)
+        hub.publish("yaris", LiveUpdate.MessageChanged(m))
+        job.cancel()
+        (seen.last() as BrowserEvent.Update).update shouldBe LiveUpdate.MessageChanged(m)
     }
 
     @Test

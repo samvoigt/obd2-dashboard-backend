@@ -78,7 +78,6 @@ class FramesTest {
     @Test
     fun `server frames are the contract's shapes`() {
         ServerFrames.welcome(1758719312042) shouldBe """{"t":"welcome","serverWall":1758719312042}"""
-        ServerFrames.messages() shouldBe """{"t":"messages","active":[]}"""
         ServerFrames.error(ErrorCode.Auth, "refused") shouldBe """{"t":"error","code":"auth","message":"refused","fatal":true}"""
         ServerFrames.error(ErrorCode.BadMessage, "x") shouldContain "\"fatal\":false"
         ErrorCode.Superseded.fatal shouldBe true

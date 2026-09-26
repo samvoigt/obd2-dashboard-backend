@@ -18,6 +18,9 @@ public sealed interface LiveUpdate {
     public data class Records(val at: Instant, val records: List<JsonObject>) : LiveUpdate
 
     public data class Status(val status: CarStatus) : LiveUpdate
+
+    /** A crew message changed state (M5). **Crew browsers only**: the public stream drops it. */
+    public data class MessageChanged(val message: Message) : LiveUpdate
 }
 
 /** Everything a browser needs to draw a car from nothing. */

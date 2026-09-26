@@ -66,7 +66,7 @@ fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock) {
                 }
             }
             try {
-                hub.subscribe(slug).collect { send(encode(it, clock)) }
+                hub.subscribe(slug).collect { event -> encode(event, clock)?.let { send(it) } }
             } finally {
                 keepAlive.cancel()
             }
@@ -77,8 +77,12 @@ fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock) {
 private suspend fun ServerSSESession.send(event: Pair<String, JsonObject>) =
     send(ServerSentEvent(data = event.second.toString(), event = event.first))
 
-/** One hub event as an SSE `event:` name and its JSON. Every one carries `serverNow` for the page's clock offset. */
-internal fun encode(event: BrowserEvent, clock: Clock): Pair<String, JsonObject> {
+/**
+ * One hub event as an SSE `event:` name and its JSON, or null for one this
+ * stream must not carry: **a crew message never reaches a public stream** (M5).
+ * Every event carries `serverNow` for the page's clock offset.
+ */
+internal fun encode(event: BrowserEvent, clock: Clock): Pair<String, JsonObject>? {
     val now = clock.instant()
     return when (event) {
         is BrowserEvent.Snapshot -> "snapshot" to snapshotJson(event.snapshot, now.toEpochMilli(), clock)
@@ -94,6 +98,7 @@ internal fun encode(event: BrowserEvent, clock: Clock): Pair<String, JsonObject>
                 put("records", JsonArray(u.records))
             }
             is LiveUpdate.Status -> "status" to statusJson(u.status, now.toEpochMilli(), clock)
+            is LiveUpdate.MessageChanged -> null
         }
     }
 }

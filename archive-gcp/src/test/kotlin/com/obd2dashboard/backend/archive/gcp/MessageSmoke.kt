@@ -27,12 +27,12 @@ fun main(args: Array<String>) {
             val first = messages.send(car, "PIT NOW", "pit").message.also { ids += it.id }
             check("sent, and read back", store.get(first.id)?.text == "PIT NOW")
             check("active query (car + state)", messages.active(car).map { it.id } == listOf(first.id))
-            check("received", messages.received(first.id)?.state == MessageState.Received)
-            check("displayed", messages.displayed(first.id)?.state == MessageState.Displayed)
-            check("a repeat changes nothing", messages.received(first.id) == null)
+            check("received", messages.received(car, first.id)?.state == MessageState.Received)
+            check("displayed", messages.displayed(car, first.id)?.state == MessageState.Displayed)
+            check("a repeat changes nothing", messages.received(car, first.id) == null)
             val second = messages.send(car, "BOX THIS LAP", "box").also { ids += it.message.id }
             check("a newer one replaces it", second.replaced?.id == first.id && store.get(first.id)?.state == MessageState.Replaced)
-            check("cleared", messages.clear(second.message.id)?.state == MessageState.Cleared)
+            check("cleared", messages.clear(car, second.message.id)?.state == MessageState.Cleared)
             val third = messages.send(car, "PUSH", "push", Duration.ofMinutes(1)).message.also { ids += it.id }
             check("recent query (car + sentAt desc)", messages.recent(car, 20).map { it.id } == listOf(third.id, second.message.id, first.id))
             check("sync frame carries the active one", messages.syncFrame(car).contains(third.id))

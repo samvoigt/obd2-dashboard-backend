@@ -1,10 +1,12 @@
 package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.live.InMemoryLiveHub
 import com.obd2dashboard.backend.live.LiveHub
+import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
 import java.time.Clock
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
@@ -51,7 +53,7 @@ fun main() {
             shutdownGracePeriod = 2_000
             shutdownTimeout = 8_000
         },
-    ) { module(registry, archive, InMemoryLiveHub(), project = project) }
+    ) { module(registry, archive, InMemoryLiveHub(), project = project, messages = Messages(FirestoreMessageStore.connect(project))) }
     server.start(wait = true)
 }
 
@@ -66,7 +68,10 @@ fun Application.module(
     clock: Clock = Clock.systemUTC(),
     /** Set in production, so the instance can drain when its revision loses traffic (M4.8a). */
     project: String? = null,
+    /** Crew messages (M5), on the store production names; no default, so it is never left in memory by mistake. */
+    messages: Messages,
 ) {
+    val crew = CrewMessages(messages, hub, this, clock)
     install(CallLogging)
     install(ContentNegotiation) { json() }
     install(Authentication) { carTokens(registry) }
@@ -82,7 +87,7 @@ fun Application.module(
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
-        liveRoutes(registry, archive, hub, live, clock)
+        liveRoutes(registry, archive, hub, crew, live, clock)
 
         authenticate(CAR_AUTH) {
             // Which car a token belongs to. A backend diagnostic, not in the contract.

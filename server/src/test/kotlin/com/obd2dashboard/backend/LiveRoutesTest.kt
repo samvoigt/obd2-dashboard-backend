@@ -5,6 +5,8 @@ import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
 import com.obd2dashboard.backend.live.Freshness
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.InMemoryMessageStore
+import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
 import com.obd2dashboard.backend.registry.Slug
@@ -52,11 +54,13 @@ class LiveRoutesTest {
     private val index = InMemorySessionIndex()
     private val archive = ArchiveService(index, InMemorySegmentStore())
     private val hub = InMemoryLiveHub()
+    private val messageStore = InMemoryMessageStore()
+    private val messages = Messages(messageStore)
     private val id = "7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f"
     private val line0 = """{"type":"session","v":3,"id":"$id","device":"dev","app":"1.0","started":"2026-09-26T12:00:00Z","vin":"TSTVEHCLE00000001","signals":[],"seq":0,"at":0}"""
 
     private fun ApplicationTestBuilder.app(config: LiveConfig = LiveConfig()) {
-        application { module(registry, archive, hub, config, Clock.systemUTC()) }
+        application { module(registry, archive, hub, config, Clock.systemUTC(), messages = messages) }
     }
 
     private fun ApplicationTestBuilder.ws() = createClient { install(WebSockets) }

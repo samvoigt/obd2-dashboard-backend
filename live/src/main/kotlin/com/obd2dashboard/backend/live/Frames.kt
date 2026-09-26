@@ -11,7 +11,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 
 /** A frame from the tablet (contract §5.2). Records are §3's, as JSON objects, **with `vin` removed**. */
 public sealed interface TabletFrame {
@@ -94,12 +93,6 @@ public object ServerFrames {
     public fun welcome(serverWall: Long): String = buildJsonObject {
         put("t", "welcome")
         put("serverWall", serverWall)
-    }.toString()
-
-    /** The complete active set (§5.4). Empty until crew messages exist (M5). */
-    public fun messages(): String = buildJsonObject {
-        put("t", "messages")
-        putJsonArray("active") {}
     }.toString()
 
     public fun error(code: ErrorCode, message: String): String = buildJsonObject {

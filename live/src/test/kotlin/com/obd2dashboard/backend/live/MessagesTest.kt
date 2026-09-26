@@ -57,31 +57,40 @@ class MessagesTest {
     @Test
     fun `states only move forward, and a repeat changes nothing`() = runTest {
         val m = messages.send("yaris", "PIT NOW", "pit").message
-        messages.received(m.id).shouldNotBeNull().state shouldBe MessageState.Received
-        messages.received(m.id).shouldBeNull() // a repeat
-        messages.displayed(m.id).shouldNotBeNull().state shouldBe MessageState.Displayed
-        messages.received(m.id).shouldBeNull() // late, after displayed
+        messages.received("yaris", m.id).shouldNotBeNull().state shouldBe MessageState.Received
+        messages.received("yaris", m.id).shouldBeNull() // a repeat
+        messages.displayed("yaris", m.id).shouldNotBeNull().state shouldBe MessageState.Displayed
+        messages.received("yaris", m.id).shouldBeNull() // late, after displayed
         store.get(m.id)!!.state shouldBe MessageState.Displayed
-        messages.clear(m.id).shouldNotBeNull().state shouldBe MessageState.Cleared
-        messages.displayed(m.id).shouldBeNull() // after it ended
-        messages.clear(m.id).shouldBeNull()
+        messages.clear("yaris", m.id).shouldNotBeNull().state shouldBe MessageState.Cleared
+        messages.displayed("yaris", m.id).shouldBeNull() // after it ended
+        messages.clear("yaris", m.id).shouldBeNull()
         messages.active("yaris") shouldBe emptyList()
     }
 
     @Test
     fun `displayed may come without received`() = runTest {
         val m = messages.send("yaris", "PIT NOW", "pit").message
-        messages.displayed(m.id).shouldNotBeNull().let {
+        messages.displayed("yaris", m.id).shouldNotBeNull().let {
             it.state shouldBe MessageState.Displayed
             it.receivedAt.shouldBeNull()
         }
     }
 
     @Test
+    fun `a tablet can never move another car's message`() = runTest {
+        val m = messages.send("yaris", "PIT NOW", "pit").message
+        messages.received("outback", m.id).shouldBeNull()
+        messages.displayed("outback", m.id).shouldBeNull()
+        messages.clear("outback", m.id).shouldBeNull()
+        store.get(m.id)!!.state shouldBe MessageState.Queued
+    }
+
+    @Test
     fun `unknown ids are ignored`() = runTest {
-        messages.received("m_nope").shouldBeNull()
-        messages.displayed("m_nope").shouldBeNull()
-        messages.clear("m_nope").shouldBeNull()
+        messages.received("yaris", "m_nope").shouldBeNull()
+        messages.displayed("yaris", "m_nope").shouldBeNull()
+        messages.clear("yaris", "m_nope").shouldBeNull()
     }
 
     @Test
@@ -92,7 +101,7 @@ class MessagesTest {
         clock.advance(Duration.ofSeconds(1)) // exactly at expiresAt: gone
         messages.active("yaris") shouldBe emptyList()
         messages.syncFrame("yaris") shouldBe """{"t":"messages","active":[]}"""
-        messages.received(m.id).shouldBeNull() // a late report cannot revive it
+        messages.received("yaris", m.id).shouldBeNull() // a late report cannot revive it
         messages.expireDue("yaris").single().state shouldBe MessageState.Expired
         messages.expireDue("yaris") shouldBe emptyList() // once
     }
@@ -109,7 +118,7 @@ class MessagesTest {
     fun `clear works even on a message past its time, so the crew's intent is recorded`() = runTest {
         val m = messages.send("yaris", "PIT NOW", "pit", Duration.ofMinutes(1)).message
         clock.advance(Duration.ofMinutes(2))
-        messages.clear(m.id).shouldNotBeNull().state shouldBe MessageState.Cleared
+        messages.clear("yaris", m.id).shouldNotBeNull().state shouldBe MessageState.Cleared
     }
 
     @Test

@@ -7,7 +7,10 @@ import com.obd2dashboard.backend.archive.InMemorySessionIndex
 import com.obd2dashboard.backend.live.BrowserEvent
 import com.obd2dashboard.backend.live.Attachment
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.InMemoryMessageStore
+import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.live.LiveHub
+import com.obd2dashboard.backend.live.LiveUpdate
 import com.obd2dashboard.backend.live.TabletHandle
 import com.obd2dashboard.backend.module
 import com.obd2dashboard.backend.registry.CarRegistry
@@ -50,13 +53,14 @@ class LiveReplayTest {
     private val registry = CarRegistry(InMemoryCarStore())
     private val yaris = runBlocking { registry.addCar(Slug.parse("yaris"), "Yaris") }.token
     private val hub = InMemoryLiveHub()
+    private val messages = Messages(InMemoryMessageStore())
     private val index = InMemorySessionIndex()
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
     private val logs = mutableListOf<String>()
 
     private fun start(config: LiveConfig = LiveConfig(), liveHub: LiveHub = hub): URI {
         val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
-            module(registry, ArchiveService(index, InMemorySegmentStore()), liveHub, config, Clock.systemUTC())
+            module(registry, ArchiveService(index, InMemorySegmentStore()), liveHub, config, Clock.systemUTC(), messages = messages)
         }.start()
         server = s
         return URI.create("http://127.0.0.1:${runBlocking { s.engine.resolvedConnectors().first().port }}")
@@ -130,6 +134,8 @@ class LiveReplayTest {
         override fun subscribe(car: String) = current.subscribe(car)
         override suspend fun status(car: String) = current.status(car)
         override suspend fun closeAll(code: Short, reason: String) = current.closeAll(code, reason)
+        override suspend fun toTablet(car: String, frame: String) = current.toTablet(car, frame)
+        override suspend fun publish(car: String, update: LiveUpdate) = current.publish(car, update)
     }
 
     @Test

@@ -32,6 +32,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Rule
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.InMemoryMessageStore
+import com.obd2dashboard.backend.live.Messages
 import org.junit.Test
 import org.junit.rules.Timeout
 
@@ -51,7 +53,7 @@ class ReplayTest {
     private val device = "00000000-0000-4000-8000-00000000d0e5"
 
     private fun start(segments: SegmentStore = store): URI {
-        val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") { module(registry, ArchiveService(index, segments), InMemoryLiveHub()) }.start()
+        val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore())) }.start()
         server = s
         val port = runBlocking { s.engine.resolvedConnectors().first().port }
         return URI.create("http://127.0.0.1:$port")

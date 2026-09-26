@@ -4,6 +4,8 @@ import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.InMemoryMessageStore
+import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
 import com.obd2dashboard.backend.registry.Slug
@@ -30,6 +32,6 @@ fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
     println("Dev server on http://localhost:$port (car dev-car; token in build/dev-token)")
     embeddedServer(Netty, port = port, host = "127.0.0.1") {
-        module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub())
+        module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()))
     }.start(wait = true)
 }

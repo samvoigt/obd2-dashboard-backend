@@ -136,14 +136,19 @@ public class Messages(
             Sent(message, replaced)
         }
 
-    /** The tablet has it (§5.4). Null if nothing changed: an unknown, ended or repeated `received`. */
-    public suspend fun received(id: String): Message? = advance(id, MessageState.Received) { copy(receivedAt = it) }
+    /**
+     * [car]'s tablet has it (§5.4). Null if nothing changed: an unknown, ended or
+     * repeated `received`, or **another car's message**, which a tablet may never move.
+     */
+    public suspend fun received(car: String, id: String): Message? =
+        advance(car, id, MessageState.Received) { copy(receivedAt = it) }
 
-    /** A widget is drawing it (§5.4). Null if nothing changed. */
-    public suspend fun displayed(id: String): Message? = advance(id, MessageState.Displayed) { copy(displayedAt = it) }
+    /** A widget on [car]'s tablet is drawing it (§5.4). Null if nothing changed. */
+    public suspend fun displayed(car: String, id: String): Message? =
+        advance(car, id, MessageState.Displayed) { copy(displayedAt = it) }
 
-    /** The crew took it down. Null if it was not active. */
-    public suspend fun clear(id: String): Message? = advance(id, MessageState.Cleared) { copy(endedAt = it) }
+    /** [car]'s crew took it down. Null if it was not active, or is not [car]'s. */
+    public suspend fun clear(car: String, id: String): Message? = advance(car, id, MessageState.Cleared) { copy(endedAt = it) }
 
     /** Marks [car]'s due messages expired, returning those it changed. */
     public suspend fun expireDue(car: String): List<Message> {
@@ -199,12 +204,12 @@ public class Messages(
         }.toString()
     }
 
-    private suspend fun advance(id: String, next: MessageState, stamp: Message.(Instant) -> Message): Message? {
+    private suspend fun advance(car: String, id: String, next: MessageState, stamp: Message.(Instant) -> Message): Message? {
         val now = clock.instant()
         var changed = false
         val result = store.update(id) {
-            // An expired message may not be revived by a late report, even before expireDue has run.
-            if (it.state.canBecome(next) && (next == MessageState.Cleared || it.expiresAt.isAfter(now))) {
+            // Only this car's message; and an expired one may not be revived by a late report, even before expireDue.
+            if (it.car == car && it.state.canBecome(next) && (next == MessageState.Cleared || it.expiresAt.isAfter(now))) {
                 changed = true
                 it.copy(state = next).stamp(now)
             } else {

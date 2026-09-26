@@ -22,7 +22,7 @@ class ApplicationTest {
 
     @Test
     fun `health check reports ok without a token`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
 
         val response = jsonClient().get("/health")
 
@@ -32,7 +32,7 @@ class ApplicationTest {
 
     @Test
     fun `the retired shared-key route is gone`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
         client.get("/tablet/ping").status shouldBe HttpStatusCode.NotFound
     }
 }

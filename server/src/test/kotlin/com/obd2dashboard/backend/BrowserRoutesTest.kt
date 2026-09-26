@@ -4,6 +4,8 @@ import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.InMemoryMessageStore
+import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
 import com.obd2dashboard.backend.registry.Slug
@@ -49,6 +51,8 @@ class BrowserRoutesTest {
     private val registry = CarRegistry(InMemoryCarStore())
     private val yaris = runBlocking { registry.addCar(Slug.parse("yaris"), "Yaris") }.token
     private val hub = InMemoryLiveHub()
+    private val messageStore = InMemoryMessageStore()
+    private val messages = Messages(messageStore)
     private val archive = ArchiveService(InMemorySessionIndex(), InMemorySegmentStore())
     private val id = "7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f"
     private val vin = "TSTVEHCLE00000001"
@@ -59,7 +63,7 @@ class BrowserRoutesTest {
     private val http = HttpClient.newHttpClient()
     private val server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> =
         embeddedServer(Netty, port = 0, host = "127.0.0.1") {
-            module(registry, archive, hub, LiveConfig(), Clock.systemUTC())
+            module(registry, archive, hub, LiveConfig(), Clock.systemUTC(), messages = messages)
         }.start()
     private val base = "http://127.0.0.1:${runBlocking { server.engine.resolvedConnectors().first().port }}"
 

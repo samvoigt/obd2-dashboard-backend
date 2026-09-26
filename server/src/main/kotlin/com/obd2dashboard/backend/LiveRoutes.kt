@@ -69,9 +69,16 @@ fun Application.installLive(hub: LiveHub, project: String? = null) {
 }
 
 /** Contract §5.1–5.3: `wss://…/v1/live`. */
-fun Route.liveRoutes(registry: CarRegistry, archive: ArchiveService, hub: LiveHub, config: LiveConfig, clock: Clock) {
+fun Route.liveRoutes(
+    registry: CarRegistry,
+    archive: ArchiveService,
+    hub: LiveHub,
+    crew: CrewMessages,
+    config: LiveConfig,
+    clock: Clock,
+) {
     webSocket("/v1/live", protocol = LIVE_PROTOCOL) {
-        TabletSocket(this, registry, archive, hub, config, clock).run()
+        TabletSocket(this, registry, archive, hub, crew, config, clock).run()
     }
     // Offered no (or another) subprotocol: the one refusal the server makes on version (§5.2).
     webSocket("/v1/live") {
@@ -86,6 +93,7 @@ private class TabletSocket(
     private val registry: CarRegistry,
     private val archive: ArchiveService,
     private val hub: LiveHub,
+    private val crew: CrewMessages,
     private val config: LiveConfig,
     private val clock: Clock,
 ) : TabletHandle {
@@ -127,7 +135,8 @@ private class TabletSocket(
                     hello = true
                     if (attachment == null) attachment = hub.attach(car.slug, this)
                     session.send(Frame.Text(ServerFrames.welcome(clock.millis())))
-                    session.send(Frame.Text(ServerFrames.messages()))
+                    // The complete active set, after every hello (§5.4): the tablet takes down anything not in it.
+                    session.send(Frame.Text(crew.sync(car.slug)))
                     continue
                 }
                 val attached = attachment
@@ -140,6 +149,11 @@ private class TabletSocket(
                 ) {
                     badMessage("session ${tabletFrame.id} belongs to another car")
                     continue
+                }
+                when (tabletFrame) {
+                    is TabletFrame.Received -> crew.received(car.slug, tabletFrame.id)
+                    is TabletFrame.Displayed -> crew.displayed(car.slug, tabletFrame.id)
+                    else -> Unit
                 }
                 val applied = attached.apply(tabletFrame)
                 if (applied is CarLive.Applied.Refused) badMessage(applied.reason)
@@ -156,6 +170,10 @@ private class TabletSocket(
 
     override fun close(code: Short, reason: String) {
         session.launch { session.close(CloseReason(code, reason)) }
+    }
+
+    override fun send(frame: String) {
+        session.launch { runCatching { session.send(Frame.Text(frame)) } }
     }
 
     private suspend fun refuse(code: ErrorCode, message: String) {

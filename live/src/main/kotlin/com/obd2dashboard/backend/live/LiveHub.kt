@@ -15,6 +15,9 @@ public interface TabletHandle {
 
     /** Close cleanly with [code]: 1001 when the socket is old, 1012 on shutdown (§5.3). */
     public fun close(code: Short, reason: String)
+
+    /** Sends a frame to the tablet (a crew `message` or `clear`, §5.2). */
+    public fun send(frame: String)
 }
 
 /** One tablet's hold on its car. Once superseded or detached, it changes nothing. */
@@ -43,6 +46,12 @@ public interface LiveHub {
     public fun subscribe(car: String): Flow<BrowserEvent>
 
     public suspend fun status(car: String): CarStatus
+
+    /** Sends [frame] to [car]'s attached tablet; false if none is attached (a message then waits for the next sync). */
+    public suspend fun toTablet(car: String, frame: String): Boolean
+
+    /** Tells [car]'s browsers of something that did not come from its tablet (a crew message's state). */
+    public suspend fun publish(car: String, update: LiveUpdate)
 
     /**
      * Closes every tablet's socket with [code] (1012 on shutdown or drain), and
@@ -135,6 +144,17 @@ public class InMemoryLiveHub(
     override suspend fun status(car: String): CarStatus {
         val c = cars[car] ?: return CarStatus(connected = false, inSession = false, lastDataAt = null)
         return c.mutex.withLock { c.live.status() }
+    }
+
+    override suspend fun toTablet(car: String, frame: String): Boolean {
+        val tablet = cars[car]?.let { c -> c.mutex.withLock { c.tablet } } ?: return false
+        tablet.handle.send(frame)
+        return true
+    }
+
+    override suspend fun publish(car: String, update: LiveUpdate) {
+        val c = car(car)
+        c.mutex.withLock { c.publish(update) }
     }
 
     /** How many browsers are subscribed to [car]: for tests, which must see a departed browser removed. */

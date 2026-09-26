@@ -242,6 +242,30 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M5.3 — Messages on the tablet's socket  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `CrewMessages` joins `Messages` and the hub: send pushes `message`, clear
+>   pushes `clear`, `sync` expires then builds the active set, the reports are
+>   applied, and every change is published as `MessageChanged`. Expiry is
+>   scheduled at send; the scheduler is a parameter, so a test runs it at once.
+> - The socket sends the real sync after `hello`.
+> - `TabletHandle.send`, `LiveHub.toTablet` and `publish`.
+> - `Messages.received`/`displayed`/`clear` take the car, and ignore another
+>   car's message (a test).
+> - The public encoder drops `MessageChanged`, and `ServerFrames.messages()` is
+>   gone.
+>
+> **7 socket tests**:
+> - queued while away → in the next sync, with `ttlMs`;
+> - pushed while attached;
+> - a clear pushed, or while away left out of the next sync;
+> - reports moving the state, repeats and unknown ids with no error;
+> - **after a restart (a new hub, same store) the sync still carries the
+>   message**;
+> - the expiry timer publishing `expired`;
+> - the public encoder dropping it.
+>
+> **7 mutations killed.**
+
 > **Validated against what M5.1–M5.2 built, 2026-09-26, before building.** One
 > gap in M5.1, fixed here:
 >
@@ -287,6 +311,29 @@ in its next sync.
 - Mutations killed.
 
 ### M5.4 — Crew login  `opus`
+
+> **Validated against what M5.1–M5.3 built, 2026-09-26, before building.** One
+> thing M2 removed, back now:
+>
+> - **The Secret Manager API goes back into `gcp-setup.sh`.** M2.6 dropped it
+>   along with the old tablet key; `crew-cookie-key` needs it. The runtime
+>   account may read that one secret, and `deploy.sh` swaps `--clear-secrets`
+>   for `--set-secrets CREW_COOKIE_KEY=crew-cookie-key:latest`.
+> - **`module(…, crewKey = …)` is required**, with no default: a random default
+>   would quietly log every crew member out at each restart if production ever
+>   forgot it. `main` reads `CREW_COOKIE_KEY` (base64url, at least 32 bytes) and
+>   refuses to start without it. Tests pass a fixed key, and the dev server a
+>   random one.
+> - **PBKDF2 (about 0.3 s) runs on `Dispatchers.Default`**, never on the thread
+>   that handles requests. Tests keep registries at 1,000 iterations; `verify`
+>   reads the count from the stored string.
+> - **Cookie:** `v1.<slug>.<expiry>.<fingerprint>.<hmac>`. A slug cannot hold
+>   `.`, so it splits cleanly; the fingerprint is the first 16 hex digits of
+>   SHA-256 over the stored passcode hash. `Path=/api/cars/<slug>` covers the
+>   car's stream and its message endpoints, and nothing else.
+> - **Answers:** a wrong passcode → `401 auth`; a car with none set →
+>   `409 no_passcode`; rate-limited → `429` with `Retry-After`; not JSON →
+>   `415`, from content negotiation.
 
 - `CrewAuth`: sign, verify (constant time), expiry, the passcode fingerprint;
 - login, logout and `crew`;

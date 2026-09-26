@@ -20,7 +20,7 @@ class WebRoutesTest {
 
     @Test
     fun `the landing page and a car's page are the site`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
         for (path in listOf("/", "/cars/yaris", "/cars/yaris/")) {
             val response = client.get(path)
             response.status shouldBe HttpStatusCode.OK
@@ -32,7 +32,7 @@ class WebRoutesTest {
 
     @Test
     fun `assets are served and cached for a year`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
         val response = client.get("/assets/app-test.js")
         response.status shouldBe HttpStatusCode.OK
         response.bodyAsText() shouldContain "stub"
@@ -41,7 +41,7 @@ class WebRoutesTest {
 
     @Test
     fun `the site never shadows the API or the tablet's paths`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
         client.get("/api/cars").let {
             it.status shouldBe HttpStatusCode.OK
             it.headers[HttpHeaders.ContentType]!! shouldStartWith "application/json"
