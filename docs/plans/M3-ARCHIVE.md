@@ -257,7 +257,7 @@ the *next* step's plan is checked against what was actually built (Sam,
 > - a live-created session;
 > - both kinds of corruption.
 >
-> **13 mutations killed.** The mutation run also found two things:
+> **12 mutations killed.** The mutation run also found two things:
 > - **the contiguity check was untested**, so corruption tests were added;
 > - **the "delete a half-written session" step was redundant**: neither the
 >   fake nor Cloud Storage creates an object whose writer threw. It was
@@ -599,6 +599,26 @@ It also:
 
 ### M3.7 — Deploy, and prove it live  `sonnet`
 
+> ✅ **Done 2026-09-26.** Revision `00004`, with `GCP_PROJECT` and
+> `SESSIONS_BUCKET`. Two throwaway cars, tokens in `chmod 600` scratch files.
+> - The app's `outback-2026-09-24-evening-drive.jsonl` (33,091 lines) and
+>   `…-cold-start-drive.jsonl.gz` (42,477 lines) were replayed with
+>   `--lose-responses 0.3 --duplicate 0.2`: both complete in 23 s.
+> - Each `session.jsonl.gz` was downloaded with `gcloud storage cp`: a real gzip
+>   file, whose `shasum` equals the upgraded source's, `cmp` identical, and
+>   whose lines 1… are identical to the app's own file.
+> - `…-unplug-and-drive.jsonl` was stopped with `--stop-after 3` (6,001 lines,
+>   "uploading"), then a separate run resumed at `chunk 6001..` and completed,
+>   byte for byte.
+> - Car B's token got the contract's exact `wrong_car` body on `PUT` and on a
+>   chunk; no token got `401`; car A's re-`PUT` got `200 {"ackedThrough":33090}`
+>   and re-`complete` got `{"complete":true}`.
+> - `remove-car` was refused ("has 2 session(s)"); each session was deleted,
+>   then each car.
+> - The bucket and `sessions` were empty, and the scratch tokens were deleted.
+>
+> `admin.sh session` was not run on these sessions, since they carry a real VIN.
+
 > **Validated against what M3.1–M3.6 built, 2026-09-26, before building.** No
 > conflict. Four points:
 >
@@ -633,6 +653,11 @@ It also:
 `sessions` collection are empty afterwards.
 
 ### M3.8 — Record it
+
+> ✅ **Done 2026-09-26.** Decisions 17 and 18. `COMPLETED.md` has M3 with its
+> exact counts: 154 tests, 89 new; 46 mutations. There are JOURNAL entries, and
+> PLAN, README and CLAUDE.md are updated. This plan is deleted in the next
+> commit.
 
 - `COMPLETED.md` entry, including what has never met a tablet.
 - `JOURNAL.md`: anything learned.
