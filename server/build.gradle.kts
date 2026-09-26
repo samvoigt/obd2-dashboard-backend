@@ -19,6 +19,7 @@ ktor {
 }
 
 dependencies {
+    implementation(project(":registry-firestore"))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.content.negotiation)
@@ -33,4 +34,5 @@ dependencies {
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

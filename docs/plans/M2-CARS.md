@@ -339,6 +339,38 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
 
 ### M2.4 — Car tokens on the server  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `CarAuth.kt`:
+>   - `CarRegistry.principalFor(token)`, the one place a token becomes a car;
+>   - `bearerToken(call)`, parsed by hand, so a malformed header is simply no
+>     token;
+>   - `CarAuthProvider`, a small custom `AuthenticationProvider`, because
+>     Ktor's bearer provider cannot change its `401` body.
+> - `ApiTypes.kt`: `ApiError`, `PublicCar`.
+> - `TabletAuth` is now a provider registration beside `carTokens`, in one
+>   `install(Authentication)`. It is still retired in M2.6.
+> - **`GCP_PROJECT` is required** by `main`.
+> - **Corruption (`DuplicateToken`) is handled explicitly**: logged, and a `500`
+>   with `{"error":"server"}` naming neither car. Unhandled, it was only a `500`
+>   by accident.
+>
+> **14 server tests** (10 new):
+> - a valid token, and two cars' tokens;
+> - an unknown token, and no token, each with the §14.2 body and
+>   `WWW-Authenticate`;
+> - **a rotated token fails on the very next request**, and a removed car's
+>   token fails;
+> - seven malformed headers give `401`, never `500`;
+> - the scheme is case-insensitive;
+> - the old key and car tokens do not cross routes;
+> - corruption.
+>
+> Mutations killed by failing tests: always-true auth (in a form that compiles),
+> returning the first car, a case-sensitive scheme, and the wrong message.
+> **Live:** the real server run locally against the real Firestore, with a
+> throwaway car. `whoami` gave `200` with the car, `401` with the body when
+> there was no token, and `401` once the car was removed.
+
 > **Validated against what M2.1–M2.3 built, 2026-09-26, before building.** One
 > overlap with M2.6, resolved here:
 >
@@ -384,9 +416,22 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
 
 ### M2.5 — The landing page's data  `sonnet`
 
+> **Validated against what M2.1–M2.4 built, 2026-09-26, before building.** No
+> conflict.
+>
+> - **`PublicCar` exists already** (M2.4, shared with `/v1/whoami`), and
+>   `CarRegistry.list()` already sorts by name, then slug. M2.5 is one route
+>   that maps one to the other.
+> - **No cache.** The plan allowed a 30-second one and did not require it. It
+>   is one Firestore read per page view for a handful of viewers, and a cache
+>   would only let a removed car linger on the landing page. Add one if load
+>   ever says so.
+> - **The leak test goes through the real route and parses the JSON**, so it
+>   checks what a browser would receive, not what a function returns. It uses a
+>   car with every field set, including a passcode.
+
 - `GET /api/cars`, public: `[{"slug","name"}]`, sorted by name.
-- Served from the registry. A 30-second cache is fine here: it is public, and
-  holds no secret.
+- Served from the registry, uncached (see validation).
 
 **Done when:**
 - A test serialises a car that has every field set, and asserts the response
