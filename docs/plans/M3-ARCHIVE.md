@@ -1,0 +1,385 @@
+# M3 — The archive lane
+
+**Status: drafted 2026-09-26, written against the code as it stands after M2,
+the telemetry contract v1 (app commit `2210082`, §6 above all), and the app's
+own archive plan (its M33, `docs/plans/TELEMETRY-ARCHIVE.md`). Nothing is
+built.**
+
+**What M3 delivers:** the server side of contract §6.
+- `PUT /v1/sessions/{id}`, `POST …/chunks` and `POST …/complete`.
+- Every line the tablet sends is stored **byte for byte**, and acknowledged
+  only once durable.
+- A completed session is **one `.jsonl.gz` in Cloud Storage** whose SHA-256
+  matches the tablet's.
+- **A replay tool** that behaves like the tablet, faults included, so all of
+  this is tested without a car.
+- **Admin commands** to see and delete sessions.
+
+Where this plan and the contract disagree, the contract wins, and this plan is
+wrong.
+
+---
+
+## What exists, and what it means for this
+
+- **Auth is done (M2).** Under `authenticate(CAR_AUTH)`, a route gets a
+  `CarPrincipal(slug, name)`. `ApiError(error, message, skipChunk)` is the
+  §14.2 body. `CarRegistry.principalFor` is the one place a token becomes a car.
+- **The split that worked for cars works here:** a pure module with in-memory
+  fakes, where the rules and tests live, and a Google module with the real
+  stores. `:registry` / `:registry-firestore` is the precedent.
+- **Firestore is set up** (`(default)`, `us-east4`), and the runtime account
+  has `roles/datastore.user`. **There is no bucket yet**, and no storage
+  permission.
+- **`deploy.sh` runs up to 2 instances** (`--max-instances 2`). Decision 7
+  makes it one in M4, for the live hub. **M3 must be correct with several
+  instances anyway**: nothing about the archive may live in memory between
+  requests.
+- **The app now writes format v3** (its M33.2, done). What its encoder does
+  decides what the server can expect:
+  - `encodeDefaults = true`, so `v` and `seq` are always present;
+  - `explicitNulls = false`, so **`vin`, `protocol`, `pids` and `wall` are
+    absent, not `null`, when unknown**. The server treats absent as null.
+- **The app's `test-data/sessions/` logs are v1 and v2.** There is no v3 file
+  committed yet, so the replay tool upgrades old logs (M3.5). Once the tablet
+  has streamed a real session, ask the app side to commit one as a fixture.
+- **The app's M33.8 tests against "the real backend".** M3 has to be deployed
+  (M3.7) before the tablet gets there, and Sam registers a real car for it.
+- **The app uploads a growing `.jsonl` every 2 minutes during the drive.**
+  Chunks can be small and many: a 6-hour session is about 180. Its shipper
+  reads from a saved position, resends after a lost response, and handles every
+  status in §6.4.
+
+## Settled (contract v1, and Sam)
+
+1. **Line index addresses everything.** The session record is index 0. Chunks
+   are contiguous, idempotent by `(sessionId, index)`, and **acked only once
+   durable**. A chunk that starts past the end gets
+   `409 {missingFrom: ackedThrough + 1}` (§6.2).
+2. **Nothing on the archive path is re-serialised**, and the sha256 covers
+   every line plus `\n`, byte for byte (§6.3).
+3. **The error body and codes:** `wrong_car` and `bad_record`, each a `400`;
+   `skipChunk` is always false for these (§6.4).
+4. **Only v3 sessions are uploaded** (§6).
+5. **Sessions are kept indefinitely.** Only the owner deletes, with the admin
+   tool. The VIN is stored and never shown publicly (decision 16). M3 adds **no
+   public session endpoint** (that is M6), so there is nothing public to leak it.
+
+## Decided here, not asked (say if any is wrong)
+
+- **Storage.** One private bucket, `obd2-dashboard-backend-sessions`, in
+  `us-east4`: uniform access, public-access prevention enforced, no lifecycle
+  rule (kept indefinitely), and Google's default 7-day soft delete kept as a
+  safety net. The runtime account gets `roles/storage.objectAdmin` **on that
+  bucket only**.
+- **Layout.** Every stored run of lines is a **segment object**:
+  `sessions/{id}/segments/{first}-{last}.jsonl.gz`, with indexes zero-padded to
+  10 digits. Each is the verbatim lines, gzipped by the server. Line 0 from the
+  `PUT` is segment `0-0`. A complete session is
+  `sessions/{id}/session.jsonl.gz`, and its segments are then deleted.
+- **Firestore is the authority on what is stored, not the bucket listing.** The
+  session document (`sessions/{id}`) holds:
+  - `car`, `v`, `started`, `device`, `app`, `vin?`, `protocol?`;
+  - `ackedThrough` (an index; −1 until line 0 is stored);
+  - the **segment list** (`first`, `last`, `firstSeq`, `lastSeq`, `object`);
+  - `complete`, `lineCount`, `sha256`;
+  - `created`, `updated`, `hashResets`.
+
+  A segment counts only once it is in that list.
+- **Durable, then acknowledged, and safe with several instances.** A chunk:
+  1. reads `ackedThrough`;
+  2. trims lines already stored;
+  3. **writes the new segment object** under its own `{first}-{last}` name;
+  4. only then, **in a Firestore transaction**, appends it to the list and
+     advances `ackedThrough`, **if and only if `ackedThrough` still equals
+     `first − 1`**.
+
+  If two requests race, one loses the transaction. Its object becomes an
+  orphan that no list names, and it is deleted when the session completes. It
+  answers with whatever `ackedThrough` now is, which is always true.
+- **Trimming is a pure decision** on `(ackedThrough, first, count)`:
+  - wholly stored → **duplicate**: `200`, nothing written;
+  - overlapping → **append the tail**;
+  - past the end → **gap**: `409`.
+- **What counts as `bad_record`** (the contract's only code for malformed
+  content):
+  - a line that is not a JSON object, or is not UTF-8;
+  - a body that does not end in `\n`;
+  - `X-Record-Count` disagreeing with the lines received;
+  - a missing or non-numeric `X-First-Index`;
+  - a `PUT` whose line is not a v3 `session` record whose `id` matches the URL;
+  - a second `PUT` whose line differs from the stored line 0;
+  - `/complete` with `recordCount ≠ lastIndex + 1`, or with fewer lines than
+    the server holds;
+  - new lines after `complete`.
+
+  Each message says which. Unknown fields and record types are **kept, never
+  refused** (contract §3.1, §9).
+- **Limits:**
+  - a chunk's gzip is decoded while counting, refused with `413` beyond
+    1 MiB uncompressed (a zip bomb stops at 1 MiB);
+  - the raw body is capped at 2 MiB;
+  - a `PUT` is capped at 64 KiB.
+
+  Uncompressed chunks are accepted too (no `Content-Encoding`), which the
+  contract does not forbid.
+- **`/complete`** reads the segments in list order and checks that they are
+  contiguous. It streams the lines once through both the hasher and a gzip
+  writer that builds `session.jsonl.gz`, checks the count and the hash, and
+  only then marks the session complete and deletes the segments. It is
+  idempotent: the same body again → `200`; a different one → `bad_record`.
+- **A hash mismatch** means the server holds different bytes from the tablet.
+  The server **discards every segment after line 0**, sets `ackedThrough = 0`
+  and answers `409 {missingFrom: 1}`. The tablet then resends everything, which
+  is exactly §6.4's `409`. Line 0 is safe to keep because a `PUT` already
+  refuses a different one. **After two such resets**, it answers `bad_record`
+  instead, since the two sides disagree about the bytes and a third try will
+  not change that. No contract change is needed; it is within §6.4.
+- **Storage failures** (Cloud Storage or Firestore unavailable) → `503` with
+  `Retry-After: 30`. The tablet already waits and retries (§6.4).
+- **Session ids must be UUIDs.** Anything else in the path → `bad_record`.
+- **A `PUT` answers `{"ackedThrough": n}` as well**, `201` if new and `200` if
+  it already existed. It is extra information: the contract asks only for the
+  status, and the tablet ignores fields it does not know.
+- **A session belongs to the car whose token first opened it.** Another car's
+  token → `wrong_car`. A chunk for a session never opened → `404`, and the
+  tablet re-opens it (§6.4).
+- **M4's live `session` may create the session first** (§6.1). The document is
+  designed for it: a session can exist with `ackedThrough = −1` and no line 0,
+  and a later `PUT` fills line 0 and answers `201`.
+- **Modules:**
+  - `:archive`: pure. Chunk parsing, the rules, `SessionIndex` / `SegmentStore`
+    interfaces and in-memory fakes, and `ArchiveService`.
+  - `:archive-gcp`: `FirestoreSessionIndex`, `GcsSegmentStore`.
+  - The server, the tools and the replay tool depend on whichever they need.
+- **The replay tool is its own module and script** (`:replay`,
+  `scripts/replay.sh`), using the JDK's `HttpClient` (no new dependency). **It
+  reads the token from `OBD2_TOKEN` or a file, never from the command line**,
+  where it would land in shell history and transcripts.
+- **Admin commands** join `admin.sh`:
+  - `sessions [car]` and `session <id>`: the VIN may show here (decision 16:
+    the admin tool is its one place);
+  - `delete-session <id>`, with the id typed again (decision 16's "deletion is
+    by the owner");
+  - `remove-car` **refuses while the car has sessions**, as M2 left for here.
+
+---
+
+## The steps
+
+Each is validated against the code again before it is built, and after each,
+the *next* step's plan is checked against what was actually built (Sam,
+2026-09-26).
+
+### M3.1 — Lines, chunks and the session record  `opus`
+
+`:archive`, pure Kotlin:
+- **`Lines.split(bytes)`**: byte ranges on `\n`, without copying or decoding.
+  It refuses a body that does not end in `\n`.
+- **`Chunks.decode(body, gzipped, limit)`**: inflates while counting, and stops
+  at 1 MiB with a "too large" outcome. Handles multi-member gzip.
+- **Each line checked as a JSON object**, parsed from UTF-8, with the original
+  bytes kept for storing.
+- **`SessionHeader.parse(line0, expectedId)`**: `type` = `session`, `v ≥ 3`,
+  `id` = the URL's id, and the index fields (`started`, `device`, `app`, `vin?`,
+  `protocol?`), with absent meaning null.
+- **`Trim.plan(ackedThrough, first, count)`** → `Duplicate` | `Append(from)` |
+  `Gap(missingFrom)`.
+- **`LineHash`**: streaming SHA-256 over lines plus `\n`.
+
+**Done when:**
+- Tests cover:
+  - bodies with and without the final newline, CRLF (kept as bytes, not
+    refused), empty lines, non-UTF-8, and a non-object line;
+  - a 1 MiB + 1 byte body refused, and a gzip bomb stopped at the limit
+    without inflating further;
+  - multi-member gzip;
+  - v2 and v3 headers, a mismatched id, and absent optional fields;
+  - every boundary of `Trim.plan` (whole duplicate, one-line overlap, exact
+    continuation, one past the end);
+  - the hash against an independent `shasum` of a fixture.
+- Mutations killed.
+
+### M3.2 — The archive rules  `opus`
+
+`:archive`:
+- `SessionIndex`: get, create-if-absent, and a transactional append that
+  succeeds only if `ackedThrough` equals an expected value. Also set complete,
+  reset, list by car, and delete.
+- `SegmentStore`: put, read, and delete objects.
+- In-memory fakes for both. The index fake can be made to **interleave two
+  appends**, for the race test.
+- **`ArchiveService`**:
+  - `open(car, id, line0)`: `Created` / `Existing` / `WrongCar` / `BadRecord`;
+  - `append(car, id, first, lines, seqs)`: `Acked(n)` / `Gap(missingFrom)` /
+    `NotOpen` / `WrongCar` / `BadRecord`;
+  - `complete(car, id, lastIndex, recordCount, sha256)`: `Complete` /
+    `Gap(missingFrom)` / `WrongCar` / `BadRecord`;
+  - in each, the order is **store, then advance**.
+
+**Done when:**
+- Tests cover:
+  - a session in random chunk sizes completes, and its assembled bytes and hash
+    equal the source's;
+  - every duplicate and overlap case returns the right `ackedThrough` and writes
+    nothing twice;
+  - a gap gives `409` and writes nothing;
+  - **two racing appends of the same range**: exactly one is recorded, the
+    other's object is an orphan, and both answers are true;
+  - **a failure between writing an object and recording it**, then a resend,
+    ends consistent;
+  - a hash mismatch resets to line 0 and then succeeds on the resend;
+  - a second mismatch gives `bad_record`;
+  - `complete` is idempotent;
+  - lines after `complete` are refused;
+  - `wrong_car` on every operation;
+  - a session created by "live" (no line 0) is then opened by `PUT`.
+- Mutations killed: advancing before storing, dropping the transaction's
+  condition, an off-by-one in the trim, skipping the contiguity check.
+
+### M3.3 — Cloud Storage and Firestore  `sonnet`
+
+`:archive-gcp`:
+- `GcsSegmentStore`: objects gzip-encoded, `Content-Type: application/x-ndjson`.
+- `FirestoreSessionIndex`: the append as a `runTransaction` that reads
+  `ackedThrough` and writes only if it matches.
+- `gcp-setup.sh` gains the bucket (uniform access, public-access prevention,
+  `us-east4`) and `roles/storage.objectAdmin` **on the bucket** for the runtime
+  account, retried against the policy race (JOURNAL).
+- `env.sh` gains `BUCKET`.
+- `scripts/archive-smoke.sh` runs the service against the real stores: a
+  throwaway session, a chunked upload, a duplicate, a gap, completion. It
+  downloads `session.jsonl.gz`, compares its sha256 with the source, and
+  deletes it all.
+
+**Done when:**
+- The setup script runs twice cleanly.
+- The bucket reads back as private, in `us-east4`, with uniform access.
+- The smoke test passes and leaves nothing behind.
+- A mapping test covers the document fields, including absent `vin`.
+
+### M3.4 — The routes  `opus`
+
+In `:server`, under `authenticate(CAR_AUTH)`:
+- **Route plumbing:** headers parsed (`X-First-Index`, `X-Record-Count`,
+  `X-First-Seq`, `X-Last-Seq`); body caps; `Content-Encoding: gzip`.
+- **Results to statuses:** each `ArchiveService` outcome becomes its status and
+  `ApiError`, and any storage exception becomes a `503` with `Retry-After`.
+- **Configuration:** `main` builds the archive from `GCP_PROJECT` and
+  `SESSIONS_BUCKET`, and fails fast without them.
+- **The contract's own examples** (§6.1–6.4, §14.2) become test fixtures.
+
+**Done when:**
+- `testApplication` tests, against the fakes, follow the contract section by
+  section:
+  - `201` then `200` on a repeated `PUT`;
+  - chunk `200` with `ackedThrough`;
+  - an overlap deduplicated;
+  - `409 {missingFrom}` for a gap and for an incomplete `complete`;
+  - `413` over 1 MiB;
+  - `404` for a chunk on an unopened session;
+  - `400 wrong_car` and `400 bad_record`, each with the exact §14.2 body and
+    `skipChunk: false`;
+  - `401` without a token;
+  - `503` with `Retry-After` when a store throws;
+  - `complete` `200 {"complete": true}`.
+- Every `4xx` body parses as `ApiError`.
+- Mutations killed.
+
+### M3.5 — The replay tool  `opus`
+
+`:replay`, run by `scripts/replay.sh`. It **behaves as the tablet does**:
+- `PUT`, then gzipped chunks from its saved position, then `complete`.
+- Every §6.4 status handled:
+  - `409` → resend from `missingFrom`;
+  - `413` → halve the chunk;
+  - `404` → re-`PUT`;
+  - `429`/`503` → honour `Retry-After`;
+  - `5xx` → back off;
+  - `401`/`400` → stop and say why.
+
+It also:
+- **Upgrades v1/v2 logs to v3**: it adds `id` (a UUID fixed per source file, so
+  a rerun resumes), a replay `device`, `app` = `replay`, and `signals` derived
+  from the samples (the kind from each sample's fields, the unit left empty:
+  the server does not read units in M3, and M4 revisits this). It writes the
+  upgraded file beside its state, so the hash has a source.
+- **Chunks by log time**, every 2 minutes of `at`, as the tablet does, or by
+  size. `--speed` sets real time or as fast as possible.
+- **Injects faults**: `--lose-responses p` (sends, discards the answer, resends),
+  `--duplicate p`, `--stop-after n` (exits mid-session, keeping its position),
+  `--resume`.
+- **Several files at once, on different tokens**: the multi-car test.
+- Reads the token from `OBD2_TOKEN` or `--token-file`. **Never an argument**,
+  and never printed.
+
+**Done when:**
+- Tests run it against the server in-process (`embeddedServer` on a free port,
+  with fakes):
+  - a v1 and a v2 fixture from the app's `test-data/` each upgrade and upload
+    whole, and the server's final hash equals the upgraded file's;
+  - the same with `--lose-responses 0.3 --duplicate 0.3`;
+  - `--stop-after` then `--resume` completes;
+  - two files on two cars' tokens at once, each ending as its own car's
+    session;
+  - a wrong token stops with the `401` explained.
+
+### M3.6 — Sessions in the admin tool  `sonnet`
+
+`admin.sh` gains:
+- `sessions [car]`: id, car, started, lines, complete, size;
+- `session <id>`: every index field, the VIN included, and the segment count;
+- `delete-session <id>`: the id typed again, then the objects and the document
+  deleted.
+
+`remove-car` now **refuses while the car has sessions**, and says how many.
+
+**Done when:**
+- Tests against the fakes cover:
+  - listing and showing;
+  - the VIN appearing only in `session`;
+  - delete confirmation and a wrong id;
+  - `remove-car` refused with a session, then allowed once it is deleted.
+- Each command runs once against the real project.
+
+### M3.7 — Deploy, and prove it live  `sonnet`
+
+1. Deploy with `SESSIONS_BUCKET` (and still `--clear-secrets`).
+2. A throwaway car. Replay the app's largest committed session (about 3 MB of
+   JSONL) and a gzipped one against the **deployed** service, with
+   `--lose-responses 0.3 --duplicate 0.2`.
+3. Download each `session.jsonl.gz`, and check that its sha256 equals the
+   upgraded source's.
+4. A `--stop-after` run left overnight is not needed: `--stop-after`, then a
+   separate `--resume` run, then compare.
+5. Check that a second car's token gets `wrong_car` on the first car's session,
+   and that no token gets `401`.
+6. Clean up: `delete-session` for each, then `remove-car` (refused first, while
+   sessions remain, as it should be).
+7. Tell Sam the backend is ready for the app's M33.8, and that it needs a real
+   car registered (`admin.sh add-car`) with its token pasted into the tablet.
+
+**Done when:** steps 2–6 pass against the deployed service, and the bucket and
+`sessions` collection are empty afterwards.
+
+### M3.8 — Record it
+
+- `COMPLETED.md` entry, including what has never met a tablet.
+- `JOURNAL.md`: anything learned.
+- `DECISIONS.md`:
+  - **17**, the archive's storage (segments named by range, Firestore as the
+    authority, store then advance);
+  - **18**, the hash-mismatch reset.
+- `PLAN.md` row; README and CLAUDE.md commands.
+- This plan deleted, and pushed.
+
+---
+
+## Not in M3
+
+- **The live lane** and anything it creates (M4). The session document leaves
+  room for it.
+- **Showing sessions on the site** (M6), and merging live rows with archive rows
+  (contract §7, M6).
+- **Setting `max-instances` to 1** (M4, decision 7). M3 is correct with any
+  number of instances.

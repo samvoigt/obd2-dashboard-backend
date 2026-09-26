@@ -17,7 +17,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M0** | Skeleton: Ktor server, health check, tests, Dockerfile | ✅ |
 | **M1** | Deployed to Cloud Run; one shared tablet key | ✅ |
 | **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
-| **M3** | Archive lane (contract §6), and the replay tool | next |
+| **M3** | Archive lane (contract §6), and the replay tool | **planned**: [`plans/M3-ARCHIVE.md`](plans/M3-ARCHIVE.md) |
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | |
 | **M5** | Crew messages (contract §5.4) | |
 | **M6** | Past sessions on the site | |
