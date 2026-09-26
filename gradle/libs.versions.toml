@@ -11,6 +11,8 @@ logback = "1.6.4"
 junit = "4.13.2"
 kotest = "6.2.4"
 firestore = "3.48.0"
+clikt = "5.1.0"
+slf4j = "2.0.20"
 
 [libraries]
 ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
@@ -25,6 +27,8 @@ kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 google-cloud-firestore = { group = "com.google.cloud", name = "google-cloud-firestore", version.ref = "firestore" }
+clikt = { group = "com.github.ajalt.clikt", name = "clikt", version.ref = "clikt" }
+slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }

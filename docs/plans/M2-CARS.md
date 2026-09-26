@@ -270,6 +270,28 @@ mapping.
 
 ### M2.3 — The admin tool  `sonnet`
 
+> ✅ **Done 2026-09-26.** `:tools` (`admin`):
+> - `add-car`, `rotate-token`, `set-passcode`, `rename`, `list`, `remove-car`,
+>   behind a root command that requires `--project`.
+> - `AdminIo`, with `ConsoleIo` refusing a passcode without a terminal as a
+>   clean error, not a stack trace.
+> - `scripts/admin.sh` runs `installDist` and then runs the binary with the
+>   project from `env.sh`.
+> - **One change from the validation:** a plain `CliktCommand` with
+>   `runBlocking`, not `SuspendingCliktCommand`. It keeps to the plainest Clikt
+>   API, and the behaviour is the same.
+> - A missing car is reported **before** any prompt.
+>
+> **13 tests** against `InMemoryCarStore`. They check that the token is printed
+> exactly once, by `add-car` and `rotate-token` and nowhere else, and cover the
+> rest of the plan's list. **Live**, with a throwaway car whose token went to
+> `/dev/null`:
+> - `add-car` and `list` work;
+> - `set-passcode` without a terminal is refused, exit 1;
+> - a declined rotation, and a wrong slug typed for `remove-car`, both exit 1
+>   and change nothing;
+> - `remove-car` works, and the registry is empty again.
+
 > **Validated against what M2.1–M2.2 built, 2026-09-26, before building.** No
 > conflict. Now fixed by what exists:
 >
@@ -317,7 +339,30 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
 
 ### M2.4 — Car tokens on the server  `opus`
 
-- `TabletAuth` becomes `CarAuth`: a Ktor bearer provider that resolves a
+> **Validated against what M2.1–M2.3 built, 2026-09-26, before building.** One
+> overlap with M2.6, resolved here:
+>
+> - **`CarAuth` is added *beside* `TabletAuth`, not in place of it.** M2.6
+>   removes `TabletAuth`, `/tablet/ping` and `TABLET_API_KEY` in the same change
+>   that deploys. Removing them here would leave the tree ahead of the deployed
+>   service for two steps. Until M2.6, `main` needs both `TABLET_API_KEY` and
+>   `GCP_PROJECT`.
+> - **`:server` depends on `:registry-firestore`.** `main` calls
+>   `FirestoreCarStore.connect(GCP_PROJECT)`, and fails fast if it is blank
+>   (`connect` already refuses a blank one). `Application.module` is given a
+>   `CarRegistry`, so tests use `InMemoryCarStore`.
+> - **The shared function is `CarRegistry.principalFor(token)`** in `:server`,
+>   which returns a `CarPrincipal(slug, name)` or null. The bearer provider
+>   calls it, and so will M4's WebSocket after the upgrade.
+> - **The §14.2 body is one serializable `ApiError(error, message, skipChunk)`**,
+>   used by M3 as well. The bearer provider's challenge responds with it and a
+>   `401`.
+> - **`RegistryException.DuplicateToken` during authentication is a `500`**,
+>   logged. It means the store is corrupt, and neither car may be assumed.
+> - **`/v1/whoami` answers `{"slug","name"}`**: the same shape M2.5's
+>   `/api/cars` lists, so it is one `PublicCar` type.
+
+- `CarAuth`, beside `TabletAuth` until M2.6 (see validation): a Ktor bearer provider that resolves a
   `CarPrincipal(slug, name)` through `CarRegistry.authenticate`.
 - A plain function `authenticateCar(token)` exists beside it, because the M4
   WebSocket must authenticate *after* accepting the upgrade, so it can send an

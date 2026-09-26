@@ -17,3 +17,4 @@ rootProject.name = "obd2-dashboard-backend"
 include(":registry")
 include(":registry-firestore")
 include(":server")
+include(":tools")
