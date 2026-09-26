@@ -39,22 +39,28 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
+Modules: `:registry` (pure), `:registry-firestore`, `:server`, `:tools`.
 
 ```
-./gradlew test                 # unit tests
-TABLET_API_KEY=dev ./gradlew :server:run   # http://localhost:8080
-./gradlew :server:buildFatJar  # server/build/libs/server.jar
+./gradlew test                  # unit tests, all modules
+./gradlew :server:buildFatJar   # server/build/libs/server.jar
+GCP_PROJECT=obd2-dashboard-backend ./gradlew :server:run   # real Firestore, as the user
+scripts/admin.sh list           # the admin tool (cars, tokens, passcodes)
+scripts/firestore-smoke.sh      # throwaway car through the real Firestore
 ```
 
-Warnings fail the build (`allWarningsAsErrors`), as in the app.
+Warnings fail the build (`allWarningsAsErrors`), as in the app. `gcloud` needs
+`CLOUDSDK_PYTHON` pointing at Python 3.10+ (JOURNAL 2026-09-26).
 
 ## Deploy
 
 Project `obd2-dashboard-backend`, region `us-east4`, service `obd2-backend`.
 All three are set in `scripts/env.sh`. Always go through the scripts, or pass
 `--project` explicitly: the local `gcloud` default is `microtron-scoreboard`,
-which is unrelated.
+which is unrelated. **A deploy keeps any setting it does not mention**, so
+removing one (a secret, an env var) needs an explicit flag.
 
-**Never print, log or commit the tablet key.** It lives in Secret Manager
-(decision 4). `scripts/tablet-key.sh` is for the user to run, not for output
-that goes into a transcript.
+**Never print, log or commit a car token.** A token is printed once, by
+`admin.sh add-car` or `rotate-token`, for the user. When verifying, create a
+throwaway `smoke-*` car, capture its token into a shell variable or a scratch
+file that is deleted, never into output, and remove the car afterwards.

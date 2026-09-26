@@ -66,7 +66,8 @@ the server.
 
 ## 4. The tablet authenticates with one shared key held in Secret Manager
 
-> **Superseded by 10** once M2 lands: every car has its own key.
+> **Superseded by 10**, 2026-09-26 (M2): every car has its own token. The
+> secret, the `TABLET_API_KEY` variable and `/tablet/ping` are gone.
 
 **Decision.** A random key is stored in Secret Manager as `tablet-api-key`.
 Cloud Run gives it to the server as `TABLET_API_KEY`. The tablet sends it as

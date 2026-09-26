@@ -16,8 +16,8 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | --- | --- | --- |
 | **M0** | Skeleton: Ktor server, health check, tests, Dockerfile | ✅ |
 | **M1** | Deployed to Cloud Run; one shared tablet key | ✅ |
-| **M2** | Cars: registry, per-car tokens and passcodes, admin tool | **planned**: [`plans/M2-CARS.md`](plans/M2-CARS.md) |
-| **M3** | Archive lane (contract §6), and the replay tool | |
+| **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
+| **M3** | Archive lane (contract §6), and the replay tool | next |
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | |
 | **M5** | Crew messages (contract §5.4) | |
 | **M6** | Past sessions on the site | |
@@ -87,8 +87,8 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 | Path | What | Milestone |
 | --- | --- | --- |
 | `GET /health` | Liveness | ✅ |
-| `GET /api/cars` | Landing page data: slug and name, never secrets | M2 |
-| `GET /v1/whoami` | Which car a token belongs to (backend-only diagnostic, not in the contract) | M2 |
+| `GET /api/cars` | Landing page data: slug and name, never secrets | ✅ M2 |
+| `GET /v1/whoami` | Which car a token belongs to (backend-only diagnostic, not in the contract) | ✅ M2 |
 | `PUT /v1/sessions/{id}`, `POST …/chunks`, `POST …/complete` | Archive lane (contract §6) | M3 |
 | `GET /v1/live` | Live lane WebSocket (contract §5) | M4 |
 | `/`, `/cars/{slug}` | Landing and live car page | M4 |
@@ -100,6 +100,9 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 ---
 
 ## Milestones after M2
+
+M3 depends on M2's `CarAuthProvider` (`CAR_AUTH`), `ApiError` (§14.2 bodies) and
+`CarRegistry.principalFor`; M4's socket uses `principalFor` after the upgrade.
 
 **The replay tool is what lets M3–M5 be built without a car.** It is a CLI that
 plays session logs into the server as a tablet would, through both lanes, with

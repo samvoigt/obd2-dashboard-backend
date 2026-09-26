@@ -35,3 +35,22 @@ not catch, and lessons about process. Short on purpose.
   **Expect it after enabling any API.**
 - **`Precondition.exists` is package-private** in the Firestore Java client, so
   "delete only if it exists" is a transaction instead.
+
+## 2026-09-26 — M2 deploy
+
+- **A Cloud Run deploy keeps any setting it does not mention.** Dropping
+  `--set-secrets` from `deploy.sh` would have left `TABLET_API_KEY` mounted, and
+  after the secret was deleted the next revision would have failed to start.
+  This was caught while validating the M2.6 plan, not in production. Removing a
+  setting needs an explicit flag (`--clear-secrets`, `--remove-env-vars`).
+- **The service has two URLs.** gcloud 586 prints the newer form,
+  `obd2-backend-286164118741.us-east4.run.app`. The older
+  `obd2-backend-qeppiy7nzq-uk.a.run.app`, which the contract names, still
+  serves. Both answer.
+- **Validating each step's plan against the code just built paid off** (Sam's
+  instruction). It found five conflicts, each before it could cost anything:
+  - Firestore needed its own module, to keep `:registry` pure;
+  - `CarAuth` had to sit beside `TabletAuth` until the deploy;
+  - `--clear-secrets` (above);
+  - the Ktor bearer provider cannot change its `401` body;
+  - `Precondition.exists` is not public.
