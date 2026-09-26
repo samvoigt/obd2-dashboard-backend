@@ -2,6 +2,9 @@ package com.obd2dashboard.backend.tools
 
 import com.github.ajalt.clikt.testing.CliktCommandTestResult
 import com.github.ajalt.clikt.testing.test
+import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.InMemorySegmentStore
+import com.obd2dashboard.backend.archive.InMemorySessionIndex
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
 import com.obd2dashboard.backend.registry.Passcodes
@@ -11,6 +14,7 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import java.security.SecureRandom
@@ -20,6 +24,10 @@ import org.junit.Test
 class AdminTest {
     private val store = InMemoryCarStore()
     private val registry = CarRegistry(store, random = SecureRandom(), passcodeIterations = 1_000)
+    private val sessions = InMemorySessionIndex()
+    private val segments = InMemorySegmentStore()
+    private val archive = ArchiveService(sessions, segments)
+    private val tools = Tools(registry, sessions, archive)
     private val yaris = Slug.parse("yaris")
 
     /** Answers prompts from queues; records every prompt shown. */
@@ -35,9 +43,10 @@ class AdminTest {
     }
 
     private fun run(args: String, io: AdminIo = FakeIo()): CliktCommandTestResult {
-        var projectSeen: String? = null
-        val result = Admin({ projectSeen = it; registry }, io).test("--project test-project $args")
-        if (result.statusCode == 0) projectSeen shouldBe "test-project"
+        var seen: Pair<String, String>? = null
+        val result = Admin({ project, bucket -> seen = project to bucket; tools }, io)
+            .test("--project test-project --bucket test-bucket $args")
+        if (result.statusCode == 0) seen shouldBe ("test-project" to "test-bucket")
         return result
     }
 
@@ -171,7 +180,67 @@ class AdminTest {
     }
 
     @Test
-    fun `the project is required`() {
-        Admin({ registry }, FakeIo()).test("list").statusCode shouldBe 1
+    fun `the project and bucket are required`() {
+        Admin({ _, _ -> tools }, FakeIo()).test("list").statusCode shouldBe 1
+        Admin({ _, _ -> tools }, FakeIo()).test("--project p list").statusCode shouldBe 1
+    }
+
+    // Sessions (M3.6)
+
+    private val sessionId = "7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f"
+    private val line0 = """{"type":"session","v":3,"id":"$sessionId","device":"dev-1","app":"1.0","started":"2026-09-24T13:08:32.623Z","vin":"TSTVEHCLE00000001","seq":0,"at":0}"""
+
+    private fun seedSession(car: String = "yaris") = runBlocking {
+        archive.open(car, sessionId, line0.toByteArray()) shouldBe ArchiveService.Open.Created(0)
+    }
+
+    @Test
+    fun `sessions lists them without a VIN, and session shows it`() {
+        run("add-car yaris --name Yaris")
+        seedSession()
+        val list = run("sessions")
+        list.statusCode shouldBe 0
+        list.stdout shouldContain sessionId
+        list.stdout shouldContain "2026-09-24T13:08:32.623Z"
+        list.stdout shouldContain "uploading"
+        list.stdout shouldNotContain "TSTVEHCLE"
+        run("sessions yaris").stdout shouldContain sessionId
+        run("sessions outback").stdout shouldContain "No sessions."
+
+        val one = run("session $sessionId")
+        one.stdout shouldContain "TSTVEHCLE00000001"
+        one.stdout shouldContain "dev-1"
+        run("session 00000000-0000-4000-8000-000000000000").statusCode shouldBe 1
+    }
+
+    @Test
+    fun `delete-session needs the id typed again`() {
+        run("add-car yaris --name Yaris")
+        seedSession()
+        run("delete-session $sessionId", FakeIo(lines = listOf("nope"))).let {
+            it.statusCode shouldBe 1
+            it.stderr shouldContain "Not deleted."
+        }
+        runBlocking { sessions.get(sessionId) } shouldNotBe null
+
+        run("delete-session $sessionId", FakeIo(lines = listOf(sessionId))).statusCode shouldBe 0
+        runBlocking { sessions.get(sessionId) }.shouldBeNull()
+        segments.objects.keys.none { it.contains(sessionId) } shouldBe true
+    }
+
+    @Test
+    fun `remove-car refuses while the car has sessions, and says how many`() {
+        val token = tokenIn(run("add-car yaris --name Yaris").stdout)
+        seedSession()
+        val io = FakeIo(lines = listOf("yaris"))
+        run("remove-car yaris", io).let {
+            it.statusCode shouldBe 1
+            it.stderr shouldContain "1 session"
+        }
+        io.prompts shouldBe emptyList() // refused before asking
+        runBlocking { registry.authenticate(token)?.slug } shouldBe yaris
+
+        run("delete-session $sessionId", FakeIo(lines = listOf(sessionId)))
+        run("remove-car yaris", FakeIo(lines = listOf("yaris"))).statusCode shouldBe 0
     }
 }

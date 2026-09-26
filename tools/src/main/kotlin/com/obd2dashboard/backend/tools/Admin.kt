@@ -7,8 +7,13 @@ import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.core.requireObject
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.SessionIndex
+import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
+import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.IssuedToken
 import com.obd2dashboard.backend.registry.RegistryException
@@ -20,44 +25,57 @@ import kotlin.system.exitProcess
 import kotlinx.coroutines.runBlocking
 
 /**
- * The owner's tool for cars: run as the owner, against Firestore directly, so
- * the server has no admin endpoint (M2 plan). Run it through `scripts/admin.sh`,
- * which supplies the project.
+ * The owner's tool for cars and sessions: run as the owner, against Firestore
+ * and Cloud Storage directly, so the server has no admin endpoint (M2 plan). Run
+ * it through `scripts/admin.sh`, which supplies the project and bucket.
  */
 fun main(args: Array<String>) {
-    Admin(registryFor = { project -> CarRegistry(FirestoreCarStore.connect(project)) }, io = ConsoleIo)
-        .main(args)
+    Admin(
+        toolsFor = { project, bucket ->
+            val index = FirestoreSessionIndex.connect(project)
+            Tools(
+                registry = CarRegistry(FirestoreCarStore.connect(project)),
+                sessions = index,
+                archive = ArchiveService(index, GcsSegmentStore.connect(project, bucket)),
+            )
+        },
+        io = ConsoleIo,
+    ).main(args)
     // The Firestore client's channel would otherwise keep the JVM alive.
     exitProcess(0)
 }
 
-/** The root command. Subcommands find the registry in the context it sets. */
+/** The root command. Subcommands find their services in the context it sets. */
 class Admin(
-    private val registryFor: (project: String) -> CarRegistry,
+    private val toolsFor: (project: String, bucket: String) -> Tools,
     private val io: AdminIo,
 ) : CliktCommand(name = "admin") {
     private val project by option("--project", help = "Google Cloud project; admin.sh sets it").required()
+    private val bucket by option("--bucket", help = "the sessions bucket; admin.sh sets it").required()
 
     init {
-        subcommands(AddCar(), RotateToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io))
+        subcommands(
+            AddCar(), RotateToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
+            ListSessions(), ShowSession(), DeleteSession(io),
+        )
     }
 
-    override fun help(context: Context) = "Manage registered cars: tokens, passcodes and names."
+    override fun help(context: Context) = "Manage registered cars (tokens, passcodes, names) and their sessions."
 
     override fun run() {
-        currentContext.findOrSetObject { Tools(registryFor(project)) }
+        currentContext.findOrSetObject { toolsFor(project, bucket) }
     }
 }
 
 /** What subcommands share, set by [Admin.run]. */
-class Tools(val registry: CarRegistry)
+class Tools(val registry: CarRegistry, val sessions: SessionIndex, val archive: ArchiveService)
 
 /**
  * A subcommand that talks to the registry. A refusal from the registry is
  * shown as it is (its messages are written for a person) and exits 1.
  */
 abstract class RegistryCommand(name: String, private val helpText: String) : CliktCommand(name = name) {
-    private val tools by requireObject<Tools>()
+    protected val tools: Tools by requireObject<Tools>()
 
     override fun help(context: Context) = helpText
 
@@ -165,9 +183,75 @@ class RemoveCar(private val io: AdminIo) :
     override suspend fun execute(registry: CarRegistry) {
         val car = slugOf(slug)
         registry.get(car) ?: throw RegistryException.NoSuchCar(car)
+        // Sessions are kept until the owner deletes them (decision 16); a car's
+        // removal must not orphan them silently.
+        val sessions = tools.sessions.listByCar(car.value).size
+        if (sessions > 0) {
+            throw CliktError("$car has $sessions session(s). Delete them first (admin.sh sessions $car, then delete-session).")
+        }
         val typed = io.readLine("Type the slug again to remove $car: ")
         if (typed?.trim() != car.value) throw CliktError("Not removed.")
         registry.removeCar(car)
         echo("Removed $car.")
+    }
+}
+
+class ListSessions : RegistryCommand("sessions", "List sessions, all or one car's. Never shows a VIN.") {
+    private val car by argument(help = "a car's slug; all cars if omitted").optional()
+
+    override suspend fun execute(registry: CarRegistry) {
+        val sessions = (car?.let { tools.sessions.listByCar(slugOf(it).value) } ?: tools.sessions.list())
+            .sortedByDescending { it.header?.started.orEmpty() }
+        if (sessions.isEmpty()) {
+            echo("No sessions.")
+            return
+        }
+        val rows = listOf(listOf("ID", "CAR", "STARTED", "LINES", "STATE")) + sessions.map {
+            listOf(
+                it.id,
+                it.car,
+                it.header?.started ?: "(no record yet)",
+                (it.ackedThrough + 1).toString(),
+                if (it.complete) "complete" else "uploading",
+            )
+        }
+        val widths = rows.first().indices.map { col -> rows.maxOf { it[col].length } }
+        for (row in rows) echo(row.mapIndexed { i, cell -> cell.padEnd(widths[i]) }.joinToString("  ").trimEnd())
+    }
+}
+
+class ShowSession : RegistryCommand("session", "Everything the index holds about one session, its VIN included.") {
+    private val id by argument()
+
+    override suspend fun execute(registry: CarRegistry) {
+        val s = tools.sessions.get(id.lowercase()) ?: throw CliktError("No session $id.")
+        val h = s.header
+        echo("id          ${s.id}")
+        echo("car         ${s.car}")
+        echo("started     ${h?.started ?: "(no session record yet)"}")
+        echo("format      ${h?.v?.let { "v$it" } ?: "-"}")
+        echo("device      ${h?.device ?: "-"}")
+        echo("app         ${h?.app ?: "-"}")
+        echo("protocol    ${h?.protocol ?: "-"}")
+        echo("vin         ${h?.vin ?: "(not given)"}")
+        echo("lines       ${s.ackedThrough + 1}")
+        echo("state       ${if (s.complete) "complete" else "uploading, ${s.segments.size} segment(s)"}")
+        s.sha256?.let { echo("sha256      $it") }
+        if (s.hashResets > 0) echo("resets      ${s.hashResets} (hash mismatches)")
+        echo("created     ${s.created}")
+        echo("updated     ${s.updated}")
+    }
+}
+
+class DeleteSession(private val io: AdminIo) :
+    RegistryCommand("delete-session", "Delete a session's data and its record. It cannot be undone.") {
+    private val id by argument()
+
+    override suspend fun execute(registry: CarRegistry) {
+        val session = tools.sessions.get(id.lowercase()) ?: throw CliktError("No session $id.")
+        val typed = io.readLine("Type the session id again to delete it (car ${session.car}): ")
+        if (typed?.trim()?.lowercase() != session.id) throw CliktError("Not deleted.")
+        tools.archive.delete(session.id)
+        echo("Deleted ${session.id}.")
     }
 }

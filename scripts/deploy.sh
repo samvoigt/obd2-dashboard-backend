@@ -23,7 +23,7 @@ gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" \
   --service-account "$RUNTIME_SA" \
   --clear-secrets \
-  --set-env-vars "GCP_PROJECT=${PROJECT}" \
+  --set-env-vars "GCP_PROJECT=${PROJECT},SESSIONS_BUCKET=${BUCKET}" \
   --allow-unauthenticated \
   --min-instances 0 \
   --max-instances 2 \

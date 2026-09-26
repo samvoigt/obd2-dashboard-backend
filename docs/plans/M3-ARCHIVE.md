@@ -554,6 +554,19 @@ It also:
 
 ### M3.6 — Sessions in the admin tool  `sonnet`
 
+> ✅ **Done 2026-09-26.**
+> - `admin.sh` gains `sessions [car]` (no VIN), `session <id>` (the VIN, only
+>   here) and `delete-session <id>` (the id typed again; objects, then the
+>   index entry).
+> - `remove-car` refuses while the car has sessions, and says how many, before
+>   any prompt.
+> - The factory builds registry, index and archive from `--project` and
+>   `--bucket`.
+>
+> **16 admin tests** (3 new). **3 mutations killed**: the guard, the VIN in the
+> list, and deleting without confirmation. Run against the real project, with no
+> sessions there yet.
+
 > **Validated against what M3.1–M3.5 built, 2026-09-26, before building.** No
 > conflict. Now fixed by what exists:
 >
@@ -585,6 +598,21 @@ It also:
 - Each command runs once against the real project.
 
 ### M3.7 — Deploy, and prove it live  `sonnet`
+
+> **Validated against what M3.1–M3.6 built, 2026-09-26, before building.** No
+> conflict. Four points:
+>
+> - **`deploy.sh` sets both variables in one `--set-env-vars`**
+>   (`GCP_PROJECT`, `SESSIONS_BUCKET`). The flag replaces the whole set, and a
+>   deploy keeps anything it does not mention (JOURNAL: M2 deploy).
+> - **The app's real logs carry real VINs.** Uploading them into this private
+>   project and deleting them after is fine. But `admin.sh session <id>` prints
+>   the VIN, so **it is not run on these sessions**; checks use `sessions`,
+>   which never shows one.
+> - **Throwaway tokens** go into a `chmod 600` scratch file, are passed with
+>   `--token-file`, never printed, and are deleted with the cars.
+> - **`max-instances` stays 2.** The archive is correct with several instances
+>   (M3.2), so the live run exercises that too.
 
 1. Deploy with `SESSIONS_BUCKET` (and still `--clear-secrets`).
 2. A throwaway car. Replay the app's largest committed session (about 3 MB of
