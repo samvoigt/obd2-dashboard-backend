@@ -9,6 +9,12 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonArray
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
@@ -27,6 +33,8 @@ data class LiveOptions(
     val dropEveryMillis: Long? = null,
     /** Multiplies the reconnect backoff, so tests need not sleep. */
     val waitScale: Double = 1.0,
+    /** Plays a dashboard with a message widget: `displayed` after `received` (§5.4). False: received only. */
+    val widget: Boolean = true,
 )
 
 sealed interface LiveResult {
@@ -50,12 +58,64 @@ class LiveReplayer(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun replay(file: SessionFile): LiveResult {
+    suspend fun replay(file: SessionFile): LiveResult = coroutineScope { run(file, this) }
+
+    /**
+     * The crew's message on "screen", as the app's `CrewMessages` keeps it
+     * (contract §5.4): one at a time, a newer one replacing it; `received` once
+     * per id on arrival, `displayed` once per id while a widget draws it; the
+     * earlier deadline kept on a duplicate; taken down by `clear`, by a sync that
+     * leaves it out, or when its time runs out. Kept across reconnects, as a
+     * tablet keeps its screen.
+     */
+    private inner class Screen {
+        private var shown: String? = null
+        private var deadline = 0L
+        private val received = HashSet<String>()
+        private val displayed = HashSet<String>()
+
+        /** Replies to send, for a message frame or a sync item. */
+        @Synchronized
+        fun arrive(id: String, text: String, preset: String?, ttlMs: Long): List<String> {
+            val at = System.nanoTime() + ttlMs * 1_000_000
+            val replies = mutableListOf<String>()
+            if (shown == id) {
+                deadline = minOf(deadline, at) // a resend never extends a message
+            } else if (ttlMs > 0) {
+                shown = id
+                deadline = at
+                log("message $id \"$text\"${preset?.let { " ($it)" } ?: ""}, ${ttlMs / 1000} s left")
+            }
+            if (received.add(id)) replies += """{"t":"received","id":"$id"}"""
+            if (options.widget && shown == id && displayed.add(id)) replies += """{"t":"displayed","id":"$id"}"""
+            return replies
+        }
+
+        @Synchronized
+        fun clear(id: String) {
+            if (shown == id) { shown = null; log("taken down: $id (clear)") }
+        }
+
+        /** A sync is the whole truth: whatever it leaves out comes down. */
+        @Synchronized
+        fun sync(ids: Set<String>) {
+            shown?.let { if (it !in ids) { shown = null; log("taken down: $it (not in the sync)") } }
+        }
+
+        @Synchronized
+        fun expire() {
+            shown?.let { if (System.nanoTime() >= deadline) { shown = null; log("taken down: $it (its time ran out)") } }
+        }
+    }
+
+    private val screen = Screen()
+
+    private suspend fun run(file: SessionFile, scope: CoroutineScope): LiveResult {
         val header = json.parseToJsonElement(file.lines[0].decodeToString()).jsonObject
         val records = file.lines.drop(1).map { runCatching { json.parseToJsonElement(it.decodeToString()).jsonObject }.getOrNull() }
         val windows = windows(file, records)
         val state = State()
-        var socket = connect(header, state) ?: return LiveResult.Stopped("could not connect")
+        var socket = connect(header, state, scope) ?: return LiveResult.Stopped("could not connect")
         var reconnects = 0
         var drops = 0 // consecutive, for the backoff; reset once a batch goes through
         var lastCleanClose = 0L
@@ -80,6 +140,7 @@ class LiveReplayer(
                 }
             }
             window.records.forEach(state::absorb)
+            screen.expire()
             val closed = if (socket.closed.isCompleted) socket.closed.await() else null
             if (closed != null) {
                 when (val next = afterClose(closed, lastCleanClose, drops)) {
@@ -89,7 +150,7 @@ class LiveReplayer(
                         if (next.waitMillis > 0) drops++
                         if (next.waitMillis > 0) delay((next.waitMillis * options.waitScale).toLong())
                         log("reconnecting after ${closed.describe()}${if (next.waitMillis > 0) ", waited ${next.waitMillis} ms" else ", at once"}")
-                        socket = connect(header, state) ?: return LiveResult.Stopped("could not reconnect")
+                        socket = connect(header, state, scope) ?: return LiveResult.Stopped("could not reconnect")
                         reconnects++
                     }
                 }
@@ -120,10 +181,10 @@ class LiveReplayer(
         return After.Reconnect(BACKOFF[minOf(drops, BACKOFF.lastIndex)])
     }
 
-    private suspend fun connect(header: JsonObject, state: State): Socket? {
+    private suspend fun connect(header: JsonObject, state: State, scope: CoroutineScope): Socket? {
         repeat(20) { attempt ->
             val socket = runCatching {
-                val listener = Socket()
+                val listener = Socket(scope)
                 val ws = http.newWebSocketBuilder()
                     .header("Authorization", "Bearer $token")
                     .subprotocols(PROTOCOL)
@@ -204,11 +265,13 @@ class LiveReplayer(
     }
 
     /** A socket and what the server said to it. */
-    private inner class Socket : WebSocket.Listener {
+    private inner class Socket(private val scope: CoroutineScope) : WebSocket.Listener {
         lateinit var ws: WebSocket
         val closed = CompletableDeferred<Closed>()
         private var fatal: String? = null
         private val text = StringBuilder()
+        /** The JDK's WebSocket allows one send in flight: batches and message replies take turns. */
+        private val sending = Mutex()
 
         /**
          * Sends, but never waits long: a socket the server has just closed can
@@ -218,7 +281,7 @@ class LiveReplayer(
             if (closed.isCompleted) {
                 false
             } else {
-                runCatching { withTimeoutOrNull(5_000) { ws.sendText(frame, true).await() } != null }.getOrElse { false }
+                runCatching { sending.withLock { withTimeoutOrNull(5_000) { ws.sendText(frame, true).await() } } != null }.getOrElse { false }
             }
 
         fun abort() = ws.abort().also { closed.complete(Closed(1006, null)) }
@@ -235,14 +298,33 @@ class LiveReplayer(
             if (last) {
                 val frame = runCatching { Json.parseToJsonElement(text.toString()).jsonObject }.getOrNull()
                 text.clear()
-                if (frame?.string("t") == "error") {
-                    val code = frame.string("code")
-                    log("server error: $code")
-                    if (code in FATAL) fatal = code
+                when (frame?.string("t")) {
+                    "error" -> {
+                        val code = frame.string("code")
+                        log("server error: $code")
+                        if (code in FATAL) fatal = code
+                    }
+                    "message" -> reply(arrive(frame))
+                    "messages" -> {
+                        val items = (frame["active"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+                        screen.sync(items.mapNotNull { it.string("id") }.toSet())
+                        reply(items.flatMap { arrive(it) })
+                    }
+                    "clear" -> frame.string("id")?.let(screen::clear)
                 }
             }
             webSocket.request(1)
             return CompletableFuture.completedFuture(null)
+        }
+
+        private fun arrive(m: JsonObject): List<String> {
+            val id = m.string("id") ?: return emptyList()
+            val ttl = (m["ttlMs"] as? JsonPrimitive)?.contentOrNull?.toLongOrNull() ?: return emptyList()
+            return screen.arrive(id, m.string("text").orEmpty(), m.string("preset"), ttl)
+        }
+
+        private fun reply(frames: List<String>) {
+            if (frames.isNotEmpty()) scope.launch { frames.forEach { send(it) } }
         }
 
         override fun onClose(webSocket: WebSocket, statusCode: Int, reason: String): CompletionStage<*> {

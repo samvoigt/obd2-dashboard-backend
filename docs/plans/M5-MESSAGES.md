@@ -427,6 +427,20 @@ in its next sync.
 
 ### M5.6 — The replay answers messages  `sonnet`
 
+> ✅ **Done 2026-09-26.**
+> - `LiveReplayer`'s `Screen` keeps one message, the earlier deadline on a
+>   duplicate, and takes it down on `clear`, on a sync that leaves it out, or on
+>   `ttlMs`. `received` and `displayed` are sent once each, `displayed` unless
+>   `--no-widget`.
+> - A `Mutex` means batches and replies never overlap on the JDK socket.
+>
+> **3 tests** on real Netty, with crew sends through the real API:
+> - received then displayed;
+> - `--no-widget` stopping at received;
+> - a clear the replay never heard, taken down at its next sync.
+>
+> **4 mutations killed.**
+
 > **Validated against what M5.1–M5.5 built, 2026-09-26, before building.** One
 > hazard in the JDK's client, designed out here:
 >
@@ -457,6 +471,26 @@ in its next sync.
   sync.
 
 ### M5.7 — The message panel  `sonnet`
+
+> **Validated against what M5.1–M5.6 built, 2026-09-26, before building.**
+> Two points that change the page, and one about checking it:
+>
+> - **Crew or public is decided when the stream connects** (M5.5), so after
+>   logging in or out **the page reopens its stream**.
+> - **The cookie reaches the stream with nothing extra**: same origin, the path
+>   `/api/cars/<slug>`, and `SameSite=Strict`, which still allows same-site
+>   requests, so `EventSource` sends it. Chrome treats `http://localhost` as
+>   secure, so the dev server's `Secure` cookie works.
+> - **The dev server sets a generated passcode** for `dev-car`, in
+>   `server/build/dev-passcode` (`chmod 600`, git-ignored), as it does the token.
+> - **Typing a passcode into a page is done only against the local dev server**,
+>   with that generated test value. The deployed site's crew view is not logged
+>   into from the browser here: M5.8 checks the crew path there through the API
+>   and the replay, and the public view in the browser. **Seeing the crew panel
+>   on the deployed site is Sam's.**
+> - **Pure logic in `messages.ts`** (merging the `messages` and `message`
+>   events by id, the current message, its age, character counting, the
+>   lifetime choices), with Vitest.
 
 `web/`:
 - the passcode form (and logout);
