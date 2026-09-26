@@ -14,4 +14,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "obd2-dashboard-backend"
 
+include(":registry")
 include(":server")

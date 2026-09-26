@@ -109,6 +109,9 @@ passcode login yet (M5); M2 only *stores* the passcode.
 3. ~~Firestore API~~ ✅ enabled 2026-09-26; `us-east4` confirmed available. No
    database yet. **Creating one fixes its location permanently** (M2.2).
 
+4. ✅ Sam, 2026-09-26: **`us-east4` for the database is fine**, and **the old
+   `tablet-api-key` secret may be deleted** in M2.6, with no need to ask again.
+
 Registering Sam's real cars is **not** part of M2. It is
 `scripts/admin.sh add-car` whenever he wants, and a token is only useful once
 the tablet has its Cars page (contract §10.5).
@@ -117,9 +120,54 @@ the tablet has its Cars page (contract §10.5).
 
 ## The steps
 
-Each is validated against the code again before it is built.
+Each is validated against the code again before it is built. **Sam,
+2026-09-26:** after each step, check the *next* step's plan against what was
+actually built, and write that down, before building it.
 
 ### M2.1 — The registry core  `opus`
+
+> ✅ **Done 2026-09-26.** `:registry` (`explicitApi`, coroutines only):
+> - `Slug`, with `check` giving the reason for a refusal and `parse` throwing it;
+> - `Tokens` (generate, hash, hint, `isWellFormed`);
+> - `Passcodes` (PBKDF2, with the parameters read from the stored string; an
+>   unreadable string refuses, never throws);
+> - `Car` and `IssuedToken`, whose `toString` never prints the token;
+> - the sealed `RegistryException`;
+> - `CarStore` and `InMemoryCarStore`;
+> - `CarRegistry`: add, rotate, set passcode, rename, remove, get, list (by name
+>   case-insensitively, then slug), and `authenticate`, which checks the token's
+>   shape before asking the store.
+>
+> **Names:** trimmed, 1–60 characters. **34 tests.** Eight mutations, each
+> killed by a failing test and not a compile error, which was checked separately:
+> - the three the plan named: swapping the comparison, dropping the salt,
+>   reusing the old hash on rotate;
+> - the stored iteration count ignored;
+> - the passcode length off by one;
+> - reserved slugs allowed;
+> - `create` overwriting;
+> - a duplicate token hash answered instead of refused.
+
+> **Validated against the code 2026-09-26, before building.** No question.
+>
+> - **Nothing exists to conflict with it.** `:server` has only `/health`,
+>   `/tablet/ping` and `TabletAuth`, and M2.1 touches none of them.
+> - **`explicitApi()`**, as the app's library modules have: `:registry` is shared
+>   by two consumers, so its surface should be chosen deliberately.
+> - **`java.time` for time, with a `Clock` passed in**, not `kotlin.time.Instant`.
+>   Firestore's `Timestamp` converts from `java.time.Instant` directly (M2.2), and
+>   tests set the clock.
+> - **`CarStore` is `suspend`.** The server is coroutine-based, and Firestore's
+>   futures adapt to it (M2.2). This needs `kotlinx-coroutines-test` in the
+>   catalog for `runTest`.
+> - **`create` must be atomic** ("refused if the slug exists"), because M2.2 maps
+>   it to Firestore's `create()`, which fails on an existing document. It is
+>   not a read followed by a write.
+> - **The PBKDF2 iteration count is a parameter**, defaulting to 600,000, so tests
+>   can use a small count. The stored string carries it, which is also what the
+>   "a different iteration count still verifies" test needs.
+> - Registry failures are a sealed `RegistryException` with messages meant for
+>   a person, because the admin tool (M2.3) shows them as they are.
 
 A new pure-Kotlin module, `:registry`, shared by the server and the tool:
 - `Car`, and the slug rules (`Slug.parse`, with reasons for refusal);
@@ -147,7 +195,43 @@ A new pure-Kotlin module, `:registry`, shared by the server and the tool:
 
 ### M2.2 — Firestore  `sonnet`
 
-- `FirestoreCarStore` in `:registry`: the document mapping, and
+> **Validated against what M2.1 built, 2026-09-26, before building.** One
+> conflict, resolved here:
+>
+> - **`FirestoreCarStore` gets its own module, `:registry-firestore`, not
+>   `:registry`.** M2.1 made `:registry` pure: coroutines only, with tests that
+>   need no cloud. The Firestore client brings gRPC, protobuf and Guava.
+>   `:registry-firestore` depends on `:registry` and the client, and both the
+>   server and the tool depend on it.
+> - **`CarStore`'s contract maps onto Firestore's own preconditions**, not onto
+>   read-then-write:
+>   - `create` → `DocumentReference.create()`, which fails with
+>     `ALREADY_EXISTS` → `false`;
+>   - `update` → `update()`, which fails with `NOT_FOUND` on a missing document
+>     → `false`. It writes every field, and a null `passcodeHash` becomes
+>     `FieldValue.delete()`;
+>   - `delete` → `delete(Precondition.exists(true))`, `NOT_FOUND` → `false`.
+>     A plain delete succeeds on a missing document, which would break
+>     `removeCar`'s "no such car".
+> - **`findByTokenHash`** → `whereEqualTo("tokenHash", …).limit(2)`. Two results
+>   → `RegistryException.DuplicateToken`, the same as `InMemoryCarStore`.
+> - **The slug is the document ID**, not a field, and it is re-checked with
+>   `Slug.parse` when read. A document edited by hand into an invalid slug fails
+>   loudly.
+> - **Time:** `Instant` ↔ `com.google.cloud.Timestamp`. Firestore keeps
+>   microseconds, so the round trip is exact for the registry's clock but not
+>   for arbitrary nanosecond instants, and the smoke test compares at
+>   microsecond precision.
+> - **Futures:** a small `ApiFuture.await()` built on
+>   `suspendCancellableCoroutine`, rather than another library.
+> - **The smoke test is a `main` in `:registry-firestore`'s test sources, run by
+>   a `smoke` Gradle task.** It has no `@Test`, so `gradlew test` never runs it.
+>   `scripts/firestore-smoke.sh` passes the project from `env.sh`.
+> - The Artifact Registry REST workaround in `gcp-setup.sh` stays. The repository
+>   already exists, so the plain command could not be tested by running setup
+>   again, and replacing a working step with an untested one gains nothing.
+
+- `FirestoreCarStore` in `:registry-firestore` (see validation): the document mapping, and
   `findByTokenHash` as a `whereEqualTo` query, limit 2 (two results is a
   corruption, reported, never a coin toss).
 - `gcp-setup.sh` gains:
@@ -242,8 +326,8 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
    The token is read into a shell variable, never printed. Then remove the
    throwaway car, check that `/api/cars` no longer lists it, and check that its
    token now gets `401`.
-5. **Ask Sam, then** delete the `tablet-api-key` secret, and remove the runtime
-   account's access to it.
+5. Delete the `tablet-api-key` secret, and with it the runtime account's access
+   (approved by Sam, 2026-09-26).
 6. Close M2:
    - entry in `docs/plans/COMPLETED.md` (a new file);
    - anything learned in `JOURNAL.md`;
