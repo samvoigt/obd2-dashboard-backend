@@ -6,7 +6,9 @@ shows the car's data live.
 
 ## Status
 
-Skeleton only: a health check, plus a tablet-key check at `/tablet/ping`. See [`docs/PLAN.md`](docs/PLAN.md).
+Skeleton only: a health check, plus a tablet-key check at `/tablet/ping`. Next is
+M2: registered cars and per-car tokens. See [`docs/PLAN.md`](docs/PLAN.md). The
+protocol is the app's [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/2210082/docs/TELEMETRY-CONTRACT.md).
 
 ## Building
 

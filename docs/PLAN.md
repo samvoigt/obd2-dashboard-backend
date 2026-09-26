@@ -7,21 +7,30 @@ it as live dashboards *and* captures it as a session; and the crew can send the
 car messages such as "Pit Now". There can be several cars at once, each with its
 own page.
 
+**The protocol is the telemetry contract v1** (decision 15, `docs/PROTOCOL.md`).
+Where this plan and the contract disagree, the contract wins. Fix the plan.
+
 ## Status
 
 | Milestone | | |
 | --- | --- | --- |
 | **M0** | Skeleton: Ktor server, health check, tests, Dockerfile | ✅ |
-| **M1** | Deployed to Cloud Run; one shared tablet key | ✅ server side |
-| **M2** | Car registry, per-car keys and passcodes, admin CLI | next |
-| **M3** | Session capture: the log lane, Cloud Storage, replay tool | |
-| **M4** | Live: the live lane, fan-out, first website | |
-| **M5** | Messages to the car | |
+| **M1** | Deployed to Cloud Run; one shared tablet key | ✅ |
+| **M2** | Cars: registry, per-car tokens and passcodes, admin tool | **planned**: [`plans/M2-CARS.md`](plans/M2-CARS.md) |
+| **M3** | Archive lane (contract §6), and the replay tool | |
+| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | |
+| **M5** | Crew messages (contract §5.4) | |
 | **M6** | Past sessions on the site | |
 | **M7** | Dashboards: crew views and mirrored tablet layouts | |
 
-App-side work is listed under [The app's half](#the-apps-half). It belongs in the
-app's `docs/PLAN.md` when it is scheduled there.
+**How a milestone runs**, as in the app:
+- A plan in `docs/plans/` sketches every step.
+- Each step is **validated against the code** just before it is built, and the
+  validation is written into the plan.
+- The step is built, then marked ✅ with what was actually done.
+- When the milestone closes, its lasting content moves to
+  `docs/plans/COMPLETED.md`, `DECISIONS.md` or `JOURNAL.md`, and the plan is
+  deleted. Git keeps the rest.
 
 Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 `obd2-dashboard-backend`, region `us-east4`. Deploys go through `cloudbuild.yaml`
@@ -32,159 +41,156 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 ## Architecture
 
 ```
- TABLET (per car)                     CLOUD RUN — Ktor, one instance           BROWSERS
-┌──────────────────────┐            ┌─────────────────────────────┐        ┌──────────────────┐
-│ SignalBus ─┬─► live ─┼─ WebSocket ┼─► Live hub (in memory) ─────┼─ SSE ─►│ /  landing:      │
-│            │   lane  │            │   latest value per signal,  │        │    cars, who's   │
-│            ▼         │            │   last few minutes          │        │    live          │
-│ Session log (JSONL)  │            │                             │        │ /cars/{slug}:    │
-│   └─► log lane ──────┼────────────┼─► Session writer ───────────┼──┐     │    gauges, charts│
-│       (by line no.)  │ ◄── acks ──┤                             │  │     │    message panel │
-│                      │            │                             │  │     └────────┬─────────┘
-│ Message overlay ◄────┼── messages ┤◄─ Message service ◄─────────┼──┼── POST ──────┘
-│                      │ ─displayed►│   (passcode-gated)          │  │   (crew passcode)
-└──────────────────────┘            └──────────────┬──────────────┘  │
-                                                   ▼                 ▼
-                                      Firestore: cars, sessions,  Cloud Storage:
-                                      messages, hashed keys       sessions/{car}/{id}/…jsonl.gz
+ TABLET (per car)                       CLOUD RUN — Ktor, one instance            BROWSERS
+┌────────────────────────┐            ┌───────────────────────────────┐       ┌──────────────────┐
+│ SignalBus ──► live     │ WebSocket  │ /v1/live                      │       │ /  landing:      │
+│   coalesced, 200 ms ───┼───────────►│   ─► Live hub (in memory) ────┼─ SSE ►│    cars, who's   │
+│                        │◄─ messages─┤      latest per signal,       │       │    live          │
+│ Message widget ◄───────┤  received/ │      last few minutes         │       │ /cars/{slug}:    │
+│                        │  displayed►│                               │       │    gauges, charts│
+│ Session log (JSONL) ──►│  HTTPS     │ /v1/sessions/{id}             │       │    message panel │
+│   shipper, by line     ├───────────►│   ─► Archive writer           │       └───────┬──────────┘
+│   index, every 2 min   │◄── acks ───┤                               │               │
+└────────────────────────┘            │ Message service ◄─────────────┼── POST ───────┘
+                                      │   (crew passcode)             │  (passcode cookie)
+                                      └───────┬──────────────┬────────┘
+                                              ▼              ▼
+                                   Firestore: cars,     Cloud Storage: session
+                                   sessions, messages   lines, byte for byte
 ```
 
-**Everything rests on one idea: the stream is the session log** (decision 6).
-The tablet already writes a durable, versioned JSONL log. It streams it over one
-WebSocket with **two lanes**:
-
-- **The live lane** carries readings straight off the bus, newest first, for
-  display. It may drop records. After a dead zone it jumps to *now*; it never
-  replays.
-- **The log lane** carries lines of the session log *file*, in order, with the
-  server acknowledging by line number. It never drops. After a dead zone it
-  catches up, and after the session it finishes on paddock Wi-Fi. **This lane is
-  the captured session**, and it replaces the post-session upload the app's M8
-  planned for.
-
-Two lanes rather than one because of the app's code (measured 2026-09-26):
-`SessionLog` flushes the file only when it syncs, at most every 30 s by default
-(`LogConfig.fsyncInterval`). Following the file alone would put up to 30 s of lag
-on the live view. The file's `seq` can also have holes when the log config
-filters kinds, so the file is tracked by line number, not by `seq`.
+- **Two lanes** (contract §2):
+  - **Live** is lossy and never replayed. It is for watching.
+  - **Archive** is complete, ordered by line index, stored byte for byte, and
+    authoritative. It is the captured session.
+- The lanes are merged by `(sessionId, seq)` (contract §7).
+- **A token identifies a car** (contract §8, decision 10). A car is a page on the
+  site, not a VIN.
+- **One instance, with the live hub in memory** (decision 7). Several cars fit.
 
 ## Decisions this plan rests on
 
-`docs/DECISIONS.md` 6–14. In short:
-
 | # | Decision |
 | --- | --- |
-| 6 | The stream is the session log: a live lane for display, and a log lane acked by line number for capture |
-| 7 | One Cloud Run instance, with the live hub in memory behind an interface. Several cars still fit |
-| 8 | Browsers receive data over SSE, and send commands as plain POSTs |
-| 9 | Session data goes to Cloud Storage in gzipped chunks; the index and messages go to Firestore |
-| 10 | Cars are registered, and each has its own key and crew passcode (supersedes 4) |
-| 11 | Viewing is public; sending messages needs the car's crew passcode (amends 5) |
-| 12 | Messages are displayed, never acknowledged by the driver. The crew clears them, or they expire |
-| 13 | Website: TypeScript + Svelte + uPlot, built statically and served by Ktor (refines 3) |
-| 14 | The protocol is a document plus fixtures, not shared code. The server reads only the envelope |
+| 7 | One Cloud Run instance, with the live hub in memory behind an interface |
+| 8 | Browsers receive over SSE and send commands as plain POSTs |
+| 9 | Session data in Cloud Storage; the index, cars and messages in Firestore |
+| 10 | Cars are registered, and each has its own token and crew passcode |
+| 11 | Viewing is public; sending messages needs the car's crew passcode |
+| 12 | Messages are display-only: queued → received → displayed → cleared \| expired |
+| 13 | Website: TypeScript + Svelte + uPlot, built statically and served by Ktor |
+| 15 | The telemetry contract v1 is the protocol |
+| 16 | Sessions are kept indefinitely; the VIN is never shown |
 
 ## URLs
 
-| Path | What |
-| --- | --- |
-| `/` | Landing: registered cars, and which ones are live |
-| `/cars/{slug}` | A car's live page: dashboards, freshness, message panel |
-| `/cars/{slug}/sessions`, `…/{id}` | Past sessions (M6) |
-| `GET /api/cars` | The landing page's data |
-| `GET /api/cars/{slug}/live` | SSE: snapshot, then live records and message states |
-| `POST /api/cars/{slug}/login` | Crew passcode → signed cookie for that car |
-| `POST /api/cars/{slug}/messages`, `DELETE …/{id}` | Send and clear (crew only) |
-| `GET /tablet/ping` | Key check for the app's settings screen (exists) |
-| `GET /tablet/stream` | The tablet's WebSocket (`docs/PROTOCOL.md`) |
-
-A tablet never names its car. **The key identifies the car**, so a tablet cannot
-write to another car's page by mistake or on purpose.
+| Path | What | Milestone |
+| --- | --- | --- |
+| `GET /health` | Liveness | ✅ |
+| `GET /api/cars` | Landing page data: slug and name, never secrets | M2 |
+| `GET /v1/whoami` | Which car a token belongs to (backend-only diagnostic, not in the contract) | M2 |
+| `PUT /v1/sessions/{id}`, `POST …/chunks`, `POST …/complete` | Archive lane (contract §6) | M3 |
+| `GET /v1/live` | Live lane WebSocket (contract §5) | M4 |
+| `/`, `/cars/{slug}` | Landing and live car page | M4 |
+| `GET /api/cars/{slug}/live` | SSE: snapshot, live records, message states | M4 |
+| `POST /api/cars/{slug}/login` | Crew passcode → signed cookie for that car | M5 |
+| `POST /api/cars/{slug}/messages`, `DELETE …/{id}` | Send and clear (crew only) | M5 |
+| `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M6 |
 
 ---
 
-## Milestones
+## Milestones after M2
 
 **The replay tool is what lets M3–M5 be built without a car.** It is a CLI that
-plays a session log from the app's `test-data/sessions/` into the server at real
-speed, pretending to be a tablet, with switches for dropping the connection and
-simulating a dead zone. Several copies at once, on different keys, is the
-multi-car test.
+plays session logs into the server as a tablet would, through both lanes, with
+switches for dropping the connection and simulating a dead zone. Several copies
+at once, on different tokens, is the multi-car test. The app's `test-data/`
+logs are format v1, so the tool upgrades them to v3 (adding `id`, `device`,
+`wall`, a zeroed `session.seq`). Once the tablet writes real v3 logs, ask for
+one to be committed as a fixture.
 
-### M2 — Cars
+### M3 — Archive lane (contract §6)
 
-- A Firestore `cars` collection: slug, display name, SHA-256 of the key,
-  PBKDF2 hash of the passcode.
-- An admin CLI (`:tools`) run with the owner's own Google credentials (so no
-  admin endpoint exists): `add-car`, `rotate-key`, `set-passcode`, `list`. The
-  key is printed once, at creation.
-- Tablet auth looks up the car by key hash. The single `TABLET_API_KEY` and its
-  secret are retired once the tablet has its per-car key.
-- `GET /api/cars`.
+- `PUT /v1/sessions/{id}`: stores line 0 verbatim. Idempotent. A session is
+  bound to the car whose token opened it; another car's token gets
+  `400 wrong_car` (§14.2).
+- `POST …/chunks`:
+  - gzip body, ≤1 MB uncompressed (`413` over that);
+  - idempotent by `(sessionId, index)`;
+  - `409 {missingFrom}` for a chunk that starts past the end;
+  - `ackedThrough` sent only once the lines are in Cloud Storage.
+- `POST …/complete`: checks the record count and the sha256 over the stored
+  lines, answers `409 {missingFrom}` if lines are missing, then joins the chunks
+  into one `.jsonl.gz`.
+- Firestore session index: car, id, started, device, app, line count, complete.
+  The VIN is stored but never returned publicly.
+- The replay tool (archive half).
+- **Done when:** a replay with random dropped responses and repeated chunks
+  stores a session whose sha256 matches the source, and one left unfinished
+  completes on a later run.
 
-### M3 — Session capture
+### M4 — Live lane and first website (contract §5.1–5.3)
 
-- `docs/PROTOCOL.md` agreed: `open`/`resume`, `log` batches, `ack`, `close`/`closed`.
-- `/tablet/stream`: the log lane only. Chunks go to Cloud Storage every ~30 s
-  and are joined into one `.jsonl.gz` on `closed`. The session index goes to
-  Firestore.
-- The replay tool.
-- **Done when:** a replay with random disconnects produces a stored session that
-  decompresses to the source file byte for byte, and one never closed can be
-  finished by reconnecting later.
+- `/v1/live`:
+  - `hello`, `welcome`, `session`, `snapshot` (including the latest `signals`,
+    `fault` and `stopped` records, §14.1), `batch`, `end`;
+  - errors `auth`, `superseded`, `bad_message`, `unsupported_version`;
+  - the newest socket wins;
+  - clean closes: **1001 at about 55 min**, **1012 on SIGTERM**;
+  - a Firestore listener on `cars` closes a socket whose token is rotated.
+- The in-memory hub, and SSE per car.
+- The website's first cut:
+  - landing page;
+  - car page with **freshness first** ("live" / "last data 40 s ago" /
+    "offline"), big numbers, and one uPlot chart;
+  - GPS on a map when a session has it.
+- Node becomes a build dependency, with a Node stage in the Dockerfile.
+- `max-instances=1`.
 
-### M4 — Live
+### M5 — Crew messages (contract §5.4)
 
-- The live lane; the in-memory hub keeping each car's latest value per signal
-  and the last few minutes; SSE per car.
-- The website's first cut: landing page, and a car page with **freshness shown
-  first** ("live" / "last data 40 s ago" / "offline"), big numbers for a few
-  signals, and one uPlot chart.
-- `max-instances=1` (decision 7).
-
-### M5 — Messages
-
-- Crew passcode login per car → signed, HTTP-only cookie.
-- Presets ("Pit Now", "Box this lap", "Fuel", "Push", "Slow — yellow") plus free
-  text; a time-to-live per message.
-- States: **queued → delivered → cleared | expired**. *Delivered* means the tablet
-  has put it on screen. The site shows each state live.
-- One message on screen at a time; a new one replaces it.
+- Per-car passcode login → signed, HTTP-only cookie, with rate-limited
+  attempts.
+- Presets (`pit`, `box`, `fuel`, `push`, `slow`) plus free text, 40 characters
+  at most, each with a time-to-live.
+- The full `messages` sync after every `hello`; `message`, `clear`.
+- States **queued → received → displayed → cleared | expired**, shown live on
+  the site. `received`/`displayed` for an unknown `id` are ignored.
 
 ### M6 — Past sessions
 
-- A car's session list; a session page with full-length charts read from Cloud
-  Storage; download as `.jsonl.gz`; gaps drawn as gaps, never interpolated.
+- A car's session list, grouped into drives by time.
+- A session page with full-length charts read from Cloud Storage, and download
+  as `.jsonl.gz`.
+- Gaps drawn as gaps, never interpolated.
+- Live rows replaced by archive rows once the archive covers them (contract §7).
 
 ### M7 — Dashboards
 
-- **Crew views:** configurable pages of charts and numbers, stored per car in
-  Firestore.
-- **Mirrored tablet layouts:** the tablet sends its current dashboard profile.
-  The site draws the same gauges. Depends on the app's profile format (app M12)
-  and on how much gauge drawing can be shared. Decide when it starts.
+- **Crew views:** configurable pages stored per car.
+- **Mirrored tablet layouts:** need a layout message, which is a contract v2.
+  Reimplement the gauges in Svelte, or build the app's gauges for the web with
+  Compose Multiplatform? Decide when M7 starts.
 
 ---
 
-## The app's half
+## The tablet's half
 
-| | | Needs |
-| --- | --- | --- |
-| **A1** | Settings: server URL and car key; a test-connection button calling `/tablet/ping` | M1 |
-| **A2** | The streamer: a bus subscriber for the live lane and a cursor over the log file for the log lane, in the connection service; marks an archive sent on `closed`, through the existing `LogUploader` retention path | M3, M4 |
-| **A3** | Message overlay: large, glanceable, shows the message's age, no tap to dismiss | M5 |
-| **A4** | Publish the active dashboard layout | M7 |
+The tablet's build order is in contract §10:
+1. format v3;
+2. the G-meter on the bus;
+3. the archive shipper;
+4. the live lane;
+5. the Telemetry settings page and per-car tokens;
+6. the message widget;
+7. GPS.
 
-**Hardware.** The tablet has no cellular (measured 2026-09-10). A phone hotspot is
-enough to test A2 in a car; a proper link is a purchase to make before racing
-with it.
+The server is ready for each piece before the tablet needs it. M3 lands before
+the shipper, M4 before the live lane, and M5 before the widget.
+
+**Hardware.** The tablet has no cellular (measured 2026-09-10). A phone hotspot
+is enough to test in a car.
 
 ## Open questions
 
-- **Session identity.** The draft protocol uses the log file's name without its
-  extensions, because an archive is renamed `.jsonl` → `.jsonl.gz` when it
-  closes. Confirm that name is stable in the app before M3.
-- **How long to keep sessions.** Nothing expires for now; storage is pennies a
-  session.
-- **Mirrored gauges (M7).** Reimplement them in Svelte, or move the app's gauges
-  to Compose Multiplatform and build them for the web? Decide at M7, not before.
+- **Mirrored gauges (M7):** see above.

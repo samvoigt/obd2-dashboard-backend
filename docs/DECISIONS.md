@@ -103,6 +103,10 @@ Proxy or a viewer login can go in front later without changing the tablet side.
 
 ## 6. The stream is the session log
 
+> **Superseded by 15.** The idea survives, two lanes with the log as the source of
+> truth, but the telemetry contract carries the archive over **HTTPS chunk uploads**,
+> not a second lane on the WebSocket. Line indexes, as argued below, were adopted.
+
 **Decision.** The tablet streams over one WebSocket with two lanes:
 - **Live lane:** records taken straight off the bus, newest first, for display
   only. It may drop records.
@@ -168,6 +172,9 @@ a few times an hour.
 
 ## 9. Session data in Cloud Storage; everything small in Firestore
 
+> **Still holds.** Under the contract, chunks are named by **line index** range
+> (`{first}-{last}`), and a session is keyed by the tablet's session `id` (a UUID).
+
 **Decision.**
 - Log-lane lines are written to Cloud Storage as gzipped chunks named by line
   range, and joined into one `.jsonl.gz` when the session closes.
@@ -185,6 +192,10 @@ sessions.
 ---
 
 ## 10. Cars are registered, and each has its own key
+
+> **Amended by 15:** the contract calls it a **token**. The tablet keeps one per car
+> and picks by VIN, with a default car for sessions without one. That is the
+> tablet's business; to the server, the token is still the whole identity.
 
 **Decision.**
 - A car is a Firestore document: slug, name, key hash, passcode hash.
@@ -222,6 +233,12 @@ accounts are needed.
 ---
 
 ## 12. Messages are displayed, never acknowledged
+
+> **Amended by 15:** states are **queued → received → displayed → cleared | expired**.
+> `received` exists because a dashboard without a message widget receives but
+> never displays. After every `hello` the server sends the **complete active set**,
+> and the tablet takes down anything not in it. One tone on arrival. Text is limited
+> to 40 characters.
 
 **Decision.** The driver does nothing with a message. A message goes **queued →
 delivered → cleared | expired**. *Delivered* is reported by the tablet once the
@@ -262,6 +279,10 @@ only.
 
 ## 14. The protocol is a document plus fixtures, not shared code
 
+> **Superseded by 15:** the document is the app's `TELEMETRY-CONTRACT.md`, not one
+> in this repo. The rest holds: no shared code, and the server parses only what it
+> needs.
+
 **Decision.**
 - `docs/PROTOCOL.md` specifies the tablet connection.
 - `protocol-fixtures/` holds example frames. Both repos test against the same
@@ -275,3 +296,47 @@ only.
 types. Leaving records unparsed keeps the server car-agnostic by construction
 (the app's decision 33). The server cannot misread a field it never reads, and
 new signals need no server change.
+
+---
+
+## 15. The telemetry contract v1 is the protocol
+
+**Decision.** The protocol between tablet and server is the app's
+[`docs/TELEMETRY-CONTRACT.md`](https://github.com/samvoigt/obd2-dashboard/blob/2210082/docs/TELEMETRY-CONTRACT.md),
+**v1, final, at app commit `2210082`**. It was written by the tablet side,
+reviewed by this side, and agreed by both (its §§12–14). In summary:
+
+- **Live lane:** one WebSocket at `/v1/live`, subprotocol `obd2-telemetry.v1`.
+  Every 200 ms, the latest sample per signal plus every structural record.
+  Lossy, and never replayed.
+- **Archive lane:** HTTPS. `PUT /v1/sessions/{id}`, then
+  `POST …/chunks` and `POST …/complete`. Addressed by **line index**, stored
+  **byte for byte**, and acknowledged only once durable.
+- Crew messages travel on the live socket (decision 12 as amended).
+- **A token belongs to a car** (decision 10 as amended).
+
+Supersedes 6 and 14; amends 10 and 12. `docs/PROTOCOL.md` points at the
+contract and lists what this side committed to in its §14.5.
+
+**Why.** Only one document can be the contract, and the tablet side knows the
+records. HTTPS for the archive is better than the WebSocket lane of decision 6:
+each chunk request stands on its own, which suits Cloud Run and ordinary retries.
+
+**Changing it.** A v2, agreed the same way, through Sam. Never an edit on one
+side. The pinned commit here moves only when a new version is agreed.
+
+---
+
+## 16. Sessions are kept indefinitely; the VIN is never shown
+
+**Decision.** Nothing expires, and deletion is by the owner with the admin
+tool. There is no self-service deletion. The VIN is stored with its session and
+appears only in the admin tool and in downloaded session files, **never on a web
+page or in a public API response**. GPS position may be shown publicly.
+
+**Why.** Sam, 2026-09-26. Storage costs pennies per session, so there is no
+pressure to delete. The VIN identifies a vehicle, and a public page does not
+need it. A live map of the car is part of the point.
+
+**Revisit if.** Storage cost matters, or someone asks for their data to be
+deleted.

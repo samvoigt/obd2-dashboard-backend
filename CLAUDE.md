@@ -13,8 +13,15 @@ Google Cloud Run.
   before starting work.**
 - `docs/DECISIONS.md` — what was decided and *why*. Add to it; don't silently
   reverse one.
-- `docs/PROTOCOL.md` — the tablet connection. Still a draft until M3; after
-  that, `protocol-fixtures/` is the contract both repos test against.
+- **The telemetry contract**, the app's `docs/TELEMETRY-CONTRACT.md`, v1, final,
+  pinned at app commit `2210082`. It is the protocol (decision 15), and
+  `docs/PROTOCOL.md` says where to find it and what this side committed to.
+  **Never edit it from here**: a change is a v2, agreed through Sam.
+- `docs/plans/` — the plan for the current milestone. Each step is **validated
+  against the code before it is built**, and that validation is written into
+  the plan. When a milestone closes, its lasting content goes to
+  `docs/plans/COMPLETED.md`, `DECISIONS.md` or `JOURNAL.md`, and the plan is
+  deleted.
 - `docs/JOURNAL.md` — measurements from real deployments and process lessons.
 - The app's `CLAUDE.md` and `docs/` in `../obd2-dashboard`. The server's
   conventions follow the app's. When the two repos share a format, the app's
