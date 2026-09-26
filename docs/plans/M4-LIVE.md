@@ -236,6 +236,22 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M4.2 — The hub  `opus`
 
+> ✅ **Done 2026-09-26.** `LiveHub`, `InMemoryLiveHub`, `TabletHandle`,
+> `Attachment`, `BrowserEvent`:
+> - superseding tells the old socket, and an old socket's frames and detach
+>   change nothing;
+> - a subscriber gets its snapshot under the car's lock;
+> - an overflowing browser has its queue dropped and is resnapshotted, never
+>   waited on;
+> - `closeAll`.
+>
+> **7 hub tests** (24 in `:live`). One of my own test assumptions was wrong: a
+> stalled browser may be resnapshotted several times, so its *last* snapshot
+> need not hold the last value. It now checks that its events, replayed as a
+> browser replays them, end at the latest value. **8 mutations killed.** One
+> first survived, showing that nothing tested a departed browser being removed
+> (a leak). An internal `subscriberCount` now lets the test see it directly.
+
 > **Validated against what M4.1 built, 2026-09-26, before building.** No
 > conflict. Now fixed by what exists:
 >
@@ -280,6 +296,28 @@ the *next* step's plan is checked against what was actually built (Sam,
 - Mutations killed.
 
 ### M4.3 — The tablet's socket  `opus`
+
+> **Validated against what M4.1–M4.2 built, 2026-09-26, before building.** One
+> gap, resolved here:
+>
+> - **The session index is `ArchiveService`'s, and private to it.** So
+>   `ArchiveService` gains `announce(car, id)`: create the entry if absent
+>   (`ackedThrough −1`, no header), `Ok` if it is this car's, `WrongCar` if
+>   another's. The route never touches the index itself.
+> - **`TabletHandle` is a small wrapper round Ktor's session.** `superseded()`
+>   and `close()` launch their error-and-close in the socket's own scope, since
+>   the hub calls them without suspending.
+> - **Auth reuses M2's `bearerToken(call)` and `principalFor`** after the
+>   upgrade, and the same pair re-checks the token every 30 s.
+> - **Subprotocol:** a `webSocket(path, protocol = "obd2-telemetry.v1")` route,
+>   and a fallback `webSocket(path)` that sends `unsupported_version` and
+>   closes. Whether Ktor's routing prefers the protocol route when it is offered
+>   is checked first, by test.
+> - **`module(registry, archive, hub, live)`**, where `LiveConfig(maxAge,
+>   recheck)` defaults to 55 minutes and 30 seconds, and tests pass seconds.
+> - **Shutdown:** `ApplicationStopping` → `hub.closeAll(1012)`. The engine's
+>   shutdown grace (2 s) and timeout (8 s) fit inside Cloud Run's 10 s after
+>   SIGTERM.
 
 `:server`, `GET /v1/live`:
 - Ktor `WebSockets` (deflate extension, `pingPeriod` 15 s, timeout 30 s,
