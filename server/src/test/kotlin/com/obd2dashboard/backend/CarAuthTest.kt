@@ -30,7 +30,7 @@ class CarAuthTest {
     private val outback = runBlocking { registry.addCar(Slug.parse("outback"), "Outback") }
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
     }
 
     private fun ApplicationTestBuilder.json() = createClient { install(ContentNegotiation) { json() } }

@@ -32,6 +32,6 @@ fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
     println("Dev server on http://localhost:$port (car dev-car; token in build/dev-token)")
     embeddedServer(Netty, port = port, host = "127.0.0.1") {
-        module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()))
+        module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) })
     }.start(wait = true)
 }

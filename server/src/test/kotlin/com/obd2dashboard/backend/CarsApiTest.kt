@@ -24,7 +24,7 @@ class CarsApiTest {
 
     @Test
     fun `with no cars it is an empty list, not a 404`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
         val response = client.get("/api/cars")
         response.status shouldBe HttpStatusCode.OK
         response.bodyAsText() shouldBe "[]"
@@ -38,7 +38,7 @@ class CarsApiTest {
             }
         }
         val car = runBlocking { registry.get(Slug.parse("yaris"))!! }
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
 
         val body = client.get("/api/cars").bodyAsText()
         val cars = Json.parseToJsonElement(body).jsonArray
@@ -60,7 +60,7 @@ class CarsApiTest {
             registry.addCar(Slug.parse("zed"), "Alpha")
             registry.addCar(Slug.parse("outback"), "Bravo")
         }
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
 
         val response = client.get("/api/cars")
         response.status shouldBe HttpStatusCode.OK

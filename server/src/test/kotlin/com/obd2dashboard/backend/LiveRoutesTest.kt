@@ -60,7 +60,7 @@ class LiveRoutesTest {
     private val line0 = """{"type":"session","v":3,"id":"$id","device":"dev","app":"1.0","started":"2026-09-26T12:00:00Z","vin":"TSTVEHCLE00000001","signals":[],"seq":0,"at":0}"""
 
     private fun ApplicationTestBuilder.app(config: LiveConfig = LiveConfig()) {
-        application { module(registry, archive, hub, config, Clock.systemUTC(), messages = messages) }
+        application { module(registry, archive, hub, config, Clock.systemUTC(), messages = messages, crewKey = testCrewKey()) }
     }
 
     private fun ApplicationTestBuilder.ws() = createClient { install(WebSockets) }

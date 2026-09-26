@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.path
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
@@ -19,6 +20,7 @@ import com.obd2dashboard.backend.registry.IssuedToken
 import com.obd2dashboard.backend.registry.RegistryException
 import com.obd2dashboard.backend.registry.Slug
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
+import java.nio.file.Files
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
@@ -126,10 +128,28 @@ class RotateToken(private val io: AdminIo) :
 class SetPasscode(private val io: AdminIo) :
     RegistryCommand("set-passcode", "Set a car's crew passcode, for sending messages.") {
     private val slug by argument()
+    private val passcodeFile by option(
+        "--passcode-file",
+        help = "read it from a file only you can read (chmod 600), for scripted checks; else typed twice",
+    ).path(mustExist = true)
 
     override suspend fun execute(registry: CarRegistry) {
         val car = slugOf(slug)
         registry.get(car) ?: throw RegistryException.NoSuchCar(car)
+        passcodeFile?.let { file ->
+            val perms = Files.getPosixFilePermissions(file)
+            if (perms.any { it.name.startsWith("GROUP") || it.name.startsWith("OTHERS") }) {
+                throw CliktError("$file can be read by others; chmod 600 it first. Nothing changed.")
+            }
+            val passcode = Files.readString(file).trimEnd('\n', '\r').toCharArray()
+            try {
+                registry.setPasscode(car, passcode)
+            } finally {
+                passcode.fill('\u0000')
+            }
+            echo("Passcode set for $car.")
+            return
+        }
         val first = io.readSecret("New passcode for $car: ")
         val second = io.readSecret("Again: ")
         try {

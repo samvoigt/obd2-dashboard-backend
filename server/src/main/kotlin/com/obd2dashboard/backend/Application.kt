@@ -32,7 +32,7 @@ import kotlinx.serialization.Serializable
  * expects `0.0.0.0` rather than loopback. 8080 is its default, so local runs and
  * the container agree without configuration.
  *
- * `GCP_PROJECT` and `SESSIONS_BUCKET` are required. A server started without
+ * `GCP_PROJECT`, `SESSIONS_BUCKET` and `CREW_COOKIE_KEY` are required. A server started without
  * them could find no car and store no session, so it would accept no tablet at
  * all, and that should fail at deploy rather than in the paddock. The project is always named, never guessed: the
  * owner's `gcloud` default is an unrelated project.
@@ -40,6 +40,7 @@ import kotlinx.serialization.Serializable
 fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
     val project = requiredEnv("GCP_PROJECT")
+    val crewKey = CrewAuth.keyFrom(requiredEnv("CREW_COOKIE_KEY"))
     val registry = CarRegistry(FirestoreCarStore.connect(project))
     val archive = ArchiveService(
         FirestoreSessionIndex.connect(project),
@@ -53,7 +54,7 @@ fun main() {
             shutdownGracePeriod = 2_000
             shutdownTimeout = 8_000
         },
-    ) { module(registry, archive, InMemoryLiveHub(), project = project, messages = Messages(FirestoreMessageStore.connect(project))) }
+    ) { module(registry, archive, InMemoryLiveHub(), project = project, messages = Messages(FirestoreMessageStore.connect(project)), crewKey = crewKey) }
     server.start(wait = true)
 }
 
@@ -70,8 +71,12 @@ fun Application.module(
     project: String? = null,
     /** Crew messages (M5), on the store production names; no default, so it is never left in memory by mistake. */
     messages: Messages,
+    /** Signs crew logins (M5.4). No default: a random one would log every crew member out at each restart. */
+    crewKey: ByteArray,
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
+    val crewAuth = CrewAuth(crewKey, clock)
+    val loginLimiter = LoginLimiter(clock)
     install(CallLogging)
     install(ContentNegotiation) { json() }
     install(Authentication) { carTokens(registry) }
@@ -84,6 +89,7 @@ fun Application.module(
         get("/health") { call.respond(Health(status = "ok")) }
 
         browserRoutes(registry, hub, clock)
+        crewRoutes(registry, crewAuth, loginLimiter)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.

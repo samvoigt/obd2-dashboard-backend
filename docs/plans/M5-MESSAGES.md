@@ -312,6 +312,23 @@ in its next sync.
 
 ### M5.4 — Crew login  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `CrewAuth` (issue, verify in constant time, 30 days, the passcode
+>   fingerprint) and `LoginLimiter` (10 in 10 minutes, per car).
+> - `CrewRoutes`: login (PBKDF2 on `Dispatchers.Default`), logout, `crew`, with
+>   `pathCar` and `isCrew` for M5.5.
+> - `module(…, crewKey)` is required; `main` reads `CREW_COOKIE_KEY`.
+> - `gcp-setup.sh`: the Secret Manager API back, `crew-cookie-key` generated and
+>   never printed, and access for the runtime account only. It ran twice cleanly.
+> - `deploy.sh` mounts it with `--set-secrets`.
+> - `admin.sh set-passcode --passcode-file`, which refuses a file others can
+>   read.
+>
+> **11 login tests** and **1 admin test**. **9 mutations killed.** The one that
+> first survived was the slug check, caught only by accident through the
+> salted fingerprint. It now has a test of its own, with two cars given
+> identical stored hashes.
+
 > **Validated against what M5.1–M5.3 built, 2026-09-26, before building.** One
 > thing M2 removed, back now:
 >
@@ -356,6 +373,24 @@ in its next sync.
 - Mutations killed.
 
 ### M5.5 — The crew API and crew-only events  `opus`
+
+> **Validated against what M5.1–M5.4 built, 2026-09-26, before building.** One
+> gap, resolved here:
+>
+> - **The hub's snapshot knows nothing of messages**, so a crew stream sends a
+>   **`messages` event** (the recent 20, with states) straight after its
+>   snapshot. It is fetched *after* subscribing, so a change in between arrives
+>   as an update as well; the page merges by id.
+> - **`encode(event, clock, crew)`**: a public stream drops `MessageChanged` as
+>   before; a crew stream sends it as `message`. The crew check is made once,
+>   at connect (`isCrew`); a logout takes effect on the next connect.
+> - **The crew's view of a message** (`MessageView`) adds the state, every
+>   timestamp and `replacedBy`, which the tablet's wire form does not need.
+> - **`DELETE` carries no body.** It is still safe, because a `SameSite=Strict`
+>   cookie is never sent on a cross-site request.
+> - **The whole-path and leak tests run on real Netty** (M4.4's finding), with
+>   the JDK's HTTP client sending the cookie and its WebSocket playing the
+>   tablet.
 
 - `POST`/`DELETE`/`GET` messages as above, all crew-only.
 - The SSE stream checks the cookie at connect; a crew stream's snapshot

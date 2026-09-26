@@ -118,6 +118,28 @@ class AdminTest {
     }
 
     @Test
+    fun `a passcode file only its owner can read sets the passcode, and any other is refused`() {
+        run("add-car yaris --name Yaris")
+        val file = java.nio.file.Files.createTempFile("passcode", ".txt")
+        try {
+            java.nio.file.Files.writeString(file, "pit-lane\n")
+            java.nio.file.Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"))
+            run("set-passcode yaris --passcode-file $file").let {
+                it.statusCode shouldBe 1
+                it.stderr shouldContain "chmod 600"
+            }
+            runBlocking { registry.get(yaris) }?.passcodeHash.shouldBeNull()
+
+            java.nio.file.Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"))
+            run("set-passcode yaris --passcode-file $file").statusCode shouldBe 0
+            val stored = runBlocking { registry.get(yaris) }?.passcodeHash.shouldNotBeNull()
+            Passcodes.verify("pit-lane".toCharArray(), stored) shouldBe true // the trailing newline is not part of it
+        } finally {
+            java.nio.file.Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
     fun `a mismatched passcode is refused and nothing changes`() {
         run("add-car yaris --name Yaris")
         val result = run("set-passcode yaris", FakeIo(secrets = listOf("pit-lane", "pit-lanf")))

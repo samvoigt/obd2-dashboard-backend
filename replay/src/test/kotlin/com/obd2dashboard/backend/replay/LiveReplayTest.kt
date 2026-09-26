@@ -60,7 +60,7 @@ class LiveReplayTest {
 
     private fun start(config: LiveConfig = LiveConfig(), liveHub: LiveHub = hub): URI {
         val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
-            module(registry, ArchiveService(index, InMemorySegmentStore()), liveHub, config, Clock.systemUTC(), messages = messages)
+            module(registry, ArchiveService(index, InMemorySegmentStore()), liveHub, config, Clock.systemUTC(), messages = messages, crewKey = ByteArray(32))
         }.start()
         server = s
         return URI.create("http://127.0.0.1:${runBlocking { s.engine.resolvedConnectors().first().port }}")

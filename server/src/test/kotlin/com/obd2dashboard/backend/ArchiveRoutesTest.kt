@@ -50,7 +50,7 @@ class ArchiveRoutesTest {
     private val lenient = Json { ignoreUnknownKeys = true }
 
     private fun ApplicationTestBuilder.app(segments: SegmentStore = store) {
-        application { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = testMessages()) }
+        application { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
     }
 
     private fun gzip(bytes: ByteArray) =

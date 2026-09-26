@@ -7,7 +7,8 @@ gcloud services enable --project "$PROJECT" \
   run.googleapis.com \
   cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
-  firestore.googleapis.com
+  firestore.googleapis.com \
+  secretmanager.googleapis.com
 
 if ! gcloud artifacts repositories describe "$REPO" --project "$PROJECT" --location "$REGION" >/dev/null 2>&1; then
   # REST rather than `gcloud artifacts repositories create`: gcloud 418 sends
@@ -72,6 +73,22 @@ if ! gcloud firestore indexes composite list --project "$PROJECT" --format="valu
   gcloud firestore indexes composite create --project "$PROJECT" --collection-group=messages \
     --field-config field-path=car,order=ascending --field-config field-path=sentAt,order=descending --async >/dev/null
 fi
+
+# Crew logins are signed with this key (M5.4): 32 random bytes, base64url,
+# generated here and never printed. Rotating it (a new version, then a deploy)
+# logs every crew member out.
+if ! gcloud secrets describe crew-cookie-key --project "$PROJECT" >/dev/null 2>&1; then
+  openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n' |
+    gcloud secrets create crew-cookie-key --project "$PROJECT" --replication-policy automatic --data-file=- >/dev/null
+fi
+for attempt in 1 2 3 4 5; do
+  if gcloud secrets add-iam-policy-binding crew-cookie-key --project "$PROJECT" \
+      --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor >/dev/null 2>&1; then
+    break
+  fi
+  [[ $attempt == 5 ]] && { echo "could not grant access to crew-cookie-key" >&2; exit 1; }
+  sleep $((attempt * 3))
+done
 
 # The server checks whether its own revision still has traffic, and drains when a
 # deploy has moved on (M4.8a): read-only, on this service only. The service exists

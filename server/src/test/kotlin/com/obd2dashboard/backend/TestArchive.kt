@@ -9,3 +9,6 @@ import com.obd2dashboard.backend.live.Messages
 fun testArchive(): ArchiveService = ArchiveService(InMemorySessionIndex(), InMemorySegmentStore())
 
 fun testMessages(): Messages = Messages(InMemoryMessageStore())
+
+/** A fixed crew-cookie key for tests (production's comes from Secret Manager). */
+fun testCrewKey(): ByteArray = ByteArray(32) { it.toByte() }
