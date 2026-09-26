@@ -59,3 +59,36 @@ there is a page to show. Splitting it out later is a move, not a rewrite.
 **Revisit if.** The frontend needs its own build tool (React, Svelte, etc.). Then
 pick a framework in a new decision, and decide whether it still ships from
 the server.
+
+---
+
+## 4. The tablet authenticates with one shared key held in Secret Manager
+
+**Decision.** A random key is stored in Secret Manager as `tablet-api-key`.
+Cloud Run gives it to the server as `TABLET_API_KEY`. The tablet sends it as
+`Authorization: Bearer <key>` on every tablet route, and the server compares it
+in constant time. The server will not start without it.
+
+**Why.** There is one tablet and one owner. A shared key is the least that
+keeps strangers from writing data, and Secret Manager keeps it out of git, the
+image, and the deploy command. The key is entered in the app's settings rather
+than built into the APK, so changing it needs no rebuild.
+
+**Rotating.** Add a new secret version, redeploy (`--set-secrets …:latest` is
+read when an instance starts), then paste the new key into the tablet.
+
+**Revisit if.** There is more than one tablet or car, or anyone needs to be cut
+off without cutting off everyone. That needs a key per device.
+
+---
+
+## 5. The website is public and read-only
+
+**Decision.** The Cloud Run service allows unauthenticated requests. Anyone with
+the URL can watch; only the tablet key can write.
+
+**Why.** It is the simplest thing that works for sharing a live view with a
+crew. The URL is not advertised.
+
+**Revisit if.** The data should not be seen by just anyone. Identity-Aware
+Proxy or a viewer login can go in front later without changing the tablet side.

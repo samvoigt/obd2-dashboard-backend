@@ -30,7 +30,7 @@ JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 
 ```
 ./gradlew test                 # unit tests
-./gradlew :server:run          # http://localhost:8080
+TABLET_API_KEY=dev ./gradlew :server:run   # http://localhost:8080
 ./gradlew :server:buildFatJar  # server/build/libs/server.jar
 ```
 
@@ -38,5 +38,11 @@ Warnings fail the build (`allWarningsAsErrors`), as in the app.
 
 ## Deploy
 
-Not set up yet (PLAN.md, M1). **Don't deploy to the default `gcloud` project**
-(`microtron-scoreboard`, which is unrelated). Ask which project to use.
+Project `obd2-dashboard-backend`, region `us-east4`, service `obd2-backend`.
+All three are set in `scripts/env.sh`. Always go through the scripts, or pass
+`--project` explicitly: the local `gcloud` default is `microtron-scoreboard`,
+which is unrelated.
+
+**Never print, log or commit the tablet key.** It lives in Secret Manager
+(decision 4). `scripts/tablet-key.sh` is for the user to run, not for output
+that goes into a transcript.

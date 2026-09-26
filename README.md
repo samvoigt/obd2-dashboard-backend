@@ -6,8 +6,7 @@ shows the car's data live.
 
 ## Status
 
-Skeleton only. It builds, tests, and answers a health check. Nothing is
-deployed yet. See [`docs/PLAN.md`](docs/PLAN.md).
+Skeleton only: a health check, plus a tablet-key check at `/tablet/ping`. See [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Building
 
@@ -15,11 +14,12 @@ Requires JDK 17. Docker is not needed.
 
 ```sh
 ./gradlew test                 # unit tests
-./gradlew :server:run          # serve on http://localhost:8080
+TABLET_API_KEY=dev ./gradlew :server:run   # serve on http://localhost:8080
 ./gradlew :server:buildFatJar  # server/build/libs/server.jar
 ```
 
-`curl localhost:8080/healthz` → `{"status":"ok"}`
+- `curl localhost:8080/healthz` → `{"status":"ok"}`
+- `curl -H 'Authorization: Bearer dev' localhost:8080/tablet/ping` → the same; without the key, 401.
 
 ## Layout
 
@@ -29,5 +29,11 @@ Requires JDK 17. Docker is not needed.
 
 ## Deploying
 
-Google Cloud Run, built from the `Dockerfile` by Cloud Build. There is no GCP
-project for this yet — see `docs/PLAN.md`, M1.
+Google Cloud Run: project `obd2-dashboard-backend`, region `us-east4`. Cloud
+Build builds it from the `Dockerfile`, so Docker is not needed locally.
+
+```sh
+scripts/gcp-setup.sh   # once: enable APIs, service account, tablet key secret
+scripts/deploy.sh      # build and deploy
+scripts/tablet-key.sh  # print the key to paste into the app's settings
+```

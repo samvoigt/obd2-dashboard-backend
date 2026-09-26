@@ -12,7 +12,7 @@ It has two jobs:
 | Milestone | | |
 | --- | --- | --- |
 | **M0** | Skeleton: Ktor server, health check, tests, Dockerfile | ✅ |
-| **M1** | Deployed to Cloud Run in its own GCP project | not started |
+| **M1** | Deployed to Cloud Run; tablet key (decisions 4, 5) | in progress |
 | — | Everything after M1 | not planned yet |
 
 ## Carried over from the app
@@ -31,13 +31,15 @@ the car does not have yet.
 
 ## M1 — Deploy
 
-Open questions, to answer when M1 starts:
-
-- **GCP project.** The local `gcloud` default is `microtron-scoreboard`. This
-  needs a project of its own, or at least a deliberate choice.
-- **Region.** Pick the one nearest where the car is driven.
-- **Auth.** The tablet needs a way to authenticate uploads, and the website may
-  or may not be public.
+- **Project** `obd2-dashboard-backend`, **region** `us-east4` (Northern
+  Virginia: there is no New England region, and this is the nearest in the US).
+- Service `obd2-backend`, running as its own service account that can read only
+  the tablet key. Scales to zero, max 2 instances.
+- `scripts/gcp-setup.sh` (one-time, can be re-run), `scripts/deploy.sh`,
+  `scripts/tablet-key.sh`.
+- `GET /tablet/ping` requires the key. It is there so the app's settings screen
+  can check a pasted key. **App side, not done:** a settings field for the key
+  and the server URL, and a "test connection" button that calls the ping.
 
 ## Later — not yet planned
 
