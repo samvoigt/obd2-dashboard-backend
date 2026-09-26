@@ -67,6 +67,24 @@ public class ArchiveService(
         return Open.Existing(existing.ackedThrough)
     }
 
+    /**
+     * A live `session` (§5.2) for [id]: creates the index entry if there is none,
+     * with no line 0 yet, so the archive's `PUT` finds it (§6.1: "a live
+     * `session` may have created the session first"). Since only streamed
+     * sessions are archived (contract §10), this is usually how a session begins.
+     */
+    public suspend fun announce(car: String, id: String): Announce {
+        val existing = index.get(id)
+        if (existing != null) return if (existing.car == car) Announce.Ok else Announce.WrongCar
+        val now = clock.instant()
+        val record = SessionRecord(
+            id = id, car = car, header = null, line0Sha256 = null, ackedThrough = -1,
+            segments = emptyList(), complete = false, sha256 = null, hashResets = 0, created = now, updated = now,
+        )
+        if (index.create(record)) return Announce.Ok
+        return if (index.get(id)?.car == car) Announce.Ok else Announce.WrongCar
+    }
+
     /** `POST /v1/sessions/{id}/chunks` (§6.2): [lines] starting at index [first]. */
     public suspend fun append(car: String, id: String, first: Long, lines: LineBlock): Append {
         val record = index.get(id) ?: return Append.NotOpen
@@ -181,6 +199,11 @@ public class ArchiveService(
         public data class Existing(val ackedThrough: Long) : Open
         public data object WrongCar : Open
         public data class BadRecord(val reason: String) : Open
+    }
+
+    public sealed interface Announce {
+        public data object Ok : Announce
+        public data object WrongCar : Announce
     }
 
     public sealed interface Append {

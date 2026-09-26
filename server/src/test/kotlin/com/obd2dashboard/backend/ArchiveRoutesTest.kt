@@ -31,6 +31,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.obd2dashboard.backend.live.InMemoryLiveHub
 import org.junit.Test
 
 /** Contract §6, section by section, through the real routes and the in-memory stores. */
@@ -49,7 +50,7 @@ class ArchiveRoutesTest {
     private val lenient = Json { ignoreUnknownKeys = true }
 
     private fun ApplicationTestBuilder.app(segments: SegmentStore = store) {
-        application { module(registry, ArchiveService(index, segments)) }
+        application { module(registry, ArchiveService(index, segments), InMemoryLiveHub()) }
     }
 
     private fun gzip(bytes: ByteArray) =

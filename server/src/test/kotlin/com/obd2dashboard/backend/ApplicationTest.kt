@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import com.obd2dashboard.backend.live.InMemoryLiveHub
 import org.junit.Test
 
 class ApplicationTest {
@@ -21,7 +22,7 @@ class ApplicationTest {
 
     @Test
     fun `health check reports ok without a token`() = testApplication {
-        application { module(registry, testArchive()) }
+        application { module(registry, testArchive(), InMemoryLiveHub()) }
 
         val response = jsonClient().get("/health")
 
@@ -31,7 +32,7 @@ class ApplicationTest {
 
     @Test
     fun `the retired shared-key route is gone`() = testApplication {
-        application { module(registry, testArchive()) }
+        application { module(registry, testArchive(), InMemoryLiveHub()) }
         client.get("/tablet/ping").status shouldBe HttpStatusCode.NotFound
     }
 }

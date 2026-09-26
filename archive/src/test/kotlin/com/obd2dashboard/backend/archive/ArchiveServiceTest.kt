@@ -264,6 +264,20 @@ class ArchiveServiceTest {
     }
 
     @Test
+    fun `a live announcement creates the session, the same car again is fine, another car is not`() = runTest {
+        archive.announce(car, id) shouldBe ArchiveService.Announce.Ok
+        index.get(id)!!.let {
+            it.ackedThrough shouldBe -1
+            it.header shouldBe null
+        }
+        archive.announce(car, id) shouldBe ArchiveService.Announce.Ok
+        archive.announce("outback", id) shouldBe ArchiveService.Announce.WrongCar
+        openFixture() shouldBe ArchiveService.Open.Created(0) // the PUT then supplies line 0
+        archive.announce(car, id) shouldBe ArchiveService.Announce.Ok // and a reconnect's announcement changes nothing
+        index.get(id)!!.ackedThrough shouldBe 0
+    }
+
+    @Test
     fun `segments carry the seq of their first and last lines`() = runTest {
         openFixture()
         append(1, 5)

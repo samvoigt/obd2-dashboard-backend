@@ -22,6 +22,7 @@ dependencies {
 
     testImplementation(project(":server"))
     testImplementation(project(":archive"))
+    testImplementation(project(":live"))
     testImplementation(project(":registry"))
     testImplementation(libs.ktor.server.netty)
     testImplementation(libs.junit)

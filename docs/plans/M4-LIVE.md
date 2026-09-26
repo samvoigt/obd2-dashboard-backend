@@ -297,6 +297,36 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M4.3 — The tablet's socket  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `LiveRoutes.kt`: `installLive` (WebSockets with deflate, 15 s ping, 30 s
+>   timeout, 256 KB Ktor frame limit; `ApplicationStopping` → `closeAll(1012)`)
+>   and `liveRoutes`. The protocol route is preferred when the subprotocol is
+>   offered, and the fallback refuses with `unsupported_version`, confirmed by
+>   test.
+> - `TabletSocket`: authenticates after the upgrade, `hello` → `welcome` +
+>   `messages []`, `announce` before `session`, a 55-minute `1001`, a 30 s
+>   re-check.
+> - `ArchiveService.announce`, with its own test.
+> - `main`: a 2 s grace and an 8 s timeout on shutdown.
+>
+> **13 socket tests** through Ktor's WebSocket client:
+> - the sequence and the exact `messages` frame;
+> - no token, a bad token, and no or the wrong subprotocol, each with its
+>   frame and `1008`;
+> - superseding;
+> - the `1001` age close, the `1012` shutdown, the rotation shut-out;
+> - a 70 KB frame answered with `bad_message` and the socket kept;
+> - frames before `hello`, garbage and binary;
+> - a parked car ("no session");
+> - a live-created session then `PUT` → `201`;
+> - another car's session;
+> - leaving → offline.
+>
+> **8 mutations killed.** A ninth, "hello not required first", is
+> **equivalent**: before `hello` there is no attachment, so the same line
+> refuses either way. Three first failed to compile and were rewritten until
+> they did.
+
 > **Validated against what M4.1–M4.2 built, 2026-09-26, before building.** One
 > gap, resolved here:
 >
@@ -352,6 +382,23 @@ the *next* step's plan is checked against what was actually built (Sam,
 Mutations killed.
 
 ### M4.4 — The browser's stream  `opus`
+
+> **Validated against what M4.1–M4.3 built, 2026-09-26, before building.** One
+> design gap, resolved here:
+>
+> - **The `404` for an unknown car must come before the stream opens.** Once an
+>   SSE handler runs, the response has started. So a small route-scoped plugin
+>   on `/api/cars/{slug}/live` checks the registry and answers `404` first.
+> - **Every event carries `serverNow`**, and history carries the server's
+>   receive times (`atMs`). The browser works out its offset from each event and
+>   draws on its own clock, whatever its skew. Status goes as
+>   `{state, lastDataAgoMs}`, per M4.2's validation.
+> - **Events:** `snapshot` (status, session header, signals, latest, stopped,
+>   fault, history), `session`, `records`, `status`, and a comment every 15 s.
+> - **The VIN test reads raw bytes** from a streaming response, not parsed
+>   events, so nothing can hide a VIN inside something the parser drops.
+> - **`/api/cars` becomes `CarSummary(slug, name, state)`**, and M2's field-pin
+>   test is updated to exactly those three keys. `/v1/whoami` keeps `PublicCar`.
 
 `:server`:
 - **`GET /api/cars/{slug}/live`, SSE, public:**

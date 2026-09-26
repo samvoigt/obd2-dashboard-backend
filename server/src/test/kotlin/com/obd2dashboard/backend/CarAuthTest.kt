@@ -20,6 +20,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import java.security.SecureRandom
 import kotlinx.coroutines.runBlocking
+import com.obd2dashboard.backend.live.InMemoryLiveHub
 import org.junit.Test
 
 class CarAuthTest {
@@ -29,7 +30,7 @@ class CarAuthTest {
     private val outback = runBlocking { registry.addCar(Slug.parse("outback"), "Outback") }
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, testArchive()) }
+        application { module(registry, testArchive(), InMemoryLiveHub()) }
     }
 
     private fun ApplicationTestBuilder.json() = createClient { install(ContentNegotiation) { json() } }

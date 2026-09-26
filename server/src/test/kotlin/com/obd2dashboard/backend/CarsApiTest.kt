@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.obd2dashboard.backend.live.InMemoryLiveHub
 import org.junit.Test
 
 class CarsApiTest {
@@ -23,7 +24,7 @@ class CarsApiTest {
 
     @Test
     fun `with no cars it is an empty list, not a 404`() = testApplication {
-        application { module(registry, testArchive()) }
+        application { module(registry, testArchive(), InMemoryLiveHub()) }
         val response = client.get("/api/cars")
         response.status shouldBe HttpStatusCode.OK
         response.bodyAsText() shouldBe "[]"
@@ -37,7 +38,7 @@ class CarsApiTest {
             }
         }
         val car = runBlocking { registry.get(Slug.parse("yaris"))!! }
-        application { module(registry, testArchive()) }
+        application { module(registry, testArchive(), InMemoryLiveHub()) }
 
         val body = client.get("/api/cars").bodyAsText()
         val cars = Json.parseToJsonElement(body).jsonArray
@@ -57,7 +58,7 @@ class CarsApiTest {
             registry.addCar(Slug.parse("zed"), "Alpha")
             registry.addCar(Slug.parse("outback"), "Bravo")
         }
-        application { module(registry, testArchive()) }
+        application { module(registry, testArchive(), InMemoryLiveHub()) }
 
         val response = client.get("/api/cars")
         response.status shouldBe HttpStatusCode.OK
