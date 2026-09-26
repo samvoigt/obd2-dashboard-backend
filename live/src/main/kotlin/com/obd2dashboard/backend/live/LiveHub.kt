@@ -44,7 +44,11 @@ public interface LiveHub {
 
     public suspend fun status(car: String): CarStatus
 
-    /** Closes every tablet's socket with [code] (1012 on shutdown). */
+    /**
+     * Closes every tablet's socket with [code] (1012 on shutdown or drain), and
+     * **ends every browser's stream**, so both reconnect, and on a deploy land on
+     * the new revision (M4.8a).
+     */
     public suspend fun closeAll(code: Short, reason: String)
 }
 
@@ -138,8 +142,10 @@ public class InMemoryLiveHub(
 
     override suspend fun closeAll(code: Short, reason: String) {
         for (c in cars.values) {
-            val tablet = c.mutex.withLock { c.tablet }
+            val (tablet, subscribers) = c.mutex.withLock { c.tablet to c.subscribers.toList() }
             tablet?.handle?.close(code, reason)
+            // Closing a browser's channel ends its flow, and with it the SSE response.
+            subscribers.forEach { it.channel.close() }
         }
     }
 }

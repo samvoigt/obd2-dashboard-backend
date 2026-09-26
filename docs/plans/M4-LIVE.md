@@ -698,6 +698,36 @@ Mutations killed.
 **Done when:** steps 1–4 pass against the deployed service, with screenshots
 kept for Sam.
 
+### M4.8a — Drain on deploy  `opus`
+
+> **Found in M4.8, 2026-09-26, deploying while a replay streamed.** Cloud Run
+> moves only *new* connections to a new revision. **An open WebSocket stays on
+> the old revision**, which is not sent SIGTERM while it has a connection, so
+> it never sends its `1012`. The tablet stayed on revision `00005`, and browsers
+> on `00006` saw **offline** until the replay's own 60-second drop moved it. A
+> real tablet drops only on bad signal or at 55 minutes, so **a deploy during a
+> race could show "offline" for up to 55 minutes**, against contract §5.3 ("the
+> server closes with 1012 … on every deploy").
+
+**Decided, in keeping with the contract:**
+- Each instance checks every 30 s, through the Cloud Run Admin API, whether its
+  own revision (`K_REVISION`, set by Cloud Run) still has traffic.
+- **When it has none**, it drains: `hub.closeAll(1012)` for tablets, and every
+  browser stream is ended. Both reconnect at once (the tablet by §5.3, the
+  browser's `EventSource` by itself) and land on the new revision.
+- The token for the check comes from the metadata server. The runtime account
+  gets `roles/run.viewer`, read-only (`gcp-setup.sh`).
+- If the check fails (an API error, or running outside Cloud Run), nothing is
+  drained. It is an improvement over the 55-minute backstop, never a new way to
+  cut connections.
+
+**Done when:**
+- Tests cover the drain decision (serving, not serving, API error → keep), and
+  a drain closing tablets with `1012` and ending browser streams.
+- Live: a deploy while a replay streams shows `reconnecting after close 1012,
+  at once` in the replay's log, and the page back to live within about 30 s of
+  the switch, **with no socket drops forced by the replay**.
+
 ### M4.9 — Record it
 
 - **Decisions:**

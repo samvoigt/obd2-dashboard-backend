@@ -51,7 +51,7 @@ fun main() {
             shutdownGracePeriod = 2_000
             shutdownTimeout = 8_000
         },
-    ) { module(registry, archive, InMemoryLiveHub()) }
+    ) { module(registry, archive, InMemoryLiveHub(), project = project) }
     server.start(wait = true)
 }
 
@@ -64,11 +64,13 @@ fun Application.module(
     hub: LiveHub,
     live: LiveConfig = LiveConfig(),
     clock: Clock = Clock.systemUTC(),
+    /** Set in production, so the instance can drain when its revision loses traffic (M4.8a). */
+    project: String? = null,
 ) {
     install(CallLogging)
     install(ContentNegotiation) { json() }
     install(Authentication) { carTokens(registry) }
-    installLive(hub)
+    installLive(hub, project)
     install(SSE)
 
     routing {

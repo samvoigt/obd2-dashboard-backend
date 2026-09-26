@@ -140,6 +140,18 @@ class LiveHubTest {
     }
 
     @Test
+    fun `closeAll also ends every browser's stream, so it reconnects`() = runTest(UnconfinedTestDispatcher()) {
+        hub.attach("yaris", FakeTablet())
+        var ended = false
+        val job = launch { hub.subscribe("yaris").collect { }; ended = true }
+        hub.subscriberCount("yaris") shouldBe 1
+        hub.closeAll(1012, "draining")
+        job.join()
+        ended shouldBe true
+        hub.subscriberCount("yaris") shouldBe 0
+    }
+
+    @Test
     fun `a browser that stops collecting is removed`() = runTest(UnconfinedTestDispatcher()) {
         val tablet = hub.attach("yaris", FakeTablet())
         tablet.apply(parse(sessionFrame()))

@@ -64,3 +64,20 @@ for attempt in 1 2 3 4 5; do
   [[ $attempt == 5 ]] && { echo "could not grant roles/storage.objectAdmin on gs://$BUCKET" >&2; exit 1; }
   sleep $((attempt * 3))
 done
+
+# The server checks whether its own revision still has traffic, and drains when a
+# deploy has moved on (M4.8a): read-only, on this service only. The service exists
+# only after the first deploy, so on a fresh project run this again after it.
+if gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" >/dev/null 2>&1; then
+  for attempt in 1 2 3 4 5; do
+    if gcloud run services add-iam-policy-binding "$SERVICE" --project "$PROJECT" --region "$REGION" \
+        --member "serviceAccount:$RUNTIME_SA" --role roles/run.viewer >/dev/null 2>&1; then
+      break
+    fi
+    [[ $attempt == 5 ]] && { echo "could not grant roles/run.viewer on $SERVICE" >&2; exit 1; }
+    sleep $((attempt * 3))
+  done
+else
+  echo "note: $SERVICE is not deployed yet; run this again after the first deploy (roles/run.viewer)." >&2
+fi
+

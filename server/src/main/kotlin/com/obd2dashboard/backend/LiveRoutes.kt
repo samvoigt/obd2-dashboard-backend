@@ -46,7 +46,7 @@ const val LIVE_PROTOCOL = "obd2-telemetry.v1"
 /** 1008: the socket broke a rule (auth, superseded, version). Clean closes are 1001 and 1012. */
 private const val POLICY: Short = 1008
 
-fun Application.installLive(hub: LiveHub) {
+fun Application.installLive(hub: LiveHub, project: String? = null) {
     install(WebSockets) {
         pingPeriod = 15.seconds // §5.1: the tablet treats 30 s of silence as a dead link, and so do we
         timeout = 30.seconds
@@ -57,6 +57,14 @@ fun Application.installLive(hub: LiveHub) {
     // On SIGTERM Cloud Run allows 10 s: tell every tablet it is a restart (1012), not a drop.
     monitor.subscribe(ApplicationStopping) {
         runBlocking { hub.closeAll(CloseReason.Codes.SERVICE_RESTART.code, "server restarting") }
+    }
+    // A deploy leaves open sockets on this revision; once it has no traffic, move everyone on (M4.8a).
+    project?.let { p ->
+        RevisionWatcher.onCloudRun(
+            project = p,
+            drain = { hub.closeAll(CloseReason.Codes.SERVICE_RESTART.code, "a new revision is serving") },
+            log = { log.info(it) },
+        )?.start(this)
     }
 }
 
