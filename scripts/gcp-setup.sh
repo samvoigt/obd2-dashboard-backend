@@ -65,6 +65,14 @@ for attempt in 1 2 3 4 5; do
   sleep $((attempt * 3))
 done
 
+# Crew messages: "the car's recent messages, newest first" needs a composite index
+# (found by the M5.2 smoke run). Created once; it takes a minute or two to build.
+if ! gcloud firestore indexes composite list --project "$PROJECT" --format="value(name)" \
+    --filter="queryScope=COLLECTION AND fields[0].fieldPath=car AND fields[1].fieldPath=sentAt" 2>/dev/null | grep -q .; then
+  gcloud firestore indexes composite create --project "$PROJECT" --collection-group=messages \
+    --field-config field-path=car,order=ascending --field-config field-path=sentAt,order=descending --async >/dev/null
+fi
+
 # The server checks whether its own revision still has traffic, and drains when a
 # deploy has moved on (M4.8a): read-only, on this service only. The service exists
 # only after the first deploy, so on a fresh project run this again after it.

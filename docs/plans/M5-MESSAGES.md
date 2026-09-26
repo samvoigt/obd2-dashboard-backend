@@ -205,6 +205,18 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M5.2 — Messages in Firestore  `sonnet`
 
+> ✅ **Done 2026-09-26.** `FirestoreMessageStore` in `:archive-gcp` (`:live` now
+> an API dependency there): `create()`, `update` as a transaction, and the two
+> queries.
+>
+> **Found by the smoke run:** `recent` (`car` + `sentAt` descending) needs a
+> **composite index**; `active` (`car` + `state in`) does not. `gcp-setup.sh`
+> creates it only if missing (READY after about 4 minutes); a rerun was clean,
+> with one index.
+>
+> **3 mapping tests.** `scripts/message-smoke.sh` passed **10 checks** against
+> the real database and left nothing.
+
 > **Validated against what M5.1 built, 2026-09-26, before building.** No
 > conflict. Now fixed by what exists:
 >
@@ -229,6 +241,28 @@ the *next* step's plan is checked against what was actually built (Sam,
   clear, expire, a query for the active set; then deleted.
 
 ### M5.3 — Messages on the tablet's socket  `opus`
+
+> **Validated against what M5.1–M5.2 built, 2026-09-26, before building.** One
+> gap in M5.1, fixed here:
+>
+> - **`received`/`displayed` must check the car.** As built, they would accept a
+>   report for **any** car's message id. Ids are random, so this is unlikely,
+>   but a tablet must only ever move its own car's messages. They become
+>   `received(car, id)` and `displayed(car, id)`, and another car's message is
+>   ignored like an unknown id. M5.1 gains a test.
+> - **The crew side needs to reach the tablet's socket.** `TabletHandle` gains
+>   `send(frame)`, and the hub gains `toTablet(car, frame)`, false if no tablet
+>   is attached (the message then stays queued for the next sync).
+> - **Expiry both ways:** a timer set at send, publishing `expired` to crew
+>   browsers, plus a lazy `expireDue` on every sync, send and crew snapshot, since
+>   timers do not survive a restart or drain.
+> - **A `CrewMessages` service in `:server`** joins `Messages` and the hub: send,
+>   clear, sync, the reports, and publishing each change as a
+>   `LiveUpdate.MessageChanged` update.
+> - **Public browser streams must not carry it from this step on.** M4's
+>   `encode` drops `MessageChanged` for now, with a test; crew streams are M5.5.
+> - **`ServerFrames.messages()` (always empty) is removed**, and the socket sends
+>   `Messages.syncFrame`.
 
 `:server`:
 - after `hello`, `messages` with the car's real active set;

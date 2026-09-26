@@ -9,6 +9,7 @@ kotlin {
 
 dependencies {
     api(project(":archive"))
+    api(project(":live"))
     api(platform(libs.google.cloud.bom))
     api(libs.google.cloud.firestore)
     api(libs.google.cloud.storage)
@@ -31,3 +32,13 @@ tasks.register<JavaExec>("smoke") {
     args(providers.gradleProperty("gcpProject").orNull ?: "", providers.gradleProperty("bucket").orNull ?: "")
     outputs.upToDateWhen { false }
 }
+
+tasks.register<JavaExec>("messageSmoke") {
+    description = "Sends, updates, queries and deletes crew messages against the real Firestore."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("com.obd2dashboard.backend.archive.gcp.MessageSmokeKt")
+    args(providers.gradleProperty("gcpProject").orNull ?: "")
+    outputs.upToDateWhen { false }
+}
+
