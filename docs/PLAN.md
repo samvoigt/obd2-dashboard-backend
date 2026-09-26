@@ -12,7 +12,7 @@ It has two jobs:
 | Milestone | | |
 | --- | --- | --- |
 | **M0** | Skeleton: Ktor server, health check, tests, Dockerfile | ✅ |
-| **M1** | Deployed to Cloud Run; tablet key (decisions 4, 5) | in progress |
+| **M1** | Deployed to Cloud Run; tablet key (decisions 4, 5) | ✅ server side |
 | — | Everything after M1 | not planned yet |
 
 ## Carried over from the app
@@ -33,9 +33,10 @@ the car does not have yet.
 
 - **Project** `obd2-dashboard-backend`, **region** `us-east4` (Northern
   Virginia: there is no New England region, and this is the nearest in the US).
-- Service `obd2-backend`, running as its own service account that can read only
+- Service `obd2-backend` at https://obd2-backend-qeppiy7nzq-uk.a.run.app, running as its own service account that can read only
   the tablet key. Scales to zero, max 2 instances.
-- `scripts/gcp-setup.sh` (one-time, can be re-run), `scripts/deploy.sh`,
+- `scripts/gcp-setup.sh` (one-time, can be re-run), `scripts/deploy.sh`
+  (through `cloudbuild.yaml`, see JOURNAL 2026-09-26),
   `scripts/tablet-key.sh`.
 - `GET /tablet/ping` requires the key. It is there so the app's settings screen
   can check a pasted key. **App side, not done:** a settings field for the key

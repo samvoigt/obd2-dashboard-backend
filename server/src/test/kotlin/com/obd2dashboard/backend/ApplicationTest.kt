@@ -22,7 +22,7 @@ class ApplicationTest {
     fun `health check reports ok without a key`() = testApplication {
         application { module(key) }
 
-        val response = jsonClient().get("/healthz")
+        val response = jsonClient().get("/health")
 
         response.status shouldBe HttpStatusCode.OK
         response.body<Health>() shouldBe Health(status = "ok")

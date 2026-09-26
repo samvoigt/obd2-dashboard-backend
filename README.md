@@ -18,7 +18,7 @@ TABLET_API_KEY=dev ./gradlew :server:run   # serve on http://localhost:8080
 ./gradlew :server:buildFatJar  # server/build/libs/server.jar
 ```
 
-- `curl localhost:8080/healthz` → `{"status":"ok"}`
+- `curl localhost:8080/health` → `{"status":"ok"}`
 - `curl -H 'Authorization: Bearer dev' localhost:8080/tablet/ping` → the same; without the key, 401.
 
 ## Layout
@@ -29,7 +29,8 @@ TABLET_API_KEY=dev ./gradlew :server:run   # serve on http://localhost:8080
 
 ## Deploying
 
-Google Cloud Run: project `obd2-dashboard-backend`, region `us-east4`. Cloud
+Google Cloud Run: project `obd2-dashboard-backend`, region `us-east4`, live at
+https://obd2-backend-qeppiy7nzq-uk.a.run.app. Cloud
 Build builds it from the `Dockerfile`, so Docker is not needed locally.
 
 ```sh

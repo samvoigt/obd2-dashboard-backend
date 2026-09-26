@@ -36,7 +36,9 @@ fun Application.module(tabletKey: String) {
     installTabletAuth(tabletKey)
 
     routing {
-        get("/healthz") { call.respond(Health(status = "ok")) }
+        // Not /healthz: Cloud Run's front end reserves paths ending in "z" and
+        // answers them with its own 404 before the request reaches us.
+        get("/health") { call.respond(Health(status = "ok")) }
 
         authenticate(TABLET_AUTH) {
             // Lets the app's settings screen check a pasted key before relying on it.
