@@ -18,8 +18,8 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M1** | Deployed to Cloud Run; one shared tablet key | ✅ |
 | **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
 | **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
-| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | **planned**: [`plans/M4-LIVE.md`](plans/M4-LIVE.md) |
-| **M5** | Crew messages (contract §5.4) | straight after M4: the app's M34.5 needs both |
+| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
+| **M5** | Crew messages (contract §5.4) | **next**: the app's M34.5 needs it |
 | **M6** | Past sessions on the site | |
 | **M7** | Dashboards: crew views and mirrored tablet layouts | |
 
@@ -87,19 +87,19 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 | Path | What | Milestone |
 | --- | --- | --- |
 | `GET /health` | Liveness | ✅ |
-| `GET /api/cars` | Landing page data: slug and name, never secrets | ✅ M2 |
+| `GET /api/cars` | Landing page data: slug, name and live state, never secrets | ✅ M2, M4 |
 | `GET /v1/whoami` | Which car a token belongs to (backend-only diagnostic, not in the contract) | ✅ M2 |
 | `PUT /v1/sessions/{id}`, `POST …/chunks`, `POST …/complete` | Archive lane (contract §6) | ✅ M3 |
-| `GET /v1/live` | Live lane WebSocket (contract §5) | M4 |
-| `/`, `/cars/{slug}` | Landing and live car page | M4 |
-| `GET /api/cars/{slug}/live` | SSE: snapshot, live records, message states | M4 |
+| `GET /v1/live` | Live lane WebSocket (contract §5) | ✅ M4 |
+| `/`, `/cars/{slug}` | Landing and live car page | ✅ M4 |
+| `GET /api/cars/{slug}/live` | SSE: snapshot, then session, records and status (message states in M5) | ✅ M4 |
 | `POST /api/cars/{slug}/login` | Crew passcode → signed cookie for that car | M5 |
 | `POST /api/cars/{slug}/messages`, `DELETE …/{id}` | Send and clear (crew only) | M5 |
 | `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M6 |
 
 ---
 
-## Milestones after M3
+## Milestones after M4
 
 What M4 builds on:
 - M2's `CarRegistry.principalFor`, which the socket uses after the upgrade;
@@ -115,24 +115,6 @@ at once, on different tokens, is the multi-car test. The app's `test-data/`
 logs are format v1, so the tool upgrades them to v3 (adding `id`, `device`,
 `wall`, a zeroed `session.seq`). Once the tablet writes real v3 logs, ask for
 one to be committed as a fixture.
-
-### M4 — Live lane and first website (contract §5.1–5.3)
-
-- `/v1/live`:
-  - `hello`, `welcome`, `session`, `snapshot` (including the latest `signals`,
-    `fault` and `stopped` records, §14.1), `batch`, `end`;
-  - errors `auth`, `superseded`, `bad_message`, `unsupported_version`;
-  - the newest socket wins;
-  - clean closes: **1001 at about 55 min**, **1012 on SIGTERM**;
-  - a Firestore listener on `cars` closes a socket whose token is rotated.
-- The in-memory hub, and SSE per car.
-- The website's first cut:
-  - landing page;
-  - car page with **freshness first** ("live" / "last data 40 s ago" /
-    "offline"), big numbers, and one uPlot chart;
-  - GPS on a map when a session has it.
-- Node becomes a build dependency, with a Node stage in the Dockerfile.
-- `max-instances=1`.
 
 ### M5 — Crew messages (contract §5.4)
 

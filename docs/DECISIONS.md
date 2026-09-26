@@ -160,6 +160,9 @@ Redis.
 
 ## 8. Browsers receive over SSE and send with POST
 
+> **Refined by 19 (M4):** a browser gets a snapshot on every connect, never a
+> replay, so there is no `Last-Event-ID` resume.
+
 **Decision.** Live data reaches browsers as server-sent events, one stream per
 car page. Commands (log in, send or clear a message) are ordinary POST/DELETE
 requests.
@@ -394,3 +397,58 @@ cannot know which lines differ. Resending is the only repair within the
 contract. The limit stops a tablet and server that disagree about the bytes
 themselves (a hashing bug, say) from resending the same session forever. No
 contract change was needed.
+
+---
+
+## 19. The live lane: in-memory state, snapshots for browsers, the VIN removed on arrival
+
+**Decision.**
+- **Each car's live state is held in memory** by the hub (decision 7):
+  - the session header and signals list;
+  - the latest sample per signal;
+  - `stopped` records and the latest `fault`;
+  - five minutes of history, by the server's clock, capped at 100,000 records.
+- **A browser gets a snapshot on every connect, then updates, never a replay.**
+  The snapshot holds the state and the history. A browser that falls behind is
+  given a fresh snapshot rather than waited on, so the tablet never waits for a
+  browser.
+- **`vin` is removed from every record as it arrives** from a tablet, not only
+  from the session record, so nothing derived from it can reach a browser.
+- **Freshness** is the server's (live within 2 s of a batch, stale, no session,
+  offline). The page counts the seconds itself from the reported age, so a
+  silent server still turns "live" into "behind".
+
+**Why.** The live lane is provisional by contract (§5.3, §7). A snapshot is
+always right, costs one message, and needs no bookkeeping across reconnects.
+The VIN is personal data (decision 16), and removing it at the one door it
+comes in by is simpler to prove than guarding every door it could leave by.
+A test searches the raw bytes two browsers receive.
+
+**Cost.** Live history lives in one process, so a restart or a new revision
+starts it empty and the chart restarts from the reconnect. The archive (M3) is
+the record, and M6 draws from it.
+
+---
+
+## 20. Cloud Run settings for the live lane, and draining on deploy
+
+**Decision.**
+- `--max-instances 1` (decision 7), `--timeout 3600` and `--concurrency 1000`.
+- Every instance checks every 30 s whether its revision still has traffic.
+  When it has none, it **drains**: every tablet is closed with `1012`, and every
+  browser stream is ended, so both reconnect to the new revision. A failed check
+  never drains.
+- The runtime account has `roles/run.viewer` on the service, to make that check.
+
+**Why.**
+- Cloud Run's defaults would have broken the live lane: a 300 s timeout cuts
+  every socket at 5 minutes, and a concurrency of 80 refuses the 81st
+  connection.
+- **Cloud Run keeps an open WebSocket on the old revision after a deploy** and
+  does not send it SIGTERM while that connection is open (found in M4.8). So the
+  `1012` that contract §5.3 promises on every deploy never came, and a real
+  tablet would have stayed on the old revision, with the site showing offline,
+  for up to 55 minutes. Draining keeps the promise.
+
+**Revisit if.** More than one instance is ever needed (decision 7), or Cloud
+Run starts signalling old revisions itself.

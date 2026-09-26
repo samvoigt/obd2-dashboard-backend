@@ -6,20 +6,23 @@ shows the car's data live.
 
 ## Status
 
-M3 done: the archive lane. A tablet uploads each session in chunks
-(contract §6). Every line is stored byte for byte in Cloud Storage and
-acknowledged only once durable, and a completed session is one `.jsonl.gz`
-whose SHA-256 matches the tablet's. Cars (M2) each have their own token. The
-live lane and website come next, in M4. See [`docs/PLAN.md`](docs/PLAN.md). The
-protocol is the app's [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/4644ab7/docs/TELEMETRY-CONTRACT.md).
+M4 done. Tablets stream live on a WebSocket (contract §5), and the website shows
+each car live: a landing page, and a car page with freshness first, a chart and
+every signal. Sessions upload in chunks and are kept byte for byte (M3), and each
+car has its own token (M2). Crew messages come next, in M5. See
+[`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
+[telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/4644ab7/docs/TELEMETRY-CONTRACT.md).
+
+The site: https://obd2-backend-qeppiy7nzq-uk.a.run.app
 
 ## Building
 
-Requires JDK 17. Docker is not needed.
+Requires JDK 17 and Node 24 (for `web/`). Docker is not needed.
 
 ```sh
 ./gradlew test                  # unit tests, all modules
-./gradlew :server:buildFatJar   # server/build/libs/server.jar
+./gradlew :server:buildFatJar   # server/build/libs/server.jar, the site included
+./gradlew :server:devServer     # in-memory server + site on :8080, one car (dev-car)
 GCP_PROJECT=obd2-dashboard-backend SESSIONS_BUCKET=obd2-dashboard-backend-sessions \
   ./gradlew :server:run         # http://localhost:8080
 ```
@@ -52,6 +55,9 @@ included. The token comes from `OBD2_TOKEN` or `--token-file`, never an argument
 ```sh
 scripts/replay.sh --server https://obd2-backend-qeppiy7nzq-uk.a.run.app \
   --token-file car.token --lose-responses 0.3 --duplicate 0.2 session.jsonl.gz
+# both lanes at real speed, units from the contract, as a tablet streams:
+scripts/replay.sh --server … --token-file car.token --live --speed 1 \
+  --units-from ../obd2-dashboard/docs/TELEMETRY-CONTRACT.md session.jsonl.gz
 ```
 
 ## Layout
@@ -62,7 +68,9 @@ scripts/replay.sh --server https://obd2-backend-qeppiy7nzq-uk.a.run.app \
 | `:registry-firestore` | `CarStore` on Firestore |
 | `:archive` | The archive lane's rules: lines, chunks, store then advance. Pure Kotlin |
 | `:archive-gcp` | The archive on Cloud Storage and Firestore |
-| `:server` | Ktor server: tablet auth, the archive lane, public API; later the live lane and website |
+| `:live` | The live lane's rules: frames, a car's live state, the hub. Pure Kotlin |
+| `:server` | Ktor server: tablet auth, both lanes, the browser stream, the website |
+| `web/` | The website: Svelte, Vite, TypeScript, uPlot |
 | `:tools` | The `admin` tool |
 | `:replay` | Uploads session logs as the tablet does |
 

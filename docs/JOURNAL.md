@@ -79,3 +79,30 @@ not catch, and lessons about process. Short on purpose.
 - **Deleted objects stay 7 days in soft delete.** The live check uploaded two of
   the app's real logs, with a real VIN, to the private bucket, and deleted
   them; they are recoverable until the soft-delete window passes.
+
+## 2026-09-26 — M4, the live lane
+
+- **Cloud Run keeps an open WebSocket on the old revision after a deploy.** It
+  moves only new connections, and does not SIGTERM an instance while it holds
+  one. So the promised `1012` on deploy never came, and the site showed offline
+  until the tablet's own socket dropped: up to 55 minutes for a real tablet.
+  Found only by deploying while a replay streamed. Fixed by draining on a
+  revision check (decision 20). **Test a deploy with a live connection open.**
+- **Cloud Run's defaults would have broken it before that:** a 300 s timeout
+  (sockets cut at 5 minutes) and a concurrency of 80 (the 81st connection
+  refused). Read the running service's settings before planning.
+- **Ktor's test engine buffers a response until it ends**, so an SSE stream
+  hangs it. SSE tests run on real Netty with the JDK's HTTP client.
+- **Resolving Ktor's port inside a test's outer `runBlocking` hung**, only
+  when the whole class ran. A thread dump found it: the test parked in its own
+  setup, not in the code under test. Use the shared `start()` helper.
+- **Looking at the page found a replay bug that tests had not:** both lanes
+  paced from line 0's `at = 0`, while old logs' samples carry the app's uptime,
+  so real speed waited 67 minutes for the first batch. **A test at speed 0
+  cannot see pacing.**
+- **After a drain the chart starts empty**, since the new revision's history
+  is empty (decision 19's cost).
+- **Sparse data flickers between live and behind.** An engine-off stretch sends
+  a batch every few seconds, across the 2-second line. That is right for such
+  data; if real idle data looks the same, revisit the threshold.
+- `svelte-check` supports TypeScript 5 and 6, not 7; the site pins 5.9.3.

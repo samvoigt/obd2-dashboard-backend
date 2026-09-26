@@ -667,6 +667,16 @@ Mutations killed.
 
 ### M4.8 — Deploy, and watch it live  `sonnet`
 
+> ✅ **Done 2026-09-26**, with M4.8a.
+> - Revision `00005` has timeout 3600, concurrency 1000 and max 1 instance, and
+>   the Node stage builds on Cloud Build.
+> - A live-only replay created the session ("no record yet"), then the archive
+>   run completed it, matching byte for byte.
+> - The deployed site was watched in Chrome with real logs.
+> - Socket drops reconnect.
+> - **Deploying mid-stream exposed the old-revision problem**, fixed in M4.8a.
+>   Cleaned up afterwards.
+
 > **Validated against what M4.1–M4.7 built, 2026-09-26, before building.** One
 > addition:
 >
@@ -700,6 +710,24 @@ kept for Sam.
 
 ### M4.8a — Drain on deploy  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `RevisionWatcher`: Cloud Run Admin API v2 `trafficStatuses`, including a
+>   `LATEST` allocation; a token and the region from the metadata server; a
+>   failed check never drains.
+> - `closeAll` now also ends browser streams.
+> - `roles/run.viewer` on the service.
+>
+> **6 tests. 4 mutations killed.**
+>
+> **Live:**
+> - `00007` drained when `00008` took over: `reconnecting after close 1012, at
+>   once`, and the car live again about 15 s after the switch, with no drops
+>   forced by the replay;
+> - again from `00008` to `00009` with the page open in Chrome, which followed
+>   onto the new revision.
+>
+> After a drain the chart starts empty (decision 19's cost).
+
 > **Found in M4.8, 2026-09-26, deploying while a replay streamed.** Cloud Run
 > moves only *new* connections to a new revision. **An open WebSocket stays on
 > the old revision**, which is not sent SIGTERM while it has a connection, so
@@ -729,6 +757,14 @@ kept for Sam.
   the switch, **with no socket drops forced by the replay**.
 
 ### M4.9 — Record it
+
+> ✅ **Done 2026-09-26.**
+> - Decisions 19 and 20, and 8 refined.
+> - `COMPLETED.md` with exact counts (215 Kotlin, 16 Vitest; 57 mutations), and
+>   JOURNAL entries.
+> - PLAN, README and CLAUDE.md updated (**never rename or recreate the
+>   service**; the dev server).
+> - This plan deleted in the next commit.
 
 - **Decisions:**
   - 19: the live state, its snapshot-not-replay browser stream, and the VIN

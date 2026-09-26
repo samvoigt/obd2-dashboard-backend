@@ -143,3 +143,68 @@ cannot know them). M4 needs a real v3 log for units.
 - the live lane, which may create a session before its `PUT` (M4);
 - showing sessions on the site, and merging live rows with archive rows (M6);
 - `max-instances` 1 (M4).
+
+## M4 — The live lane and the first website  ✅ 2026-09-26
+
+The server side of contract §5.1–5.3. Tablets stream on `/v1/live`, the
+server holds each car's live state, and a website shows it. Decisions 19 and 20.
+
+- **`:live`, pure:**
+  - every §5.2 frame parsed; **`vin` removed from every record on arrival**;
+  - `CarLive` (a car's state and freshness);
+  - `InMemoryLiveHub` behind `LiveHub`: the newest socket supersedes; browsers
+    get a snapshot then updates; a browser that falls behind is resnapshotted,
+    never waited on; `closeAll` ends tablets and browsers.
+- **`:server`:**
+  - `/v1/live`: the subprotocol, or `unsupported_version`; auth after the
+    upgrade; `welcome` and the empty `messages` sync; sessions announced to the
+    archive before their `PUT`; `1001` at 55 min, `1012` on shutdown; tokens
+    re-checked every 30 s;
+  - `/api/cars/{slug}/live` (SSE) and `/api/cars` with each car's state;
+  - `RevisionWatcher`, which **drains on deploy**;
+  - the site from the jar, by explicit routes that never shadow `/api` or `/v1`;
+  - `:server:devServer`, the real module in memory, for work on the site.
+- **`web/`:** Svelte 5, Vite 8, TypeScript 5.9, uPlot.
+  - The landing page lists cars and who is live.
+  - A car's page puts **freshness first**, then the session (no VIN), trouble
+    codes, a chart of two chosen signals (gaps never bridged, 24-hour times),
+    and a tile per signal by kind.
+  - The Dockerfile builds it in a `node:24` stage.
+- **`:replay`:** `--live` streams as the tablet does, alongside the archive
+  lane:
+  - coalesced 200 ms batches; a snapshot on every connect;
+  - §5.3 reconnects;
+  - `--drop-socket-every`;
+  - units from the contract's appendix;
+  - pacing from the first record, not line 0.
+- **Tests:** 215 Kotlin across eight modules (61 new) and 16 Vitest (new).
+  **57 mutations killed**, and one found equivalent. The mutation runs found
+  three weak tests, all tightened:
+  - a departed browser never removed;
+  - a reconnect's snapshot never exercised (now tested with a hub that forgets,
+    as a restarted server does);
+  - server acks versus the replay's own.
+- **Verified live, 2026-09-26:**
+  - revision `00005` with timeout 3600, concurrency 1000, max 1 instance;
+  - the Docker build's Node stage on Cloud Build;
+  - a live-only replay **created the session first** ("no record yet"), then
+    the archive run completed it byte for byte;
+  - the deployed site watched in Chrome with real logs at real speed: live,
+    stale, offline, and phone width;
+  - socket drops reconnecting;
+  - **deploying mid-stream found the old-revision problem** (decision 20).
+    After the fix, two deploys (`00008`, `00009`) with no forced drops each
+    gave `reconnecting after close 1012, at once`, with the page back on the
+    new revision within about 15 s;
+  - everything deleted afterwards.
+
+**Never met a tablet.** The app's live lane is its M34, not yet built. Every
+live frame the server has seen came from the replay or a test. Units in those
+sessions come from the contract's appendix, not from a real v3 log.
+
+**Left for later, on purpose:**
+- crew messages (M5): the `messages` sync is empty, and
+  `received`/`displayed` are ignored;
+- a map (when GPS exists);
+- past sessions and merging live with archive (M6);
+- configurable dashboards (M7).

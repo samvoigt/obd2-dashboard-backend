@@ -39,9 +39,10 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
-Modules: `:registry` and `:archive` (pure, where the rules and most tests
-live), `:registry-firestore` and `:archive-gcp` (Google), `:server`, `:tools`,
-`:replay`.
+Modules: `:registry`, `:archive` and `:live` (pure, where the rules and most
+tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
+`:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot;
+Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 
 ```
 ./gradlew test                  # unit tests, all modules
@@ -49,7 +50,11 @@ live), `:registry-firestore` and `:archive-gcp` (Google), `:server`, `:tools`,
 GCP_PROJECT=obd2-dashboard-backend SESSIONS_BUCKET=obd2-dashboard-backend-sessions \
   ./gradlew :server:run         # real Firestore and bucket, as the user
 scripts/admin.sh list           # the admin tool (cars, tokens, passcodes, sessions)
-scripts/replay.sh --help        # the tablet's archive lane, faults included
+scripts/replay.sh --help        # the tablet's lanes (--live), faults included
+./gradlew :server:devServer     # the real module in memory + the real site, car dev-car
+                                #   (token in server/build/dev-token); replay into it
+(cd web && npm test && npm run check)   # the site's logic and types
+./gradlew test -PskipWeb        # Kotlin only, without building the site
 scripts/firestore-smoke.sh      # throwaway car through the real Firestore
 scripts/archive-smoke.sh        # throwaway session through the real bucket
 ```
@@ -60,6 +65,11 @@ Warnings fail the build (`allWarningsAsErrors`), as in the app. `gcloud` needs
 ## Deploy
 
 Project `obd2-dashboard-backend`, region `us-east4`, service `obd2-backend`.
+**Never rename or recreate the service.** The app has its URL built in
+(`https://obd2-backend-qeppiy7nzq-uk.a.run.app`), and a new service would strand
+every tablet until an app update. Deploy settings (one instance, timeout 3600,
+concurrency 1000) are decision 20; **test deploys with a live connection
+open** (JOURNAL: M4).
 All three are set in `scripts/env.sh`. Always go through the scripts, or pass
 `--project` explicitly: the local `gcloud` default is `microtron-scoreboard`,
 which is unrelated. **A deploy keeps any setting it does not mention**, so
