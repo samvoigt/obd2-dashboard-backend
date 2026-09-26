@@ -167,6 +167,39 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M4.1 — Frames and a car's live state  `opus`
 
+> ✅ **Done 2026-09-26.** `:live`:
+> - `TabletFrames.parse`: every §5.2 kind; unknown → `Unknown`; 64 KB checked;
+>   `v` ≥ 3; UUIDs normalised; **`vin` removed from every record on arrival**.
+> - `ServerFrames` (`welcome`, `messages []`, `error`) and `ErrorCode`.
+> - `CarLive`: session reset only on a new id; a snapshot replaces the latest
+>   values, `stopped` and `fault`; `signals` records replace the list; a
+>   5-minute, capped history by the server's clock; `end` keeps the last values.
+> - `CarStatus.freshness`: live within exactly 2 s, then stale, no session, or
+>   offline.
+>
+> **17 tests. 11 mutations killed**, the VIN strip twice among them.
+
+> **Validated against the code 2026-09-26, before building.** No question.
+>
+> - **`:live` depends on `:archive`** (pure) for `SessionIds` and the strict
+>   UTF-8 JSON-object parsing, rather than duplicating them.
+> - **Records inside live frames are JSON *objects*, not strings.** §5.2 says
+>   "exactly the records of §3", nested. The archive keeps bytes because it
+>   stores them; the live lane only reads and forwards, so objects are right,
+>   and stripping the VIN is removing a key.
+> - **`vin` is removed from *every* record, not only the session record.** The
+>   contract lets fields appear without a version bump (§3.1), and a future
+>   record carrying `vin` must not reach a browser by default.
+> - **A new session id resets the car's state; the same id again keeps it.** A
+>   reconnect re-sends the same `session` (§5.3), and its history must survive.
+> - **A `snapshot` replaces** the latest values, `stopped` and `fault`, and the
+>   signals list if it carries one. Its samples also join the history, so the
+>   chart continues across a reconnect.
+> - **After `end`**, the car shows "no session" but keeps its last values on
+>   screen until a new `session`.
+> - **Time is a `Clock` passed in**, so every window and boundary is tested
+>   exactly.
+
 `:live`, pure Kotlin:
 - **Tablet frames parsed:**
   - `hello` (`v`, `device`, `app`, `wall`);
@@ -202,6 +235,24 @@ the *next* step's plan is checked against what was actually built (Sam,
 - Mutations killed.
 
 ### M4.2 — The hub  `opus`
+
+> **Validated against what M4.1 built, 2026-09-26, before building.** No
+> conflict. Now fixed by what exists:
+>
+> - **The hub talks to a socket through a `TabletHandle`** (`superseded()`,
+>   `close(code)`), not Ktor types, so it stays pure and tested on virtual time.
+>   `attach` returns an `Attachment`. Frames from an attachment that has been
+>   superseded are ignored (§5.3: act only on the current socket, both ways).
+> - **Browsers get the status as age, not wall time.** A status carries
+>   `lastDataAgoMs` as of sending, and the page adds its own elapsed time, so a
+>   browser with a wrong clock still counts correctly.
+> - **A slow browser is resnapshotted, never waited on.** Each subscriber has a
+>   bounded channel. On overflow, its queued updates are discarded and its next
+>   event is a fresh snapshot. A lock per car orders publishes against new
+>   subscriptions, so a subscriber never sees an update from before its
+>   snapshot.
+> - **`CarLive` needs a `Clock`**, so the hub takes one and tests pass
+>   `MutableClock`.
 
 `:live`:
 - a `LiveHub` interface (decision 7: replaceable by Pub/Sub or Redis), and

@@ -16,6 +16,7 @@ rootProject.name = "obd2-dashboard-backend"
 
 include(":archive")
 include(":archive-gcp")
+include(":live")
 include(":registry")
 include(":registry-firestore")
 include(":replay")
