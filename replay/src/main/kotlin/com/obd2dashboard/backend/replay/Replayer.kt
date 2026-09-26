@@ -71,7 +71,7 @@ class Replayer(
         var state = loadState(stateFile) ?: State(file.id, 0, 0)
         val base = "$server/v1/sessions/${file.id}"
         val started = System.nanoTime()
-        val firstAt = file.at.firstNotNullOfOrNull { it }
+        val firstAt = file.firstRecordAt
 
         open(base, file)?.let { return ReplayResult.Failed(file.id, it) }
         var position = state.ackedThrough + 1

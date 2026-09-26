@@ -9,3 +9,5 @@ steps:
 images: ["${_IMAGE}"]
 options:
   logging: CLOUD_LOGGING_ONLY
+# The site's Node stage lengthens builds; the default 10 minutes is too close.
+timeout: 1200s

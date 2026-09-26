@@ -82,3 +82,22 @@ tasks.processResources {
     }
 }
 
+/**
+ * `./gradlew :server:devServer`: the real module on in-memory stores, with the
+ * real site, for looking at pages without the cloud. Its own source set, so the
+ * test resources' stub page cannot shadow the site.
+ */
+val dev: SourceSet = sourceSets.create("dev") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += output + compileClasspath + sourceSets.main.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("devServer") {
+    description = "Runs the server on in-memory stores at http://localhost:8080, with one car (dev-car)."
+    group = "application"
+    classpath = dev.runtimeClasspath
+    mainClass.set("com.obd2dashboard.backend.DevServerKt")
+    workingDir = layout.projectDirectory.asFile
+    systemProperty("devTokenFile", layout.buildDirectory.file("dev-token").get().asFile.path)
+}
+

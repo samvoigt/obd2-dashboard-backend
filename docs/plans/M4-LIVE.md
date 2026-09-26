@@ -583,6 +583,38 @@ Mutations killed.
 
 ### M4.7 — A car's live page  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `live.ts`, pure: snapshot/session/records/status reducers, freshness
+>   counted on the page's clock (live turns stale by itself), uPlot series with
+>   `null` at gaps, and formatting by kind.
+> - `CarPage.svelte`: `EventSource`, the banner first, session line (no VIN),
+>   trouble codes, a two-signal picker, tiles by kind (stopped ones greyed with
+>   their reason).
+> - `Chart.svelte`: uPlot, a second axis when units differ, gaps never bridged,
+>   redrawn at most twice a second.
+> - `:server:devServer` (its own `dev` source set) runs the real module in
+>   memory, with the token in a `chmod 600` file.
+>
+> **16 Vitest tests. 7 mutations killed.**
+>
+> **Looked at in Chrome**, against the dev server with **real logs replayed
+> live at real speed** (units from the contract):
+> - live;
+> - stale (the replay paused with `SIGSTOP`: "Last data 10 s ago", amber, with
+>   no server event);
+> - offline (the replay killed: grey, last values kept);
+> - phone width (390 px, in an iframe, since the window would not shrink);
+> - no console errors.
+>
+> **Looking found four things, all fixed:**
+> - **a replay bug**: both lanes paced from line 0's `at = 0`, while old logs'
+>   samples carry the app's uptime, so real speed waited 67 minutes for the
+>   first batch. They now pace from the first record, with a test;
+> - millisecond axis labels, now 24-hour clock time;
+> - long flag lists in huge type, now smaller when long;
+> - axis labels colliding at phone width, fixed by more spacing and the shorter
+>   format.
+
 > **Validated against what M4.1–M4.6 built, 2026-09-26, before building.** One
 > gap in how to look at it, resolved here:
 >
@@ -634,6 +666,21 @@ Mutations killed.
   - a phone-width view.
 
 ### M4.8 — Deploy, and watch it live  `sonnet`
+
+> **Validated against what M4.1–M4.7 built, 2026-09-26, before building.** One
+> addition:
+>
+> - **`cloudbuild.yaml` gets `timeout: 1200s`.** The build now has a Node stage
+>   too, and Cloud Build's default is 10 minutes, against about 5 minutes
+>   before. A deploy cut off halfway would be worse than a slow one.
+> - **The upload leaves out `web/node_modules`, `web/dist` and `server/build`**
+>   (the dev token included), through `.gitignore`.
+> - **"Created by the live lane first"** is shown directly: a live-only replay
+>   first, `admin.sh sessions` showing "(no record yet)", then the archive run
+>   completing it.
+> - **Logs:** `load-and-crank` (5.6 min) to watch; `cold-start-drive` (29 min)
+>   for the deploy mid-stream, since a deploy spends about 5 minutes building
+>   before traffic moves.
 
 1. **`deploy.sh`:** `--max-instances 1`, `--timeout 3600`,
    `--concurrency 1000`. Check them on the service afterwards. Deploy.

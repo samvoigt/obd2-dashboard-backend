@@ -61,7 +61,7 @@ class LiveReplayer(
         var lastCleanClose = 0L
         var lastDrop = System.currentTimeMillis()
         val started = System.nanoTime()
-        val firstAt = file.at.firstNotNullOfOrNull { it } ?: 0L
+        val firstAt = file.firstRecordAt ?: 0L
         var sent = 0
 
         var i = 0
@@ -169,7 +169,7 @@ class LiveReplayer(
     private fun windows(file: SessionFile, records: List<JsonObject?>): List<Window> {
         val out = mutableListOf<Window>()
         var start: Long? = null
-        var lastAt = file.at.firstNotNullOfOrNull { it } ?: 0L
+        var lastAt = file.firstRecordAt ?: 0L
         var current = mutableListOf<JsonObject>()
         records.forEachIndexed { i, record ->
             val at = file.at[i + 1] ?: lastAt

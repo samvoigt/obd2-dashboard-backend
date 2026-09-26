@@ -28,6 +28,14 @@ import kotlinx.serialization.json.put
 class SessionFile(val lines: List<ByteArray>, val id: String) {
     val lastIndex: Long get() = lines.size - 1L
 
+    /**
+     * When the drive's records begin, in `at`: the first record **after** line 0.
+     * Old logs put `at = 0` on the session record while the samples carry the
+     * app's uptime (millions of ms), so pacing from line 0 would wait that long
+     * before the first batch (found looking at the M4.7 page).
+     */
+    val firstRecordAt: Long? get() = at.drop(1).firstNotNullOfOrNull { it }
+
     /** `at` of each line, for chunking by log time; null where a line has none. */
     val at: List<Long?> by lazy { lines.map { (parse(it)?.get("at") as? JsonPrimitive)?.longOrNull } }
 

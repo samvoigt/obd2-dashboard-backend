@@ -193,6 +193,20 @@ class LiveReplayTest {
     }
 
     @Test
+    fun `pacing starts at the first record, not at line 0's zero`() = runBlocking<Unit> {
+        val uri = start()
+        val id = "44444444-4444-4444-8444-444444444444"
+        // As old logs are: the session record at 0, the samples at the app's uptime (over an hour in).
+        val lines = listOf("""{"type":"session","v":3,"id":"$id","started":"2026-09-26T12:00:00Z","seq":0,"at":0}""") +
+            (1..5).map { """{"type":"sample","signal":"engine.rpm","value":$it,"seq":$it,"at":${4_040_000 + it * 100}}""" }
+        val started = System.nanoTime()
+        replayer(uri, LiveOptions(speed = 1.0, waitScale = 0.0)).replay(SessionFile(lines.map { it.toByteArray() }, id))
+            .shouldBeInstanceOf<LiveResult.Ended>()
+        // Half a second of log time at real speed: seconds, not the hour line 0's zero would imply.
+        ((System.nanoTime() - started) / 1_000_000 < 5_000) shouldBe true
+    }
+
+    @Test
     fun `units come from the contract's appendix and nowhere else`() {
         val units = LiveReplayer.unitsFrom(resource("contract-excerpt.md"))
         units shouldBe mapOf(
