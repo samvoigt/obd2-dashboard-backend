@@ -18,8 +18,8 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M1** | Deployed to Cloud Run; one shared tablet key | ✅ |
 | **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
 | **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
-| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | next |
-| **M5** | Crew messages (contract §5.4) | |
+| **M4** | Live lane (contract §5.1–5.3), fan-out, first website | **planned**: [`plans/M4-LIVE.md`](plans/M4-LIVE.md) |
+| **M5** | Crew messages (contract §5.4) | straight after M4: the app's M34.5 needs both |
 | **M6** | Past sessions on the site | |
 | **M7** | Dashboards: crew views and mirrored tablet layouts | |
 
