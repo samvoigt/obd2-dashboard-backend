@@ -32,9 +32,11 @@ passcode login yet (M5); M2 only *stores* the passcode.
 - **Scripts:** `scripts/env.sh` holds the project, region, service and account
   names. `gcp-setup.sh` is idempotent. `deploy.sh` builds through
   `cloudbuild.yaml`.
-- **Local `gcloud` is broken (2026-09-26):** it has been updated to 586.0.0, which
-  refuses to run on the Mac's Python 3.9. **This blocks M2.2 and M2.6 until
-  fixed** (see Prerequisites).
+- **Local `gcloud` is 586.0.0** (updated 2026-09-26, and fixed the same day:
+  Python 3.13 from Homebrew, with `CLOUDSDK_PYTHON` in `~/.zshrc`). The
+  workarounds written for 418 may no longer be needed. `gcp-setup.sh` creates
+  the Artifact Registry repo through REST because of a 418 bug; M2.2 can try the
+  plain command again.
 - **Warnings fail the build.** Versions go in `gradle/libs.versions.toml`.
 
 ## Settled with Sam, 2026-09-26
@@ -101,11 +103,7 @@ passcode login yet (M5); M2 only *stores* the passcode.
 
 ## Prerequisites (Sam)
 
-1. **Fix `gcloud`**: install a supported Python (`brew install python@3.13`)
-   and point gcloud at it. Either add
-   `export CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.13` to `~/.zshrc`, or run
-   `gcloud config virtualenv create`. Claude can do this if asked. It changes
-   the machine, so it is Sam's call.
+1. ~~Fix `gcloud`~~ ✅ 2026-09-26: Python 3.13, with `CLOUDSDK_PYTHON` set.
 2. **Admin credentials, once:**
    ```
    ! gcloud auth application-default login
