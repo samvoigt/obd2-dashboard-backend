@@ -51,6 +51,11 @@ fun Application.module(tabletKey: String, registry: CarRegistry) {
         // answers them with its own 404 before the request reaches us.
         get("/health") { call.respond(Health(status = "ok")) }
 
+        // The landing page's list: public, so named fields only (PublicCar), never a Car.
+        get("/api/cars") {
+            call.respond(registry.list().map { PublicCar(it.slug.value, it.name) })
+        }
+
         authenticate(TABLET_AUTH) {
             // Lets the app's settings screen check a pasted key before relying on it.
             get("/tablet/ping") { call.respond(Health(status = "ok")) }

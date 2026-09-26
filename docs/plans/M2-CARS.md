@@ -416,6 +416,16 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
 
 ### M2.5 — The landing page's data  `sonnet`
 
+> ✅ **Done 2026-09-26.**
+> - `GET /api/cars` maps `registry.list()` to `PublicCar`, uncached and public.
+> - **3 tests:**
+>   - an empty list is `[]`, not a `404`;
+>   - a car with every field set, including a passcode, serialises to exactly
+>     `{slug, name}`, checked through the real route and parsed JSON, and the
+>     token, hash, hint and passcode hash are all absent from the body;
+>   - the list is sorted by name.
+> - Mutation killed: adding the token hint to `PublicCar` fails the leak test.
+
 > **Validated against what M2.1–M2.4 built, 2026-09-26, before building.** No
 > conflict.
 >
@@ -439,6 +449,30 @@ A new module, `:tools`, run by `scripts/admin.sh`, which builds the tool with
 - The response is empty (`[]`) when there are no cars, not a `404`.
 
 ### M2.6 — Retire the shared key, and deploy  `sonnet`
+
+> **Validated against what M2.1–M2.5 built, 2026-09-26, before building.** One
+> gap, which would have left the old key live:
+>
+> - **`deploy.sh` must pass `--clear-secrets`, not just drop `--set-secrets`.**
+>   `gcloud run deploy` keeps any setting a deploy does not mention, so the
+>   service would go on mounting `TABLET_API_KEY`, and once the secret is
+>   deleted (step 5) the next revision would fail to start. M5's cookie-signing
+>   secret will replace `--clear-secrets` with its own `--set-secrets`.
+> - **`--set-env-vars GCP_PROJECT=$PROJECT`**, the name `main` reads (M2.4).
+> - **Also removed with the old key:**
+>   - `SECRET` in `env.sh`;
+>   - the secret block in `gcp-setup.sh`;
+>   - `/tablet/ping` and its tests in `ApplicationTest`;
+>   - the "old key does not cross routes" test in `CarAuthTest` (nothing left
+>     to cross).
+>   `module` becomes `module(registry)`.
+> - **Commit before deploying**, so the image tag is a clean git SHA
+>   (`deploy.sh` marks a dirty tree).
+> - **The runtime account needs nothing new.** `roles/datastore.user` was
+>   granted in M2.2, and on Cloud Run the Firestore client uses that account.
+> - **Deleting the secret also deletes its IAM policy**, so step 5 is one command.
+> - **README and CLAUDE.md** still describe `tablet-key.sh` and the local
+>   `TABLET_API_KEY=dev` run. Both change in step 6.
 
 1. Remove `TABLET_API_KEY`, `TabletAuth.kt`, `/tablet/ping`, and
    `scripts/tablet-key.sh`. Remove the secret lines from `gcp-setup.sh` and
