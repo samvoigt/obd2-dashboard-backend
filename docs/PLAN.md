@@ -32,7 +32,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
   `docs/plans/COMPLETED.md`, `DECISIONS.md` or `JOURNAL.md`, and the plan is
   deleted. Git keeps the rest.
 
-Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
+Deployed: https://badnewsbears.live for people, https://obd2-backend-qeppiy7nzq-uk.a.run.app for tablets. Project
 `obd2-dashboard-backend`, region `us-east4`. Deploys go through `cloudbuild.yaml`
 (JOURNAL 2026-09-26).
 

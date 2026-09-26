@@ -14,7 +14,7 @@ has its own token (M2). Past sessions come next, in M6. See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
 [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
 
-The site: https://obd2-backend-qeppiy7nzq-uk.a.run.app
+The site: https://badnewsbears.live
 
 ## Building
 
@@ -77,9 +77,10 @@ scripts/replay.sh --server … --token-file car.token --live --speed 1 \
 
 ## Deploying
 
-Google Cloud Run: project `obd2-dashboard-backend`, region `us-east4`, live at
-https://obd2-backend-qeppiy7nzq-uk.a.run.app (also
-https://obd2-backend-286164118741.us-east4.run.app). Cloud Build builds it from
+Google Cloud Run: project `obd2-dashboard-backend`, region `us-east4`. The site
+is https://badnewsbears.live (and `www.`), mapped by `gcp-setup.sh` with DNS at
+Namecheap (decision 23). Tablets use https://obd2-backend-qeppiy7nzq-uk.a.run.app
+(also https://obd2-backend-286164118741.us-east4.run.app). Cloud Build builds it from
 the `Dockerfile`, so Docker is not needed locally.
 
 ```sh

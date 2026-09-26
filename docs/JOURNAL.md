@@ -126,3 +126,13 @@ not catch, and lessons about process. Short on purpose.
 - **Deploying with a message on screen worked first time**, because decision 20's
   drain and the stored messages were designed together.
 
+## 2026-09-26 — The domain
+
+- **Create the domain mapping after the DNS records, or expect a wait.** The
+  mappings were made first, so Google's first checks saw Namecheap's parking
+  records and failed with "challenge data was not visible through the public
+  internet", although every public resolver already had the new records. It
+  retries every 20 minutes; the certificate came on the retry at 23:09 UTC,
+  57 minutes after the mapping. Nothing needed changing.
+- Domain mappings need the `gcloud` beta component, installed for this.
+

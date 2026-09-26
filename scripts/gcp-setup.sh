@@ -106,3 +106,15 @@ else
   echo "note: $SERVICE is not deployed yet; run this again after the first deploy (roles/run.viewer)." >&2
 fi
 
+
+# The website's domain (decision 23). Needs the gcloud beta component, the domain
+# verified by the user's Google account (gcloud domains verify), and the DNS records
+# this prints, at Namecheap. Google issues and renews the certificate.
+if gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" >/dev/null 2>&1; then
+  for domain in "${DOMAINS[@]}"; do
+    if ! gcloud beta run domain-mappings describe --domain "$domain" --project "$PROJECT" --region "$REGION" >/dev/null 2>&1; then
+      gcloud beta run domain-mappings create --service "$SERVICE" --domain "$domain" \
+        --project "$PROJECT" --region "$REGION" --quiet
+    fi
+  done
+fi

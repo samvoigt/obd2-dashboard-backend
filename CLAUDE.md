@@ -69,7 +69,9 @@ Warnings fail the build (`allWarningsAsErrors`), as in the app. `gcloud` needs
 Project `obd2-dashboard-backend`, region `us-east4`, service `obd2-backend`.
 **Never rename or recreate the service.** The app has its URL built in
 (`https://obd2-backend-qeppiy7nzq-uk.a.run.app`), and a new service would strand
-every tablet until an app update. Deploy settings (one instance, timeout 3600,
+every tablet until an app update. People use **https://badnewsbears.live**
+(and `www.`), a Cloud Run domain mapping (decision 23): DNS at Namecheap, the
+certificate Google's. A crew login is per host, so apex and `www` log in apart. Deploy settings (one instance, timeout 3600,
 concurrency 1000) are decision 20; **test deploys with a live connection
 open** (JOURNAL: M4).
 All three are set in `scripts/env.sh`. Always go through the scripts, or pass

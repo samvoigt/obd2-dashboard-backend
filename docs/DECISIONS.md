@@ -514,3 +514,27 @@ behind each other.
 
 **Revisit if.** Crew members need their own logins, or a message must be
 revoked from one person without changing the passcode.
+
+## 23. The website at badnewsbears.live, by a Cloud Run domain mapping
+
+**Decision.**
+- `badnewsbears.live` and `www.badnewsbears.live` are Cloud Run **domain
+  mappings** onto `obd2-backend` (`gcp-setup.sh`, from `DOMAINS` in `env.sh`).
+  DNS is at Namecheap: four A and four AAAA records on `@`, and a CNAME from
+  `www` to `ghs.googlehosted.com`. Google issues and renews the certificate.
+- The domain is verified in Search Console by Sam's Google account (a TXT
+  record on `@`, which must stay).
+- **Tablets keep the `run.app` URL**, which the app has built in. Both reach
+  the same service; nothing in the server or site names a host.
+
+**Why.**
+- Free, with the certificate managed, and it passes WebSockets and SSE through.
+  Firebase Hosting in front would cut the browser stream at 60 s; a global load
+  balancer costs about $18 a month for the same result; Cloudflare's proxy
+  would need a Worker to set the host.
+- Domain mapping is a preview feature, which is acceptable here.
+
+**Revisit if.** Mappings leave preview in a way that changes them, the
+service moves to a region without them, or the crew trips over logging in
+separately on `www` (then redirect `www` to the bare domain).
+
