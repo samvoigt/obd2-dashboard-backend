@@ -238,6 +238,32 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M3.2 — The archive rules  `opus`
 
+> ✅ **Done 2026-09-26.**
+> - `Stores.kt`: `Segment`, `SessionRecord`, the conditional `SessionIndex`,
+>   `SegmentStore` (plain bytes in and out; `write` streams, and **creates no
+>   object if its body throws**), and fakes with hooks for interleaving
+>   (`afterPut`) and failure (`failNextPut`, `failNextAppend`).
+> - `ArchiveService`: `open`, `append`, `complete`, `delete`, all store then
+>   advance. `complete` assembles through `assemble`, which **refuses a corrupt
+>   index** (segments not contiguous, or not holding the lines they claim)
+>   rather than trust the hash alone. A `PUT` body may carry its newline or not,
+>   but only one line.
+>
+> **21 service tests**, 50 in the module:
+> - 20 random chunkings, each byte for byte;
+> - the race, with one recorded, a true answer, and the orphan swept;
+> - failures between storing and recording, and of storing itself;
+> - the reset, and the limit on resets;
+> - a live-created session;
+> - both kinds of corruption.
+>
+> **13 mutations killed.** The mutation run also found two things:
+> - **the contiguity check was untested**, so corruption tests were added;
+> - **the "delete a half-written session" step was redundant**: neither the
+>   fake nor Cloud Storage creates an object whose writer threw. It was
+>   removed, and the rule was written into `SegmentStore.write` instead, for
+>   M3.3 to prove.
+
 > **Validated against what M3.1 built, 2026-09-26, before building.** No
 > conflict. Now fixed by what exists:
 >
@@ -294,6 +320,28 @@ the *next* step's plan is checked against what was actually built (Sam,
   condition, an off-by-one in the trim, skipping the contiguity check.
 
 ### M3.3 — Cloud Storage and Firestore  `sonnet`
+
+> **Validated against what M3.1–M3.2 built, 2026-09-26, before building.** One
+> flaw in this plan, corrected here:
+>
+> - **Objects are gzip *files*, not gzip-*encoded*.** The plan said
+>   `Content-Encoding: gzip`. With that, Cloud Storage decompresses on download
+>   (decompressive transcoding), so `session.jsonl.gz` would download as plain
+>   JSONL under a `.gz` name. Instead: `Content-Type: application/gzip`, no
+>   content-encoding. The store gzips on `put`/`write` and gunzips on `read`, so
+>   a download is exactly the `.jsonl.gz` the app itself writes.
+> - **`write` must create no object when its body throws** (M3.2's rule). With
+>   `storage.writer`, the object exists only once the channel is closed, so on
+>   an exception the channel is abandoned, never closed. The smoke test proves
+>   it.
+> - **Blocking Google clients run on `Dispatchers.IO`.**
+> - **Firestore and Storage share Guava and gRPC**, so both `:archive-gcp` and
+>   `:registry-firestore` take their versions from Google's `libraries-bom`.
+> - **Header fields are flat document fields** (`v`, `started`, `device`, `app`,
+>   `vin`, `protocol`), absent when null. The header is present exactly when
+>   `line0Sha256` is. `car` is a field, for `listByCar`.
+> - **The smoke test gives the fixture a fresh UUID** (rewriting line 0's `id`),
+>   so runs never collide, and hashes what it actually sent.
 
 `:archive-gcp`:
 - `GcsSegmentStore`: objects gzip-encoded, `Content-Type: application/x-ndjson`.
