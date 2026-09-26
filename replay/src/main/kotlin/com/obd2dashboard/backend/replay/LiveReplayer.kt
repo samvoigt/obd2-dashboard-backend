@@ -1,0 +1,282 @@
+package com.obd2dashboard.backend.replay
+
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.WebSocket
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
+
+data class LiveOptions(
+    /** 0 sends as fast as the socket takes it; 1 is real time. */
+    val speed: Double = 1.0,
+    /** Drop the socket (as a lost link does) every this many milliseconds of wall time; null never. */
+    val dropEveryMillis: Long? = null,
+    /** Multiplies the reconnect backoff, so tests need not sleep. */
+    val waitScale: Double = 1.0,
+)
+
+sealed interface LiveResult {
+    data class Ended(val batches: Int, val reconnects: Int) : LiveResult
+    data class Stopped(val reason: String) : LiveResult
+}
+
+/**
+ * One session's live lane as the tablet sends it (contract §5.1–5.3): `hello`,
+ * `session`, a `snapshot` of the state so far, then a `batch` every 200 ms of log
+ * time, coalesced to the latest sample per signal with every other record in
+ * full, then `end`. **It never replays what a drop missed**: after a reconnect it
+ * resnapshots and carries on from where it is. **The token is never printed.**
+ */
+class LiveReplayer(
+    private val server: URI,
+    private val token: String,
+    private val options: LiveOptions = LiveOptions(),
+    private val http: HttpClient = HttpClient.newHttpClient(),
+    private val log: (String) -> Unit = {},
+) {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    suspend fun replay(file: SessionFile): LiveResult {
+        val header = json.parseToJsonElement(file.lines[0].decodeToString()).jsonObject
+        val records = file.lines.drop(1).map { runCatching { json.parseToJsonElement(it.decodeToString()).jsonObject }.getOrNull() }
+        val windows = windows(file, records)
+        val state = State()
+        var socket = connect(header, state) ?: return LiveResult.Stopped("could not connect")
+        var reconnects = 0
+        var drops = 0 // consecutive, for the backoff; reset once a batch goes through
+        var lastCleanClose = 0L
+        var lastDrop = System.currentTimeMillis()
+        val started = System.nanoTime()
+        val firstAt = file.at.firstNotNullOfOrNull { it } ?: 0L
+        var sent = 0
+
+        var i = 0
+        while (i < windows.size) {
+            val window = windows[i]
+            if (options.speed > 0) {
+                val due = ((window.at - firstAt) / options.speed).toLong()
+                val elapsed = (System.nanoTime() - started) / 1_000_000
+                if (due > elapsed) delay(due - elapsed)
+            }
+            options.dropEveryMillis?.let { every ->
+                if (System.currentTimeMillis() - lastDrop >= every) {
+                    log("dropping the socket")
+                    socket.abort()
+                    lastDrop = System.currentTimeMillis()
+                }
+            }
+            window.records.forEach(state::absorb)
+            val closed = if (socket.closed.isCompleted) socket.closed.await() else null
+            if (closed != null) {
+                when (val next = afterClose(closed, lastCleanClose, drops)) {
+                    is After.Stop -> return LiveResult.Stopped(next.reason)
+                    is After.Reconnect -> {
+                        if (closed.clean) lastCleanClose = System.currentTimeMillis()
+                        if (next.waitMillis > 0) drops++
+                        if (next.waitMillis > 0) delay((next.waitMillis * options.waitScale).toLong())
+                        log("reconnecting after ${closed.describe()}${if (next.waitMillis > 0) ", waited ${next.waitMillis} ms" else ", at once"}")
+                        socket = connect(header, state) ?: return LiveResult.Stopped("could not reconnect")
+                        reconnects++
+                    }
+                }
+            }
+            if (!socket.send(batchFrame(file.id, coalesce(window.records)))) continue // closed mid-send: handled next window
+            drops = 0
+            sent++
+            i++
+        }
+        socket.send(buildJsonObject { put("t", "end"); put("session", file.id) }.toString())
+        socket.close()
+        return LiveResult.Ended(sent, reconnects)
+    }
+
+    private sealed interface After {
+        data class Reconnect(val waitMillis: Long) : After
+        data class Stop(val reason: String) : After
+    }
+
+    /**
+     * §5.3: a clean `1001`/`1012` reconnects at once, unless another came within
+     * 10 s; any other drop backs off. `auth`, `superseded` and
+     * `unsupported_version` stop for good.
+     */
+    private fun afterClose(closed: Closed, lastCleanClose: Long, drops: Int): After {
+        closed.fatalError?.let { return After.Stop("the server said $it") }
+        if (closed.clean && System.currentTimeMillis() - lastCleanClose > 10_000) return After.Reconnect(0)
+        return After.Reconnect(BACKOFF[minOf(drops, BACKOFF.lastIndex)])
+    }
+
+    private suspend fun connect(header: JsonObject, state: State): Socket? {
+        repeat(20) { attempt ->
+            val socket = runCatching {
+                val listener = Socket()
+                val ws = http.newWebSocketBuilder()
+                    .header("Authorization", "Bearer $token")
+                    .subprotocols(PROTOCOL)
+                    .buildAsync(URI.create(server.toString().replaceFirst("http", "ws") + "/v1/live"), listener)
+                    .await()
+                listener.also { it.ws = ws }
+            }.getOrElse {
+                log("connect failed: ${it.javaClass.simpleName}")
+                delay((BACKOFF[minOf(attempt, BACKOFF.lastIndex)] * options.waitScale).toLong())
+                return@repeat
+            }
+            socket.send(buildJsonObject { put("t", "hello"); put("v", 3); put("device", "replay"); put("app", "replay"); put("wall", System.currentTimeMillis()) }.toString())
+            socket.send(buildJsonObject { put("t", "session"); put("record", header) }.toString())
+            socket.send(buildJsonObject { put("t", "snapshot"); put("session", header["id"]!!); put("records", buildJsonArray { state.snapshot().forEach { add(it) } }) }.toString())
+            return socket
+        }
+        return null
+    }
+
+    /** The session's current state, for a snapshot (§5.2). */
+    private class State {
+        private var signals: JsonObject? = null
+        private var fault: JsonObject? = null
+        private val stopped = LinkedHashMap<String, JsonObject>()
+        private val latest = LinkedHashMap<String, JsonObject>()
+
+        fun absorb(record: JsonObject) {
+            when (record.string("type")) {
+                "sample" -> record.string("signal")?.let { latest[it] = record }
+                "stopped" -> record.string("signal")?.let { stopped[it] = record }
+                "fault" -> fault = record
+                "signals" -> signals = record
+            }
+        }
+
+        fun snapshot(): List<JsonObject> = (listOfNotNull(signals, fault) + stopped.values + latest.values)
+            .sortedBy { (it["seq"] as? JsonPrimitive)?.contentOrNull?.toLongOrNull() ?: 0 }
+    }
+
+    private data class Window(val at: Long, val records: List<JsonObject>)
+
+    /** The log in 200 ms windows of `at`; a line without `at` takes the one before it. */
+    private fun windows(file: SessionFile, records: List<JsonObject?>): List<Window> {
+        val out = mutableListOf<Window>()
+        var start: Long? = null
+        var lastAt = file.at.firstNotNullOfOrNull { it } ?: 0L
+        var current = mutableListOf<JsonObject>()
+        records.forEachIndexed { i, record ->
+            val at = file.at[i + 1] ?: lastAt
+            lastAt = at
+            if (start == null) start = at
+            if (at - start >= WINDOW_MILLIS) {
+                if (current.isNotEmpty()) out += Window(start, current)
+                current = mutableListOf()
+                start = at
+            }
+            record?.let { current += it }
+        }
+        if (current.isNotEmpty()) out += Window(start ?: 0, current)
+        return out
+    }
+
+    /** §5.2: the latest sample per signal, and every other record in full, in order. */
+    private fun coalesce(records: List<JsonObject>): List<JsonObject> {
+        val lastSampleIndex = HashMap<String, Int>()
+        records.forEachIndexed { i, r -> if (r.string("type") == "sample") r.string("signal")?.let { lastSampleIndex[it] = i } }
+        return records.filterIndexed { i, r ->
+            r.string("type") != "sample" || r.string("signal")?.let { lastSampleIndex[it] == i } != false
+        }
+    }
+
+    private fun batchFrame(id: String, records: List<JsonObject>): String =
+        buildJsonObject { put("t", "batch"); put("session", id); put("records", buildJsonArray { records.forEach { add(it) } }) }.toString()
+
+    data class Closed(val code: Int, val fatalError: String?) {
+        val clean: Boolean get() = code == 1001 || code == 1012
+        fun describe(): String = "close $code${fatalError?.let { " ($it)" } ?: ""}"
+    }
+
+    /** A socket and what the server said to it. */
+    private inner class Socket : WebSocket.Listener {
+        lateinit var ws: WebSocket
+        val closed = CompletableDeferred<Closed>()
+        private var fatal: String? = null
+        private val text = StringBuilder()
+
+        /**
+         * Sends, but never waits long: a socket the server has just closed can
+         * leave the future unfinished, and the lane must never hang on it.
+         */
+        suspend fun send(frame: String): Boolean =
+            if (closed.isCompleted) {
+                false
+            } else {
+                runCatching { withTimeoutOrNull(5_000) { ws.sendText(frame, true).await() } != null }.getOrElse { false }
+            }
+
+        fun abort() = ws.abort().also { closed.complete(Closed(1006, null)) }
+
+        /** Closes if still open, never waiting more than 2 s (found hanging when the server had just sent 1001). */
+        suspend fun close() {
+            if (closed.isCompleted) return
+            val done = runCatching { withTimeoutOrNull(2_000) { ws.sendClose(WebSocket.NORMAL_CLOSURE, "session ended").await() } }.getOrNull()
+            if (done == null) ws.abort()
+        }
+
+        override fun onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage<*> {
+            text.append(data)
+            if (last) {
+                val frame = runCatching { Json.parseToJsonElement(text.toString()).jsonObject }.getOrNull()
+                text.clear()
+                if (frame?.string("t") == "error") {
+                    val code = frame.string("code")
+                    log("server error: $code")
+                    if (code in FATAL) fatal = code
+                }
+            }
+            webSocket.request(1)
+            return CompletableFuture.completedFuture(null)
+        }
+
+        override fun onClose(webSocket: WebSocket, statusCode: Int, reason: String): CompletionStage<*> {
+            closed.complete(Closed(statusCode, fatal))
+            return CompletableFuture.completedFuture(null)
+        }
+
+        override fun onError(webSocket: WebSocket, error: Throwable) {
+            closed.complete(Closed(1006, fatal))
+        }
+    }
+
+    companion object {
+        const val PROTOCOL = "obd2-telemetry.v1"
+        const val WINDOW_MILLIS = 200L
+        private val FATAL = setOf("auth", "superseded", "unsupported_version")
+
+        /** §5.3: 1, 2, 5, then every 10 s. */
+        private val BACKOFF = longArrayOf(1_000, 2_000, 5_000, 10_000)
+
+        private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+
+        /**
+         * Signal units from the contract's appendix (the one source this side can
+         * read before a real v3 log exists): rows of `| \`name\` | Quantity | unit | value |`
+         * after "## Appendix", with `—` meaning none.
+         */
+        fun unitsFrom(contract: Path): Map<String, String> {
+            val lines = Files.readAllLines(contract)
+            val start = lines.indexOfFirst { it.startsWith("## Appendix") }
+            if (start < 0) return emptyMap()
+            val row = Regex("^\\|\\s*`([^`]+)`\\s*\\|[^|]*\\|\\s*([^|]*?)\\s*\\|")
+            return lines.drop(start + 1).mapNotNull { row.find(it) }
+                .associate { m -> m.groupValues[1] to m.groupValues[2].let { if (it == "—" || it == "-") "" else it } }
+        }
+    }
+}

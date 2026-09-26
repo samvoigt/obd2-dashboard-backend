@@ -21,6 +21,7 @@ import java.security.MessageDigest
 import java.util.UUID
 import kotlin.random.Random
 import kotlin.system.exitProcess
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 fun main(args: Array<String>) {
@@ -47,6 +48,11 @@ class Replay(private val envToken: String?) : CliktCommand(name = "replay") {
     private val stopAfter by option("--stop-after", help = "stop after this many chunks, keeping the position").int()
     private val fresh by option("--fresh", help = "forget saved positions and start each session from line 1").flag()
     private val seed by option("--seed", help = "for repeatable faults").long()
+    private val live by option("--live", help = "stream the live lane too (both lanes, as the app does)").flag()
+    private val noArchive by option("--no-archive", help = "with --live, send the live lane only").flag()
+    private val dropSocketEvery by option("--drop-socket-every", help = "with --live, drop the socket every N seconds").double()
+    private val unitsFrom by option("--units-from", help = "the contract (TELEMETRY-CONTRACT.md), for signal units when upgrading old logs")
+        .path(mustExist = true)
     private val files by argument(help = "session logs, .jsonl or .jsonl.gz").path(mustExist = true).multiple(required = true)
 
     override fun help(context: Context) = "Upload session logs as the tablet does, faults included."
@@ -68,18 +74,49 @@ class Replay(private val envToken: String?) : CliktCommand(name = "replay") {
         )
         var failed = false
         var stopped = false
+        val units = unitsFrom?.let { LiveReplayer.unitsFrom(it) }.orEmpty()
+        if (unitsFrom != null) echo("units for ${units.size} signals from ${unitsFrom!!.fileName}")
         for (path in files) {
-            val file = SessionFile.load(path, tokenSeed, device)
+            val file = SessionFile.load(path, tokenSeed, device, units)
             if (fresh) Files.deleteIfExists(workDir.resolve("${file.id}.state.json"))
             echo("${path.fileName}: session ${file.id}, ${file.lines.size} lines")
             val replayer = Replayer(URI.create(server.trimEnd('/')), token, workDir, options, log = { echo("  $it") })
-            when (val result = replayer.replay(file)) {
-                is ReplayResult.Completed -> echo("  COMPLETE  sha256 ${result.sha256}  (upgraded file: ${workDir.resolve("${file.id}.v3.jsonl")})")
-                is ReplayResult.Stopped -> { echo("  STOPPED at line ${result.ackedThrough}; run again to resume"); stopped = true }
-                is ReplayResult.Failed -> { echo("  FAILED: ${result.reason}", err = true); failed = true }
+            if (live) {
+                val liveReplayer = LiveReplayer(
+                    URI.create(server.trimEnd('/')), token,
+                    LiveOptions(speed = speed, dropEveryMillis = dropSocketEvery?.let { (it * 1000).toLong() }),
+                    log = { echo("  live: $it") },
+                )
+                // Both lanes at once, as the app sends them (contract §2).
+                val liveResult = async { liveReplayer.replay(file) }
+                if (noArchive) {
+                    echo("  live: ${liveResult.await()}")
+                    continue
+                }
+                val archiveResult = replayer.replay(file)
+                echo("  live: ${liveResult.await()}")
+                report(archiveResult, file).let { (f, st) -> failed = failed || f; stopped = stopped || st }
+                continue
             }
+            report(replayer.replay(file), file).let { (f, st) -> failed = failed || f; stopped = stopped || st }
         }
         if (failed) throw CliktError("Some sessions failed.", statusCode = 1)
         if (stopped) throw CliktError("Stopped as asked; positions are saved.", statusCode = 3)
+    }
+
+    /** Prints [result]; returns (failed, stopped). */
+    private fun report(result: ReplayResult, file: SessionFile): Pair<Boolean, Boolean> {
+        when (result) {
+            is ReplayResult.Completed -> echo("  COMPLETE  sha256 ${result.sha256}  (upgraded file: ${workDir.resolve("${file.id}.v3.jsonl")})")
+            is ReplayResult.Stopped -> {
+                echo("  STOPPED at line ${result.ackedThrough}; run again to resume")
+                return false to true
+            }
+            is ReplayResult.Failed -> {
+                echo("  FAILED: ${result.reason}", err = true)
+                return true to false
+            }
+        }
+        return false to false
     }
 }

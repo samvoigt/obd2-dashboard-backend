@@ -44,7 +44,7 @@ class SessionFile(val lines: List<ByteArray>, val id: String) {
         private val json = Json { ignoreUnknownKeys = true }
 
         /** Reads [path] (`.jsonl` or `.jsonl.gz`), drops a cut-short last line as the tablet does, and upgrades to v3. */
-        fun load(path: Path, idSeed: String, device: String): SessionFile {
+        fun load(path: Path, idSeed: String, device: String, units: Map<String, String> = emptyMap()): SessionFile {
             val raw = Files.newInputStream(path).use { input ->
                 if (path.fileName.toString().endsWith(".gz")) GZIPInputStream(input).readBytes() else input.readBytes()
             }
@@ -59,11 +59,11 @@ class SessionFile(val lines: List<ByteArray>, val id: String) {
             }
             // A stable id per (source, token), so a rerun resumes the same session.
             val id = UUID.nameUUIDFromBytes((idSeed + ":" + sha(raw)).toByteArray()).toString()
-            return SessionFile(listOf(upgrade(header, id, device, lines)) + lines.drop(1), id)
+            return SessionFile(listOf(upgrade(header, id, device, lines, units)) + lines.drop(1), id)
         }
 
-        private fun upgrade(header: JsonObject, id: String, device: String, lines: List<ByteArray>): ByteArray {
-            val signals = signalsOf(lines)
+        private fun upgrade(header: JsonObject, id: String, device: String, lines: List<ByteArray>, units: Map<String, String>): ByteArray {
+            val signals = signalsOf(lines, units)
             val v3 = buildJsonObject {
                 put("type", "session")
                 put("v", 3)
@@ -83,11 +83,11 @@ class SessionFile(val lines: List<ByteArray>, val id: String) {
         }
 
         /**
-         * The signals the samples carry, each with the kind its fields show. The
-         * unit is left empty: M3's server does not read units (M4 revisits this
-         * once a real v3 log is committed).
+         * The signals the samples carry, each with the kind its fields show and
+         * its unit from [units] (the contract's appendix, `--units-from`), or
+         * empty where that does not know it.
          */
-        private fun signalsOf(lines: List<ByteArray>): JsonArray {
+        private fun signalsOf(lines: List<ByteArray>, units: Map<String, String>): JsonArray {
             val kinds = sortedMapOf<String, String>()
             for (line in lines.drop(1)) {
                 val obj = parse(line) ?: continue
@@ -104,7 +104,7 @@ class SessionFile(val lines: List<ByteArray>, val id: String) {
                 }
             }
             return buildJsonArray {
-                kinds.forEach { (name, kind) -> add(buildJsonObject { put("name", name); put("unit", ""); put("kind", kind) }) }
+                kinds.forEach { (name, kind) -> add(buildJsonObject { put("name", name); put("unit", units[name].orEmpty()); put("kind", kind) }) }
             }
         }
 

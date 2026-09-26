@@ -445,6 +445,35 @@ Mutations killed.
 
 ### M4.5 — The replay learns the live lane  `opus`
 
+> ✅ **Done 2026-09-26.** `LiveReplayer`:
+> - `hello` / `session` / a snapshot of the state so far, then 200 ms windows
+>   coalesced as the tablet does, then `end`;
+> - §5.3's reconnects: at once after a clean `1001`/`1012` unless another came
+>   within 10 s; otherwise backing off 1, 2, 5, 10 s by consecutive drops;
+>   `auth`, `superseded` and `unsupported_version` stop it;
+> - `unitsFrom` reads the appendix only.
+>
+> CLI: `--live` (both lanes at once), `--no-archive`, `--drop-socket-every`,
+> `--units-from`. Sends are bounded to 5 s and the final close to 2 s, so the
+> lane never waits forever on a dead socket.
+>
+> **8 live tests** on real Netty:
+> - the hub ends with the log's last sample of every signal;
+> - a dropped socket resnapshots;
+> - `1001` at once, then backing off within 10 s;
+> - superseded stops; a wrong token stops with `auth`;
+> - coalescing within one window;
+> - units from a committed appendix excerpt, with a decoy table before it;
+> - **each reconnect's snapshot restores what a restarted server forgot**,
+>   using a hub that starts empty on every attach and one signal sampled only
+>   at the start.
+>
+> **Found:** that last test hung when the whole class ran. A thread dump showed
+> it parked in the test's own setup, where it resolved the port inside the outer
+> `runBlocking`, not in the replay. It now uses the shared `start()` helper, and
+> ran clean three times. **9 mutations killed**; one first failed to compile
+> and was rewritten.
+
 > **Validated against what M4.1–M4.4 built, 2026-09-26, before building.** No
 > conflict. Now fixed by what exists:
 >
@@ -497,6 +526,23 @@ Mutations killed.
 - Mutations killed.
 
 ### M4.6 — The website's frame  `sonnet`
+
+> **Validated against what M4.1–M4.5 built, 2026-09-26, before building.** One
+> risk, designed out here:
+>
+> - **Explicit routes, not Ktor's single-page-app plugin.** Its fallback serves
+>   `index.html` for unknown paths, which could answer an unknown `/api/...` path
+>   with HTML instead of a `404` and confuse the tablet or the page. So:
+>   static files from `web/`, and `index.html` only for `/` and `/cars/*`. A
+>   test checks that `/api` and `/v1` still answer JSON and `404`.
+> - **Server tests need no npm.** A stub `web/index.html` in the server's test
+>   resources stands in for the built site. `-PskipWeb` skips the npm build.
+> - **`buildWeb` declares its inputs and outputs**, so it is up to date unless
+>   `web/` changed. `processResources` copies `web/dist` in as `web/`, or the
+>   directory given by `-PwebDist=…` (the Dockerfile's `node:24` stage).
+> - **`web/` is written by hand** (`package.json`, `vite.config.ts`, and so
+>   on), not by `npm create`, so every file is chosen and none is left as a
+>   template leftover.
 
 - **`web/`**: Vite, Svelte 5, TypeScript, uPlot, Vitest; `npm ci` from a
   committed lockfile.
