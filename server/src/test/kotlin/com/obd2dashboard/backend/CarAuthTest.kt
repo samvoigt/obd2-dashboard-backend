@@ -29,7 +29,7 @@ class CarAuthTest {
     private val outback = runBlocking { registry.addCar(Slug.parse("outback"), "Outback") }
 
     private fun ApplicationTestBuilder.app() {
-        application { module("unused-tablet-key", registry) }
+        application { module(registry) }
     }
 
     private fun ApplicationTestBuilder.json() = createClient { install(ContentNegotiation) { json() } }
@@ -102,13 +102,6 @@ class CarAuthTest {
         app()
         val response = client.get("/v1/whoami") { header(HttpHeaders.Authorization, "bearer ${yaris.token}") }
         response.status shouldBe HttpStatusCode.OK
-    }
-
-    @Test
-    fun `the old shared key does not open car routes, nor a car token the old route`() = testApplication {
-        app()
-        client.get("/v1/whoami") { bearerAuth("unused-tablet-key") }.status shouldBe HttpStatusCode.Unauthorized
-        client.get("/tablet/ping") { bearerAuth(yaris.token) }.status shouldBe HttpStatusCode.Unauthorized
     }
 
     @Test

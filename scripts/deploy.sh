@@ -14,12 +14,16 @@ IMAGE="${IMAGE_BASE}:${TAG}"
 gcloud builds submit --project "$PROJECT" --config cloudbuild.yaml \
   --substitutions "_IMAGE=${IMAGE}" .
 
-# --allow-unauthenticated: the website is public (decision 5); tablet routes
-# check the key themselves (decision 4).
+# --allow-unauthenticated: the website is public (decision 11); tablet routes
+# check the car's token themselves (decision 10).
+# --clear-secrets: a deploy keeps any setting it does not mention, so the old
+# shared key (decision 4) must be detached explicitly. M5's cookie secret will
+# replace this with its own --set-secrets.
 gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" \
   --service-account "$RUNTIME_SA" \
-  --set-secrets "TABLET_API_KEY=${SECRET}:latest" \
+  --clear-secrets \
+  --set-env-vars "GCP_PROJECT=${PROJECT}" \
   --allow-unauthenticated \
   --min-instances 0 \
   --max-instances 2 \

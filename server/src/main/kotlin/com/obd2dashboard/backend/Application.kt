@@ -22,29 +22,25 @@ import kotlinx.serialization.Serializable
  * expects `0.0.0.0` rather than loopback. 8080 is its default, so local runs and
  * the container agree without configuration.
  *
- * `TABLET_API_KEY` and `GCP_PROJECT` are required. A server started without
- * them would accept no tablet at all, and that should fail at deploy rather
- * than in the paddock. The project is always named, never guessed: the owner's
- * `gcloud` default is an unrelated project.
+ * `GCP_PROJECT` is required. A server started without it could not find any
+ * car, so it would accept no tablet at all, and that should fail at deploy
+ * rather than in the paddock. The project is always named, never guessed: the
+ * owner's `gcloud` default is an unrelated project.
  */
 fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    val tabletKey = requiredEnv("TABLET_API_KEY")
     val registry = CarRegistry(FirestoreCarStore.connect(requiredEnv("GCP_PROJECT")))
-    embeddedServer(Netty, port = port, host = "0.0.0.0") { module(tabletKey, registry) }
+    embeddedServer(Netty, port = port, host = "0.0.0.0") { module(registry) }
         .start(wait = true)
 }
 
 private fun requiredEnv(name: String): String =
     System.getenv(name)?.takeIf { it.isNotBlank() } ?: error("$name is not set")
 
-fun Application.module(tabletKey: String, registry: CarRegistry) {
+fun Application.module(registry: CarRegistry) {
     install(CallLogging)
     install(ContentNegotiation) { json() }
-    install(Authentication) {
-        tabletKey(tabletKey)
-        carTokens(registry)
-    }
+    install(Authentication) { carTokens(registry) }
 
     routing {
         // Not /healthz: Cloud Run's front end reserves paths ending in "z" and
@@ -54,11 +50,6 @@ fun Application.module(tabletKey: String, registry: CarRegistry) {
         // The landing page's list: public, so named fields only (PublicCar), never a Car.
         get("/api/cars") {
             call.respond(registry.list().map { PublicCar(it.slug.value, it.name) })
-        }
-
-        authenticate(TABLET_AUTH) {
-            // Lets the app's settings screen check a pasted key before relying on it.
-            get("/tablet/ping") { call.respond(Health(status = "ok")) }
         }
 
         authenticate(CAR_AUTH) {
