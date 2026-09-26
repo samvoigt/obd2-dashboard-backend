@@ -77,6 +77,7 @@ fun Application.module(
         get("/health") { call.respond(Health(status = "ok")) }
 
         browserRoutes(registry, hub, clock)
+        webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
         liveRoutes(registry, archive, hub, live, clock)

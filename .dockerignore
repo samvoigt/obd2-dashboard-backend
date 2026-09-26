@@ -4,3 +4,5 @@
 .idea
 .claude
 **/build
+web/node_modules
+web/dist

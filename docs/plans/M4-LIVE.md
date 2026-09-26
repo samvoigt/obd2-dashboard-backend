@@ -527,6 +527,20 @@ Mutations killed.
 
 ### M4.6 — The website's frame  `sonnet`
 
+> ✅ **Done 2026-09-26.**
+> - **`web/`**: Svelte 5.57, Vite 8.3, **TypeScript 5.9.3** (`svelte-check`
+>   supports 5 and 6, not 7), Vitest 5, uPlot; a committed lockfile, 0
+>   vulnerabilities. A tiny router (`/` and `/cars/{slug}`), the landing page
+>   (refreshed every 10 s), and the pit-wall theme.
+> - **`buildWeb`** (cached on its inputs) feeds `processResources`; `-PskipWeb`
+>   skips it. **`-PwebDist` resolves from the repo root and fails if there is no
+>   `index.html`**: a relative path had silently produced a jar with no site.
+> - **`WebRoutes.kt`**: explicit routes, `index.html` no-cache, and `/assets` for
+>   a year. The Dockerfile has a `node:24-alpine` stage.
+>
+> **4 Vitest tests; 3 route tests** (the site never shadows `/api` or `/v1`).
+> **4 mutations killed**, among them a single-page-app catch-all.
+
 > **Validated against what M4.1–M4.5 built, 2026-09-26, before building.** One
 > risk, designed out here:
 >
@@ -568,6 +582,27 @@ Mutations killed.
   Cloud Build.
 
 ### M4.7 — A car's live page  `opus`
+
+> **Validated against what M4.1–M4.6 built, 2026-09-26, before building.** One
+> gap in how to look at it, resolved here:
+>
+> - **A dev server, not the cloud.** The real server needs Firestore and a
+>   registered car, so every look at the page would write throwaway cars to the
+>   cloud. **`./gradlew :server:devServer`** runs the real module with in-memory
+>   stores and one car, `dev-car`, and writes its token to
+>   `server/build/dev-token` (git-ignored, never printed). The replay then runs
+>   against it with `--token-file`.
+> - **The page uses the browser's `EventSource`**, which reconnects by itself.
+>   Each `snapshot` is taken as the whole truth (M4.4), so no bookkeeping
+>   survives a reconnect.
+> - **All logic is in a pure `live.ts`**, tested with Vitest:
+>   - applying `snapshot`, `session`, `records` and `status`;
+>   - the clock offset from `serverNow`;
+>   - freshness counting on the page's own clock;
+>   - chart series with `null`s at gaps;
+>   - formatting by kind and unit.
+>
+>   Svelte components only draw.
 
 - **The SSE client:** reconnects with backoff, and takes each snapshot as the
   whole truth.

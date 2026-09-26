@@ -19,3 +19,7 @@ service-account*.json
 
 # Claude Code local settings (machine-specific permissions)
 .claude/settings.local.json
+
+# The website (web/): dependencies and build output
+web/node_modules/
+web/dist/

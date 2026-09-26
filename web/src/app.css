@@ -1,0 +1,28 @@
+/* A pit wall at night: dark, high contrast, large type, fine on a phone. */
+:root {
+  --bg: #0b0d10;
+  --panel: #151a20;
+  --line: #262e38;
+  --text: #e8edf2;
+  --muted: #8b97a5;
+  --live: #3ddc84;
+  --stale: #ffb020;
+  --idle: #5aa0ff;
+  --offline: #6b7480;
+  --danger: #ff5c5c;
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); }
+a { color: inherit; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
+.muted { color: var(--muted); }
+.dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.45em; vertical-align: 0.05em; }
+.dot.live { background: var(--live); box-shadow: 0 0 8px var(--live); }
+.dot.stale { background: var(--stale); }
+.dot.no_session { background: var(--idle); }
+.dot.offline { background: var(--offline); }

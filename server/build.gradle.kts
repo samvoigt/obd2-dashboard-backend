@@ -40,3 +40,45 @@ dependencies {
     testImplementation(libs.kotest.assertions)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+/**
+ * The website (`web/`, decision 13) is built with npm and served from the jar
+ * as `web/`. `-PskipWeb` leaves it out for Kotlin-only work; `-PwebDist=<dir>`
+ * takes a prebuilt one (the Dockerfile's `node:24` stage). Server tests carry
+ * their own stub page, so they never need npm.
+ */
+val webDir = rootProject.layout.projectDirectory.dir("web")
+val skipWeb = providers.gradleProperty("skipWeb").isPresent
+// Relative to the repository root, and checked: a wrong path must fail the build,
+// not ship a server without its website.
+val prebuiltWeb = providers.gradleProperty("webDist").orNull?.let { rootProject.layout.projectDirectory.dir(".").file(it).asFile }
+
+val buildWeb = tasks.register<Exec>("buildWeb") {
+    description = "Builds the website with npm (npm ci, npm run build)."
+    group = "build"
+    workingDir = webDir.asFile
+    commandLine("sh", "-c", "npm ci --no-audit --no-fund && npm run build")
+    inputs.dir(webDir.dir("src"))
+    inputs.files(
+        webDir.file("package.json"), webDir.file("package-lock.json"), webDir.file("index.html"),
+        webDir.file("vite.config.ts"), webDir.file("svelte.config.js"), webDir.file("tsconfig.json"),
+    )
+    outputs.dir(webDir.dir("dist"))
+}
+
+tasks.processResources {
+    when {
+        prebuiltWeb != null -> {
+            val dist = prebuiltWeb
+            doFirst {
+                check(dist.resolve("index.html").isFile) { "-PwebDist=$dist has no index.html; build the site first" }
+            }
+            from(dist) { into("web") }
+        }
+        !skipWeb -> {
+            dependsOn(buildWeb)
+            from(webDir.dir("dist")) { into("web") }
+        }
+    }
+}
+
