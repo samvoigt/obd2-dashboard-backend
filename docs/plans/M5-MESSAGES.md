@@ -151,6 +151,34 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M5.1 — The message rules  `opus`
 
+> ✅ **Done 2026-09-26.** `Messages.kt` in `:live`: `MessageState` (forward-only
+> by rank), `Message`, `MessageStore` with its atomic `update`,
+> `InMemoryMessageStore`, and `Messages` (send replacing, received, displayed,
+> clear, expireDue, active, recent, and the three frames in the app's shapes).
+> Text is counted in characters, not UTF-16 units, so 40 flags fit.
+>
+> **13 tests. 9 mutations killed.** Two survivors are **equivalent**, being
+> deliberate double checks:
+> - `canBecome`'s `active &&`, since ended states share the top rank;
+> - `expireDue`'s outer filter, since the same condition inside the atomic
+>   update is the real guard against a stale read.
+
+> **Validated against the code 2026-09-26, before building.** No conflict. Now
+> fixed by what exists:
+>
+> - **The wire shapes are the app's, read from its code** (`LiveFrames.kt`,
+>   `ServerFrame.parse`). An `active` item and a `message` frame carry `id`,
+>   `text`, `preset?`, `ageMs` and `ttlMs`, and `messages` must have `active`
+>   (the app reads it with `!!`). Items go without a `t`. The app shows the
+>   newest item (smallest `ageMs`), which agrees with one active per car.
+> - **`MessageStore.update(id, change)` is an atomic read-modify-write**
+>   (Firestore: a transaction, in M5.2), so a `displayed` on the old revision and
+>   a `clear` on the new during a deploy's changeover cannot undo each other. The
+>   forward-only rule lives in `change`, not in the store. `send` is serialised
+>   per car by a lock in `Messages`: replace the active one, then create the new.
+> - **Ids are `m_` and 16 random hex digits** (`SecureRandom`).
+> - **Time is a `Clock`**; the `MutableClock` from `:live`'s tests serves here.
+
 `:live`, pure:
 - `Message` and `MessageState`;
 - `MessageStore` (create, update, active for a car, recent for a car) and
@@ -176,6 +204,19 @@ the *next* step's plan is checked against what was actually built (Sam,
 - Mutations killed.
 
 ### M5.2 — Messages in Firestore  `sonnet`
+
+> **Validated against what M5.1 built, 2026-09-26, before building.** No
+> conflict. Now fixed by what exists:
+>
+> - **`FirestoreMessageStore` in `:archive-gcp`**, beside
+>   `FirestoreSessionIndex`, with the same patterns: `update` as a
+>   `runTransaction`, absent fields left absent, time as `Timestamp`.
+> - **Two queries, and they may need composite indexes:** `active(car)`
+>   (`car ==`, `state in [queued, received, displayed]`) and `recent(car)`
+>   (`car ==`, `sentAt` descending). The smoke run shows whether Firestore asks
+>   for them. If it does, `gcp-setup.sh` creates them, idempotently.
+> - **`create` uses Firestore's `create()`**, which refuses an existing id, as
+>   the in-memory store does.
 
 - `FirestoreMessageStore` in `:archive-gcp`: a document per message; `active`
   as a query on `car` and `state`.
