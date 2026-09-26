@@ -9,6 +9,17 @@ gcloud services enable --project "$PROJECT" \
   artifactregistry.googleapis.com \
   secretmanager.googleapis.com
 
+if ! gcloud artifacts repositories describe "$REPO" --project "$PROJECT" --location "$REGION" >/dev/null 2>&1; then
+  # REST rather than `gcloud artifacts repositories create`: gcloud 418 sends
+  # a Maven config alongside the Docker one and the API rejects it.
+  curl -sf -X POST \
+    -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+    -H "Content-Type: application/json" \
+    "https://artifactregistry.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/repositories?repositoryId=${REPO}" \
+    -d '{"format":"DOCKER"}' >/dev/null
+  until gcloud artifacts repositories describe "$REPO" --project "$PROJECT" --location "$REGION" >/dev/null 2>&1; do sleep 2; done
+fi
+
 # The service runs as its own account, which can read the tablet key and nothing
 # else, rather than as the broad default compute account.
 if ! gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT" >/dev/null 2>&1; then

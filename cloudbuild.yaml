@@ -1,0 +1,11 @@
+# Used by scripts/deploy.sh. Builds the Dockerfile and pushes to Artifact Registry.
+#
+# CLOUD_LOGGING_ONLY is required, not a preference: builds in this project run
+# as the compute default service account, which cannot write to Cloud Build's
+# legacy logs bucket, and without it the build is refused before it starts.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]
+options:
+  logging: CLOUD_LOGGING_ONLY
