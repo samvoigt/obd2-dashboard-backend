@@ -20,6 +20,7 @@ ktor {
 
 dependencies {
     implementation(project(":registry-firestore"))
+    implementation(project(":archive-gcp"))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.content.negotiation)

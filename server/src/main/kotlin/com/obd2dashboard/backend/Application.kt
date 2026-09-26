@@ -1,5 +1,8 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
+import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
 import io.ktor.serialization.kotlinx.json.json
@@ -22,22 +25,27 @@ import kotlinx.serialization.Serializable
  * expects `0.0.0.0` rather than loopback. 8080 is its default, so local runs and
  * the container agree without configuration.
  *
- * `GCP_PROJECT` is required. A server started without it could not find any
- * car, so it would accept no tablet at all, and that should fail at deploy
- * rather than in the paddock. The project is always named, never guessed: the
+ * `GCP_PROJECT` and `SESSIONS_BUCKET` are required. A server started without
+ * them could find no car and store no session, so it would accept no tablet at
+ * all, and that should fail at deploy rather than in the paddock. The project is always named, never guessed: the
  * owner's `gcloud` default is an unrelated project.
  */
 fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    val registry = CarRegistry(FirestoreCarStore.connect(requiredEnv("GCP_PROJECT")))
-    embeddedServer(Netty, port = port, host = "0.0.0.0") { module(registry) }
+    val project = requiredEnv("GCP_PROJECT")
+    val registry = CarRegistry(FirestoreCarStore.connect(project))
+    val archive = ArchiveService(
+        FirestoreSessionIndex.connect(project),
+        GcsSegmentStore.connect(project, requiredEnv("SESSIONS_BUCKET")),
+    )
+    embeddedServer(Netty, port = port, host = "0.0.0.0") { module(registry, archive) }
         .start(wait = true)
 }
 
 private fun requiredEnv(name: String): String =
     System.getenv(name)?.takeIf { it.isNotBlank() } ?: error("$name is not set")
 
-fun Application.module(registry: CarRegistry) {
+fun Application.module(registry: CarRegistry, archive: ArchiveService) {
     install(CallLogging)
     install(ContentNegotiation) { json() }
     install(Authentication) { carTokens(registry) }
@@ -58,6 +66,7 @@ fun Application.module(registry: CarRegistry) {
                 val car = call.principal<CarPrincipal>()!!
                 call.respond(PublicCar(car.slug, car.name))
             }
+            archiveRoutes(archive)
         }
     }
 }

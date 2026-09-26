@@ -387,6 +387,25 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M3.4 — The routes  `opus`
 
+> ✅ **Done 2026-09-26.** `ArchiveRoutes.kt`:
+> - `PUT`, `/chunks` and `/complete` inside `authenticate(CAR_AUTH)`;
+> - `Acked`, `Completed`, and `Missing` (the `409` with both shapes);
+> - capped reads (`readBuffer`: Ktor 3.6 deprecates `readRemaining`);
+> - Google and I/O failures → `503` with `Retry-After: 30`, anything else a
+>   `500`.
+>
+> `main` requires `SESSIONS_BUCKET`. **18 route tests**, section by section,
+> through the real routes:
+> - 201/200, a different record, `wrong_car` with the contract's exact body,
+>   v2 and a foreign id, a non-UUID, the upper-case id;
+> - chunks acked and deduplicated, the `409` with both shapes, `404 not_open`,
+>   uncompressed accepted, eight malformed chunks each saying why, `413` over
+>   1 MiB, and over 64 KiB for a `PUT`;
+> - `complete` byte for byte and repeated, its `409`, malformed bodies;
+> - `401` on every route, and `503` with nothing acked, then a recovery.
+>
+> **Ten mutations killed.**
+
 > **Validated against what M3.1–M3.3 built, 2026-09-26, before building.** One
 > point where the contract speaks twice, resolved here:
 >
@@ -409,7 +428,7 @@ the *next* step's plan is checked against what was actually built (Sam,
 >   `IllegalStateException`.
 > - **An unsupported `Content-Encoding` is `bad_record`.** `415` is not in
 >   §6.4's table, so the tablet has no defined reaction to it.
-> - **Bodies are read with a cap** (`readRemaining(limit + 1)`), so an oversize
+> - **Bodies are read with a cap** (`readBuffer(limit + 1)`), so an oversize
 >   body is refused without being held whole.
 
 In `:server`, under `authenticate(CAR_AUTH)`:
@@ -439,6 +458,33 @@ In `:server`, under `authenticate(CAR_AUTH)`:
 - Mutations killed.
 
 ### M3.5 — The replay tool  `opus`
+
+> **Validated against what M3.1–M3.4 built, 2026-09-26, before building.** One
+> conflict with an earlier rule, resolved here:
+>
+> - **Its tests use synthetic v1 and v2 fixtures, not the app's `test-data/`
+>   files.** Those carry real VINs. Copying them here would put vehicle facts
+>   outside the app's `test-data/` (the app's decision 33) and put VINs in this
+>   repo's git (decision 16). The synthetic ones copy the real shapes, read on
+>   2026-09-26 with the VIN masked: a `session` record (v1 and v2 differ only in
+>   `v`) and `sample` lines carrying `value`, `code`/`text`, `flag` or `flags`,
+>   with no `wall`. **The real files are used in place, from
+>   `../obd2-dashboard`, only in M3.7's live run**, and never committed.
+> - **The replay is a separate client, not the server's code.** It computes its
+>   own SHA-256 with `MessageDigest`, and does not reuse `:archive`'s
+>   `LineHash`, so it checks the server rather than agreeing with it by
+>   construction.
+> - **The upgrade to v3 is the replay's own writing**: it is the tablet, so it
+>   may encode line 0 however it likes. Only the server must never re-encode.
+>   Every other line is copied as bytes.
+> - **"Several files at once, on different tokens"** is a `Replayer` per
+>   (token, file). The CLI takes one token and any number of files; the
+>   multi-car test runs two `Replayer`s concurrently.
+> - **Tests start the real server module** (`module(registry, archive)` with
+>   fakes) under `embeddedServer` on a free port, so the replay talks real HTTP
+>   through the JDK `HttpClient`.
+> - **Waits are scaled in tests** (`Retry-After`, backoff), so a `503` test does
+>   not sleep 30 seconds.
 
 `:replay`, run by `scripts/replay.sh`. It **behaves as the tablet does**:
 - `PUT`, then gzipped chunks from its saved position, then `complete`.
