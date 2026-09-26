@@ -9,6 +9,7 @@ kotlin {
 
 dependencies {
     api(project(":registry"))
+    api(platform(libs.google.cloud.bom))
     api(libs.google.cloud.firestore)
 
     testImplementation(libs.junit)

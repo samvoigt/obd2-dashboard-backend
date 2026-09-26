@@ -46,3 +46,21 @@ for attempt in 1 2 3 4 5; do
   [[ $attempt == 5 ]] && { echo "could not grant roles/datastore.user" >&2; exit 1; }
   sleep $((attempt * 3))
 done
+
+# Session data (decision 9): private, in the service's region, kept indefinitely
+# (no lifecycle rule). Google's default 7-day soft delete stays as a safety net.
+if ! gcloud storage buckets describe "gs://$BUCKET" --project "$PROJECT" >/dev/null 2>&1; then
+  gcloud storage buckets create "gs://$BUCKET" --project "$PROJECT" --location "$REGION" \
+    --uniform-bucket-level-access --public-access-prevention
+fi
+
+# The runtime account may use this bucket's objects and nothing else in Storage.
+# Retried for the same policy race as above.
+for attempt in 1 2 3 4 5; do
+  if gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+      --member "serviceAccount:$RUNTIME_SA" --role roles/storage.objectAdmin >/dev/null 2>&1; then
+    break
+  fi
+  [[ $attempt == 5 ]] && { echo "could not grant roles/storage.objectAdmin on gs://$BUCKET" >&2; exit 1; }
+  sleep $((attempt * 3))
+done

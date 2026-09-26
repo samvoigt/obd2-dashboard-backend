@@ -15,6 +15,7 @@ dependencyResolutionManagement {
 rootProject.name = "obd2-dashboard-backend"
 
 include(":archive")
+include(":archive-gcp")
 include(":registry")
 include(":registry-firestore")
 include(":server")

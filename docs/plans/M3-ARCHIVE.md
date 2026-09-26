@@ -321,6 +321,29 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M3.3 — Cloud Storage and Firestore  `sonnet`
 
+> ✅ **Done 2026-09-26.** `:archive-gcp`:
+> - `GcsSegmentStore` stores gzip files (`application/gzip`, no
+>   content-encoding) and abandons the channel if a writer throws.
+> - `FirestoreSessionIndex`: every conditional change is a transaction, header
+>   fields are flat, and absent means null.
+> - `libraries-bom` 26.89.0 for both Google modules (Firestore 3.48.0, Storage
+>   2.74.0, one Guava, one gRPC).
+> - `gcp-setup.sh` creates `gs://obd2-dashboard-backend-sessions` and grants
+>   `roles/storage.objectAdmin` **on that bucket only**, retried. It ran twice
+>   cleanly. The bucket reads back as `US-EAST4`, uniform access, public access
+>   prevention `enforced`, soft delete 7 days, and no lifecycle rule.
+> - `env.sh`: `BUCKET`.
+>
+> **4 mapping tests** (round trip, absent VIN, a live-created session).
+> `scripts/archive-smoke.sh` passed **16 checks** against the real services,
+> among them:
+> - the raw download is the fixture byte for byte;
+> - the object is `application/gzip` with no content-encoding;
+> - **a write whose body throws creates no object**, which is M3.2's rule,
+>   proved on real Cloud Storage.
+>
+> The bucket and the `sessions` collection were empty afterwards.
+
 > **Validated against what M3.1–M3.2 built, 2026-09-26, before building.** One
 > flaw in this plan, corrected here:
 >
@@ -363,6 +386,31 @@ the *next* step's plan is checked against what was actually built (Sam,
 - A mapping test covers the document fields, including absent `vin`.
 
 ### M3.4 — The routes  `opus`
+
+> **Validated against what M3.1–M3.3 built, 2026-09-26, before building.** One
+> point where the contract speaks twice, resolved here:
+>
+> - **The `409` body carries both shapes.** §6.4 says every archive `4xx` has
+>   `{error, message, skipChunk}`, while §6.2–6.3 show `{"missingFrom": n}`. So
+>   a `409` is `{"error":"missing","message":…,"skipChunk":false,"missingFrom":n}`,
+>   and satisfies either reading. `404` is `error: "not_open"`, `413` is
+>   `error: "too_large"`.
+> - **`:server` depends on `:archive-gcp`**, and `module(registry, archive)`
+>   takes an `ArchiveService`, with no default: production must name its stores.
+>   `main` requires `SESSIONS_BUCKET` as well as `GCP_PROJECT`.
+> - **The id is checked (`SessionIds`) and lower-cased** before `ArchiveService`
+>   sees it. `SessionHeader` compares ids ignoring case, so an upper-case tablet
+>   id still matches its own line 0.
+> - **Only Google-client and I/O failures become `503` with `Retry-After: 30`**
+>   (`BaseServiceException`, gax `ApiException`, `IOException`). The corruption
+>   checks' `IllegalStateException` stays a `500`: a fault to look into, not a
+>   busy service. The tablet backs off on both (§6.4). The `503` test uses a
+>   store that throws `IOException`, since the fakes' simulated failures are
+>   `IllegalStateException`.
+> - **An unsupported `Content-Encoding` is `bad_record`.** `415` is not in
+>   §6.4's table, so the tablet has no defined reaction to it.
+> - **Bodies are read with a cap** (`readRemaining(limit + 1)`), so an oversize
+>   body is refused without being held whole.
 
 In `:server`, under `authenticate(CAR_AUTH)`:
 - **Route plumbing:** headers parsed (`X-First-Index`, `X-Record-Count`,
