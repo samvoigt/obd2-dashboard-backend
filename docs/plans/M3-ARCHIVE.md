@@ -173,6 +173,42 @@ the *next* step's plan is checked against what was actually built (Sam,
 
 ### M3.1 — Lines, chunks and the session record  `opus`
 
+> ✅ **Done 2026-09-26.** `:archive`:
+> - `LineBlock`: byte ranges; the final `\n` required; `\r` kept; written back
+>   byte for byte.
+> - `ChunkBody`: inflates while counting, stops at 1 MiB, handles multi-member
+>   gzip, and a non-gzip body says so.
+> - `Records.parseObject`: strict UTF-8, one JSON object.
+> - `SessionHeader`: v3 or later, the id matching the URL (case-insensitively,
+>   keeping the URL's spelling), absent fields null, and a `toString` without
+>   the VIN.
+> - `SessionIds`, `Trim.plan`, `LineHash`.
+>
+> A synthetic 47-line v3 fixture, whose hash came from `shasum`. **29 tests**,
+> among them a 1 GiB gzip bomb refused in well under two seconds. **Ten
+> mutations**, all killed by failing tests: every `Trim` boundary, the limit
+> checked after writing, no final newline, UTF-8 patched rather than refused,
+> v2 accepted, the id unchecked, the hash without newlines, the uncompressed
+> limit.
+
+> **Validated against the code 2026-09-26, before building.** No question.
+>
+> - **Nothing exists to conflict with it.** `:archive` is new and pure, as
+>   `:registry` is: `explicitApi()`, and no Google or Ktor dependency.
+> - **`kotlinx-serialization-json` as a library only** (no compiler plugin),
+>   for `parseToJsonElement`. Nothing is decoded into a type, so nothing can be
+>   re-encoded: "never re-serialised" holds by construction.
+> - **UTF-8 is checked strictly** with a `CharsetDecoder` set to report, not
+>   replace. `String(bytes)` would quietly turn bad bytes into U+FFFD and
+>   pass them.
+> - **Indexes and counts are `Long`** everywhere a session is addressed. Lines
+>   in one chunk are an `Int`, because a chunk is capped at 1 MiB.
+> - **Session-id checking (UUID) lives here too**, since it is pure and M3.4
+>   needs it before anything else.
+> - **The hash fixture is synthetic and committed to this repo**, with its
+>   `shasum -a 256` written into the test. Real logs stay in the app's
+>   `test-data/`, where the vehicle facts live (the app's decision 33).
+
 `:archive`, pure Kotlin:
 - **`Lines.split(bytes)`**: byte ranges on `\n`, without copying or decoding.
   It refuses a body that does not end in `\n`.
@@ -201,6 +237,26 @@ the *next* step's plan is checked against what was actually built (Sam,
 - Mutations killed.
 
 ### M3.2 — The archive rules  `opus`
+
+> **Validated against what M3.1 built, 2026-09-26, before building.** No
+> conflict. Now fixed by what exists:
+>
+> - **Compression is the store's, not the rules'.** `ArchiveService` hands a
+>   `SegmentStore` plain line bytes (`LineBlock.bytesFrom`), and gets them back
+>   plain. Cloud Storage gzips them (M3.3); the fake keeps them raw. The finished
+>   session is written through an `OutputStream` (`writeSession`), so a long
+>   session is never held whole in memory.
+> - **A segment's `firstSeq`/`lastSeq` come from its own lines**, which are
+>   parsed as objects anyway, not from `X-First-Seq`/`X-Last-Seq`. After
+>   trimming, those headers describe lines that were not stored.
+> - **Line 0 is compared by its SHA-256**, kept in the index as `line0Sha256`,
+>   so a repeated `PUT` reads no object.
+> - **Object keys are the service's** (`sessions/{id}/segments/{first}-{last}`
+>   zero-padded, and `sessions/{id}/session.jsonl.gz`). The stores only store.
+> - **The race is made deterministic** by a hook on the fake store that runs the
+>   rival append in the middle of a `put`, not by timing.
+> - **A lost race answers with a fresh read of `ackedThrough`**, which is always
+>   true, even when the rival stored fewer lines than this request brought.
 
 `:archive`:
 - `SessionIndex`: get, create-if-absent, and a transactional append that
