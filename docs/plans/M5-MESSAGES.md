@@ -576,6 +576,21 @@ file with Vitest.
 **Done when:** steps 2–5 pass against the deployed service, with screenshots
 kept.
 
+> **✅ Done, 2026-09-26.** Revision `00010` with `CREW_COOKIE_KEY` from the
+> secret. Car `m58-throwaway`, and the evening drive live at real speed:
+> - login: a wrong passcode 401; the cookie `Secure`, path `/api/cars/m58-throwaway`;
+>   `/crew` true with it, false without;
+> - PIT NOW: queued → received → displayed on the crew stream, about 1 s;
+> - **deployed (`00011`) while it was displayed**: the replay logged
+>   `reconnecting after close 1012, at once` and nothing taken down; stored
+>   and in the new revision's crew sync, still displayed;
+> - public streams, before and after the deploy, 2,724 events, and the page in
+>   Chrome logged out (screenshot kept): no trace of it;
+> - clear: `taken down: … (clear)`; a 60 s message expired 15 ms after its
+>   time on the server, and the replay took it down;
+> - cleanup: the live session deleted, `remove-car` removed the car and its 2
+>   messages, and the token, passcode and cookie jar were deleted.
+
 ### M5.9 — Record it
 
 - **Decisions:** 21 (crew messages: stored, one active, forward-only, the

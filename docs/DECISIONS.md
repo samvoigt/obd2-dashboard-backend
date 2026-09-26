@@ -452,3 +452,65 @@ the record, and M6 draws from it.
 
 **Revisit if.** More than one instance is ever needed (decision 7), or Cloud
 Run starts signalling old revisions itself.
+
+## 21. Crew messages: stored, one at a time, forward only
+
+**Decision.**
+- **Each message is a Firestore document** (`messages`), read from the store
+  on every send, sync and report, with no cache in the hub. They are **kept after
+  they end**, as a record for the car's sessions (M6), and `admin.sh remove-car`
+  deletes them with the car.
+- **One active message per car.** A new one marks the old **replaced** (a
+  crew-facing state; the tablet simply shows the new one, §5.4).
+- **States only move forward**: queued → received → displayed, then cleared,
+  expired or replaced. A late or repeated report, or one for another car's or
+  an unknown id, changes nothing. `update` is a Firestore transaction.
+- **Expiry is the server's clock**: a timer marks the message expired at
+  `expiresAt` and tells crew browsers. The tablet takes it down on its own
+  clock from `ttlMs`. Lifetimes are 60–1800 s, default 1800 ("until cleared",
+  capped; Sam, 2026-09-26).
+- **Delivery:** `message` and `clear` go to an attached tablet at once. Every
+  `hello` is answered with the full active set, so a message sent while the car
+  was away arrives, and one cleared meanwhile comes down.
+- Text is 1–40 characters (code points, trimmed). Presets are the contract's
+  `pit`, `box`, `fuel`, `push`, `slow`.
+
+**Why.**
+- The live lane's state is in memory (decision 19), but a message must not be:
+  a deploy drains every tablet (decision 20), and an empty sync from a fresh
+  revision would take "PIT NOW" off the driver's screen. Verified in M5.8 by
+  deploying while a message was displayed.
+- One at a time is what the tablet can show (§5.4), and forward-only states
+  make every report safe to repeat or reorder, which the contract's
+  reconnects produce.
+
+**Revisit if.** Messages ever need to reach more than one screen, or queue
+behind each other.
+
+## 22. The crew login: a signed per-car cookie; crew-only events on the same stream
+
+**Decision.**
+- `POST /api/cars/{slug}/login` with `{passcode}` sets `crew_<slug>`:
+  `v1.<slug>.<expiry>.<fingerprint>.<hmac>`, HMAC-SHA256 with a key from
+  Secret Manager (`crew-cookie-key`, mounted as `CREW_COOKIE_KEY`). The
+  fingerprint is of the passcode's stored hash, so **a new passcode logs
+  everyone out**. 30 days (Sam, 2026-09-26).
+- `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/cars/<slug>`. Every crew
+  call is a JSON `POST` or `DELETE`, which a cross-site form cannot send; a form
+  body gets `415`.
+- 10 failed logins in 10 minutes per car → `429` with `Retry-After`, in memory
+  (one instance, decision 7). PBKDF2 runs off the request threads.
+- **Viewing stays public; messages are crew-only.** The browser stream decides
+  crew or public when it connects: a crew stream also carries `messages` after
+  its snapshot and `message` on each change; a public one never does. The page
+  reopens its stream after a login or logout.
+
+**Why.**
+- A shared passcode per car was Sam's choice (M2). A signed cookie needs no
+  session store, survives deploys, and is revoked by changing the passcode.
+- One stream with crew-only events keeps a single SSE path, and a test reads a
+  public stream's raw bytes for a message's text. In M5.8, 2,724 public events
+  across a deploy held none.
+
+**Revisit if.** Crew members need their own logins, or a message must be
+revoked from one person without changing the passcode.

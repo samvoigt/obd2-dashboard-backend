@@ -19,7 +19,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
 | **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
-| **M5** | Crew messages (contract §5.4) | **planned**: [`plans/M5-MESSAGES.md`](plans/M5-MESSAGES.md); the app's M34.5 needs it |
+| **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
 | **M6** | Past sessions on the site | |
 | **M7** | Dashboards: crew views and mirrored tablet layouts | |
 
@@ -92,14 +92,14 @@ Deployed: https://obd2-backend-qeppiy7nzq-uk.a.run.app. Project
 | `PUT /v1/sessions/{id}`, `POST …/chunks`, `POST …/complete` | Archive lane (contract §6) | ✅ M3 |
 | `GET /v1/live` | Live lane WebSocket (contract §5) | ✅ M4 |
 | `/`, `/cars/{slug}` | Landing and live car page | ✅ M4 |
-| `GET /api/cars/{slug}/live` | SSE: snapshot, then session, records and status (message states in M5) | ✅ M4 |
-| `POST /api/cars/{slug}/login` | Crew passcode → signed cookie for that car | M5 |
-| `POST /api/cars/{slug}/messages`, `DELETE …/{id}` | Send and clear (crew only) | M5 |
+| `GET /api/cars/{slug}/live` | SSE: snapshot, then session, records and status; crew streams also messages | ✅ M4, M5 |
+| `POST`, `DELETE /api/cars/{slug}/login`; `GET …/crew` | Crew passcode → signed cookie for that car; log out; am I crew | ✅ M5 |
+| `POST`, `GET /api/cars/{slug}/messages`, `DELETE …/{id}` | Send, list recent, and clear (crew only) | ✅ M5 |
 | `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M6 |
 
 ---
 
-## Milestones after M4
+## Milestones after M5
 
 What M4 builds on:
 - M2's `CarRegistry.principalFor`, which the socket uses after the upgrade;
@@ -145,7 +145,8 @@ The tablet's build order is in contract §10:
 7. GPS.
 
 The server is ready for each piece before the tablet needs it. M3 lands before
-the shipper, M4 before the live lane, and M5 before the widget.
+the shipper, M4 before the live lane, and M5 before the widget. **All three are
+ready**; the widget (the app's M34.5) needs a real car registered with a passcode.
 
 **Hardware.** The tablet has no cellular (measured 2026-09-10). A phone hotspot
 is enough to test in a car.

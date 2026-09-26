@@ -45,4 +45,4 @@ None of these is in the contract's body, and each has to be true of the server:
 | §8 tokens per car | M2 |
 | §6 archive lane | M3 |
 | §5.1–5.3 live lane | M4 |
-| §5.4 crew messages | M5 |
+| §5.4 crew messages | M5 ✅ |

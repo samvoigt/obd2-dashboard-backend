@@ -106,3 +106,23 @@ not catch, and lessons about process. Short on purpose.
   a batch every few seconds, across the 2-second line. That is right for such
   data; if real idle data looks the same, revisit the threshold.
 - `svelte-check` supports TypeScript 5 and 6, not 7; the site pins 5.9.3.
+
+## 2026-09-26 — M5, crew messages
+
+- **Firestore wants a composite index** for `car ==` with `sentAt`
+  descending. The in-memory tests could not know; the live smoke run found it.
+  It took about 4 minutes to build. `gcp-setup.sh` creates it.
+- **The JDK's WebSocket allows one send at a time.** Once the replay answered
+  messages while streaming batches, its sends overlapped; a mutex fixed it.
+- **A salted hash hid a mutation.** The cookie's fingerprint made a slug check
+  look tested when it was not. A test with identical stored hashes for two cars
+  caught it.
+- **The browser's password manager takes over a clicked password field**, and
+  then Chrome automation can neither see nor click the page. On localhost the
+  passcode was filled by script instead. On the deployed site, the crew path
+  was checked through the API.
+- **A Svelte component's styles are scoped**, so a class borrowed from the
+  parent page (`.panel`) did nothing. Found only by looking at the page.
+- **Deploying with a message on screen worked first time**, because decision 20's
+  drain and the stored messages were designed together.
+

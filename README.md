@@ -6,10 +6,11 @@ shows the car's data live.
 
 ## Status
 
-M4 done. Tablets stream live on a WebSocket (contract §5), and the website shows
-each car live: a landing page, and a car page with freshness first, a chart and
-every signal. Sessions upload in chunks and are kept byte for byte (M3), and each
-car has its own token (M2). Crew messages come next, in M5. See
+M5 done. The crew can log in on a car's page with its passcode and send the
+driver messages ("PIT NOW"), and see them reach the tablet's screen (contract
+§5.4). Tablets stream live on a WebSocket (M4), and the website shows each car
+live. Sessions upload in chunks and are kept byte for byte (M3), and each car
+has its own token (M2). Past sessions come next, in M6. See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
 [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
 
@@ -68,7 +69,7 @@ scripts/replay.sh --server … --token-file car.token --live --speed 1 \
 | `:registry-firestore` | `CarStore` on Firestore |
 | `:archive` | The archive lane's rules: lines, chunks, store then advance. Pure Kotlin |
 | `:archive-gcp` | The archive on Cloud Storage and Firestore |
-| `:live` | The live lane's rules: frames, a car's live state, the hub. Pure Kotlin |
+| `:live` | The live lane's rules: frames, a car's live state, the hub, crew messages. Pure Kotlin |
 | `:server` | Ktor server: tablet auth, both lanes, the browser stream, the website |
 | `web/` | The website: Svelte, Vite, TypeScript, uPlot |
 | `:tools` | The `admin` tool |
@@ -86,4 +87,5 @@ scripts/gcp-setup.sh        # once, and safe to re-run: APIs, Firestore, bucket,
 scripts/deploy.sh           # build and deploy
 scripts/firestore-smoke.sh  # a throwaway car through the real Firestore
 scripts/archive-smoke.sh    # a throwaway session through the real bucket and Firestore
+scripts/message-smoke.sh    # throwaway messages through the real Firestore
 ```

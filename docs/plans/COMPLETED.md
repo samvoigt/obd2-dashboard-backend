@@ -208,3 +208,52 @@ sessions come from the contract's appendix, not from a real v3 log.
 - a map (when GPS exists);
 - past sessions and merging live with archive (M6);
 - configurable dashboards (M7).
+
+## M5 — Crew messages  ✅ 2026-09-26
+
+The server side of contract §5.4, and the crew's panel on the car page.
+Decisions 21 and 22.
+
+- **`:live`:** `Messages` and its rules (one active, forward-only states,
+  expiry, 1–40 characters, the presets), `MessageStore` with an in-memory fake,
+  and the `message`, `clear` and `messages` frames.
+- **`:archive-gcp`:** `FirestoreMessageStore` (transactional `update`; the
+  `recent` query needs a composite index, created by `gcp-setup.sh`).
+- **`:server`:**
+  - `/v1/live` answers every `hello` with the active set and takes `received`
+    and `displayed`;
+  - `CrewMessages` sends, clears, schedules expiry and tells crew browsers;
+  - crew login (`CrewAuth`, `LoginLimiter`), `/login`, `/crew`, and the
+    message API, all crew-only;
+  - crew-only `messages` and `message` events on the browser stream;
+  - the dev server sets a generated crew passcode (`server/build/dev-passcode`).
+- **`web/`:** the message panel: passcode form and logout, preset buttons that
+  send at once, free text with a count, a lifetime choice, the current message
+  with its state and age, Clear, and the recent list.
+- **`:replay`:** answers messages as the tablet's widget would (`--no-widget`
+  stops at received) and logs each one.
+- **`:tools`:** `set-passcode --passcode-file` (must be `chmod 600`), and
+  `remove-car` deletes the car's messages.
+- **Tests:** 260 Kotlin (45 new) and 23 Vitest (7 new). **54 mutations
+  killed**, 2 found equivalent. The runs added a test with identical stored
+  hashes (a cookie for one car must not pass for another) and two age tests on
+  the page.
+- **Verified live, 2026-09-26** (revisions `00010`, `00011`), with a throwaway
+  car and a real drive replayed at real speed:
+  - `CREW_COOKIE_KEY` mounted from the secret; the cookie `Secure` and
+    scoped to the car's path;
+  - through the API: queued → received → displayed in about a second; clear;
+    a 1-minute message expired 15 ms after its time, and the replay took it down;
+  - **a deploy while "PIT NOW" was displayed:** the replay reconnected after
+    `1012`, the new revision's sync carried it, and it stayed displayed;
+  - public streams, 2,724 events across the deploy, and the deployed page in
+    Chrome while it was active: no trace of the message;
+  - everything deleted afterwards. The page itself was checked against the dev
+    server (M5.7).
+
+**Never met a tablet.** The app's widget is its M34.5. Every report so far came
+from the replay or a test.
+
+**Left for Sam:** logging in to the crew panel on the deployed site, and a real
+car registered with a passcode, for the app's M34.5.
+

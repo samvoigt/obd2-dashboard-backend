@@ -48,15 +48,17 @@ Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 ./gradlew test                  # unit tests, all modules
 ./gradlew :server:buildFatJar   # server/build/libs/server.jar
 GCP_PROJECT=obd2-dashboard-backend SESSIONS_BUCKET=obd2-dashboard-backend-sessions \
-  ./gradlew :server:run         # real Firestore and bucket, as the user
+  CREW_COOKIE_KEY=… ./gradlew :server:run   # real Firestore and bucket; any 32+ byte base64url key
 scripts/admin.sh list           # the admin tool (cars, tokens, passcodes, sessions)
 scripts/replay.sh --help        # the tablet's lanes (--live), faults included
 ./gradlew :server:devServer     # the real module in memory + the real site, car dev-car
-                                #   (token in server/build/dev-token); replay into it
+                                #   (token and crew passcode in server/build/dev-token,
+                                #   dev-passcode, never printed); replay into it
 (cd web && npm test && npm run check)   # the site's logic and types
 ./gradlew test -PskipWeb        # Kotlin only, without building the site
 scripts/firestore-smoke.sh      # throwaway car through the real Firestore
 scripts/archive-smoke.sh        # throwaway session through the real bucket
+scripts/message-smoke.sh        # throwaway messages through the real Firestore
 ```
 
 Warnings fail the build (`allWarningsAsErrors`), as in the app. `gcloud` needs
@@ -79,3 +81,7 @@ removing one (a secret, an env var) needs an explicit flag.
 `admin.sh add-car` or `rotate-token`, for the user. When verifying, create a
 throwaway `smoke-*` car, capture its token into a shell variable or a scratch
 file that is deleted, never into output, and remove the car afterwards.
+**The same for crew passcodes and cookies:** generate a passcode into a
+`chmod 600` file (`set-passcode --passcode-file`), keep the cookie in a
+`chmod 600` jar, and delete both. Typing a passcode into a page is only for the
+dev server's generated one, on localhost.
