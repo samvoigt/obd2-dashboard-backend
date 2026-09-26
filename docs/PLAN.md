@@ -19,7 +19,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M2** | Cars: registry, per-car tokens and passcodes, admin tool | ✅ (`plans/COMPLETED.md`) |
 | **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
-| **M5** | Crew messages (contract §5.4) | **next**: the app's M34.5 needs it |
+| **M5** | Crew messages (contract §5.4) | **planned**: [`plans/M5-MESSAGES.md`](plans/M5-MESSAGES.md); the app's M34.5 needs it |
 | **M6** | Past sessions on the site | |
 | **M7** | Dashboards: crew views and mirrored tablet layouts | |
 
@@ -115,16 +115,6 @@ at once, on different tokens, is the multi-car test. The app's `test-data/`
 logs are format v1, so the tool upgrades them to v3 (adding `id`, `device`,
 `wall`, a zeroed `session.seq`). Once the tablet writes real v3 logs, ask for
 one to be committed as a fixture.
-
-### M5 — Crew messages (contract §5.4)
-
-- Per-car passcode login → signed, HTTP-only cookie, with rate-limited
-  attempts.
-- Presets (`pit`, `box`, `fuel`, `push`, `slow`) plus free text, 40 characters
-  at most, each with a time-to-live.
-- The full `messages` sync after every `hello`; `message`, `clear`.
-- States **queued → received → displayed → cleared | expired**, shown live on
-  the site. `received`/`displayed` for an unknown `id` are ignored.
 
 ### M6 — Past sessions
 

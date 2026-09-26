@@ -11,7 +11,7 @@ each car live: a landing page, and a car page with freshness first, a chart and
 every signal. Sessions upload in chunks and are kept byte for byte (M3), and each
 car has its own token (M2). Crew messages come next, in M5. See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
-[telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/4644ab7/docs/TELEMETRY-CONTRACT.md).
+[telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
 
 The site: https://obd2-backend-qeppiy7nzq-uk.a.run.app
 
