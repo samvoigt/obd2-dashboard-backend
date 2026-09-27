@@ -295,3 +295,44 @@ an allowlist. Decision 25 (and decision 10 amended).
   was refused; a failed sign-in showed no error; a live session was refused as
   "uploading"; labels split into rows.
 
+## M7 — Past sessions  ✅ 2026-09-26
+
+Every session a car uploads, on the site: a list per car in drives, and a page
+per session with full-length charts, laps, a map and what happened; and a
+session being driven, whole, merged from both lanes. Decisions 26 and 27.
+
+- **`:archive`:** `SessionReader` and `LineSplitter` (streaming), the summary
+  types, `SeriesBuilder` (with `lastSeq`), `SegmentStore.readStream` and
+  `readRaw`, `ArchiveService.read`, `summary`, `prepare`, `sessionsOf`,
+  `session`; the summary in the Firestore record's mapping.
+- **`:server`:** after `complete`, the session is prepared in the background;
+  `SessionRoutes` (the list as drives, one session, the series); the admin
+  download; `SessionStates` (shared with the admin page); `/cars/{slug}/sessions`
+  pages.
+- **`:live`:** nothing new beyond M6's `CarStatus.sessionId`.
+- **`:replay`:** its v1-to-v3 upgrade gives every record a `wall`, as real v3
+  has.
+- **`web/`:** `SessionsPage`, `SessionPage`, `SessionMap` (Leaflet 1.9.4),
+  `sessions.ts`, `sessionPage.ts`, `merge.ts`; the chart's zoom, range,
+  cursor, markers and bands; the live page's "Whole session".
+- **Dockerfile:** the JVM gets 75% of the container.
+- **Tests:** 349 Kotlin (45 new) and 60 Vitest (22 new). **101
+  mutations killed**, 2 found equivalent. Several survivors changed the code:
+  gaps placed by `seq` rather than `wall`, numbers JSON can't hold written as
+  breaks, a live session listed before its first chunk. Measured: a 3-hour
+  synthetic race prepared in 1.5 s, peaking at 62 MiB of a 128 MiB heap.
+- **Verified live, 2026-09-26** (revision `00016`, deployed with a drive
+  streaming, which drained over as decision 20 says):
+  - a session made before M7 got its summary and series on first view;
+  - one made after was prepared before anyone looked;
+  - the list, a session's page (chart, map on OpenStreetMap, laps, events) and
+    the live page's "Whole session" in Chrome on badnewsbears.live;
+  - no VIN in any public response; the `ETag` gives a `304`; the download is
+    admin-only;
+  - everything deleted afterwards.
+- **Earlier, against the dev server:** a live session followed through two
+  chunk uploads, the shading shrinking to what the archive didn't yet cover.
+
+**Left for Sam:** the admin page's Download button (it needs his sign-in).
+**Left for later:** comparing laps (Sam); naming sessions; showing crew
+messages beside a session.

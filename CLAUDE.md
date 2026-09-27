@@ -56,6 +56,8 @@ scripts/replay.sh --help        # the tablet's lanes (--live), faults included
                                 #   (token and crew passcode in server/build/dev-token,
                                 #   dev-passcode, never printed); replay into it
 (cd web && npm test && npm run check)   # the site's logic and types
+MEASURE=1 MEASURE_HEAP=128m ./gradlew :archive:test --tests '*MeasureSeries*' -i --rerun
+                                # preparing a synthetic 3-hour race, heap as Cloud Run's
 ./gradlew test -PskipWeb        # Kotlin only, without building the site
 scripts/firestore-smoke.sh      # throwaway car through the real Firestore
 scripts/archive-smoke.sh        # throwaway session through the real bucket

@@ -6,12 +6,11 @@ shows the car's data live.
 
 ## Status
 
-M6 done. Cars, tokens, passcodes and sessions are managed at
-https://badnewsbears.live/admin, behind Google sign-in (M6). The crew can log in
-on a car's page with its passcode and send the driver messages ("PIT NOW"), and see them reach the tablet's screen (contract
-§5.4). Tablets stream live on a WebSocket (M4), and the website shows each car
-live. Sessions upload in chunks and are kept byte for byte (M3), and each car
-has its own token (M2). Past sessions come next, in M7. See
+M7 done. Every session a car uploads is on the site: a list per car, grouped
+into drives, and a page per session with full-length charts, laps, a map and
+what happened; a session being driven is shown whole, from both lanes. Cars,
+tokens and sessions are managed at https://badnewsbears.live/admin (M6). The
+crew can send the driver messages (M5). Dashboards come next, in M8. See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
 [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
 
@@ -73,7 +72,7 @@ scripts/replay.sh --server … --token-file car.token --live --speed 1 \
 | --- | --- |
 | `:registry` | Cars, slugs, tokens, passcodes; the `CarStore` interface. Pure Kotlin |
 | `:registry-firestore` | `CarStore` on Firestore |
-| `:archive` | The archive lane's rules: lines, chunks, store then advance. Pure Kotlin |
+| `:archive` | The archive lane's rules, and reading a session into its summary and series. Pure Kotlin |
 | `:archive-gcp` | The archive on Cloud Storage and Firestore |
 | `:live` | The live lane's rules: frames, a car's live state, the hub, crew messages. Pure Kotlin |
 | `:admin` | The owner's rules shared by `admin.sh` and the admin page. Pure Kotlin |

@@ -156,3 +156,25 @@ not catch, and lessons about process. Short on purpose.
 - **The browser automation hides fields named like secrets** ("token",
   "sessions") in script results; name them otherwise when checking a page.
 
+## 2026-09-26 — M7, past sessions
+
+- **Java takes a quarter of the container by default**: on Cloud Run's 512
+  MiB, the server had a 128 MiB heap for everything. Found by measuring with
+  the heap capped as production's is. It's 75% now.
+- **A Firestore index that rewrites whole documents erases any field outside
+  its mapping.** The session summary had to be part of the record's mapping,
+  or the next chunk's write would have removed it.
+- **The replay's upgrade gave only line 0 a `wall`**, so every replayed
+  session lasted "0 s" on the page. Real v3 has `wall` on every record; the
+  replay now does too. A tool that stands in for the tablet has to be as
+  faithful as the contract.
+- **`seq`, not time, places a `gap`**: one written in the same millisecond as
+  a sample fell on the wrong side of it. A mutation found this.
+- **A number JSON can't hold** (`1e999` parses as infinity) would have made
+  the prepared file invalid; it's written as a break.
+- **The map drew once**, and stopped growing while the chart went on. Found
+  only by watching a live session in Chrome.
+- **uPlot bridges `undefined` and breaks at `null`**, which is exactly what a
+  join of signals with their own gaps needs.
+- **Vite and Svelte's type check:** `let x: T | null = $state(null)` narrows to
+  `never` inside derived values; `$state<T | null>(null)` doesn't.

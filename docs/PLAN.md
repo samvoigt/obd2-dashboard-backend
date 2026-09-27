@@ -21,7 +21,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
 | **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
 | **M6** | The admin page: cars, tokens and sessions, behind Google sign-in | ✅ (`plans/COMPLETED.md`) |
-| **M7** | Past sessions on the site | **planned**: [`plans/M7-SESSIONS.md`](plans/M7-SESSIONS.md) |
+| **M7** | Past sessions on the site, and a session being driven, whole | ✅ (`plans/COMPLETED.md`) |
 | **M8** | Dashboards: crew views and mirrored tablet layouts | |
 
 **How a milestone runs**, as in the app:
@@ -97,11 +97,12 @@ Deployed: https://badnewsbears.live for people, https://obd2-backend-qeppiy7nzq-
 | `POST`, `DELETE /api/cars/{slug}/login`; `GET …/crew` | Crew passcode → signed cookie for that car; log out; am I crew | ✅ M5 |
 | `POST`, `GET /api/cars/{slug}/messages`, `DELETE …/{id}` | Send, list recent, and clear (crew only) | ✅ M5 |
 | `/admin`, `/api/admin/*` | The admin page and its API (Google sign-in, allowlist) | ✅ M6 |
-| `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M7 |
+| `/cars/{slug}/sessions`, `…/{id}` | Past sessions: the list in drives, and each session's page | ✅ M7 |
+| `GET /api/cars/{slug}/sessions`, `/api/sessions/{id}`, `…/series` | Their data, public, never the VIN; the exact log from `/api/admin/sessions/{id}/download` | ✅ M7 |
 
 ---
 
-## Milestones after M6
+## Milestones after M7
 
 What M4 builds on:
 - M2's `CarRegistry.principalFor`, which the socket uses after the upgrade;

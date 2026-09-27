@@ -615,3 +615,57 @@ own protections, and the allowlist keeps it to him.
 **Revisit if.** More people need access with less than everything (roles), or
 the page ever needs to act without a Google account.
 
+## 26. Past sessions: prepared once, as a summary and a series
+
+**Decision.**
+- **Each session is read once**, streamed (never held whole), into:
+  - **a summary** in its Firestore record (times, signals, track and laps,
+    the best lap never a pit lap, faults, gaps), for the list. Part of the
+    record's mapping, so every conditional write keeps it;
+  - **a prepared series**, `sessions/{id}/series-v{N}.json.gz` beside the
+    log: every signal as columns (times after `t0`, values), states and flag
+    sets as their changes, positions, events (stopped, fault, gap, lap), and
+    the last `seq` it covers.
+- **Both are derived, never the record.** The log is never changed, and both
+  can be rebuilt from it; each carries a version (the series in its file
+  name), and an older one rebuilds itself. A complete session is prepared
+  once, after `complete` is answered (the tablet never waits) or on first
+  view. One still uploading is prepared per `ackedThrough`, and older files
+  are deleted.
+- **Gaps are drawn as gaps**, as an explicit `null` in the series: where two
+  samples of a signal are more than 5× its median interval apart (never under a
+  second), or where a `gap` record's `seq` falls between theirs. Never
+  interpolated.
+- **Drives:** a car's sessions less than 10 minutes apart, end to start.
+- **Public like the live pages** (decision 11), never the VIN. The exact log
+  (VIN and all) downloads **from the admin page only** (Sam). The series is sent
+  as stored, gzipped, with its file name as the `ETag`.
+- **The map is Leaflet on OpenStreetMap's tiles** (Sam), coloured by speed.
+- **The server's JVM gets 75% of the container** (`-XX:MaxRAMPercentage=75`),
+  not Java's default quarter (128 MiB of 512).
+
+**Why.** A race with the G-meter and GPS is about 3,000 lines a minute: a
+3-hour one is 540,000 lines, 55 MB raw. A page can't parse that. Prepared, it
+is a 5.9 MB file that a chart draws directly, and preparing it takes 1.5 s
+within 128 MiB (measured).
+
+**Revisit if.** Sessions routinely run many hours at high rates, where one
+file per session gets too big for a phone: then split the series by signal or
+by time.
+
+## 27. A session being driven: the archive and the live lane, merged by seq
+
+**Decision.**
+- The page (the session page, and the live page's "Whole session") takes the
+  prepared series up to its `lastSeq`, then the live records with a higher
+  `seq`, deduplicated, in `seq` order (contract §7). **Archive rows win**
+  wherever both have a `seq`.
+- **Live rows are provisional**, and shaded on the chart until the archive
+  covers them. The page re-checks the series each minute (usually a `304`)
+  and redraws at most once a second.
+- A live session has a page before its first chunk arrives, from the live
+  stream alone.
+
+**Why.** The live lane keeps only 5 minutes (decision 19), and the archive lags
+by up to a chunk (2 minutes) and sometimes more. Together they make the whole
+session, and `seq` is the only key both lanes share exactly.
