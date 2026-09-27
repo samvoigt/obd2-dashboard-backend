@@ -76,9 +76,10 @@ fun Route.liveRoutes(
     crew: CrewMessages,
     config: LiveConfig,
     clock: Clock,
+    downlink: CourseDownlink,
 ) {
     webSocket("/v1/live", protocol = LIVE_PROTOCOL) {
-        TabletSocket(this, registry, archive, hub, crew, config, clock).run()
+        TabletSocket(this, registry, archive, hub, crew, config, clock, downlink).run()
     }
     // Offered no (or another) subprotocol: the one refusal the server makes on version (§5.2).
     webSocket("/v1/live") {
@@ -96,6 +97,7 @@ private class TabletSocket(
     private val crew: CrewMessages,
     private val config: LiveConfig,
     private val clock: Clock,
+    private val downlink: CourseDownlink,
 ) : TabletHandle {
     private val log = session.call.application.log
 
@@ -137,6 +139,11 @@ private class TabletSocket(
                     session.send(Frame.Text(ServerFrames.welcome(clock.millis())))
                     // The complete active set, after every hello (§5.4): the tablet takes down anything not in it.
                     session.send(Frame.Text(crew.sync(car.slug)))
+                    // Courses (M12.6): only to a tablet that asked, which then hears of every change too.
+                    if (CourseDownlink.FEATURE in tabletFrame.features) {
+                        downlink.listen(this)
+                        session.send(Frame.Text(downlink.frame()))
+                    }
                     continue
                 }
                 val attached = attachment
@@ -161,6 +168,7 @@ private class TabletSocket(
         } finally {
             watchdog.cancel()
             attachment?.detach()
+            downlink.leave(this)
         }
     }
 

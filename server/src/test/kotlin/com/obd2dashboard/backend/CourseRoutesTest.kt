@@ -29,6 +29,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
@@ -204,6 +208,47 @@ class CourseRoutesTest {
         // Reading is all: every change stays behind the admin sign-in.
         call(HttpMethod.Put, "/api/courses/nhms", null, save(2, "Mine now")).status shouldBe HttpStatusCode.NotFound
         courses.get("nhms")!!.version shouldBe 2
+    }
+
+    @Test
+    fun `a car's token fetches every course, with an ETag that moves on a save, and a listening tablet is told`() = testApplication {
+        app()
+        val cookie = signIn()
+        val token = runBlocking { registry.addCar(Slug.parse("yaris"), "Yaris") }.token
+        call(HttpMethod.Put, "/api/admin/courses/nhms", cookie, save(0, "NHMS"))
+        client.request("/v1/courses").status shouldBe HttpStatusCode.Unauthorized
+        val first = client.request("/v1/courses") { header(HttpHeaders.Authorization, "Bearer $token") }
+        first.status shouldBe HttpStatusCode.OK
+        val etag = first.headers[HttpHeaders.ETag]!!
+        val course = json(first).getValue("courses").jsonArray.single().jsonObject
+        course.getValue("id").jsonPrimitive.content shouldBe "nhms"
+        course.getValue("version").jsonPrimitive.content shouldBe "1"
+        course.getValue("geojson").jsonObject shouldBe nhms
+        course.getValue("updated").jsonPrimitive.content.endsWith("Z") shouldBe true
+        client.request("/v1/courses") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.IfNoneMatch, etag)
+        }.status shouldBe HttpStatusCode.NotModified
+
+        // A tablet listening for courses hears of the next save, with the new ETag.
+        createClient { install(io.ktor.client.plugins.websocket.WebSockets) }.webSocket("/v1/live", request = {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.SecWebSocketProtocol, LIVE_PROTOCOL)
+        }) {
+            send(Frame.Text("""{"t":"hello","v":3,"features":["courses.1"]}"""))
+            val seen = mutableListOf<String>()
+            repeat(3) { seen += (withTimeout(5_000) { incoming.receive() } as Frame.Text).readText() }
+            seen.last() shouldContain etag.trim('"')
+            call(HttpMethod.Put, "/api/admin/courses/nhms", cookie, save(1, "New Hampshire Motor Speedway"))
+            val pushed = (withTimeout(5_000) { incoming.receive() } as Frame.Text).readText()
+            pushed shouldContain "\"t\":\"courses\""
+            (etag.trim('"') in pushed) shouldBe false
+        }
+        val after = client.request("/v1/courses") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.IfNoneMatch, etag)
+        }
+        after.status shouldBe HttpStatusCode.OK // the old ETag is stale now
     }
 }
 

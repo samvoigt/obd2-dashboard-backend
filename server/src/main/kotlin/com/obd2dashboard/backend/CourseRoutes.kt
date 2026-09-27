@@ -5,6 +5,10 @@ import com.obd2dashboard.backend.courses.CourseCheck
 import com.obd2dashboard.backend.courses.CourseRules
 import com.obd2dashboard.backend.courses.CourseStore
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.response.header
+import io.ktor.server.request.header
+import io.ktor.http.HttpHeaders
+import com.obd2dashboard.backend.courses.coursesEtag
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -171,6 +175,29 @@ fun Route.publicCourseRoutes(courses: CourseStore) {
         val id = call.parameters["id"]?.takeIf { CourseRules.idProblem(it) == null }
             ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such course."))
         call.respond(courses.versions(id).map { CourseVersion(it.version, it.name, it.saved.toEpochMilli()) }.reversed())
+    }
+}
+
+/** A course as the tablet fetches it (the proposal's §2.1): its GeoJSON whole, `updated` in ISO 8601. */
+@Serializable
+data class TabletCourse(val id: String, val version: Int, val name: String, val updated: String, val geojson: JsonObject)
+
+@Serializable
+data class TabletCourses(val courses: List<TabletCourse>)
+
+/**
+ * `GET /v1/courses` (M12.6): every course, for any car's token, since a car
+ * may race anywhere. One `ETag` for the whole set; `304` when the tablet's is
+ * current. Mounted inside `authenticate(CAR_AUTH)`.
+ */
+fun Route.tabletCourseRoutes(courses: CourseStore) {
+    get("/v1/courses") {
+        val all = courses.current()
+        val etag = coursesEtag(all)
+        call.response.header(HttpHeaders.ETag, etag)
+        call.response.header(HttpHeaders.CacheControl, "no-cache")
+        if (call.request.header(HttpHeaders.IfNoneMatch) == etag) return@get call.respond(HttpStatusCode.NotModified)
+        call.respond(TabletCourses(all.map { TabletCourse(it.id, it.version, it.name, it.saved.toString(), it.geojson) }))
     }
 }
 

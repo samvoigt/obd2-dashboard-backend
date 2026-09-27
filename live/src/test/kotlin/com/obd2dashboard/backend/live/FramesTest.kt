@@ -14,6 +14,9 @@ class FramesTest {
         parse("""{"t":"hello","v":3,"device":"d","app":"1.0","wall":1758719312000}""") shouldBe
             TabletFrame.Hello(3, "d", "1.0", 1758719312000)
         parse("""{"t":"hello","v":4}""") shouldBe TabletFrame.Hello(4, null, null, null)
+        // The features it can use (the courses proposal's §1); anything that isn't a string is ignored.
+        (parse("""{"t":"hello","v":3,"features":["courses.1","timing.1",7]}""") as TabletFrame.Hello).features shouldBe
+            setOf("courses.1", "timing.1")
         bad("""{"t":"hello","v":2}""") shouldContain "v2"
         bad("""{"t":"hello"}""") shouldContain "version"
     }

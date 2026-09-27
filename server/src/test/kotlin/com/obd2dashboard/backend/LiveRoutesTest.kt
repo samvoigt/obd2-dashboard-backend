@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -100,6 +101,23 @@ class LiveRoutesTest {
             (welcome.getValue("serverWall").toLong() > 1_758_000_000_000) shouldBe true
             val raw = (withTimeout(5_000) { incoming.receive() } as Frame.Text).readText()
             raw shouldBe """{"t":"messages","active":[]}"""
+        }
+    }
+
+    @Test
+    fun `a tablet listing courses-1 is told the courses' ETag after hello, and one that doesn't isn't`() = testApplication {
+        app()
+        tablet {
+            send(Frame.Text("""{"t":"hello","v":3,"device":"dev","app":"1.0","wall":1758719312000,"features":["courses.1"]}"""))
+            next()["t"] shouldBe "welcome"
+            next()["t"] shouldBe "messages"
+            val courses = next()
+            courses["t"] shouldBe "courses"
+            courses.getValue("etag").startsWith("\"courses-") shouldBe true
+        }
+        tablet {
+            hello()
+            withTimeoutOrNull(500) { incoming.receive() } shouldBe null // nothing more for a tablet that didn't ask
         }
     }
 

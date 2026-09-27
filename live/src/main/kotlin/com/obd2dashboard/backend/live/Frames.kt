@@ -14,7 +14,14 @@ import kotlinx.serialization.json.put
 
 /** A frame from the tablet (contract §5.2). Records are §3's, as JSON objects, **with `vin` removed**. */
 public sealed interface TabletFrame {
-    public data class Hello(val v: Int, val device: String?, val app: String?, val wall: Long?) : TabletFrame
+    public data class Hello(
+        val v: Int,
+        val device: String?,
+        val app: String?,
+        val wall: Long?,
+        /** What this tablet build can use, `name.version` (the courses proposal's §1): `courses.1`. None if absent. */
+        val features: Set<String> = emptySet(),
+    ) : TabletFrame
     public data class Session(val id: String, val record: JsonObject) : TabletFrame
     public data class Snapshot(val session: String, val records: List<JsonObject>) : TabletFrame
     public data class Batch(val session: String, val records: List<JsonObject>) : TabletFrame
@@ -50,7 +57,9 @@ public object TabletFrames {
             "hello" -> {
                 val v = obj.int("v") ?: return Parsed.Bad("hello has no format version")
                 if (v < MIN_VERSION) return Parsed.Bad("format v$v is too old; v$MIN_VERSION or later")
-                Parsed.Ok(TabletFrame.Hello(v, obj.string("device"), obj.string("app"), obj.long("wall")))
+                val features = (obj["features"] as? JsonArray).orEmpty()
+                    .mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }.toSet()
+                Parsed.Ok(TabletFrame.Hello(v, obj.string("device"), obj.string("app"), obj.long("wall"), features))
             }
             "session" -> {
                 val record = obj["record"] as? JsonObject ?: return Parsed.Bad("session has no record")

@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -35,6 +36,12 @@ data class LiveOptions(
     val waitScale: Double = 1.0,
     /** Plays a dashboard with a message widget: `displayed` after `received` (§5.4). False: received only. */
     val widget: Boolean = true,
+    /**
+     * Plays a tablet that takes courses from the server (M12.6, the proposal's §2):
+     * lists `courses.1` in `hello`, and on each `courses` frame fetches
+     * `GET /v1/courses` with its last `ETag`.
+     */
+    val courses: Boolean = false,
 )
 
 sealed interface LiveResult {
@@ -181,6 +188,28 @@ class LiveReplayer(
         return After.Reconnect(BACKOFF[minOf(drops, BACKOFF.lastIndex)])
     }
 
+    /** The courses' `ETag` last fetched, as a tablet caches it. */
+    @Volatile private var coursesEtag: String? = null
+
+    /** `GET /v1/courses` as a tablet would on a `courses` frame: with its last `ETag`, logging what came. */
+    private suspend fun fetchCourses() {
+        val request = java.net.http.HttpRequest.newBuilder(URI.create("$server/v1/courses"))
+            .header("Authorization", "Bearer $token")
+            .apply { coursesEtag?.let { header("If-None-Match", it) } }
+            .GET().build()
+        val response = runCatching { http.sendAsync(request, java.net.http.HttpResponse.BodyHandlers.ofString()).await() }
+            .getOrElse { log("courses: fetch failed (${it.javaClass.simpleName})"); return }
+        when (response.statusCode()) {
+            304 -> log("courses: unchanged")
+            200 -> {
+                coursesEtag = response.headers().firstValue("ETag").orElse(null)
+                val courses = runCatching { (json.parseToJsonElement(response.body()).jsonObject["courses"] as JsonArray).map { it.jsonObject } }.getOrDefault(emptyList())
+                log("courses: " + courses.joinToString(", ") { "${it.string("id")} v${(it["version"] as? JsonPrimitive)?.contentOrNull}" }.ifEmpty { "none" })
+            }
+            else -> log("courses: HTTP ${response.statusCode()}")
+        }
+    }
+
     private suspend fun connect(header: JsonObject, state: State, scope: CoroutineScope): Socket? {
         repeat(20) { attempt ->
             val socket = runCatching {
@@ -196,7 +225,12 @@ class LiveReplayer(
                 delay((BACKOFF[minOf(attempt, BACKOFF.lastIndex)] * options.waitScale).toLong())
                 return@repeat
             }
-            socket.send(buildJsonObject { put("t", "hello"); put("v", 3); put("device", "replay"); put("app", "replay"); put("wall", System.currentTimeMillis()) }.toString())
+            socket.send(
+                buildJsonObject {
+                    put("t", "hello"); put("v", 3); put("device", "replay"); put("app", "replay"); put("wall", System.currentTimeMillis())
+                    if (options.courses) put("features", buildJsonArray { add("courses.1") })
+                }.toString(),
+            )
             socket.send(buildJsonObject { put("t", "session"); put("record", header) }.toString())
             socket.send(buildJsonObject { put("t", "snapshot"); put("session", header["id"]!!); put("records", buildJsonArray { state.snapshot().forEach { add(it) } }) }.toString())
             return socket
@@ -311,6 +345,7 @@ class LiveReplayer(
                         reply(items.flatMap { arrive(it) })
                     }
                     "clear" -> frame.string("id")?.let(screen::clear)
+                    "courses" -> if (options.courses) scope.launch { fetchCourses() }
                 }
             }
             webSocket.request(1)

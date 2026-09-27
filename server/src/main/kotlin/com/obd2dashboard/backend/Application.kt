@@ -89,6 +89,7 @@ fun Application.module(
     courses: CourseStore,
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
+    val downlink = CourseDownlink(courses)
     val crewAuth = CrewAuth(crewKey, clock)
     val loginLimiter = LoginLimiter(clock)
     install(CallLogging)
@@ -111,14 +112,14 @@ fun Application.module(
         val courseInUse: suspend (String) -> Boolean = { id ->
             registry.list().any { car -> archive.sessionsOf(car.slug.value).any { it.summary?.track == id } }
         }
-        adminCourseRoutes(courses, courseInUse, clock, adminAuth, admin)
+        adminCourseRoutes(courses, courseInUse, clock, adminAuth, admin, onChange = downlink::changed)
         publicCourseRoutes(courses)
         sessionRoutes(registry, archive, hub, clock)
         messageRoutes(registry, crewAuth, crew)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
-        liveRoutes(registry, archive, hub, crew, live, clock)
+        liveRoutes(registry, archive, hub, crew, live, clock, downlink)
 
         authenticate(CAR_AUTH) {
             // Which car a token belongs to. A backend diagnostic, not in the contract.
@@ -127,6 +128,7 @@ fun Application.module(
                 call.respond(PublicCar(car.slug, car.name))
             }
             archiveRoutes(archive)
+            tabletCourseRoutes(courses)
         }
     }
 }

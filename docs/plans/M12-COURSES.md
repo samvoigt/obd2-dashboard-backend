@@ -352,10 +352,45 @@ it, which it has none of, and every version readable).
 `courses` frame after `hello` to a tablet listing `courses.1`, and to every
 connected one when a course is saved.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **`hello.features`:** `TabletFrames.parse` reads `hello`'s `v`,
+>   `device`, `app`, `wall`; it gains `features` (a list of strings, absent
+>   meaning none).
+> - **After `hello`**, `TabletSocket` sends `welcome` and the crew messages'
+>   sync; a tablet listing `courses.1` also gets `{"t":"courses","etag":…}`.
+> - **On a change**, the hub has no list of tablets by feature, and needn't:
+>   a small `CourseDownlink` in `:server` holds the connected sockets that
+>   listed `courses.1` (added after their `hello`, removed when they close),
+>   and sends each the new frame through its `TabletHandle.send`, as crew
+>   messages are sent. The admin routes' `onChange` hook (M12.3) calls it.
+> - **`GET /v1/courses`** sits in `authenticate(CAR_AUTH)` beside
+>   `/v1/whoami`: `{"courses":[{id, version, name, updated, geojson}]}` (the
+>   proposal's §2.1, `updated` as ISO 8601), `ETag` from `coursesEtag`, `304`
+>   on a match.
+> - **The replay tool** (`LiveReplayer`) says `hello` with fixed fields; a
+>   `--courses` switch adds `features: ["courses.1"]`, and on each `courses`
+>   frame it fetches `GET /v1/courses` with its last `ETag` and logs what
+>   came (or that nothing changed), as a tablet would.
+
 **Done when:** route tests (no token, a token, `304`, the ETag moving on a
 save); live tests (a tablet with and without `courses.1` after `hello`, and
 after a save); **the replay tool** speaking `courses.1` and fetching courses,
 as a stand-in tablet.
+
+> **✅ Done, 2026-09-27.** `hello.features`; `CourseDownlink` (the `courses`
+> frame after `hello` to a tablet listing `courses.1`, and to every such
+> tablet on a save or removal); `GET /v1/courses` (car token, one `ETag`,
+> `304`); the replay tool's `--courses`.
+> - **Tests:** the frame parser reading `features`; the live lane sending
+>   `courses` only to a tablet that asked; `GET /v1/courses` refused without a
+>   token, the whole set with one, `304` on its `ETag`, a listening tablet told
+>   of the next save with the new one, the old one then stale; a closed tablet
+>   no longer told.
+> - **Mutations: 5, all killed** (one after a test was added: forgetting a
+>   closed tablet was untested, a slow leak).
+> - **End to end** against the dev server: the replay with `--courses`
+>   fetched `nhms v1` on connecting; a save as the admin, and it fetched
+>   `nhms v2` straight away.
 
 ### M12.7 — The tablet's laps, with their sectors
 
