@@ -141,7 +141,7 @@ cannot know them). M4 needs a real v3 log for units.
 
 **Left for later, on purpose:**
 - the live lane, which may create a session before its `PUT` (M4);
-- showing sessions on the site, and merging live rows with archive rows (M6);
+- showing sessions on the site, and merging live rows with archive rows (M7);
 - `max-instances` 1 (M4).
 
 ## M4 — The live lane and the first website  ✅ 2026-09-26
@@ -206,8 +206,8 @@ sessions come from the contract's appendix, not from a real v3 log.
 - crew messages (M5): the `messages` sync is empty, and
   `received`/`displayed` are ignored;
 - a map (when GPS exists);
-- past sessions and merging live with archive (M6);
-- configurable dashboards (M7).
+- past sessions and merging live with archive (M7);
+- configurable dashboards (M8).
 
 ## M5 — Crew messages  ✅ 2026-09-26
 

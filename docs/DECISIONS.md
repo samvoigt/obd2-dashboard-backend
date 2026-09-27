@@ -278,7 +278,7 @@ frame. Served by Ktor, so it is still one deploy on one origin (decision 3).
 Dockerfile gains a Node build stage.
 
 **Alternative kept open.** Compose Multiplatform for the web could draw the
-app's real gauges in the browser. It is weighed at M7, for mirrored layouts
+app's real gauges in the browser. It is weighed at M8, for mirrored layouts
 only.
 
 ---
@@ -428,7 +428,7 @@ A test searches the raw bytes two browsers receive.
 
 **Cost.** Live history lives in one process, so a restart or a new revision
 starts it empty and the chart restarts from the reconnect. The archive (M3) is
-the record, and M6 draws from it.
+the record, and M7 draws from it.
 
 ---
 
@@ -460,7 +460,7 @@ Run starts signalling old revisions itself.
 **Decision.**
 - **Each message is a Firestore document** (`messages`), read from the store
   on every send, sync and report, with no cache in the hub. They are **kept after
-  they end**, as a record for the car's sessions (M6), and `admin.sh remove-car`
+  they end**, as a record for the car's sessions (M7), and `admin.sh remove-car`
   deletes them with the car.
 - **One active message per car.** A new one marks the old **replaced** (a
   crew-facing state; the tablet simply shows the new one, §5.4).

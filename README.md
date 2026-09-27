@@ -10,7 +10,7 @@ M5 done. The crew can log in on a car's page with its passcode and send the
 driver messages ("PIT NOW"), and see them reach the tablet's screen (contract
 §5.4). Tablets stream live on a WebSocket (M4), and the website shows each car
 live. Sessions upload in chunks and are kept byte for byte (M3), and each car
-has its own token (M2). Past sessions come next, in M6. See
+has its own token (M2). An admin page comes next, in M6. See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
 [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
 

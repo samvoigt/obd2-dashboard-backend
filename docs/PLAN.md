@@ -20,8 +20,9 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
 | **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
-| **M6** | Past sessions on the site | |
-| **M7** | Dashboards: crew views and mirrored tablet layouts | |
+| **M6** | The admin page: cars and tokens, behind Google sign-in | **planned**: [`plans/M6-ADMIN.md`](plans/M6-ADMIN.md) |
+| **M7** | Past sessions on the site | |
+| **M8** | Dashboards: crew views and mirrored tablet layouts | |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -95,7 +96,7 @@ Deployed: https://badnewsbears.live for people, https://obd2-backend-qeppiy7nzq-
 | `GET /api/cars/{slug}/live` | SSE: snapshot, then session, records and status; crew streams also messages | ✅ M4, M5 |
 | `POST`, `DELETE /api/cars/{slug}/login`; `GET …/crew` | Crew passcode → signed cookie for that car; log out; am I crew | ✅ M5 |
 | `POST`, `GET /api/cars/{slug}/messages`, `DELETE …/{id}` | Send, list recent, and clear (crew only) | ✅ M5 |
-| `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M6 |
+| `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M7 |
 
 ---
 
@@ -116,7 +117,7 @@ logs are format v1, so the tool upgrades them to v3 (adding `id`, `device`,
 `wall`, a zeroed `session.seq`). Once the tablet writes real v3 logs, ask for
 one to be committed as a fixture.
 
-### M6 — Past sessions
+### M7 — Past sessions
 
 - A car's session list, grouped into drives by time.
 - A session page with full-length charts read from Cloud Storage, and download
@@ -124,12 +125,12 @@ one to be committed as a fixture.
 - Gaps drawn as gaps, never interpolated.
 - Live rows replaced by archive rows once the archive covers them (contract §7).
 
-### M7 — Dashboards
+### M8 — Dashboards
 
 - **Crew views:** configurable pages stored per car.
 - **Mirrored tablet layouts:** need a layout message, which is a contract v2.
   Reimplement the gauges in Svelte, or build the app's gauges for the web with
-  Compose Multiplatform? Decide when M7 starts.
+  Compose Multiplatform? Decide when M8 starts.
 
 ---
 
@@ -153,4 +154,4 @@ is enough to test in a car.
 
 ## Open questions
 
-- **Mirrored gauges (M7):** see above.
+- **Mirrored gauges (M8):** see above.
