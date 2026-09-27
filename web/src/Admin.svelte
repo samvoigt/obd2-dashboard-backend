@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import {
-    AdminError, api, confirmed, day, deleteBlocked, passcodeProblem, sessionConfirmation, sessionStateText, slugProblem,
+    AdminError, api, clockNote, confirmed, day, deleteBlocked, passcodeProblem, sessionConfirmation, sessionStateText, slugProblem,
     stateText, tokenProblem, twiceProblem, when,
     type AdminCar, type AdminConfig, type AdminSession, type CarWithToken,
   } from './lib/admin'
@@ -292,6 +292,7 @@
           <dl>
             <dt>Token</dt><dd>…{car.tokenHint} <span class="muted">since {day(car.tokenIssued)}</span></dd>
             <dt>Crew passcode</dt><dd>{car.passcodeSet ? 'Set' : 'Not set'}</dd>
+            {#if clockNote(car.clockOffsetMs)}<dt>Tablet</dt><dd class="clock">{clockNote(car.clockOffsetMs)} <span class="muted">(its times on the site are off by as much)</span></dd>{/if}
           </dl>
           {#if car.liveSession}
             <p class="live-now"><span class="dot live"></span>Streaming a session now. <a href={`/cars/${car.slug}`}>Watch live →</a></p>
@@ -420,6 +421,7 @@
   .actions button { font-size: 0.9rem; }
   .hint { color: var(--caution); margin: 0; font-size: 0.9rem; }
   .warn { color: var(--caution); margin: 0; }
+  .clock { color: var(--caution); }
   .error { color: var(--critical); }
   .small { font-size: 0.85rem; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }

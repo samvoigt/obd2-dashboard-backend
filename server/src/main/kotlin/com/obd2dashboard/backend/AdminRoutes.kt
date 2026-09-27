@@ -129,6 +129,8 @@ data class AdminCar(
     val sessions: Int,
     /** The session its tablet is streaming now, if any (M6.7). */
     val liveSession: String? = null,
+    /** How far its tablet's clock is behind the server's, in ms (ahead if negative), from live batches (M11). */
+    val clockOffsetMs: Long? = null,
 )
 
 /** A session as the admin page lists it (M6.7): never its VIN. */
@@ -185,6 +187,7 @@ fun Route.adminCarRoutes(
             state = status.freshness(clock.instant()).wire,
             sessions = archive.sessionsOf(car.slug.value).size,
             liveSession = status.liveSession(),
+            clockOffsetMs = status.clockOffset?.toMillis(),
         )
     }
 

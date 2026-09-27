@@ -56,8 +56,10 @@ public class CarLive(
     private var connected = false
     private var inSession = false
     private var lastDataAt: Instant? = null
+    private val offsets = ArrayDeque<Long>()
+    private var clockOffset: Duration? = null
 
-    public fun status(): CarStatus = CarStatus(connected, inSession, lastDataAt, sessionId.takeIf { inSession })
+    public fun status(): CarStatus = CarStatus(connected, inSession, lastDataAt, sessionId.takeIf { inSession }, clockOffset)
 
     public fun connected(): LiveUpdate.Status {
         connected = true
@@ -98,6 +100,7 @@ public class CarLive(
                 if (frame.session != sessionId) return Applied.Refused("a batch for a session not announced")
                 frame.records.forEach { absorb(it) }
                 record(now, frame.records)
+                noteClock(now, frame.records)
                 Applied.Ok(listOf(LiveUpdate.Records(now, frame.records), LiveUpdate.Status(status())))
             }
             is TabletFrame.End -> {
@@ -137,6 +140,20 @@ public class CarLive(
         trim(now)
     }
 
+    /**
+     * The tablet's clock against ours (M11): our time a batch arrived minus its
+     * newest `wall`. The network only ever adds to that, so the smallest over the
+     * last [CLOCK_BATCHES] is the truest: a batch held back and sent late doesn't
+     * move it, and a corrected clock shows at once. Snapshots don't count: they
+     * hold each signal's latest reading, however old.
+     */
+    private fun noteClock(now: Instant, records: List<JsonObject>) {
+        val newest = records.mapNotNull { it.long("wall") }.maxOrNull() ?: return
+        offsets.addLast(now.toEpochMilli() - newest)
+        while (offsets.size > CLOCK_BATCHES) offsets.removeFirst()
+        clockOffset = Duration.ofMillis(offsets.min())
+    }
+
     private fun trim(now: Instant) {
         val oldest = now.minus(historyWindow)
         while (history.isNotEmpty() && history.first().at.isBefore(oldest)) history.removeFirst()
@@ -146,6 +163,11 @@ public class CarLive(
     public sealed interface Applied {
         public data class Ok(val updates: List<LiveUpdate>) : Applied
         public data class Refused(val reason: String) : Applied
+    }
+
+    public companion object {
+        /** Ten seconds of batches at five a second (§5.2). */
+        public const val CLOCK_BATCHES: Int = 50
     }
 }
 
@@ -159,6 +181,12 @@ public data class CarStatus(
     val lastDataAt: Instant?,
     /** The session being streamed, only while in one (the admin page, M6.7). Never sent to public streams. */
     val sessionId: String? = null,
+    /**
+     * How far the tablet's clock is behind ours (ahead if negative), from its
+     * live batches (M11); null before any. Kept after a disconnect. The admin
+     * page's alone: never sent to public streams.
+     */
+    val clockOffset: Duration? = null,
 ) {
     public fun freshness(now: Instant): Freshness = when {
         !connected -> Freshness.Offline

@@ -221,9 +221,46 @@ The live lane records each car's clock difference (the server's receipt time
 minus the batch's last `wall`, smoothed); the admin page shows it when it's
 over 2 minutes.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Where:** `CarLive.apply` takes each batch at `clock.instant()`, and every
+>   record carries the tablet's `wall`. A batch's newest `wall` is "now" on the
+>   tablet, give or take the network's delay, so **now minus it** is the
+>   clock's difference plus that delay.
+> - **Smoothed by the minimum**, over the last 50 batches (10 s at 5 a
+>   second): delay only ever adds, so the smallest is the truest. A batch held
+>   back by a dead zone and sent late doesn't move it, and a corrected clock
+>   shows at once. **Snapshots don't count**: they carry each signal's latest
+>   reading, which can be minutes old.
+> - **Kept in `CarStatus`** (as `clockOffset`), which the admin page's car
+>   view already reads. **Not public:** browsers' status is written field by
+>   field (`BrowserRoutes`: the state and `lastDataAgoMs`), so a new field
+>   isn't sent. It's kept after a disconnect, so the page can still say what
+>   the tablet's clock last was.
+> - **Shown** by the admin page when over 2 minutes either way: "Tablet clock
+>   10 h 58 min slow" (or "fast"). A pure function words it, tested.
+
 **Done when:** tests for the difference (steady, one late batch not moving
 it, a fixed clock bringing it back under 2 min); the admin page with a replay
 whose clock is shifted by hours (the replay's times moved, never the log's).
+
+> **✅ Done, 2026-09-27.** `CarLive` keeps the smallest (arrival − newest
+> `wall`) over the last 50 batches as `CarStatus.clockOffset`; the admin car
+> view carries it as `clockOffsetMs`; `clockNote` words it past 2 minutes.
+> - **Tests:** Kotlin: the drive's 10 h 58 min measured from batches, the
+>   least-delayed batch winning; a snapshot before any batch giving none;
+>   kept after a disconnect; a batch four minutes late not moving it; a
+>   corrected clock at once; a fast clock forgotten when it leaves the window;
+>   the admin list carrying it, and none before streaming; **the public
+>   stream never holding it**. Vitest 2 new (106 in all).
+> - **Mutations: 6, all killed**: the largest instead of the smallest,
+>   snapshots counted (it survived at first: with the minimum, an old
+>   snapshot only raises it, so the test now sends one before any batch,
+>   where it would have said minutes slow), the window never trimmed, the
+>   admin view dropping it, exactly 2 minutes said, slow and fast swapped.
+> - **Looked at in Chrome** (admin page, dev sign-in): a replay whose times
+>   were moved 10 h 58 min back reads "Tablet clock 23 h 30 min slow": right,
+>   since a replay sends its log's own times, and the synthetic race's were
+>   12 h 33 min old already. The note is in the caution colour.
 
 ### M11.5 — Deploy, and record
 

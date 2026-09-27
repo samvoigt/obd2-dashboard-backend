@@ -96,6 +96,51 @@ class CarLiveTest {
         car.snapshot().history shouldBe emptyList()
     }
 
+    /** A reading written at [wall] on the tablet's clock. */
+    private fun at(wall: Long, seq: Long) = """{"type":"sample","signal":"engine.rpm","value":1,"seq":$seq,"at":$seq,"wall":$wall}"""
+
+    /** A batch sent now, its newest reading [behind] ms before now on a tablet [slow] ms slow. */
+    private fun batchFromTablet(slow: Long, seq: Long, behind: Long = 0) {
+        val now = clock.now.toEpochMilli() - slow - behind
+        apply(batch(at(now - 150, seq), at(now, seq + 1)))
+    }
+
+    @Test
+    fun `the tablet's clock is measured from its batches, as the first drive's was 10 h 58 min slow (M11)`() {
+        apply(sessionFrame())
+        car.status().clockOffset.shouldBeNull() // nothing streamed yet
+        val slow = Duration.ofHours(10).plusMinutes(58).toMillis()
+        // A snapshot's readings can be minutes old, so it doesn't count: before any batch, no offset
+        // (not one ten minutes too big).
+        apply(snapshotFrame(at(clock.now.toEpochMilli() - slow - 600_000, 900)))
+        car.status().clockOffset.shouldBeNull()
+        for (i in 0 until 10) { batchFromTablet(slow, seq = 10L * i, behind = 40L + i % 3 * 20); clock.advanceMillis(200) }
+        car.status().clockOffset shouldBe Duration.ofMillis(slow + 40) // the least delayed batch
+        car.disconnected()
+        car.status().clockOffset shouldBe Duration.ofMillis(slow + 40) // kept, to say what it last was
+    }
+
+    @Test
+    fun `one batch sent late doesn't move it, and a corrected clock shows at once (M11)`() {
+        apply(sessionFrame())
+        val slow = Duration.ofHours(11).toMillis()
+        for (i in 0 until 5) { batchFromTablet(slow, seq = 10L * i); clock.advanceMillis(200) }
+        batchFromTablet(slow, seq = 100, behind = 240_000) // held in a dead zone for 4 minutes
+        car.status().clockOffset shouldBe Duration.ofMillis(slow)
+        batchFromTablet(0, seq = 200) // the tablet's clock set right
+        car.status().clockOffset shouldBe Duration.ZERO
+    }
+
+    @Test
+    fun `a fast clock is forgotten once its batches leave the window (M11)`() {
+        apply(sessionFrame())
+        batchFromTablet(-600_000, seq = 0) // ten minutes fast
+        repeat(CarLive.CLOCK_BATCHES - 1) { batchFromTablet(0, seq = 10L + it * 2) }
+        car.status().clockOffset shouldBe Duration.ofMinutes(-10) // still in the window
+        batchFromTablet(0, seq = 1000)
+        car.status().clockOffset shouldBe Duration.ZERO
+    }
+
     @Test
     fun `history keeps five minutes, by the server's clock`() {
         apply(sessionFrame())

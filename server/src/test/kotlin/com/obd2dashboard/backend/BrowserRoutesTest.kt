@@ -214,6 +214,7 @@ class BrowserRoutesTest {
             raw shouldContain "engine.rpm"
             raw shouldNotContain vin
             raw shouldNotContain "\"vin\""
+            raw shouldNotContain "clock" // the tablet's clock is the admin page's (M11)
         }
     }
 

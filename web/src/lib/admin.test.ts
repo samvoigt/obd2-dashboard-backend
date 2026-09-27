@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clockNote,
   AdminError, api, confirmed, day, deleteBlocked, errorText, passcodeProblem, sessionConfirmation, sessionStateText, slugProblem,
   stateText, tokenProblem, twiceProblem, when, type AdminSession,
 } from './admin'
@@ -96,3 +97,20 @@ describe('the API', () => {
     expect(await errorText(new Response('oops', { status: 502 }))).toBe('The server answered 502.')
   })
 })
+
+describe("the tablet's clock (M11)", () => {
+  const min = 60_000
+  it('is said when more than 2 minutes off, slow or fast', () => {
+    expect(clockNote((10 * 60 + 58) * min)).toBe('Tablet clock 10 h 58 min slow') // the first drive's
+    expect(clockNote(-3 * min)).toBe('Tablet clock 3 min fast')
+    expect(clockNote(2 * 60 * min)).toBe('Tablet clock 2 h slow')
+  })
+  it('is left unsaid within 2 minutes, or before the tablet has streamed', () => {
+    expect(clockNote(2 * min)).toBeNull()
+    expect(clockNote(-2 * min)).toBeNull()
+    expect(clockNote(40)).toBeNull()
+    expect(clockNote(null)).toBeNull()
+    expect(clockNote(undefined)).toBeNull()
+  })
+})
+

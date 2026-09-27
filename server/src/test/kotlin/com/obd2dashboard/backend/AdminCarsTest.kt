@@ -34,12 +34,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Test
@@ -66,9 +67,11 @@ class AdminCarsTest {
 
     private fun logged(): String = log.list.joinToString("\n") { it.formattedMessage }
 
+    private val hub = InMemoryLiveHub()
+
     private fun ApplicationTestBuilder.app() {
         application {
-            module(registry, ArchiveService(sessions, InMemorySegmentStore()), InMemoryLiveHub(),
+            module(registry, ArchiveService(sessions, InMemorySegmentStore()), hub,
                 messages = Messages(store), crewKey = testCrewKey(), admin = config)
         }
     }
@@ -205,6 +208,31 @@ class AdminCarsTest {
         car.getValue("state").jsonPrimitive.content shouldBe "offline"
         car.getValue("sessions").jsonPrimitive.content shouldBe "1"
         car.getValue("tokenIssued").jsonPrimitive.content.toLong() shouldBe registry.get(yaris)!!.tokenIssued.toEpochMilli()
+        car["clockOffsetMs"]?.jsonPrimitive?.contentOrNull shouldBe null // it hasn't streamed
+    }
+
+    @Test
+    fun `the list says how far a streaming tablet's clock is off (M11)`() = testApplication {
+        app()
+        val cookie = signIn()
+        registry.addCar(yaris, "Yaris")
+        val tablet = runBlocking {
+            hub.attach("yaris", object : com.obd2dashboard.backend.live.TabletHandle {
+                override fun superseded() {}
+                override fun close(code: Short, reason: String) {}
+                override fun send(frame: String) {}
+            })
+        }
+        fun frame(text: String) = runBlocking {
+            tablet.apply((com.obd2dashboard.backend.live.TabletFrames.parse(text) as com.obd2dashboard.backend.live.TabletFrames.Parsed.Ok).frame)
+        }
+        frame("""{"t":"session","record":{"type":"session","v":3,"id":"$SESSION","started":"2026-09-26T17:59:00Z","signals":[],"seq":0,"at":0}}""")
+        val slow = Duration.ofHours(11).toMillis()
+        val wall = System.currentTimeMillis() - slow
+        frame("""{"t":"batch","session":"$SESSION","records":[{"type":"sample","signal":"engine.rpm","value":1,"seq":1,"at":1,"wall":$wall}]}""")
+        val car = Json.parseToJsonElement(call(HttpMethod.Get, "/api/admin/cars", cookie).bodyAsText()).jsonArray.single().jsonObject
+        val offset = car.getValue("clockOffsetMs").jsonPrimitive.content.toLong()
+        (offset in slow until slow + 5_000) shouldBe true
     }
 
     @Test

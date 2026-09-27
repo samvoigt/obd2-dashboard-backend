@@ -22,6 +22,25 @@ export interface AdminCar {
   sessions: number
   /** The session its tablet is streaming now, if any. */
   liveSession: string | null
+  /** How far its tablet's clock is behind the server's, ms (ahead if negative), from live batches (M11). */
+  clockOffsetMs?: number | null
+}
+
+/** A tablet clock this far off is worth saying (M11); under it, network delay and drift. */
+export const CLOCK_WORTH_SAYING_MS = 2 * 60_000
+
+/**
+ * "Tablet clock 10 h 58 min slow", or "… fast", when it's off by more than
+ * [CLOCK_WORTH_SAYING_MS]; null otherwise, or before the tablet has streamed.
+ * Only said: times are the tablet's (contract §3), never corrected.
+ */
+export function clockNote(offsetMs: number | null | undefined): string | null {
+  if (offsetMs === null || offsetMs === undefined || Math.abs(offsetMs) <= CLOCK_WORTH_SAYING_MS) return null
+  const minutes = Math.round(Math.abs(offsetMs) / 60_000)
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  const size = h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`
+  return `Tablet clock ${size} ${offsetMs > 0 ? 'slow' : 'fast'}`
 }
 
 export type SessionState = 'live' | 'uploading' | 'complete' | 'incomplete'
