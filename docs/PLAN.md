@@ -23,6 +23,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M6** | The admin page: cars, tokens and sessions, behind Google sign-in | ✅ (`plans/COMPLETED.md`) |
 | **M7** | Past sessions on the site, and a session being driven, whole | ✅ (`plans/COMPLETED.md`) |
 | **M8** | The car's page as a dashboard: one fixed layout, updating live | ✅ (`plans/COMPLETED.md`) |
+| **M9** | Tokens and passcodes readable on the admin page | **planned**: [`plans/M9-READABLE-SECRETS.md`](plans/M9-READABLE-SECRETS.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
