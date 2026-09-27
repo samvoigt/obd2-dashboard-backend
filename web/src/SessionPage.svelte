@@ -3,9 +3,10 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    defaultSignals, events, fetchSeries, joined, lapRows, speedsAtPositions, unitOf,
+    bestSectors, defaultSignals, events, fetchSeries, joined, lapRows, speedsAtPositions, unitOf,
     type LapRow, type Series,
   } from './lib/sessionPage'
+  import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
   import { merge } from './lib/merge'
   import { columnShown, shownUnit } from './lib/units'
@@ -62,6 +63,25 @@
   const chartUnits = $derived(view ? names.map((n) => shownUnit(unitOf(view!, n), units.system)) : [])
   const numbers = $derived(view ? Object.keys(view.numbers).sort() : [])
   const laps: LapRow[] = $derived(view ? lapRows(view) : [])
+  // Each sector's best on track (M12.7): its column's highlight.
+  const sectorBests = $derived(bestSectors(laps))
+
+  // The course the laps were at (M12.7): its name, and its layouts' names, since new laps name a layout by id.
+  let courseNames: { name: string; layouts: Record<string, string> } | null = $state(null)
+  $effect(() => {
+    const track = detail?.session.track
+    if (!track || !/^[a-z][a-z0-9-]{1,31}$/.test(track)) return
+    fetch(`/api/courses/${track}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c: { name: string; geojson: unknown } | null) => {
+        if (!c) return
+        const layouts = Object.fromEntries(fromGeoJSON(c.geojson).layouts.map((l) => [l.id, l.name]))
+        courseNames = { name: c.name, layouts }
+      })
+      .catch(() => {})
+  })
+  const whereLabel = (s: SessionItem): string | null =>
+    !s.track ? null : courseNames ? `${courseNames.name}${s.layout ? ` · ${courseNames.layouts[s.layout] ?? s.layout}` : ''}` : trackOf(s)
   const happened = $derived(view ? events(view) : [])
   const markers = $derived(happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : 'muted') })))
   const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
@@ -149,7 +169,7 @@
     <p class="facts">
       <span>{duration(s.ended - s.started)}</span>
       {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
-      {#if trackOf(s)}<a href={`/courses/${s.track}`}>{trackOf(s)}</a>{/if}
+      {#if whereLabel(s)}<a href={`/courses/${s.track}`}>{whereLabel(s)}</a>{/if}
       {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap})</span></span>{/if}
       {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
       {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}
@@ -194,12 +214,16 @@
         <section class="panel">
           <h2>Laps</h2>
           <table class="laps">
-            <thead><tr><th>Lap</th><th>Time</th><th></th></tr></thead>
+            <thead><tr><th>Lap</th><th>Time</th>{#each sectorBests as _, i (i)}<th>S{i + 1}</th>{/each}<th></th></tr></thead>
             <tbody>
               {#each laps as lap (lap.lap)}
                 <tr class:best={lap.best} class:chosen={chosenLap === lap.lap} onclick={() => showLap(lap)}>
                   <td>{lap.lap}</td>
                   <td class="time">{lapTime(lap.time)}</td>
+                  {#each sectorBests as bestOf, i (i)}
+                    {@const t = lap.sectors?.[i]}
+                    <td class="sector" class:bestsector={t !== undefined && t === bestOf && !lap.pitIn && !lap.pitOut}>{t === undefined ? '' : t.toFixed(3)}</td>
+                  {/each}
                   <td class="muted">{lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}</td>
                 </tr>
               {/each}
@@ -242,6 +266,8 @@
   .laps tbody tr:hover td { background: var(--bg); }
   .laps .time { font-variant-numeric: tabular-nums; font-weight: 600; }
   .laps tr.best .time { color: var(--in-range); }
+  .laps .sector { font-variant-numeric: tabular-nums; }
+  .laps .bestsector { color: var(--in-range); font-weight: 700; }
   .laps tr.chosen td { background: var(--bg); }
   .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.95rem; }
   .events li.fault { color: var(--critical); }

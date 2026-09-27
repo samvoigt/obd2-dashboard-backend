@@ -12,9 +12,15 @@ export interface SeriesSignal {
 
 export interface LapRecord {
   track?: string
+  /** The layout's `id` since courses came from the website (§22.4), its name before. */
   layout?: string
+  /** The course and version the tablet timed it on (§22.4); absent before. */
+  course?: string
+  courseVersion?: number
   lap: number
   time: number
+  /** Sector times, seconds, in order (§22.4); absent when not timed. */
+  sectors?: number[]
   pitIn?: boolean
   pitOut?: boolean
 }
@@ -47,6 +53,8 @@ export interface LapRow {
   start: number
   end: number
   best: boolean
+  /** Its sector times, seconds; null when the lap has none (older records, or a course without sectors). */
+  sectors?: number[] | null
 }
 
 /** Laps in order; the best is the fastest on track, never a pit lap (§18). */
@@ -54,7 +62,8 @@ export function lapRows(series: Series): LapRow[] {
   const rows = series.events.lap
     .map(([t, r]) => {
       const end = series.t0 + t
-      return { lap: r.lap, time: r.time, pitIn: r.pitIn === true, pitOut: r.pitOut === true, start: end - r.time * 1000, end, best: false }
+      const sectors = Array.isArray(r.sectors) && r.sectors.every((x) => typeof x === 'number') ? r.sectors : null
+      return { lap: r.lap, time: r.time, pitIn: r.pitIn === true, pitOut: r.pitOut === true, start: end - r.time * 1000, end, best: false, sectors }
     })
     .sort((a, b) => a.lap - b.lap)
   const onTrack = rows.filter((r) => !r.pitIn && !r.pitOut)
@@ -63,6 +72,18 @@ export function lapRows(series: Series): LapRow[] {
     fastest.best = true
   }
   return rows
+}
+
+/**
+ * The best time for each sector (M12.7), from laps on track only (never a pit
+ * lap, §18): null for a sector no such lap has. As many as the most any lap has.
+ */
+export function bestSectors(rows: LapRow[]): (number | null)[] {
+  const n = Math.max(0, ...rows.map((r) => r.sectors?.length ?? 0))
+  return Array.from({ length: n }, (_, i) => {
+    const times = rows.filter((r) => !r.pitIn && !r.pitOut).map((r) => r.sectors?.[i]).filter((x): x is number => typeof x === 'number')
+    return times.length > 0 ? Math.min(...times) : null
+  })
 }
 
 /** The signals to chart first: engine speed and road speed, as the live page does; else the first two. */

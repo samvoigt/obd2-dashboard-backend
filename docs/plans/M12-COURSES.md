@@ -400,9 +400,36 @@ contract settles them); the summary's version goes to 3, so older sessions
 rebuild; the session page's lap table gains a column per sector (the best of
 each marked) and the course's name, linked.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **No server change is needed:** the prepared series keeps every `lap`
+>   record **whole** (`SeriesBuilder`: `[t, record]`), so `course`,
+>   `courseVersion`, `layout` and `sectors` reach the page as the tablet sends
+>   them. The summary's `track` stays right too: §22.4 keeps `track` equal to
+>   `course`. So the summary's version needn't move, unlike the plan's guess.
+> - **The page:** `LapRecord` gains the fields; `lapRows` reads `sectors`
+>   (none for older records); the session page's lap table gets a column per
+>   sector, the best of each marked in the in-range colour, as the best lap
+>   is.
+> - **Layout names:** new laps name their layout by `id` (`road`), older ones
+>   by name. The session page looks the course up (`/api/courses/{track}`) and
+>   shows the layout's name, or what the lap said if there's no such course.
+
 **Done when:** tests for old and new lap records side by side; a replay whose
 laps carry the new fields (made synthetic, as the tablet will send them), seen
 in Chrome.
+
+> **✅ Done, 2026-09-27.** `LapRecord` and `LapRow` carry `course`,
+> `courseVersion` and `sectors`; `bestSectors`; the session page's lap table
+> has a column per sector, each sector's best marked; the course's and
+> layout's names looked up from the course.
+> - **Tests:** Vitest 2 new (117 in all): old and new laps side by side,
+>   sectors read and anything else refused, each sector's best on track and
+>   never a pit lap's, none where no lap has one.
+> - **Mutations: 3, all killed.**
+> - **Looked at in Chrome:** a race whose laps carry `course: "nhms"`,
+>   `courseVersion`, `layout: "road"` and three sectors each, uploaded: the
+>   table's S1–S3, the bests in the in-range colour, and the heading naming
+>   the course and "Road Course", linked to it.
 
 ### M12.8 — Deploy, and prove it
 
