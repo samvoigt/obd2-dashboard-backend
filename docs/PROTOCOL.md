@@ -49,10 +49,11 @@ None of these is in the contract's body, and each has to be true of the server:
 
 ## Proposed, not agreed
 
-- **Courses and timing to the tablet** (for M17):
+- **Courses and timing to the tablet** (race logging, M12–M17):
   [`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md).
-  A backend proposal for the tablet side to review: `GET /v1/courses`, and
-  `courses`, `timing` and `crossing` frames opted into by `hello.features`.
-  Not part of the contract until the tablet side answers and Sam agrees; the
-  tablet side writes it into the contract, never this side.
-
+  Revision 2, answering the tablet's reply (contract §22): the tablet times
+  and its numbers are the results (Sam); `GET /v1/courses` and a `courses`
+  frame; `fixAt` on `gps.position`; richer `lap` records; a `timing` frame of
+  what only the server knows; a `pit_line`; all opted into by
+  `hello.features`. Not part of the contract until both sides and Sam agree;
+  the tablet side writes it into the contract, never this side.

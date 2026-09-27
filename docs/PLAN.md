@@ -26,12 +26,12 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M9** | Tokens and passcodes readable on the admin page | **tabled** (Sam): [`plans/M9-READABLE-SECRETS.md`](plans/M9-READABLE-SECRETS.md) |
 | **M10** | The G-meter and map shown before their data | ✅ (`plans/COMPLETED.md`) |
 | **M11** | What the first drive found: the charging gauge, tablet and test-data sessions, icons, the tablet's clock | ✅ (`plans/COMPLETED.md`) |
-| **M12** | Courses drawn on a map, and the server timing laps and splits from GPS | planned in outline: [`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md) |
-| **M13** | Drivers, and events with practice and a race | outline |
-| **M14** | The race: sessions stitched into one, stints by driver | outline |
-| **M15** | Results worth reading: lap chart, theoretical best, comparisons | outline |
-| **M16** | Live timing on the car page | outline |
-| **M17** | The tablet as the timing screen: courses and timing sent down to it (a contract change, proposed) | outline; proposal in [`proposals/`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md) |
+| **M12** | Courses drawn on the website, and sent down to the tablet, which times on them | outline: [`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md); needs the contract change agreed |
+| **M13** | Re-timing the tablet's own fixes when a line moves | outline |
+| **M14** | Drivers, and events with practice and a race | outline |
+| **M15** | The race: sessions stitched into one, stints by driver | outline |
+| **M16** | Results worth reading: lap chart, theoretical best, comparisons | outline |
+| **M17** | Live: the car page's laps, and the `timing` frame to the tablet | outline |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -145,12 +145,14 @@ Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
 ### Next: race logging (M12–M17)
 
-Courses drawn on a map with start/finish and sectors, the server timing laps
-and splits from GPS, drivers, practice and an endurance race tied together
-from many sessions, live timing, and the tablet showing it all (M17, which
-needs a contract change, proposed for the tablet side). The overall plan, with Sam's answers, is
-[`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md); each milestone is planned in
-detail before it's built.
+Courses drawn on the website with start/finish, sectors and pit lines, sent
+down to the tablet, **which times laps and sectors: its numbers are the
+results** (Sam); the server keeps the books (drivers, practice and an
+endurance race tied together from many sessions, results) and re-times the
+tablet's own fixes when a line moves. The overall plan is
+[`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md). It needs a contract change,
+proposed in [`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md)
+(revision 2, answering the tablet's §22).
 
 ### Other candidates
 

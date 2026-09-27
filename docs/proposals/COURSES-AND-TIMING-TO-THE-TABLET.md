@@ -1,262 +1,212 @@
 # Proposed contract change: courses and timing to the tablet
 
-**Status: a proposal from the backend, for the tablet side to review.** Not
-part of the contract until the tablet side answers and Sam agrees; it is
-written here, in the backend's repo, and never into the app's
-`docs/TELEMETRY-CONTRACT.md` from this side. If agreed, the tablet side adds it
-to the contract as its next section (§22), in its own words, with any changes.
+**Revision 2, 2026-09-27: the backend's answer to the tablet's reply
+(contract §22).** For the tablet side to review. Not part of the contract
+until both sides and Sam agree; this side never writes into the app's
+`docs/TELEMETRY-CONTRACT.md`. If agreed, the tablet side writes the agreed
+version into the contract in place of §22, as §§12–14 were settled.
 
-**From:** the backend, 2026-09-27. **Asked by Sam:** "ship maps and lap timing
-back down to the tablet, so that the tablet can be a dumb terminal in that
-sense … show the segments on the tablet side, as well as segment/lap info."
-
----
-
-## Why
-
-The backend is taking over lap timing (its plan, `docs/plans/RACE-LOGGING.md`,
-milestones M12–M17):
-
-- **Courses are drawn on a map on the website**: any course, not only the
-  tracks the app ships. Each has layouts, a start/finish line, **sector
-  lines**, and a pit lane. Every edit is a new version.
-- **The server times laps and sector splits from the tablet's `gps.position`
-  samples**, interpolating each line crossing between fixes on their `at`
-  clock, as §16 describes the tablet doing today. Moving a line re-times past
-  sessions.
-- **Drivers are set on the website** (by the crew or the admin) per stint,
-  since the car's power goes off at every driver change.
-
-So the **results** come from the server. This proposal is how the **tablet
-shows them**: the course and its sectors on its map, and the running lap,
-splits and deltas, without timing anything itself. The tablet becomes the
-display; the server does the work.
+**Sam, 2026-09-27:** "the tablet's number wins, it is the source of truth for
+the location data." That settles the one real disagreement below (§1), and
+makes the whole thing simpler than either the first proposal or the reply.
 
 ---
 
-## Summary of the change
+## What changed since revision 1
 
-1. **Courses, down:** a new HTTPS endpoint, `GET /v1/courses`, and a live
-   frame saying when they changed. The tablet caches them and draws them
-   offline.
-2. **Timing, down:** two new live frames, `timing` (the whole current
-   state, after every `hello` and whenever it changes) and `crossing` (a
-   sector or lap line just crossed).
-3. **Opt-in:** the tablet announces what it understands in `hello`; the
-   server sends the new frames only to a tablet that asked.
-4. **Nothing existing changes.** Every addition is either a new frame type
-   (which both sides already ignore when unknown, §5.2) or a new optional
-   field. **The wire version stays `obd2-telemetry.v1`**, and the log format
-   stays 3. (If Sam or the tablet side would rather call it v2, the content is
-   the same.)
-
----
-
-## 1. Opting in: `hello.features`
-
-```json
-{"t":"hello","v":3,"device":"…","app":"…","wall":1758719312000,"features":["courses.1","timing.1"]}
-```
-
-- **`features`** (new, optional): what this tablet build can use, each
-  `name.version`. A server that doesn't know the field ignores it (§3.1).
-- The server sends `courses` frames only to a tablet with `courses.1`, and
-  `timing` and `crossing` only to one with `timing.1`. A tablet without them
-  sees nothing new.
-- A later incompatible change to a feature bumps its version (`timing.2`); the
-  server speaks the highest both sides list.
-
----
-
-## 2. Courses
-
-### 2.1 `GET /v1/courses`
-
-```
-GET https://{host}/v1/courses
-Authorization: Bearer {car token}
-If-None-Match: "courses-41"
-```
-
-- **`200`** with every course, and `ETag: "courses-{n}"`, where `n` changes
-  whenever any course does. **`304`** if nothing has changed.
-- Any car's token may read every course: courses aren't secret (the site shows
-  them), and a car may race at any of them.
-- **The tablet caches the last answer** and uses it offline: a track often
-  has no signal.
-
-```json
-{
-  "courses": [
-    {
-      "id": "nhms",
-      "version": 7,
-      "name": "New Hampshire Motor Speedway",
-      "updated": "2026-10-02T14:03:11Z",
-      "geojson": { "type": "FeatureCollection", "features": [ … ] }
-    }
-  ]
-}
-```
-
-### 2.2 The course's GeoJSON
-
-**The app's own track format** (`nhms.geojson`), extended. Every coordinate
-is `[lon, lat]`, WGS-84, as GeoJSON requires.
-
-| `role` | Geometry | Properties | Meaning |
+| | Revision 1 (backend) | §22 (tablet) | **Revision 2 (this)** |
 | --- | --- | --- | --- |
-| `layout` | `LineString` | `id`, `name`, `default` | The line around, in the direction cars go. |
-| `start_finish` | `LineString`, 2 points | `layout` (an `id`, or absent: every layout) | The timing line. |
-| `sector` | `LineString`, 2 points | `layout`, `index` (1, 2, …) | Sector lines, in order around the lap. Sector 1 runs from the start/finish to line 1; the last sector ends at the start/finish. |
-| `pit_lane` | `LineString` | `name` | The pit lane, in the direction cars go. |
-| `pit_in`, `pit_out` | `LineString`, 2 points | | Where the pit lane begins and ends, for in- and out-laps (§18). |
-
-- **Direction:** a line counts only when crossed the way the layout runs (so
-  reversing over it in the pits never times a lap). The tablet needs this
-  only if it ever times anything itself (see §5, question 1).
-- **Unknown roles and properties are ignored**, so the server may add more.
-- `attribution` (top-level, as today) says where the geometry came from.
-
-### 2.3 Live: `courses`
-
-```json
-{"t":"courses","etag":"courses-42"}
-```
-
-- **Sent after every `hello`**, and whenever any course changes while the
-  tablet is connected. If the tablet's cached `ETag` differs, it fetches
-  `GET /v1/courses` again.
+| Who times laps live | The server | The tablet, the server's number winning where they differ | **The tablet. Its numbers are the results.** |
+| The fix's time | `at` | `fixAt` | **`fixAt`**, accepted, and never going backwards (§2) |
+| `crossing` frame | Yes | Optional | **Dropped** |
+| `timing.lap.startAt` | The lap clock's source | A check, adopted if 50 ms off | **Dropped**: the tablet runs its own clock |
+| Courses | From the website | From the website, start/finish editing off the tablet | **As §22.3**, accepted |
+| Pit lines | `pit_in`, `pit_out` | Crossing them marks in/out-laps | **Accepted, plus a `pit_line`** where the in-lap ends (§3.2) |
+| A `lap` record | Unchanged | Gains `course`, `courseVersion`, layout `id`, `sectors` | **Accepted** (§4) |
+| Across sessions | Per session | Per run of the app, on `at`; ages for older things | **Accepted** (§5) |
+| `hello.features`, wire v1 | Yes | Yes | **Yes** |
 
 ---
 
-## 3. Timing
+## 1. The tablet is the timer; the server keeps the books
 
-The server times on the fixes' own `at`, **the tablet's monotonic clock**. It
-sends times back **on that same clock**, so the tablet runs a lap's clock
-itself, exactly, without comparing wall clocks: the running time is simply
-`now (at) − startAt`.
+**The tablet's numbers win.** It has every fix, the moment it's taken, and
+times the lap against the course it holds. So:
 
-### 3.1 `timing`: the whole current state
+- **Live and official, a lap is the tablet's `lap` record.** The server
+  stores it as sent and shows it everywhere: the car's page, a session's page,
+  an event's results. It **never overrides** a lap the tablet timed on the
+  course version that is current.
+- **The server times from GPS only where the tablet's lap isn't current:**
+  - after a line moves on the website, for laps the tablet timed on an older
+    version of the course, re-timed on the new one;
+  - for sessions with no `lap` records (logs from before this change, or a
+    tablet without the course).
 
-Sent **after every `hello`** (once a session is running), and **whenever
-anything in it changes** (a lap or sector completes, the driver changes, the
-best improves). Like `messages` (§5.4), it is the **complete** state: the
-tablet shows exactly what it says, and nothing it doesn't.
+  Even then it times **the tablet's own fixes**, on their `fixAt`, by the same
+  rule (§16), so the result is still the tablet's data, measured against the
+  new line. Each lap says which it is: timed by the tablet, or re-timed by the
+  server on version N.
+- **Where both exist for the same version, they should agree to the
+  millisecond** (same fixes, same `fixAt`, same rule). The server checks, and
+  flags any lap that doesn't, as a bug for one side to find, never by
+  replacing the tablet's number.
+- **What only the server knows** goes down in `timing` (§6): who's driving,
+  the stint, the race's lap count, the time since the stop, and the bests
+  across an event's drivers and sessions.
+
+This also removes the problem with the live lane's coalescing (§5.2 sends only
+the latest sample of each signal per 200 ms batch): at 10 Hz the server would
+see half the fixes live. It no longer needs them live; `lap` records go whole
+in the next batch, and the archive has every fix for re-timing.
+
+---
+
+## 2. `gps.position` gains `fixAt` (§22.2, accepted)
+
+As §22.2 has it: the fix's own time on `at`'s clock, present when the receiver
+gives one, never later than `at`, and **what both sides time on**, falling back
+to `at` where it's absent.
+
+**One addition:** `fixAt` **never goes backwards** from one `gps.position` to
+the next within a run of the app. The server orders fixes by it for timing; a
+fix whose `fixAt` is earlier than the last one's would be a receiver or
+conversion fault, and the server will skip it rather than time on it. (If the
+receiver can deliver fixes out of order, say so, and the tablet sorts them
+before publishing instead.)
+
+---
+
+## 3. Courses (§22.3, accepted, with pit lines settled)
+
+### 3.1 As agreed
+
+- `GET /v1/courses` with one `ETag` for all courses and `304`; any car's
+  token reads them all; the `courses` frame (`{"t":"courses","etag":"…"}`)
+  after every `hello` and on any change, to a tablet listing `courses.1`.
+- **Courses live only on the website.** The tablet caches the last answer,
+  uses it offline, keeps the shipped `nhms.geojson` only until the first
+  download, and deletes what the server stops listing.
+- Fetched **whenever the tablet has any car's token and a link**.
+- The GeoJSON is the app's own format: layouts (with `id`, `name`,
+  `default`), `start_finish`, `sector` (`layout`, `index`), `pit_lane`.
+  **Every line counts only when crossed in its layout's direction.**
+- Layouts are identified by `id`.
+
+### 3.2 Pit lines: in-laps, out-laps and where they end
+
+§22.6's rule, accepted: **a lap is an in-lap when the car crosses `pit_in`
+during it, and an out-lap when it crosses `pit_out`**.
+
+**What it leaves open:** where an in-lap *ends*. A start/finish drawn across
+the track (NHMS's spans 12 m either side of the centreline) isn't crossed in
+the pit lane, so an in-lap would run through the whole stop until the car next
+crosses it on track. The tablet avoids that today with its own line across the
+pit lane, level with the start/finish, and §22 drops it.
+
+**Proposed:** keep it, drawn on the website. A new role:
+
+| `role` | Geometry | Meaning |
+| --- | --- | --- |
+| `pit_line` | `LineString`, 2 points | Across the pit lane, usually level with the start/finish. **Crossing it ends the lap under way (an in-lap) and begins the next (an out-lap)**, as the start/finish does on track. |
+
+- A course **with** `pit_line`: in-laps end there, out-laps start there;
+  the time between is lost to neither lap, since the car crosses one line.
+- A course **without** it but with `pit_in` and `pit_out`: the tablet's
+  current behaviour is the fallback (a line across the pit lane level with
+  the start/finish, made by the tablet), so NHMS keeps working until one is
+  drawn. **Suggested:** the website seeds NHMS's `pit_line` from where the
+  tablet makes it today, so the fallback is never needed there.
+- **A stop's length** is from `pit_in` to `pit_out`, for the race's results.
+- A course with no pit lines at all times as §16 does today.
+
+---
+
+## 4. The `lap` record (§22.4, accepted)
+
+```json
+{"type":"lap","track":"nhms","course":"nhms","courseVersion":7,"layout":"road","lap":3,"time":94.532,"sectors":[31.298,32.990,30.244],"seq":61022,"at":4410233,"wall":1758719710456}
+```
+
+As §22.4: `course`, `courseVersion`, `layout` as the layout's `id`, and
+`sectors`; `track` kept for older readers; no `courseVersion` and a layout
+*name* before the first download. **Plus, suggested:** the lap's start and end
+crossings on `fixAt`'s clock (`startAt`, `endAt`), so the server can place a
+lap exactly on the session's chart and check it against its own timing
+without re-deriving the crossings. Optional; say if it's awkward.
+
+---
+
+## 5. Timing is per run of the app (§22.5, accepted)
+
+As §22.5: `at` is one clock across every session in a run; the server
+identifies a run by `device` and each session record's `at` rising; it joins
+a run's sessions on `at`, and runs only on `wall`. Anything that may predate
+the run is sent as an age (`…AgeMs`, as old as it was when sent), never an
+`at`.
+
+---
+
+## 6. `timing` (revised): only what the tablet can't know
+
+Sent to a tablet listing `timing.1`, **after every `hello`** once a session is
+running, and **whenever anything in it changes**. The complete state, like
+`messages` (§5.4): the tablet shows exactly what it says.
 
 ```json
 {
   "t": "timing",
   "session": "5ace0000-1111-4111-8111-000000000035",
   "course": {"id": "nhms", "version": 7, "layout": "road"},
-  "sectors": 3,
-  "lap": {"number": 12, "startAt": 4410233, "sectors": [31.402]},
-  "last": {"number": 11, "time": 94.871, "sectors": [31.512, 33.120, 30.239], "delta": 0.339},
-  "best": {"number": 7, "time": 94.532, "sectors": [31.298, 32.990, 30.244]},
+  "best": {"time": 94.532, "sectors": [31.298, 32.990, 30.244], "driver": "SAM", "session": "5ace…0031", "lap": 7},
   "bestSectors": [31.298, 32.874, 30.101],
-  "driver": {"name": "Sam", "code": "SAM", "stintStartAt": 3120500},
-  "race": {"lap": 58, "sinceStopAt": 3120500}
+  "driver": {"name": "Sam", "code": "SAM", "stintAgeMs": 2412000},
+  "race": {"lap": 58, "sinceStopAgeMs": 1290000}
 }
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `session` | The session whose `at` the times are on. **A tablet ignores a `timing` for another session** (its `at` means nothing across app restarts). |
-| `course` | Which course, version and layout the server is timing against; absent when the car isn't at a known course (then only `driver` and `race` may be present). |
-| `sectors` | How many sectors the layout has. |
-| `lap` | The lap under way: its number, when it began (`startAt`, on `at`), and the sector times done so far. Absent before the first crossing (an out-lap is not timed). |
-| `last` | The last completed lap, its sectors, and `delta`: seconds against `best` (positive is slower). |
-| `best` | The best lap on track **of this driver in this event**, or of this session if there's no event; never an in- or out-lap (§18). |
-| `bestSectors` | The best of each sector, from any lap: the theoretical best is their sum. |
-| `driver` | Who's driving, as the crew set it on the website, and since when (on `at`); absent if nobody's said. |
-| `race` | During a race only: the lap count through the race, and when the car last left the pits (on `at`). |
+| `session` | The tablet's current session; the tablet ignores a `timing` for any other (§5). |
+| `course` | The course, version and layout the server knows the car to be at. **If the version is newer than the tablet's cached one, the tablet fetches courses** (a line moved) and times on the new one from then on, re-timing the lap under way from its own fixes if it likes. |
+| `best` | The best lap **of the event** (every driver and session of this car), or of this car on this layout if there's no event; never an in- or out-lap. Who set it, and where, so the tablet can tell whether it holds that lap's fixes (§22.6: it uses the server's best as its delta's reference only then). |
+| `bestSectors` | The event's best of each sector; their sum is the theoretical best. |
+| `driver` | Who's driving, as the crew set it on the website, and how long since the stint began (an age). |
+| `race` | During a race only: the lap count through the race, and how long since the car left the pits (an age). |
 
-Every field is optional; the tablet shows what's there.
+Every field is optional; the tablet shows what's there. **No lap clock, no
+last lap, no splits**: those are the tablet's own.
 
-### 3.2 `crossing`: a line just crossed
-
-```json
-{"t":"crossing","session":"5ace…0035","kind":"sector","lap":12,"sector":2,"at":4443355,"time":33.122,"delta":0.132}
-{"t":"crossing","session":"5ace…0035","kind":"lap","lap":12,"at":4504765,"time":94.532,"delta":-0.339,"best":true}
-```
-
-| Field | Meaning |
-| --- | --- |
-| `kind` | `sector` or `lap` (the start/finish, which ends the lap and its last sector). |
-| `lap`, `sector` | Which. |
-| `at` | When the line was crossed, interpolated, on the tablet's `at`. |
-| `time` | The sector's or the lap's time, seconds. |
-| `delta` | Against the best sector or best lap (positive is slower). |
-| `best` | Present and `true` when this is a new best. |
-| `pitIn`, `pitOut` | As §18, on a lap that ended in, or began from, the pits. |
-
-- **For flashing the moment**: the tablet may show a split for a few seconds,
-  in its colours for faster and slower. The next `timing` carries the same
-  numbers as settled state, so a missed `crossing` loses nothing but the
-  flash.
-- **How soon:** the server knows a line was crossed once the next fix after it
-  arrives, then sends at once: at 1 fix a second, within about 1–1.5 s of the
-  car crossing; much sooner with a faster receiver. The **lap clock itself is
-  never late**, because it runs on the tablet from `startAt`.
-
-### 3.3 When the link drops
-
-- The tablet **keeps the lap clock running** from the last `startAt`: it
-  needs nothing from the server to count.
-- **No crossings arrive** while the link is down (the live lane never replays,
-  §5.3). The tablet should say the timing is **paused**, not show a stale split
-  as current.
-- **On reconnect**, the `timing` after `hello` brings everything up to date,
-  as far as the server knows. Laps completed in the dead zone reach the server
-  through the archive lane later, and appear in the results then.
+**Dropped from revision 1:** `crossing`, and `timing`'s `lap` and `last`.
 
 ---
 
-## 4. What the tablet shows (suggestions, the tablet side's call)
+## 7. Still for the tablet side
 
-- **The map widget** draws the course from `/v1/courses`: the layout, the
-  start/finish, **the sector lines**, the pit lane; the current sector
-  highlighted from `timing.lap.sectors`.
-- **A lap widget:** the running lap (from `startAt`), the last lap and its
-  delta, the best.
-- **A splits widget:** each sector of the lap under way against the best
-  sector, coloured in the team's roles (faster, slower, a new best).
-- **The driver and stint**, and during a race the lap count and time since the
-  stop.
-- **"Timing paused"** while the link is down.
+1. **`fixAt` never going backwards** (§2): can the tablet promise it?
+2. **`pit_line`** (§3.2): agreed, including the fallback and seeding NHMS's
+   from where the tablet draws it today?
+3. **`startAt` and `endAt` on a `lap`** (§4): easy to add?
+4. **§21's fake session** carries `protocol` and `pids`, which §21 says are
+   absent (found in the first drive's logs, 2026-09-27; the backend's
+   JOURNAL). Harmless to the server, but one side's text is wrong.
 
 ---
 
-## 5. Questions for the tablet side
+## What each side commits to, if agreed
 
-1. **Offline timing.** A dumb terminal shows nothing new in a dead zone. Should
-   the tablet also time laps **itself, on the server's course lines**, as a
-   fallback while the link is down, marked provisional and replaced by the
-   server's when it's back? That's today's §16 timing, pointed at downloaded
-   courses instead of shipped ones. The backend is fine either way; it's a
-   question of how dumb Sam wants the terminal. **Suggested: yes, fallback
-   only.**
-2. **The tablet's own `lap` records (§16).** Keep logging them (the backend
-   shows them beside its own as a check while its timing is new), or stop once
-   `timing.1` is on? **Suggested: keep them for now**, marked as the tablet's.
-3. **Shipped tracks.** Once courses come from the server, does the app still
-   ship `nhms.geojson`, as a first-run default before any download?
-4. **`startAt` on `at`.** Is the bus's `at` the same clock the tablet can read
-   on screen for a running timer? (§3.1 says monotonic since app start, which
-   is what's wanted.) Anything that would make `at` jump within a session?
-5. **Frame sizes.** `timing` and `crossing` are small; courses go over HTTPS
-   because a detailed course could pass the 64 KB live frame limit. Fine?
-6. **Sector count.** The server allows as many sector lines as are drawn.
-   Any limit the widgets need?
+**The tablet:** `fixAt` on every `gps.position` with a receiver time, never
+going backwards; courses from `GET /v1/courses`, cached, the shipped file only
+before the first download, no start/finish editing on the tablet; laps and
+sectors timed against the cached course, in-laps and out-laps by `pit_in`,
+`pit_out` and `pit_line`; every `lap` naming its course, version and layout
+`id`, with its sectors (and `startAt`, `endAt` if agreed); `timing` shown for
+the driver, the race and the event's bests; `hello.features` listing
+`courses.1` and `timing.1`.
 
----
-
-## What the backend commits to, if agreed
-
-- `GET /v1/courses` with `ETag` and `304`, and the `courses` frame after every
-  `hello` and on any change, to tablets that list `courses.1`.
-- `timing` after every `hello` (once a session is running) and on every change,
-  and `crossing` on every line crossed, to tablets that list `timing.1`, with
-  every time on the session's own `at`.
-- **Never sending the new frames to a tablet that didn't ask**, and never
-  changing an existing frame or record.
+**The server:** `GET /v1/courses` and the `courses` frame as §3.1; the
+tablet's `lap` records as the results, never overridden for the current
+course version; re-timing from the tablet's own fixes on `fixAt` only for
+older course versions and laps the tablet didn't time, each marked as such;
+flagging, never replacing, a lap where the two disagree; `timing` as §6, only
+to a tablet that lists `timing.1`; no existing frame or record changed.
