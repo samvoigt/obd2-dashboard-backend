@@ -669,3 +669,69 @@ by time.
 **Why.** The live lane keeps only 5 minutes (decision 19), and the archive lags
 by up to a chunk (2 minutes) and sometimes more. Together they make the whole
 session, and `seq` is the only key both lanes share exactly.
+
+## 28. The car's page is one fixed dashboard, the same for every car
+
+**Decision.**
+- **One layout, in code** (Sam, 2026-09-27): the freshness banner; up to four
+  gauges, six numbers and four bars; the G-meter beside the map; laps; status
+  lights and trouble codes; then the crew panel, the chart ("Last 5 minutes |
+  Whole session") and every other signal as a tile. On a phone, the same
+  order in one column. Nothing is stored and nothing is edited on the site.
+- **The slots are a list in `web/src/lib/dashboard.ts`** (`SLOTS`), chosen by
+  Sam from what his car sends: gauges `engine.rpm`, `vehicle.speed`,
+  `engine.coolant_temperature`, `control_module.voltage` (charging); the
+  number `gps.speed`; no bars yet; status `diagnostics.mil`,
+  `fuel.system_1_status`. A signal in a slot isn't repeated as a tile.
+  Changing one is a line and a deploy.
+- **Ranges come from the unit, zones from the signal**, and both are generic
+  engine knowledge, never one car's (the app's decision 33): coolant caution
+  over 105 °C, critical over 115; voltage caution under 12.0 V, critical
+  under 11.5; engine speed over 6,000 and 7,000. Colour only; nothing
+  notifies anyone.
+- **Sections appear with their data**: the G-meter once both
+  `motion.acceleration.*` axes have come, the map once a `gps.position` has,
+  laps once there's one. A car that sends none gets no empty boxes; a slot's
+  signal a car doesn't send reads "—".
+- **Every reading shows when it's out of date**: stale once its last reading
+  is 5 times its usual interval old (the history's median gap, never under
+  2 s), "stopped" if the tablet said so. A signal read fewer than twice in the
+  5 minutes isn't judged by its own pace; the banner covers a quiet car.
+- **Units are the viewer's**, metric or US, kept in their browser (per host):
+  every reading, gauge scale, zone, tile and chart axis converts. The
+  G-meter stays in g.
+- **Laps while live** come from the archive's series plus the live lap
+  events after it, by `seq` (decision 27), re-checked each minute.
+- **The server doesn't change**: the page reads the live stream (decision 19)
+  as it did.
+
+**Why.** Sam wants one dashboard per car, and a fixed one is most of the value
+for a fraction of the work: no storage, no editor, no contract change, and
+nothing the tablet has to mirror. A per-car form on the admin page (slots,
+ranges, redlines) is the way on, if the generic ranges ever bother him.
+
+**Revisit if.** Cars with very different engines share the site (a diesel's
+redline, an EV's lack of coolant), or Sam wants a different layout per car.
+
+## 29. The site takes the Bad News Bears look, as roles
+
+**Decision.**
+- **The team's logo** (the app's `docs/branding/bnb-logo.pdf`, only read)
+  gives the colours, as the tablet has them (its decision 100): accent sky
+  blue `#01B7F9`; in range and "live" mint `#67EFE6`; caution light pink
+  `#FFA9DE`; critical, errors and trouble codes hot pink `#FF0099`; offline
+  and no data grey; the dark neutrals for background, panels, lines and text.
+  **No amber and no red.** The same values as the tablet, so a colour means the
+  same on both.
+- **Colours are roles in `web/src/app.css` and nowhere else.** The chart
+  (uPlot) and the map (Leaflet) draw on canvas, so `theme.ts` reads the
+  variables at run time. A test fails on any colour written elsewhere in
+  `src/`.
+- **Legibility is a test:** text, caution, critical and in range at 3:1 or
+  more on the background and on a panel; caution, critical, in range and the
+  accent at least 25 apart in CIE Lab.
+- **The logo and the tab's bear** are made from the PDF into `web/src/assets/`
+  by `web/scripts/make_images.sh`, converted from Display P3 to sRGB first.
+
+**Why.** Sam asked for the logo as the site's colour scheme. As roles, the
+look changes in one file, and a colour always means one thing.

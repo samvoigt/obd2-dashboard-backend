@@ -336,3 +336,42 @@ session being driven, whole, merged from both lanes. Decisions 26 and 27.
 **Left for Sam:** the admin page's Download button (it needs his sign-in).
 **Left for later:** comparing laps (Sam); naming sessions; showing crew
 messages beside a session.
+
+## M8 — The dashboard  ✅ 2026-09-27
+
+The car's page as a dashboard: one fixed layout for every car, updating live,
+in the Bad News Bears look across the whole site. Decisions 28 and 29.
+
+- **The look (M8.1):** `app.css`'s roles, `theme.ts` for the canvases,
+  `speedColor` on colour stops, `web/scripts/make_images.sh`, the logo on the
+  landing page and the bear as the tab's icon.
+- **The widgets (M8.2):** `units.ts` and `unitsState.svelte.ts`, `readout.ts`,
+  `dashboard.ts` (slots, ranges and zones, `timings`, freshness, the G-meter,
+  laps); `Gauge`, `Readout`, `Bar`, `Status`, `Faults`, `GMeter`,
+  `LapsPanel`, `UnitsSwitch`; `SessionMap`'s `follow`; a dev-only preview at
+  `/dev/widgets/{slug}`, left out of the build.
+- **The page (M8.3):** the car's page rebuilt in the layout's order, with
+  Sam's slots; the chart and the tiles convert units; laps from the archive
+  and the live lane (`lapsFrom`).
+- **Performance (M8.4):** `web/scripts/measure.mjs` (its own headless Chrome,
+  4× slower CPU, phone-sized, a line a minute). The chart's data held as deep
+  `$state` cost a quarter of every minute; raw, a whole 34-minute race held
+  60 fps with no long tasks and no heap growth. The map redraws only when its
+  trace changes.
+- **Tests:** 99 Vitest (39 new); Kotlin unchanged. **Mutations:** 25 on the
+  new logic (M8.2–M8.4), all killed but one found equivalent. The look's five
+  guards each shown to fail when they should: a colour written into a
+  component, `rgb()` in one, critical made to look like caution, unreadable
+  text, a blue that isn't the logo's.
+- **Verified live, 2026-09-27** (revision `00017`, deployed with the synthetic
+  race streaming and uploading, which reconnected at once): on
+  badnewsbears.live, every section, US units, and the page at 390 px with no
+  sideways scroll; then everything deleted.
+- **Found by looking**, all fixed: the logo muted by Display P3; two chart
+  lines too alike; the preview hanging the browser (an effect rerunning
+  itself, and deep proxies); the map drawing nothing before it had a view;
+  the chart not converting units; a rarely read signal going stale; "Follow
+  the car" stopping after a drag.
+
+**Left for later:** a per-car form for slots and ranges (decision 28's way
+on); bars, when Sam wants some; comparing laps.

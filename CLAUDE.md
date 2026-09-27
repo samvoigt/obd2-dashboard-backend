@@ -44,8 +44,11 @@ JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
 Modules: `:registry`, `:archive`, `:live` and `:admin` (pure, where the rules
 and most tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
-`:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot;
+`:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot, Leaflet;
 Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
+Colours are roles in `web/src/app.css` only (decision 29; a test enforces
+it). Anything large in a component is `$state.raw`, replaced whole, never
+deep `$state` (JOURNAL: M8).
 
 ```
 ./gradlew test                  # unit tests, all modules
@@ -59,6 +62,9 @@ scripts/replay.sh --help        # the tablet's lanes (--live), faults included
                                 #   (token and crew passcode in server/build/dev-token,
                                 #   dev-passcode, never printed); replay into it
 (cd web && npm test && npm run check)   # the site's logic and types
+caffeinate -s node web/scripts/measure.mjs http://localhost:5173/cars/dev-car 30 4
+                                # the page's fps, long tasks and heap a minute,
+                                #   4x slower CPU; a replay streaming into it
 MEASURE=1 MEASURE_HEAP=128m ./gradlew :archive:test --tests '*MeasureSeries*' -i --rerun
                                 # preparing a synthetic 3-hour race, heap as Cloud Run's
 ./gradlew test -PskipWeb        # Kotlin only, without building the site

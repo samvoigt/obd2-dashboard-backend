@@ -6,11 +6,13 @@ shows the car's data live.
 
 ## Status
 
-M7 done. Every session a car uploads is on the site: a list per car, grouped
-into drives, and a page per session with full-length charts, laps, a map and
-what happened; a session being driven is shown whole, from both lanes. Cars,
-tokens and sessions are managed at https://badnewsbears.live/admin (M6). The
-crew can send the driver messages (M5). Dashboards come next, in M8. See
+M8 done. A car's page is a live dashboard, the same for every car: gauges,
+GPS speed, a G-meter, a map following the car, laps, status lights and
+trouble codes, in metric or US units, in the Bad News Bears look. Every
+session a car uploads is on the site too, with full-length charts, laps and a
+map (M7). Cars, tokens and sessions are managed at
+https://badnewsbears.live/admin (M6). The crew can send the driver messages
+(M5). See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
 [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
 
@@ -77,7 +79,7 @@ scripts/replay.sh --server … --token-file car.token --live --speed 1 \
 | `:live` | The live lane's rules: frames, a car's live state, the hub, crew messages. Pure Kotlin |
 | `:admin` | The owner's rules shared by `admin.sh` and the admin page. Pure Kotlin |
 | `:server` | Ktor server: tablet auth, both lanes, the browser stream, the website |
-| `web/` | The website: Svelte, Vite, TypeScript, uPlot |
+| `web/` | The website: Svelte, Vite, TypeScript, uPlot, Leaflet |
 | `:tools` | The `admin` tool |
 | `:replay` | Uploads session logs as the tablet does |
 

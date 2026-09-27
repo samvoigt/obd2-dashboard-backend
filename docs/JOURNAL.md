@@ -178,3 +178,31 @@ not catch, and lessons about process. Short on purpose.
   join of signals with their own gaps needs.
 - **Vite and Svelte's type check:** `let x: T | null = $state(null)` narrows to
   `never` inside derived values; `$state<T | null>(null)` doesn't.
+
+## 2026-09-27 — M8, the dashboard
+
+- **Svelte 5's deep `$state` is the cost to watch.** Anything large goes in
+  `$state.raw` and is replaced, never changed in place: the live state, the
+  chart's columns, a session's series. As deep state, the chart alone cost a
+  quarter of every minute on a slowed phone (uPlot read every point through
+  the proxy), and the preview hung the browser. A CPU profile found it; the
+  suspects I'd listed (the passes over the history) were about 1 ms each.
+- **Measure, don't guess, and keep the measuring honest.** `measure.mjs` gives
+  fps, long tasks and heap a minute. It lied three ways before it didn't: the
+  Mac's sleep froze a "minute" into twenty (run under `caffeinate -s`; `-i`
+  lets a closed lid's maintenance sleep through); an edit under `web/src`
+  hot-reloaded the page and reset its counters; and Photos' and Spotlight's
+  night work made a clean page look slow. A second run, the Mac's load logged
+  beside it, settled that.
+- **`sips` renders a PDF in Display P3.** Stripping the profile without
+  converting made the logo's pink `#EA3396` instead of `#FF0099`.
+- **Leaflet fires a `moveend` of its own inside `setView`**, when it stops a
+  drag's inertia. A flag cleared on `moveend` then called the page's own pan
+  the viewer's, and "Follow the car" stopped following. Unanimated pans end
+  inside the call, so the flag is set around it.
+- **Leaflet can't draw a line on a map with no view**; set the view first.
+- **Chrome's automation couldn't resize a window** that reported the
+  screen's width, so phone width was checked in a 390 px frame on the same
+  host, where media queries follow the frame.
+- **Deployed with a drive streaming** (revision `00017`): the replay
+  reconnected at once on the `1012`, and an open page stayed "Live".
