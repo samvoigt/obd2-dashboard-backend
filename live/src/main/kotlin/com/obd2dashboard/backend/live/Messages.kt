@@ -122,6 +122,9 @@ public class Messages(
         public data class Bad(val reason: String) : Checked
     }
 
+    /** Deletes every message for [car], when the car is removed (M5.8). Returns how many. */
+    public suspend fun deleteCar(car: String): Int = store.deleteCar(car)
+
     public suspend fun send(car: String, text: String, preset: String?, ttl: Duration = DEFAULT_TTL): Sent =
         locks.computeIfAbsent(car) { Mutex() }.withLock {
             val checked = when (val c = check(text, preset, ttl)) {

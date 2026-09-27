@@ -14,6 +14,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "obd2-dashboard-backend"
 
+include(":admin")
 include(":archive")
 include(":archive-gcp")
 include(":live")

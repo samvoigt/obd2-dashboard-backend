@@ -82,8 +82,7 @@ Past sessions and dashboards move to M7 and M8.
   `PATCH`, `PUT` and `DELETE` must carry an `Origin` header matching the host,
   on top of `SameSite=Strict` and JSON-only bodies. It costs one line and
   closes the gap if a browser ever gets `SameSite` wrong.
-- **Sign-in attempts are rate-limited** like the crew's: 10 failures in 10
-  minutes → `429`.
+- ~~Sign-in attempts are rate-limited~~: withdrawn at M6.3 (see there).
 - **Every admin action is logged**, with who did it, what, and to which car or
   session. **Never a token or passcode.** Cloud Logging keeps the logs; no new
   store.
@@ -135,6 +134,27 @@ behaves exactly as before.
 **Done when:** the tool's tests pass unchanged; the rule has its own tests; and
 mutations are checked.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **No existing module sees cars, sessions and messages together** without a
+>   wrong dependency (`:registry` and `:archive` see nothing else, and `:live`
+>   sees only `:archive`). So there's **a new pure module, `:admin`**, on
+>   `:registry` and `:live` (which brings `:archive`), used by `:tools` and
+>   `:server`.
+> - `CarAdmin.removeCar(slug)`: no such car → `NoSuchCar`; any sessions →
+>   `CarHasSessions(count)`; otherwise it removes the car and then its messages,
+>   returning how many. `checkRemovable` lets the tool refuse **before** asking
+>   for the slug to be typed, as it does now. Each caller words the refusal its
+>   own way (the tool names `admin.sh`; the page won't).
+> - **Deleting a session stays `ArchiveService.delete`**, one call already
+>   shared. The page's "not while live" rule needs the hub, which only the
+>   server has, so it is M6.7's, and `admin.sh delete-session` is unchanged.
+
+> **✅ Done, 2026-09-26.** `:admin` with `CarAdmin` (`checkRemovable`,
+> `removeCar`) and `CarHasSessions`; `admin.sh remove-car` calls it and keeps its
+> wording and its "type the slug" prompt. 3 new tests; the tool's tests are
+> unchanged and pass. 6 mutations, all killed.
+
+
 ### M6.2 — Verifying a Google sign-in
 
 `GoogleIdentity`: `TokenVerifier` behind a small interface, returning the
@@ -153,6 +173,32 @@ uses both).
 
 **Done when:** every refusal is tested, and mutations are checked.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **`TokenVerifier` throws one exception type for every failure**, so it can't
+>   say why. It is built with **no audience or issuer**, and checks only the
+>   signature (by the token's `kid`, from Google's key set) and expiry. Our code
+>   then checks the audience, the issuer (`accounts.google.com` with or without
+>   `https://`), `email_verified`, and the allowlist, each with its own reason.
+>   A token that fails the library's check is `Expired` if its `exp` has passed,
+>   and `BadSignature` otherwise. Unparsable is `Malformed`.
+> - **Fetching Google's keys blocks**, so verification runs on `Dispatchers.IO`.
+>   The library caches the keys.
+> - **The allowlist is its own small class** (`Allowlist`), parsed from
+>   `ADMIN_EMAILS` (comma-separated, trimmed, lower-cased, empty = nobody), and
+>   shared with M6.3's per-request check.
+> - `:server` declares `google-auth-library-oauth2-http` itself (from the BOM
+>   already in use), rather than relying on `:archive-gcp` exporting it.
+> - **Tests sign with our own RSA key** (`JsonWebSignature.signUsingRsaSha256`,
+>   `GsonFactory`, both already on the classpath), and serve its key set from a
+>   local JDK HTTP server via `setCertificatesLocation`, so the code that fetches
+>   keys runs too. Expiry uses the verifier's clock.
+
+> **✅ Done, 2026-09-26.** `GoogleIdentity`, `IdentityVerifier`, `SignIn`,
+> `Refusal`, `Allowlist`. 5 tests, including a payload swapped after signing.
+> Google's library refuses a token from the second it expires, with no
+> leeway; a test pins that. 13 mutations, all killed; the expiry boundary
+> survived at first and got its test.
+
 ### M6.3 — The admin cookie and sign-in routes
 
 `AdminAuth`, and `config`, `login` (`POST`, `DELETE`), `me`. The rate limit,
@@ -166,6 +212,45 @@ the `Origin` check, and the dev sign-in (dev server only).
 - a test proves `main`'s module refuses a dev sign-in;
 - mutations are checked.
 
+> **Validated against the code, 2026-09-26, before building.** Three changes
+> from the plan:
+> - **The cookie can't be the crew's dotted format with an email in it**
+>   (emails have dots). It is `adm1.<email, base64url>.<expiry>.<hmac>`: four
+>   parts and its own tag, where a crew cookie is five parts starting `v1`. So
+>   neither can pass as the other, even for a car whose slug is `admin`. Same
+>   key and HMAC as the crew's.
+> - **No sign-in rate limit.** A Google ID token can't be guessed, so a limit
+>   protects nothing. And one shared limit (there's no car to key it by) would
+>   let anyone lock Sam out by posting junk. Verifying costs one RSA check with
+>   cached keys. The "Decided here" bullet is withdrawn.
+> - **Until M6.6, there is no client ID**, and `main` must still start: the
+>   config says admin is not set up, the page says so, and sign-in is `503`.
+>   `module` takes an `AdminConfig`, **disabled by default**, so every existing
+>   call site and every test stays as it is. Only `DevServer` builds one with
+>   the dev sign-in.
+> - **The `Origin` check compares the header's host and port with `Host`**,
+>   ignoring the scheme. TLS ends in front of Cloud Run, so the server sees
+>   `http`. Locally, Vite's proxy keeps `Host: localhost:5173`, which matches
+>   the page's origin.
+> - **The dev sign-in is a verifier, not a switch:** `DevServer` passes one
+>   that accepts the credential `dev` as `dev@localhost`, with that address as
+>   the allowlist. `main` builds its `AdminConfig` in a function of its own
+>   (from the environment), which a test calls to prove that `dev` is refused
+>   there.
+
+> **✅ Done, 2026-09-26.** `AdminConfig` (off by default; `fromEnvironment`),
+> `AdminAuth`, `isSameOrigin`, and `config`, `login`, `me`. `DevServer` has the
+> dev sign-in. 11 tests. Found while building:
+> - **`admin` is already a reserved slug**, so a crew cookie for a car named
+>   `admin` can't exist; the test uses an ordinary car.
+> - **Ktor's test client sends no `Host`**, where browsers always do; the tests
+>   set it.
+>
+> Mutations: 14, 12 killed. **Equivalent:** the tag check (nothing is ever
+> signed with three dotted parts and another tag, so no test can build such a
+> cookie; it stays as a second line of defence). **Left to M6.4:** `admin()`'s
+> own origin check, which no route uses yet.
+
 ### M6.4 — The cars API
 
 Every car action from the table, each a thin call to `CarRegistry` and M6.1's
@@ -178,6 +263,32 @@ rule, each logged.
 - a generated token appears exactly once;
 - `DELETE` is refused while the car has sessions;
 - mutations are checked.
+
+> **Validated against the code, 2026-09-26, before building.**
+> - **Adding a car with a chosen token** (create, set the token, remove the car
+>   if that fails) is inline in `admin.sh add-car` today. It moves into
+>   `CarAdmin.addCar(slug, name, chosenToken?)`, and the tool calls it, so the
+>   two can't drift apart.
+> - **The hub's status doesn't name the live session**, only whether there is
+>   one. `GET cars` gives the live state (as the landing page does) and a
+>   session count; the live session's id is M6.7's to add.
+> - **Refusals map to statuses:** a bad slug, name, token or passcode → `400`;
+>   an unknown car → `404`; a slug that's taken, a token that's another car's,
+>   or a car with sessions → `409`. Each keeps the registry's plain words,
+>   except for sessions, which the page words itself.
+> - A passcode hash is PBKDF2 (about 0.3 s), so `PUT passcode` hashes on
+>   `Dispatchers.Default`, as crew login does.
+> - **The log test** attaches a Logback appender to the `admin` logger and
+>   checks that no token or passcode appears in any line.
+
+> **✅ Done, 2026-09-26.** `adminCarRoutes`, and `CarAdmin.addCar`, which
+> `admin.sh add-car` now calls too. `ArchiveService.sessionsOf` and
+> `Messages.deleteCar` pass through, so `CarAdmin` takes the services, not
+> their stores. 7 API tests and 3 more in `:admin`. Mutations: 12, 10 killed,
+> including M6.3's `admin()` origin check. **Equivalent:** logging the passcode
+> after it's wiped logs only blanks (the wipe is the protection, and the log
+> test catches the real thing); and `addCar`'s early token check only saves a
+> write, since a bad token is refused and the car removed either way.
 
 ### M6.5 — The page
 

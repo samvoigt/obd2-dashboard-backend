@@ -1,5 +1,6 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
@@ -54,7 +55,13 @@ fun main() {
             shutdownGracePeriod = 2_000
             shutdownTimeout = 8_000
         },
-    ) { module(registry, archive, InMemoryLiveHub(), project = project, messages = Messages(FirestoreMessageStore.connect(project)), crewKey = crewKey) }
+    ) {
+        module(
+            registry, archive, InMemoryLiveHub(), project = project,
+            messages = Messages(FirestoreMessageStore.connect(project)), crewKey = crewKey,
+            admin = AdminConfig.fromEnvironment(System::getenv),
+        )
+    }
     server.start(wait = true)
 }
 
@@ -73,6 +80,8 @@ fun Application.module(
     messages: Messages,
     /** Signs crew logins (M5.4). No default: a random one would log every crew member out at each restart. */
     crewKey: ByteArray,
+    /** The admin page (M6). Off unless given; production builds it from the environment. */
+    admin: AdminConfig = AdminConfig.DISABLED,
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val crewAuth = CrewAuth(crewKey, clock)
@@ -90,6 +99,9 @@ fun Application.module(
 
         browserRoutes(registry, hub, clock, crewAuth, crew)
         crewRoutes(registry, crewAuth, loginLimiter)
+        val adminAuth = AdminAuth(crewKey, clock)
+        adminSignInRoutes(adminAuth, admin)
+        adminCarRoutes(registry, CarAdmin(registry, archive, messages), archive, hub, clock, adminAuth, admin)
         messageRoutes(registry, crewAuth, crew)
         webRoutes()
 

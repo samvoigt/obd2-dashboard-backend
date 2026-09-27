@@ -173,6 +173,9 @@ public class ArchiveService(
         }
     }
 
+    /** A car's sessions, as the index holds them (the admin page, M6). */
+    public suspend fun sessionsOf(car: String): List<SessionRecord> = index.listByCar(car)
+
     /** Deletes a session's objects and its index entry: the owner's decision (decision 16). */
     public suspend fun delete(id: String): Boolean {
         store.deletePrefix(sessionPrefix(id))

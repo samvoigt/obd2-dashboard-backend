@@ -32,6 +32,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 google-cloud-bom = { group = "com.google.cloud", name = "libraries-bom", version.ref = "googleCloudBom" }
 google-cloud-firestore = { group = "com.google.cloud", name = "google-cloud-firestore" }
 google-cloud-storage = { group = "com.google.cloud", name = "google-cloud-storage" }
+google-auth = { group = "com.google.auth", name = "google-auth-library-oauth2-http" }
+google-http-gson = { group = "com.google.http-client", name = "google-http-client-gson" }
 clikt = { group = "com.github.ajalt.clikt", name = "clikt", version.ref = "clikt" }
 slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }

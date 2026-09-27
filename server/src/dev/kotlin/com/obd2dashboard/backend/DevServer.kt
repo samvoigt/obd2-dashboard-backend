@@ -38,6 +38,25 @@ fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
     println("Dev server on http://localhost:$port (car dev-car; token and crew passcode in build/dev-token, build/dev-passcode)")
     embeddedServer(Netty, port = port, host = "127.0.0.1") {
-        module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) })
+        module(
+            registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(),
+            messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) },
+            admin = devAdmin(),
+        )
     }.start(wait = true)
+}
+
+/**
+ * The admin page without Google (M6.3): the page shows a dev sign-in, whose
+ * credential `dev` signs in as `dev@localhost`. Only this dev source set builds
+ * it; `main` has no way to.
+ */
+private fun devAdmin(): AdminConfig {
+    val email = "dev@localhost"
+    return AdminConfig(
+        googleClientId = null,
+        allowlist = Allowlist(listOf(email)),
+        identity = IdentityVerifier { if (it == "dev") SignIn.Allowed(email) else SignIn.Refused(Refusal.Malformed) },
+        dev = true,
+    )
 }

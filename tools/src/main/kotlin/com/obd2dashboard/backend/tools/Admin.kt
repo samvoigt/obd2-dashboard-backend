@@ -12,12 +12,15 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
+import com.obd2dashboard.backend.admin.CarAdmin
+import com.obd2dashboard.backend.admin.CarHasSessions
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.live.MessageStore
+import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.IssuedToken
 import com.obd2dashboard.backend.registry.RegistryException
@@ -75,7 +78,10 @@ class Admin(
 }
 
 /** What subcommands share, set by [Admin.run]. */
-class Tools(val registry: CarRegistry, val sessions: SessionIndex, val archive: ArchiveService, val messages: MessageStore)
+class Tools(val registry: CarRegistry, val sessions: SessionIndex, val archive: ArchiveService, val messages: MessageStore) {
+    /** The rules shared with the admin page (M6.1). */
+    val admin: CarAdmin = CarAdmin(registry, archive, Messages(messages))
+}
 
 /**
  * A subcommand that talks to the registry. A refusal from the registry is
@@ -122,15 +128,10 @@ class AddCar(private val io: AdminIo) : RegistryCommand("add-car", "Register a c
 
     override suspend fun execute(registry: CarRegistry) {
         if (!chooseToken && tokenFile == null) return showToken(registry.addCar(slugOf(slug), name), "Added")
-        // Read and check the chosen token first, so a typo leaves no car behind.
-        val token = readChosenToken(io, tokenFile, "Token for ${slugOf(slug)}: ")
-        val car = registry.addCar(slugOf(slug), name).car.slug // its generated token is replaced unseen
-        try {
-            registry.setToken(car, token)
-        } catch (e: RegistryException) {
-            registry.removeCar(car)
-            throw e
-        }
+        // Read and check the chosen token first, so a typo costs nothing.
+        val car = slugOf(slug)
+        val token = readChosenToken(io, tokenFile, "Token for $car: ")
+        tools.admin.addCar(car, name, token) // shared with the admin page (M6.4)
         echo("Added $car (${name.trim()}), with your token (ends …${Tokens.hint(token)}).")
         echo("Put the same token in the tablet's Cars page.")
     }
@@ -270,19 +271,15 @@ class RemoveCar(private val io: AdminIo) :
 
     override suspend fun execute(registry: CarRegistry) {
         val car = slugOf(slug)
-        registry.get(car) ?: throw RegistryException.NoSuchCar(car)
-        // Sessions are kept until the owner deletes them (decision 16); a car's
-        // removal must not orphan them silently.
-        val sessions = tools.sessions.listByCar(car.value).size
-        if (sessions > 0) {
-            throw CliktError("$car has $sessions session(s). Delete them first (admin.sh sessions $car, then delete-session).")
+        try {
+            tools.admin.checkRemovable(car) // before asking, so a refusal costs no typing
+            val typed = io.readLine("Type the slug again to remove $car: ")
+            if (typed?.trim() != car.value) throw CliktError("Not removed.")
+            val messages = tools.admin.removeCar(car)
+            echo("Removed $car, and its $messages message(s).")
+        } catch (e: CarHasSessions) {
+            throw CliktError("$car has ${e.count} session(s). Delete them first (admin.sh sessions $car, then delete-session).")
         }
-        val typed = io.readLine("Type the slug again to remove $car: ")
-        if (typed?.trim() != car.value) throw CliktError("Not removed.")
-        registry.removeCar(car)
-        // Its messages were a record for its sessions, which are gone (M5.8).
-        val messages = tools.messages.deleteCar(car.value)
-        echo("Removed $car, and its $messages message(s).")
     }
 }
 
