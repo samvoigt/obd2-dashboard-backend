@@ -8,6 +8,7 @@
   } from './lib/sessionPage'
   import { badge, clockOf, dayOf, duration, lapTime, trackOf, type SessionItem } from './lib/sessions'
   import { merge } from './lib/merge'
+  import { color, translucent } from './lib/theme'
 
   let { slug, id }: { slug: string; id: string } = $props()
 
@@ -47,14 +48,14 @@
   const data = $derived(view ? joined(view, names) : null)
   const bands = $derived(
     merged.provisionalFrom !== null && data && data[0].length > 0
-      ? [{ from: merged.provisionalFrom / 1000, to: data[0][data[0].length - 1]!, color: 'rgba(255, 176, 32, 0.08)' }]
+      ? [{ from: merged.provisionalFrom / 1000, to: data[0][data[0].length - 1]!, color: translucent(color('caution'), 0.1) }]
       : [],
   )
   const units = $derived(view ? names.map((n) => unitOf(view!, n)) : [])
   const numbers = $derived(view ? Object.keys(view.numbers).sort() : [])
   const laps: LapRow[] = $derived(view ? lapRows(view) : [])
   const happened = $derived(view ? events(view) : [])
-  const markers = $derived(happened.map((m) => ({ t: m.t, color: m.kind === 'fault' ? '#ff5c5c' : m.kind === 'gap' ? '#ffb020' : '#8b97a5' })))
+  const markers = $derived(happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : 'muted') })))
   const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
   const speeds = $derived(view ? speedsAtPositions(view) : [])
 
@@ -228,17 +229,17 @@
   .laps tbody tr { cursor: pointer; }
   .laps tbody tr:hover td { background: var(--bg); }
   .laps .time { font-variant-numeric: tabular-nums; font-weight: 600; }
-  .laps tr.best .time { color: var(--live); }
+  .laps tr.best .time { color: var(--in-range); }
   .laps tr.chosen td { background: var(--bg); }
   .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.95rem; }
-  .events li.fault { color: var(--danger); }
-  .events li.gap { color: var(--stale); }
+  .events li.fault { color: var(--critical); }
+  .events li.gap { color: var(--caution); }
   .badge { display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: 600; }
-  .badge.live { color: var(--live); }
-  .badge.stale { color: var(--stale); }
+  .badge.live { color: var(--in-range); }
+  .badge.stale { color: var(--caution); }
   .badge.offline { color: var(--muted); }
-  .fault { color: var(--danger); font-weight: 600; }
+  .fault { color: var(--critical); font-weight: 600; }
   .small { font-size: 0.85rem; }
-  .error { color: var(--danger); }
-  button.link { background: none; border: none; color: var(--idle); text-decoration: underline; padding: 0; cursor: pointer; font-size: inherit; }
+  .error { color: var(--critical); }
+  button.link { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 0; cursor: pointer; font-size: inherit; }
 </style>

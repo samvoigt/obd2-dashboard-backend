@@ -14,5 +14,6 @@ export default defineConfig({
     },
   },
   build: { outDir: 'dist', emptyOutDir: true },
-  test: { environment: 'node' },
+  // app.css is read by the look's tests (M8.1); Vitest otherwise hands every CSS import over empty.
+  test: { environment: 'node', css: { include: [/app\.css/] } },
 })

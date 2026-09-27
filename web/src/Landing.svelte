@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { fetchCars, type CarSummary } from './lib/api'
   import { stateLabel } from './lib/state'
+  import logo from './assets/logo.webp'
 
   let cars: CarSummary[] = $state([])
   let error: string | null = $state(null)
@@ -26,6 +27,7 @@
 </script>
 
 <main>
+  <img class="logo" src={logo} alt="Bad News Bears, 2026 World Tour" width="360" height="357" />
   <h1>Cars</h1>
   {#if error}
     <p class="error">Could not load the cars: {error}</p>
@@ -45,6 +47,7 @@
 </main>
 
 <style>
+  .logo { display: block; width: min(360px, 80vw); height: auto; margin: 8px auto 12px; }
   .cars { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
   .cars a {
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
@@ -54,5 +57,5 @@
   .cars a:hover { border-color: var(--muted); }
   .name { font-weight: 600; }
   .state { color: var(--muted); font-size: 0.95rem; white-space: nowrap; }
-  .error { color: var(--danger); }
+  .error { color: var(--critical); }
 </style>

@@ -9,6 +9,7 @@
   } from './lib/live'
   import { stateLabel } from './lib/state'
   import { merge } from './lib/merge'
+  import { color, translucent } from './lib/theme'
   import { fetchSeries, joined, type Series } from './lib/sessionPage'
 
   let { slug }: { slug: string } = $props()
@@ -63,7 +64,7 @@
       const m = merge(archived, live.history.map((p) => p.rec as Record<string, unknown>), live.signals as Series['signals'])
       chartData = joined(m.series, chartNames)
       const end = chartData[0][chartData[0].length - 1]
-      chartBands = m.provisionalFrom !== null && end !== undefined ? [{ from: m.provisionalFrom / 1000, to: end, color: 'rgba(255, 176, 32, 0.08)' }] : []
+      chartBands = m.provisionalFrom !== null && end !== undefined ? [{ from: m.provisionalFrom / 1000, to: end, color: translucent(color('caution'), 0.1) }] : []
     } else {
       chartData = series(live, chartNames)
       chartBands = []
@@ -194,13 +195,13 @@
     display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 12px;
     font-size: 1.6rem; font-weight: 700; background: var(--panel); border: 2px solid var(--line);
   }
-  .banner.live { border-color: var(--live); }
-  .banner.stale { border-color: var(--stale); color: var(--stale); }
-  .banner.no_session { border-color: var(--idle); }
+  .banner.live { border-color: var(--in-range); }
+  .banner.stale { border-color: var(--caution); color: var(--caution); }
+  .banner.no_session { border-color: var(--accent); }
   .banner.offline { color: var(--muted); }
   .small { font-size: 0.85rem; font-weight: 400; }
   .session { margin-top: -8px; }
-  .fault { color: var(--danger); font-weight: 600; }
+  .fault { color: var(--critical); font-weight: 600; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 16px 0; }
   .pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
   .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }

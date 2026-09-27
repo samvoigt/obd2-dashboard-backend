@@ -146,20 +146,20 @@
   button.link { background: none; border: none; color: var(--muted); text-decoration: underline; padding: 0; }
   .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .preset { font-weight: 800; font-size: 1.05rem; padding: 14px 8px; letter-spacing: 0.03em; }
-  .preset.pit, .preset.box { border-color: var(--danger); color: var(--danger); }
-  .preset.slow { border-color: var(--stale); color: var(--stale); }
+  .preset.pit, .preset.box { border-color: var(--critical); color: var(--critical); }
+  .preset.slow { border-color: var(--caution); color: var(--caution); }
   .current { border: 2px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-  .current.displayed { border-color: var(--live); }
-  .current.received { border-color: var(--idle); }
-  .current.queued { border-color: var(--stale); }
+  .current.displayed { border-color: var(--in-range); }
+  .current.received { border-color: var(--accent); }
+  .current.queued { border-color: var(--caution); }
   .current .text { font-size: 1.6rem; font-weight: 800; overflow-wrap: anywhere; }
   .current .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
   .current .state { font-weight: 600; }
   .clear { margin-left: auto; }
   .count { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
-  .count.over { color: var(--danger); }
+  .count.over { color: var(--critical); }
   .recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; }
   .recent li { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-top: 4px; }
   .rtext { font-weight: 600; overflow-wrap: anywhere; }
-  .error { color: var(--danger); margin: 0; }
+  .error { color: var(--critical); margin: 0; }
 </style>

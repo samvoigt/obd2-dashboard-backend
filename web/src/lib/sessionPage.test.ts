@@ -95,10 +95,17 @@ describe('the map', () => {
     expect(speedsAtPositions(withGps)).toEqual([50, 150])
     expect(speedSignal(series({ numbers: { 'vehicle.speed': { t: [0], v: [1] } } }))).toBe('vehicle.speed')
     expect(speedsAtPositions(series({ positions: { t: [1], lat: [1], lon: [1] } }))).toEqual([null])
-    expect(speedColor(0, 0, 100)).toBe('hsl(240, 85%, 55%)')
-    expect(speedColor(100, 0, 100)).toBe('hsl(0, 85%, 55%)')
-    expect(speedColor(200, 0, 100)).toBe('hsl(0, 85%, 55%)')
-    expect(speedColor(50, 50, 50)).toBe('hsl(120, 85%, 55%)')
-    expect(speedColor(null, 0, 100)).toBe('#8b97a5')
+    const stops = ['#000000', '#ffffff', '#ff0000']
+    expect(speedColor(0, 0, 100, stops)).toBe('#000000')
+    expect(speedColor(25, 0, 100, stops)).toBe('#808080') // halfway to the second stop
+    expect(speedColor(50, 0, 100, stops)).toBe('#ffffff')
+    expect(speedColor(75, 0, 100, stops)).toBe('#ff8080')
+    expect(speedColor(100, 0, 100, stops)).toBe('#ff0000')
+    expect(speedColor(200, 0, 100, stops)).toBe('#ff0000') // past the top: the top
+    expect(speedColor(-5, 0, 100, stops)).toBe('#000000')
+    expect(speedColor(50, 50, 50, stops)).toBe('#ffffff') // one speed only: the middle
+    expect(speedColor(null, 0, 100, stops)).toBeNull()
+    expect(speedColor(10, 0, 100, [])).toBeNull()
+    expect(speedColor(10, 0, 100, ['#ABCDEF'])).toBe('#abcdef')
   })
 })

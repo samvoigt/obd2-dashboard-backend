@@ -1,15 +1,23 @@
-/* A pit wall at night: dark, high contrast, large type, fine on a phone. */
+/*
+ * A pit wall at night, in the Bad News Bears' colours (M8.1): the team logo's
+ * pink, blue, mint and light pink, the same values the tablet app reads from
+ * it, used as the app uses them (its decision 100): no amber or red. The dark
+ * neutrals are the app's too. **Every colour on the site is here**, by role; a
+ * test checks that nothing is written anywhere else, and that each reads.
+ */
 :root {
-  --bg: #0b0d10;
-  --panel: #151a20;
+  /* Neutrals. */
+  --bg: #0a0b0d;
+  --panel: #16181c;
   --line: #262e38;
-  --text: #e8edf2;
-  --muted: #8b97a5;
-  --live: #3ddc84;
-  --stale: #ffb020;
-  --idle: #5aa0ff;
-  --offline: #6b7480;
-  --danger: #ff5c5c;
+  --text: #f2f4f7;
+  --muted: #9aa3ae;
+  --no-data: #4a5058;
+  /* The logo. */
+  --accent: #01b7f9;   /* sky blue: links, buttons, the chosen, "connected, no session" */
+  --in-range: #67efe6; /* mint: live, in range */
+  --caution: #ffa9de;  /* light pink: behind, caution */
+  --critical: #ff0099; /* hot pink: critical, errors, trouble codes */
   color-scheme: dark;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
@@ -22,7 +30,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
 .muted { color: var(--muted); }
 .dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.45em; vertical-align: 0.05em; }
-.dot.live { background: var(--live); box-shadow: 0 0 8px var(--live); }
-.dot.stale { background: var(--stale); }
-.dot.no_session { background: var(--idle); }
-.dot.offline { background: var(--offline); }
+.dot.live { background: var(--in-range); box-shadow: 0 0 8px var(--in-range); }
+.dot.stale { background: var(--caution); }
+.dot.no_session { background: var(--accent); }
+.dot.offline { background: var(--no-data); }

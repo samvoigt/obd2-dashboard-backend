@@ -150,11 +150,26 @@ export function speedsAtPositions(series: Series): (number | null)[] {
   })
 }
 
-/** Slow is blue, fast is red, through green and yellow; grey where unknown. */
-export function speedColor(speed: number | null, min: number, max: number): string {
-  if (speed === null || !Number.isFinite(speed)) return '#8b97a5'
+/**
+ * [speed]'s colour on a scale of [stops] (`#rrggbb`, slow to fast; the site's are
+ * blue, mint, light pink, hot pink), mixed between the two it falls between.
+ * Null where the speed isn't known, for the caller's "no data" colour.
+ */
+export function speedColor(speed: number | null, min: number, max: number, stops: string[]): string | null {
+  if (speed === null || !Number.isFinite(speed) || stops.length === 0) return null
   const f = max > min ? Math.min(1, Math.max(0, (speed - min) / (max - min))) : 0.5
-  return `hsl(${Math.round(240 * (1 - f))}, 85%, 55%)`
+  const at = f * (stops.length - 1)
+  const i = Math.min(stops.length - 2, Math.floor(at))
+  if (stops.length === 1) return stops[0]!.toLowerCase()
+  return mix(stops[i]!, stops[i + 1]!, at - i)
+}
+
+/** Two `#rrggbb` colours mixed, [f] of the way from [a] to [b]. */
+export function mix(a: string, b: string, f: number): string {
+  const channels = (hex: string) => { const n = parseInt(hex.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] }
+  const x = channels(a)
+  const y = channels(b)
+  return '#' + x.map((c, k) => Math.round(c + (y[k]! - c) * f).toString(16).padStart(2, '0')).join('')
 }
 
 export async function fetchSeries(id: string, fetcher: typeof fetch = fetch): Promise<Series | null> {

@@ -3,6 +3,7 @@
   import 'leaflet/dist/leaflet.css'
   import { onMount } from 'svelte'
   import { nearest, speedColor } from './lib/sessionPage'
+  import { color, speedStops } from './lib/theme'
 
   let {
     t,
@@ -38,7 +39,7 @@
     }).addTo(map)
 
     trace = L.layerGroup().addTo(map)
-    dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#111', fillOpacity: 1 })
+    dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: color('text'), weight: 2, fillColor: color('bg'), fillOpacity: 1 })
 
     const resize = new ResizeObserver(() => map?.invalidateSize())
     resize.observe(box)
@@ -60,7 +61,9 @@
     const min = known.length > 0 ? Math.min(...known) : 0
     const max = known.length > 0 ? Math.max(...known) : 0
     const step = (s: number | null) => (s === null || max === min ? -1 : Math.min(STEPS - 1, Math.floor(((s - min) / (max - min)) * STEPS)))
-    const colorOf = (k: number) => (k < 0 ? speedColor(null, 0, 0) : speedColor(min + ((k + 0.5) / STEPS) * (max - min), min, max))
+    const stops = speedStops()
+    const unknown = color('no-data')
+    const colorOf = (k: number) => (k < 0 ? unknown : speedColor(min + ((k + 0.5) / STEPS) * (max - min), min, max, stops) ?? unknown)
 
     // Runs of one speed step, each run sharing its end point with the next so the trace is unbroken.
     let run: L.LatLngExpression[] = []
@@ -100,6 +103,6 @@
 <div class="map" bind:this={box}></div>
 
 <style>
-  .map { width: 100%; height: 360px; border-radius: 10px; overflow: hidden; background: #1a1f26; }
+  .map { width: 100%; height: 360px; border-radius: 10px; overflow: hidden; background: var(--panel); }
   .map :global(.leaflet-control-attribution) { font-size: 0.7rem; }
 </style>

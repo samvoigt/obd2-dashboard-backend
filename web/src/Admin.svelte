@@ -395,7 +395,7 @@
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 12px 0; }
   .signin { display: grid; gap: 12px; justify-items: start; }
   .who { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .once { border-color: var(--stale); display: grid; gap: 8px; }
+  .once { border-color: var(--caution); display: grid; gap: 8px; }
   .once code { font-size: 1rem; background: var(--bg); padding: 10px; border-radius: 8px; overflow-wrap: anywhere; user-select: all; }
   .form { display: grid; gap: 10px; }
   .inner { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
@@ -404,8 +404,8 @@
   input:not([type='checkbox']) { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 1rem; min-width: 0; width: 100%; max-width: 420px; }
   button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 0.95rem; cursor: pointer; }
   button:disabled { opacity: 0.5; cursor: default; }
-  button.primary { border-color: var(--idle); color: var(--idle); font-weight: 600; }
-  button.danger { border-color: var(--danger); color: var(--danger); }
+  button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button.danger { border-color: var(--critical); color: var(--critical); }
   button.link { background: none; border: none; color: var(--muted); text-decoration: underline; padding: 0; }
   .add { margin: 12px 0 4px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -416,13 +416,13 @@
   dt { color: var(--muted); }
   dd { margin: 0; }
   .actions button { font-size: 0.9rem; }
-  .hint { color: var(--stale); margin: 0; font-size: 0.9rem; }
-  .warn { color: var(--stale); margin: 0; }
-  .error { color: var(--danger); }
+  .hint { color: var(--caution); margin: 0; font-size: 0.9rem; }
+  .warn { color: var(--caution); margin: 0; }
+  .error { color: var(--critical); }
   .small { font-size: 0.85rem; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
   .live-now { margin: 0 0 10px; }
-  .live-text { color: var(--live); font-weight: 600; }
+  .live-text { color: var(--in-range); font-weight: 600; }
   .sessions { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   .sessions li { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
   .sessions li:first-child { border-top: none; padding-top: 0; }

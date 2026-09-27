@@ -154,6 +154,59 @@ the components); looked at in Chrome: the landing page, a car's page streaming
 (live, behind, offline), a past session with its map, the admin page, phone
 width.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The variables are renamed to roles**, as the app names them: `--live` →
+>   `--in-range` (mint), `--stale` → `--caution` (light pink), `--idle` →
+>   `--accent` (blue), `--danger` → `--critical` (hot pink), `--offline` →
+>   `--no-data` (grey). `--bg`, `--panel`, `--line`, `--text` and `--muted`
+>   stay, set to the app's neutrals (`#0A0B0D`, `#16181C`, `#F2F4F7`,
+>   `#9AA3AE`), which are nearly the site's already.
+> - **About 20 colours are written in components**: the chart's lines, axes
+>   and grid; its markers and shading; the map's dot, background and speed
+>   scale. The chart (uPlot) and the map (Leaflet) draw on canvas and need
+>   real colour strings, not `var(--…)`, so **`theme.ts` reads the variables at
+>   run time** (and makes a translucent version for shading). `speedColor`
+>   takes its colour stops as an argument, so it stays pure: blue for slow,
+>   through mint and light pink, to hot pink for fast.
+> - **The chart's lines:** mint, then blue. Markers: faults critical, gaps
+>   caution, stopped signals muted. Shading: caution, translucent.
+> - **Images:** the server serves only `/assets` (and the pages), so the logo
+>   and the tab's bear go in `web/src/assets/`, imported so Vite puts them
+>   there with hashed names. `web/scripts/make_images.sh` makes them with
+>   macOS's `sips` (to render the PDF) and ImageMagick, as the app's own icon
+>   script does. It **reads** the PDF where it lies and writes only here.
+> - **The tests read `app.css` itself**, so the colours have one source: the
+>   legibility test (WCAG contrast, and CIE Lab distance between caution,
+>   critical, in range and the accent), and a scan of `src/` for any colour
+>   written outside it.
+
+> **✅ Done, 2026-09-27.**
+> - **New:** `app.css`'s roles, `theme.ts`, `speedColor` on colour stops,
+>   `web/scripts/make_images.sh` (reads the PDF, writes only here),
+>   `src/assets/logo.webp` (118 KB) and `bear.png`, the logo on the landing
+>   page, the bear as the tab's icon.
+> - **Tests:** 17 new (77 in all), including the legibility checks and the
+>   scan, which found nothing left outside `app.css`. Each guard was shown to
+>   fail when it should: a colour written into a component, `rgb()` in one, a
+>   critical made to look like caution, unreadable text, a blue that isn't the
+>   logo's.
+> - **Looked at in Chrome** against the dev server: the landing page with the
+>   logo; a car's page streaming (live mint, behind light pink, offline grey,
+>   read from the page's own classes); a past session (the trace blue through
+>   mint to pink, the fault code hot pink, the markers); the admin page (blue
+>   buttons, pink Remove and Delete, mint "Live now"); 390 px wide.
+> - **Found by looking:**
+>   - **The logo came out muted** (`#EA3396` for `#FF0099`): `sips` renders
+>     into Display P3 and tags the image with that profile, and stripping the
+>     profile made browsers read it as sRGB. The script converts to sRGB first;
+>     the pink is now `#FE0098`.
+>   - **Mint and blue, as two thin chart lines, were hard to tell apart**,
+>     though far enough apart as solid colours. The second line is light pink.
+> - **Found by the type check:** the test's use of Node's file functions isn't
+>   in the site's types. It reads through Vite instead (`?raw`,
+>   `import.meta.glob`), and Vitest is told to hand `app.css` over rather than
+>   blank it, as it does every CSS file by default.
+
 ### M8.2 — The widgets
 
 `web/`: Gauge, Number, Bar, Status light, Faults, G-meter, Live map, Laps

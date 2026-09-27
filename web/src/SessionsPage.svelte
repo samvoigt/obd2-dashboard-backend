@@ -83,10 +83,10 @@
   li a:hover { border-color: var(--muted); }
   .when, .facts { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
   .badge { display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: 600; }
-  .badge.live { color: var(--live); }
-  .badge.stale { color: var(--stale); }
+  .badge.live { color: var(--in-range); }
+  .badge.stale { color: var(--caution); }
   .badge.offline { color: var(--muted); }
-  .dot.stale { background: var(--stale); }
-  .fault { color: var(--danger); font-weight: 600; }
-  .error { color: var(--danger); }
+  .dot.stale { background: var(--caution); }
+  .fault { color: var(--critical); font-weight: 600; }
+  .error { color: var(--critical); }
 </style>

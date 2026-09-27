@@ -2,6 +2,7 @@
   import uPlot from 'uplot'
   import 'uplot/dist/uPlot.min.css'
   import { onDestroy, onMount } from 'svelte'
+  import { color, seriesColors } from './lib/theme'
 
   let {
     data,
@@ -28,7 +29,6 @@
     bands?: { from: number; to: number; color: string }[]
   } = $props()
 
-  const COLORS = ['#3ddc84', '#5aa0ff', '#ffb020']
   let box: HTMLDivElement
   let plot: uPlot | null = null
   let shape = ''
@@ -36,6 +36,9 @@
   function options(width: number): uPlot.Options {
     // A second axis only when the second signal's unit differs from the first's.
     const twoScales = names.length > 1 && units[1] !== units[0]
+    const COLORS = seriesColors()
+    const muted = color('muted')
+    const line = color('line')
     return {
       width,
       height: 280,
@@ -74,12 +77,12 @@
         // Clock time, 24-hour, to the second: "14:32:05". Short enough, with room between ticks,
         // not to collide on a phone (found looking at the page at 390 px).
         {
-          stroke: '#8b97a5', grid: { stroke: '#262e38' }, ticks: { stroke: '#262e38' }, space: 70,
+          stroke: muted, grid: { stroke: line }, ticks: { stroke: line }, space: 70,
           values: (_u, ticks) =>
             ticks.map((t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })),
         },
-        { stroke: '#8b97a5', grid: { stroke: '#262e38' }, ticks: { stroke: '#262e38' }, label: units[0] ?? '', scale: 'a' },
-        ...(twoScales ? [{ stroke: '#8b97a5', side: 1, grid: { show: false }, label: units[1] ?? '', scale: 'b' } as uPlot.Axis] : []),
+        { stroke: muted, grid: { stroke: line }, ticks: { stroke: line }, label: units[0] ?? '', scale: 'a' },
+        ...(twoScales ? [{ stroke: muted, side: 1, grid: { show: false }, label: units[1] ?? '', scale: 'b' } as uPlot.Axis] : []),
       ],
       series: [
         // The legend's time, as the axis writes it: 24-hour, to the second.
