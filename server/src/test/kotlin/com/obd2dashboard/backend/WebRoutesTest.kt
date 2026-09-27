@@ -21,7 +21,7 @@ class WebRoutesTest {
     @Test
     fun `the landing page and a car's page are the site`() = testApplication {
         application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
-        for (path in listOf("/", "/cars/yaris", "/cars/yaris/", "/cars/yaris/sessions", "/cars/yaris/sessions/", "/cars/yaris/sessions/7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f")) {
+        for (path in listOf("/", "/cars/yaris", "/cars/yaris/", "/cars/yaris/sessions", "/cars/yaris/sessions/", "/cars/yaris/sessions/7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f", "/courses", "/courses/nhms")) {
             val response = client.get(path)
             response.status shouldBe HttpStatusCode.OK
             response.headers[HttpHeaders.ContentType]!! shouldStartWith "text/html"

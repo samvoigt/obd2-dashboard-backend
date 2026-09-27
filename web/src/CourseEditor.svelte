@@ -153,8 +153,10 @@
   const pt = (ll: L.LatLng): Pt => [ll.lng, ll.lat]
 
   /** A two-point line with draggable ends. */
-  function drawLine(a: Pt, b: Pt, colour: string, label: string, moved: (a: Pt, b: Pt) => void) {
-    const line = L.polyline([latlng(a), latlng(b)], { color: colour, weight: 5 }).bindTooltip(label, { permanent: true, direction: 'center', className: 'course-label' })
+  function drawLine(a: Pt, b: Pt, colour: string, label: string, moved: (a: Pt, b: Pt) => void, direction: L.Direction = 'center') {
+    // The start/finish and the pit line sit side by side: their labels go either side (M12.5).
+    const offset: L.PointTuple = direction === 'left' ? [-6, 0] : direction === 'right' ? [6, 0] : [0, 0]
+    const line = L.polyline([latlng(a), latlng(b)], { color: colour, weight: 5 }).bindTooltip(label, { permanent: true, direction, offset, className: 'course-label' })
     drawn!.addLayer(line)
     if (readOnly) return
     const ends = [a, b].map((p, i) => {
@@ -205,7 +207,7 @@
     c.startFinish.forEach((s, i) => {
       if (s.layout !== null && s.layout !== sel) return
       drawLine(s.a, s.b, color('text'), s.layout ? `S/F ${s.layout}` : 'S/F', (a, b) =>
-        change({ ...c, startFinish: c.startFinish.map((x, j) => (j === i ? { ...x, a, b } : x)) }))
+        change({ ...c, startFinish: c.startFinish.map((x, j) => (j === i ? { ...x, a, b } : x)) }), 'left')
     })
     if (sel) {
       for (const s of sectorsOf(c, sel)) {
@@ -215,7 +217,7 @@
     }
     for (const [key, label] of [['pitIn', 'Pit in'], ['pitOut', 'Pit out'], ['pitLine', 'Pit line']] as const) {
       const line = c[key]
-      if (line) drawLine(line.a, line.b, color('critical'), label, (a, b) => change({ ...c, [key]: { ...line, a, b } }))
+      if (line) drawLine(line.a, line.b, color('critical'), label, (a, b) => change({ ...c, [key]: { ...line, a, b } }), 'right')
     }
     if (firstPoint) drawn.addLayer(L.circleMarker(latlng(firstPoint), { radius: 6, color: color('caution'), weight: 3 }))
   })

@@ -150,3 +150,27 @@ private fun problemsOf(id: String?, name: String, geojson: JsonObject): List<Str
     listOfNotNull(id?.let(CourseRules::idProblem), CourseRules.nameProblem(name)) +
         ((CourseRules.check(geojson) as? CourseCheck.Refused)?.problems.orEmpty())
 
+/**
+ * Courses as anyone may see them (M12.5): public like the rest of the site
+ * (decision 11), since a course holds nothing private. Reads only.
+ */
+fun Route.publicCourseRoutes(courses: CourseStore) {
+    get("/api/courses") {
+        call.respond(courses.current().map { it.summary() })
+    }
+
+    get("/api/courses/{id}") {
+        val id = call.parameters["id"]?.takeIf { CourseRules.idProblem(it) == null }
+        val version = call.request.queryParameters["version"]?.toIntOrNull()
+        val course = id?.let { courses.get(it, version) }
+            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such course."))
+        call.respond(course.view())
+    }
+
+    get("/api/courses/{id}/versions") {
+        val id = call.parameters["id"]?.takeIf { CourseRules.idProblem(it) == null }
+            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such course."))
+        call.respond(courses.versions(id).map { CourseVersion(it.version, it.name, it.saved.toEpochMilli()) }.reversed())
+    }
+}
+

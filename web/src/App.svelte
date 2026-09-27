@@ -19,6 +19,10 @@
 {:else if import.meta.env.DEV && current.page === 'preview'}
   <!-- Loaded only in the dev server: in the build this branch is false, and the preview is dropped. -->
   {#await import('./WidgetsPreview.svelte') then m}<m.default slug={current.slug} />{/await}
+{:else if current.page === 'courses'}
+  {#await import('./CoursesPage.svelte') then m}<m.default />{/await}
+{:else if current.page === 'course'}
+  {#await import('./CoursePage.svelte') then m}<m.default id={current.id} />{/await}
 {:else if current.page === 'admin-courses'}
   {#await import('./CoursesAdmin.svelte') then m}<m.default />{/await}
 {:else if current.page === 'admin-course'}

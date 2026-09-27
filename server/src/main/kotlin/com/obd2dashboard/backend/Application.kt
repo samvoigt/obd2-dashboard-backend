@@ -112,6 +112,7 @@ fun Application.module(
             registry.list().any { car -> archive.sessionsOf(car.slug.value).any { it.summary?.track == id } }
         }
         adminCourseRoutes(courses, courseInUse, clock, adminAuth, admin)
+        publicCourseRoutes(courses)
         sessionRoutes(registry, archive, hub, clock)
         messageRoutes(registry, crewAuth, crew)
         webRoutes()

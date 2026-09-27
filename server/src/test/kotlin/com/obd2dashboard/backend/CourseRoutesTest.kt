@@ -186,5 +186,24 @@ class CourseRoutesTest {
             listOf("a name cannot be blank", "a course needs at least one layout")
         courses.current() shouldBe emptyList()
     }
+
+    @Test
+    fun `anyone can read courses and every version, and change nothing`() = testApplication {
+        app()
+        val cookie = signIn()
+        call(HttpMethod.Put, "/api/admin/courses/nhms", cookie, save(0, "NHMS"))
+        call(HttpMethod.Put, "/api/admin/courses/nhms", cookie, save(1, "New Hampshire Motor Speedway"))
+        val list = Json.parseToJsonElement(call(HttpMethod.Get, "/api/courses", null).bodyAsText()).jsonArray
+        list.single().jsonObject.getValue("version").jsonPrimitive.content shouldBe "2"
+        json(call(HttpMethod.Get, "/api/courses/nhms", null)).getValue("name").jsonPrimitive.content shouldBe "New Hampshire Motor Speedway"
+        json(call(HttpMethod.Get, "/api/courses/nhms?version=1", null)).getValue("name").jsonPrimitive.content shouldBe "NHMS"
+        Json.parseToJsonElement(call(HttpMethod.Get, "/api/courses/nhms/versions", null).bodyAsText()).jsonArray.size shouldBe 2
+        for (bad in listOf("/api/courses/nope", "/api/courses/NHMS", "/api/courses/nhms?version=9")) {
+            call(HttpMethod.Get, bad, null).status shouldBe HttpStatusCode.NotFound
+        }
+        // Reading is all: every change stays behind the admin sign-in.
+        call(HttpMethod.Put, "/api/courses/nhms", null, save(2, "Mine now")).status shouldBe HttpStatusCode.NotFound
+        courses.get("nhms")!!.version shouldBe 2
+    }
 }
 

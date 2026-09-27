@@ -309,8 +309,42 @@ phone width for viewing (drawing is for a desktop).
 sectors, and its version history. A session whose laps name a course links to
 it.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The public API** mirrors the admin's reads: `GET /api/courses`, `GET
+>   /api/courses/{id}` (`?version=`), `GET /api/courses/{id}/versions`, with no
+>   sign-in (courses hold nothing private, and the site is public, decision
+>   11). The same views as the admin's (`CourseSummary`, `CourseView`).
+> - **Pages:** `/courses` and `/courses/{id}` served as the site's explicit
+>   page routes (`WebRoutes`), and in `routes.ts`. Car slugs live under
+>   `/cars/`, so nothing collides.
+> - **A read-only `CourseMap.svelte`**: the layouts with their arrows, the
+>   start/finish, each layout's sectors numbered, the pit lines; a layout
+>   chosen to see its sectors. The editor keeps its own editing map.
+> - **Sessions link to their course**: the session page already shows its
+>   track (`trackOf`: the summary's `track`, today's tablet laps naming
+>   `nhms`); it becomes a link to `/courses/{track}`.
+
 **Done when:** looked at in Chrome; tests for the public API (no secrets in
 it, which it has none of, and every version readable).
+
+> **✅ Done, 2026-09-27.** `GET /api/courses`, `/api/courses/{id}`
+> (`?version=`), `/api/courses/{id}/versions`; `/courses` and `/courses/{id}`
+> (`CoursesPage`, `CoursePage`, a read-only `CourseMap`); a session's track
+> links to its course on the session's page.
+> - **Tests:** Kotlin 1 (anyone reads courses and every version, bad ids and
+>   versions 404, and nothing is changed without the admin sign-in), the pages
+>   served; Vitest 1 (the routes; 115 in all).
+> - **Mutations: 3**, two killed; one equivalent (looking up an id that fails
+>   the id rule: no such course can be stored, so it's a 404 either way; the
+>   rule only saves a pointless read).
+> - **Looked at in Chrome:** the list; NHMS with its three layouts (lengths,
+>   sectors), "start/finish not yet checked at the track" in the caution
+>   colour, a layout chosen to show its arrows; a session with NHMS laps
+>   linking "nhms · Road Course" to the course; 390 px, no sideways scroll.
+> - **Found by looking:** the start/finish's label was hidden under the pit
+>   line's, 22 m away; they now sit either side, on the public map and in the
+>   editor. And in the sessions list each row is a link already, so the
+>   course link lives on the session's page only.
 
 ### M12.6 — Down to the tablet
 

@@ -52,3 +52,12 @@ describe('the course editor (M12.4)', () => {
     expect(route('/admin')).toEqual({ page: 'admin' })
   })
 })
+
+describe('courses, public (M12.5)', () => {
+  it('has a list and a page per course', () => {
+    expect(route('/courses')).toEqual({ page: 'courses' })
+    expect(route('/courses/nhms/')).toEqual({ page: 'course', id: 'nhms' })
+    expect(route('/courses/NHMS')).toEqual({ page: 'landing' })
+  })
+})
+
