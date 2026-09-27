@@ -448,6 +448,26 @@ look throughout), US units, phone width; then clean up.
 
 **Done when:** every step passes on the deployed site, with screenshots kept.
 
+> **Validated against the code and the service, 2026-09-27, before building.**
+> - **As M7.8 did it:** a `smoke-m8` car, its token generated into a
+>   `chmod 600` scratch file (`add-car --token-file`), never printed; the
+>   replay streams to the run.app URL, as the tablet does. Only `outback-2018`
+>   is registered; it isn't touched.
+> - **The drive across the deploy** is the synthetic race (35 minutes, every
+>   widget busy: G, GPS, laps), live *and* uploading, under a fresh session id,
+>   at speed 1, under `caffeinate -s` (M8.4). The site is opened on
+>   https://badnewsbears.live/cars/smoke-m8 **before** the deploy, so the old
+>   page's stream is seen to reconnect as well as the replay's.
+> - **Serving now:** revision `00016`, M7's. M8.1–M8.4 are four commits, pushed
+>   before the deploy so the image's tag is a commit on GitHub.
+> - **Units default to metric** (`loadSystem`), and each viewer's choice is
+>   kept in their browser, per host: US is chosen on the domain by the switch,
+>   as a viewer would.
+> - **Phone width** by resizing the Chrome window; a phone's CPU was M8.4's.
+> - **Clean-up:** the car's sessions deleted (the bucket's files with them),
+>   the car removed, the token file deleted; `admin.sh list` shows only
+>   `outback-2018` again.
+
 ### M8.6 — Record it
 
 Decisions (the fixed layout, its slots and generic ranges; the Bad News Bears
