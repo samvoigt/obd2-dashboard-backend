@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, SHOWN, SLOTS, SWEEP, valueOf, zoneBands,
+  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, SHOWN, SLOTS, slotSignal, SWEEP, valueOf, zoneBands,
 } from './dashboard'
 import type { Point } from './live'
 
@@ -51,13 +51,29 @@ describe('ranges and zones', () => {
 })
 
 describe('the slots', () => {
-  it('show each signal once, and the tiles below leave them out', () => {
-    const all = [...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses]
+  it('show each signal once, and the tiles below leave out every choice', () => {
+    const all = [...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses].flat()
     expect(new Set(all).size).toBe(all.length)
     expect(SHOWN.size).toBe(all.length)
+    expect(SHOWN.has('vehicle.system_voltage')).toBe(true)
     expect(SLOTS.gauges.length).toBeLessThanOrEqual(4)
     expect(SLOTS.numbers.length).toBeLessThanOrEqual(6)
     expect(SLOTS.bars.length).toBeLessThanOrEqual(4)
+  })
+  it('each show the first signal the session sends (M11)', () => {
+    const charging = ['control_module.voltage', 'vehicle.system_voltage']
+    // The first drive declared only the battery's voltage.
+    expect(slotSignal(charging, new Set(['engine.rpm', 'vehicle.system_voltage']), {})).toBe('vehicle.system_voltage')
+    expect(slotSignal(charging, new Set(['control_module.voltage', 'vehicle.system_voltage']), {})).toBe('control_module.voltage')
+    // No session record yet: the first with a reading.
+    expect(slotSignal(charging, new Set(), { 'vehicle.system_voltage': { value: 14.1 } })).toBe('vehicle.system_voltage')
+    // What the session declares wins over a leftover reading.
+    expect(slotSignal(charging, new Set(['control_module.voltage']), { 'vehicle.system_voltage': { value: 14.1 } })).toBe('control_module.voltage')
+    // Neither: the first, which reads "—".
+    expect(slotSignal(charging, new Set(['engine.rpm']), {})).toBe('control_module.voltage')
+  })
+  it('give the battery voltage the charging zones', () => {
+    expect(profile('vehicle.system_voltage', 'V')).toEqual(profile('control_module.voltage', 'V'))
   })
 })
 

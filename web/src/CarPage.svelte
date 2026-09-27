@@ -9,7 +9,7 @@
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
   import Bar from './widgets/Bar.svelte'
-  import { freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, SHOWN, SLOTS, timings, valueOf, type Peaks } from './lib/dashboard'
+  import { freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, SHOWN, SLOTS, slotSignal, timings, valueOf, type Peaks } from './lib/dashboard'
   import { nearest } from './lib/sessionPage'
   import { columnShown, shownUnit, toShown } from './lib/units'
   import { units } from './lib/unitsState.svelte'
@@ -51,6 +51,9 @@
   // The dashboard (M8): its readings, and whether each is current, by one pass over the history per batch.
   const serverNow = $derived(now - live.offsetMs)
   const timing = $derived(timings(live.history, SHOWN))
+  // Each slot shows the first of its signals this session sends (M11).
+  const declared = $derived(new Set(live.signals.map((s) => s.name)))
+  const slotOf = (choices: readonly string[]) => slotSignal(choices, declared, live.latest)
   const current = (n: string) => freshnessOf(n, timing, live.latest[n], !!live.stopped[n], serverNow)
   const trail = $derived(gTrail(live.history, serverNow))
   let peak: Peaks = $state(NO_PEAKS)
@@ -197,17 +200,17 @@
     <!-- The dashboard (M8): one fixed layout, Sam's slots (dashboard.ts). -->
     {#if SLOTS.gauges.length > 0}
       <section class="dash gauges">
-        {#each SLOTS.gauges as n (n)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+        {#each SLOTS.gauges as c (c[0])}{@const n = slotOf(c)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
     {#if SLOTS.numbers.length > 0}
       <section class="dash numbers">
-        {#each SLOTS.numbers as n (n)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+        {#each SLOTS.numbers as c (c[0])}{@const n = slotOf(c)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
     {#if SLOTS.bars.length > 0}
       <section class="dash bars">
-        {#each SLOTS.bars as n (n)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+        {#each SLOTS.bars as c (c[0])}{@const n = slotOf(c)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
     <!-- Always there (M10): empty, they say nothing has come, where hidden they'd say nothing. -->
@@ -217,7 +220,7 @@
     </section>
     {#if laps.length > 0}<LapsPanel rows={laps} />{/if}
     <section class="dash statuses">
-      {#each SLOTS.statuses as n (n)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
+      {#each SLOTS.statuses as c (c[0])}{@const n = slotOf(c)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
       <Faults {codes} />
     </section>
 

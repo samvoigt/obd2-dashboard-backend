@@ -8,20 +8,32 @@ import type { Point, Rec } from './live'
 import { lapRows, type LapRecord, type LapRow, type Series } from './sessionPage'
 
 /**
- * Which signal fills each slot: Sam's choice (2026-09-27): "rpm, speed, coolant
- * temp, charging, gps speed, acceleration, gps position, status lights".
- * Charging is the control module's supply voltage, the charging system's. The
- * G-meter and the map are fixed sections. No bars for now.
+ * What fills each slot: Sam's choice (2026-09-27): "rpm, speed, coolant temp,
+ * charging, gps speed, acceleration, gps position, status lights". The G-meter
+ * and the map are fixed sections. No bars for now.
+ *
+ * **A slot is a list of signals, the first a session sends shown** (M11): a
+ * tablet sends only what its own dashboard shows plus chosen extras, so one
+ * name can be missing from a drive. Charging is the control module's supply
+ * voltage, or the battery's at the OBD port (the first drive sent only that).
  */
 export const SLOTS = {
-  gauges: ['engine.rpm', 'vehicle.speed', 'engine.coolant_temperature', 'control_module.voltage'],
-  numbers: ['gps.speed'],
+  gauges: [['engine.rpm'], ['vehicle.speed'], ['engine.coolant_temperature'], ['control_module.voltage', 'vehicle.system_voltage']],
+  numbers: [['gps.speed']],
   bars: [],
-  statuses: ['diagnostics.mil', 'fuel.system_1_status'],
-} as const satisfies Record<string, readonly string[]>
+  statuses: [['diagnostics.mil'], ['fuel.system_1_status']],
+} as const satisfies Record<string, readonly (readonly string[])[]>
 
-/** Every signal the dashboard shows, so the tiles below can leave them out. */
-export const SHOWN: ReadonlySet<string> = new Set([...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses])
+/** Every signal any slot may show, so the tiles below leave them all out. */
+export const SHOWN: ReadonlySet<string> = new Set([...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses].flat())
+
+/**
+ * The signal a slot shows: the first of [choices] the session declares; with no
+ * session record yet, the first with a reading; else the first, which reads "—".
+ */
+export function slotSignal(choices: readonly string[], declared: ReadonlySet<string>, latest: Readonly<Record<string, unknown>>): string {
+  return choices.find((n) => declared.has(n)) ?? choices.find((n) => latest[n] !== undefined) ?? choices[0]!
+}
 
 export type Level = 'normal' | 'caution' | 'critical'
 
@@ -56,6 +68,7 @@ const BY_SIGNAL: Record<string, Partial<Profile>> = {
   'engine.coolant_temperature': { min: 40, max: 130, caution: { above: 105 }, critical: { above: 115 } },
   'engine.oil_temperature': { min: 40, max: 150, caution: { above: 120 }, critical: { above: 135 } },
   'control_module.voltage': { min: 10, max: 16, caution: { below: 12.0 }, critical: { below: 11.5 } },
+  'vehicle.system_voltage': { min: 10, max: 16, caution: { below: 12.0 }, critical: { below: 11.5 } },
   'ambient.air_temperature': { min: -20, max: 50 },
   'intake.air_temperature': { min: -20, max: 80 },
   'fuel.tank_level': { caution: { below: 15 }, critical: { below: 7 } },

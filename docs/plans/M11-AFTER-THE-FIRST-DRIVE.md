@@ -82,10 +82,38 @@ written here.
 session's `signals` (or, before a session record, the first with a reading).
 The tiles below leave out every signal in a slot's list.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Slots are used as one name** in three places: the car page and the
+>   preview (`{#each SLOTS.gauges as n}`, then `unitOf`, `latest[n]` and
+>   freshness by that name) and `SHOWN` (what the tiles leave out, and what
+>   `timings` times). So **every slot becomes a list** (most of one signal), and
+>   one pure function, `slotSignal(choices, declared, latest)`, picks the
+>   signal: the first the session declares; with no session record yet, the
+>   first with a reading; else the first, which shows "—". `SHOWN` holds every
+>   choice, so neither voltage becomes a tile.
+> - **What a session declares** is `LiveState.signals` (from the session
+>   record and any `signals` record), already what `unitOf` reads.
+> - **The profile is by signal**: `vehicle.system_voltage` gets the same range
+>   and zones as `control_module.voltage` (10–16 V, caution under 12.0,
+>   critical under 11.5), generic battery facts.
+> - **The existing slot test** (each signal once, `SHOWN` complete, at most 4
+>   gauges, 6 numbers, 4 bars) carries over to the lists.
+
 **Done when:** tests for choosing a slot's signal (the first declared, the
 second when the first is absent, neither: "—"); looked at in Chrome with the
 drive's shape (a replay declaring `vehicle.system_voltage` only) and the
 synthetic race (`control_module.voltage`).
+
+> **✅ Done, 2026-09-27.** Slots are lists; `slotSignal` picks; the car page
+> and the preview use it; `vehicle.system_voltage` has the charging zones.
+> - **Tests:** 3 new (102 in all). **Mutations: 5, all killed**: no declared
+>   step, readings before the declared list (which needed a new case: a
+>   declared signal beats a leftover reading), no readings step, the last
+>   choice instead of the first, no battery profile.
+> - **Looked at in Chrome:** the race changed to send only
+>   `vehicle.system_voltage`, as the drive did: the fourth gauge "vehicle ·
+>   system voltage", 13.6 V on 10–16 V with its bands, no voltage tile below.
+>   The race as it is: the same gauge "control module · voltage", 13.7 V.
 
 ### M11.2 — Tablet and test-data sessions, said
 
