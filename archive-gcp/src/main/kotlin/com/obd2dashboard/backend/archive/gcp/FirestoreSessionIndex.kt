@@ -13,7 +13,10 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.obd2dashboard.backend.archive.Segment
 import com.obd2dashboard.backend.archive.SessionHeader
 import com.obd2dashboard.backend.archive.SessionIndex
+import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.SessionSummary
+import com.obd2dashboard.backend.archive.SignalInfo
 import io.grpc.Status
 import java.time.Instant
 import java.util.concurrent.ExecutionException
@@ -73,6 +76,9 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             updated = now,
         )
     }
+
+    override suspend fun setSummary(id: String, summary: SessionSummary): Boolean =
+        conditional(id) { current -> current.copy(summary = summary) }
 
     override suspend fun listByCar(car: String): List<SessionRecord> =
         sessions.whereEqualTo(CAR, car).get().await().documents.mapNotNull { it.toRecord() }
@@ -143,6 +149,67 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             put("hashResets", hashResets.toLong())
             put("created", created.toTimestamp())
             put("updated", updated.toTimestamp())
+            // Part of the record, so every whole-document write keeps it (M7.1).
+            summary?.let { put("summary", it.toFields()) }
+        }
+
+        private fun SessionSummary.toFields(): Map<String, Any> = buildMap {
+            put("version", version.toLong())
+            put("started", started)
+            put("ended", ended)
+            put("lines", lines)
+            put("signals", signals.map { mapOf("name" to it.name, "unit" to it.unit, "kind" to it.kind) })
+            track?.let { put("track", it) }
+            layout?.let { put("layout", it) }
+            put("laps", laps.toLong())
+            bestLap?.let { put("bestLap", it.toFields()) }
+            put("faults", faults)
+            put("gaps", gaps.toLong())
+            put("missed", missed)
+            put("unreadable", unreadable.toLong())
+        }
+
+        private fun LapInfo.toFields(): Map<String, Any> = buildMap {
+            track?.let { put("track", it) }
+            layout?.let { put("layout", it) }
+            put("lap", lap.toLong())
+            put("time", time)
+            put("pitIn", pitIn)
+            put("pitOut", pitOut)
+            wall?.let { put("wall", it) }
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        private fun summaryFrom(data: Map<String, Any?>): SessionSummary {
+            fun long(key: String) = (data[key] as? Number)?.toLong() ?: 0L
+            val best = data["bestLap"] as? Map<String, Any?>
+            return SessionSummary(
+                version = long("version").toInt(),
+                started = long("started"),
+                ended = long("ended"),
+                lines = long("lines"),
+                signals = (data["signals"] as? List<Map<String, Any?>>).orEmpty().map {
+                    SignalInfo(it["name"] as String, it["unit"] as? String ?: "", it["kind"] as? String ?: "")
+                },
+                track = data["track"] as? String,
+                layout = data["layout"] as? String,
+                laps = long("laps").toInt(),
+                bestLap = best?.let {
+                    LapInfo(
+                        track = it["track"] as? String,
+                        layout = it["layout"] as? String,
+                        lap = (it["lap"] as Number).toInt(),
+                        time = (it["time"] as Number).toDouble(),
+                        pitIn = it["pitIn"] as? Boolean ?: false,
+                        pitOut = it["pitOut"] as? Boolean ?: false,
+                        wall = (it["wall"] as? Number)?.toLong(),
+                    )
+                },
+                faults = (data["faults"] as? List<String>).orEmpty(),
+                gaps = long("gaps").toInt(),
+                missed = long("missed"),
+                unreadable = long("unreadable").toInt(),
+            )
         }
 
         internal fun recordFrom(id: String, data: Map<String, Any?>): SessionRecord {
@@ -183,6 +250,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 hashResets = (data["hashResets"] as? Number)?.toInt() ?: 0,
                 created = instant("created"),
                 updated = instant("updated"),
+                summary = (data["summary"] as? Map<*, *>)?.let { m -> summaryFrom(m.entries.associate { (k, v) -> k.toString() to v }) },
             )
         }
 

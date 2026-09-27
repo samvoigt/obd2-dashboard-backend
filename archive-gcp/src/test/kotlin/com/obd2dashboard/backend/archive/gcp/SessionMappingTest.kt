@@ -1,8 +1,11 @@
 package com.obd2dashboard.backend.archive.gcp
 
+import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.Segment
 import com.obd2dashboard.backend.archive.SessionHeader
 import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.SessionSummary
+import com.obd2dashboard.backend.archive.SignalInfo
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex.Companion.recordFrom
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex.Companion.toFields
 import io.kotest.matchers.maps.shouldNotContainKey
@@ -26,6 +29,22 @@ class SessionMappingTest {
     @Test
     fun `a record round-trips through its fields`() {
         recordFrom(id, record.toFields()) shouldBe record
+    }
+
+    @Test
+    fun `a summary round-trips, with and without a best lap, and is absent until built`() {
+        record.toFields() shouldNotContainKey "summary"
+        val summary = SessionSummary(
+            version = 1, started = 1790000000000, ended = 1790003600000, lines = 180_000,
+            signals = listOf(SignalInfo("engine.rpm", "rpm", "number"), SignalInfo("gps.position", "", "position")),
+            track = "nhms", layout = "Road Course", laps = 12,
+            bestLap = LapInfo("nhms", "Road Course", 7, 94.532, pitIn = false, pitOut = false, wall = 1790001000000),
+            faults = listOf("P0420"), gaps = 2, missed = 15, unreadable = 0,
+        )
+        val complete = record.copy(complete = true, segments = emptyList(), summary = summary)
+        recordFrom(id, complete.toFields()) shouldBe complete
+        val bare = complete.copy(summary = summary.copy(track = null, layout = null, laps = 0, bestLap = null, faults = emptyList()))
+        recordFrom(id, bare.toFields()) shouldBe bare
     }
 
     @Test

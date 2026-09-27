@@ -127,6 +127,50 @@ first view. Also: the §19 confirmation in the app's contract.
 without `pitIn`/`pitOut`, and a mid-session `signals`; the real test logs
 summarised; the Firestore mapping round-trips; mutations are checked.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **Stores only read whole objects** (`SegmentStore.read` gunzips into one
+>   array). A 3-hour race would be one 55 MB array. `SegmentStore` gains
+>   `readStream(key) { InputStream -> … }`, gunzipping as it goes in Cloud
+>   Storage, and `ArchiveService.lines(id)` walks a session's lines: the
+>   completed file, or its segments in index order up to `ackedThrough`.
+> - **The reader is pure, in `:archive`** (`SessionReader`), fed one line at a
+>   time, so M7.2 can extend the same pass. It parses with kotlinx, as
+>   `Records` does, and never fails a session on a line it doesn't understand:
+>   an unparsable line is counted and skipped.
+> - **`SessionSummary`** (version, started, ended, lines, signals, track and
+>   layout, laps, best lap, fault codes, gaps) goes on `SessionRecord` as
+>   `summary`, with **its own conditional write**, `setSummary(id, summary)`.
+>   That only sets the field, so it can't collide with `append` or `complete`,
+>   which never touch it.
+> - **Started** is `wall` of the first record that has one (the header's
+>   `started` if none does). **Ended** is the latest `wall`. Only v3 is
+>   archived, and v3 always has `wall` (§3.1).
+> - **After `complete`**, the route answers first and then summarises in the
+>   application's scope. A failure is logged and left for "on first view".
+
+> **✅ Done, 2026-09-26.**
+> - **`SessionReader`** and **`LineSplitter`** in `:archive`;
+>   **`SessionSummary`**, **`SignalInfo`**, **`LapInfo`**;
+>   **`SegmentStore.readStream`** (Cloud Storage gunzips as it goes);
+>   **`ArchiveService.read`** and **`summary`**;
+>   **`SessionIndex.setSummary`**.
+> - **The summary is part of the Firestore record's mapping.** The index
+>   rewrites the whole document on every conditional write, so a field outside
+>   the mapping would have been erased by the next one (found while validating).
+> - **The complete route summarises after answering.**
+> - **Tests:** 10 for the reader, 5 in `ArchiveService`, 1 mapping, 1 route.
+>   The live archive smoke gained 4 checks (streamed segments, the summary built,
+>   kept in Firestore, and kept by a later write), all passing against the real
+>   bucket.
+> - **The app's real logs** (v1, so no `wall` or signal lists) read cleanly.
+>   One was cut mid-line by unplugging the adapter, and its last line is
+>   counted as unreadable, as designed; the archive refuses such a line anyway.
+> - **Mutations:** 18, 17 killed. The equivalent one was a check for segments
+>   past `ackedThrough`, which the index can't hold, so the check was removed
+>   rather than kept.
+> - **§19 (confirming §18)** is appended to the app's contract, uncommitted,
+>   for Sam or the tablet side.
+
 ### M7.2 — The prepared series
 
 The same pass builds `series.json.gz`, with the gap rule. Complete sessions are

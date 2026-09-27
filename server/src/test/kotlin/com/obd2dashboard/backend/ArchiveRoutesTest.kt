@@ -229,6 +229,20 @@ class ArchiveRoutesTest {
     }
 
     @Test
+    fun `after complete is answered, the summary is built in the background`() = testApplication {
+        app()
+        client.open()
+        client.chunk(1, lines.size - 1).acked() shouldBe lines.size - 1L
+        client.complete().status shouldBe HttpStatusCode.OK
+        val until = System.currentTimeMillis() + 10_000
+        while (index.get(id)?.summary == null) {
+            check(System.currentTimeMillis() < until) { "no summary within 10 s" }
+            Thread.sleep(20)
+        }
+        index.get(id)!!.summary!!.lines shouldBe lines.size.toLong()
+    }
+
+    @Test
     fun `complete before every line is stored is 409 from the next line`() = testApplication {
         app()
         client.open()

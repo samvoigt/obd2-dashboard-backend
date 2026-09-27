@@ -1,5 +1,6 @@
 package com.obd2dashboard.backend.archive
 
+import java.io.InputStream
 import java.security.MessageDigest
 import java.time.Clock
 import kotlinx.serialization.json.JsonPrimitive
@@ -171,6 +172,38 @@ public class ArchiveService(
             }
             check(next == record.ackedThrough + 1) { "session $id: segments end at ${next - 1}, not ${record.ackedThrough}" }
         }
+    }
+
+    /**
+     * Streams every stored line of [record], in index order, to [reader]: the
+     * completed log, or its segments up to `ackedThrough` (M7.1). Never holds a
+     * whole session.
+     */
+    public suspend fun read(record: SessionRecord, reader: suspend (InputStream) -> Unit) {
+        if (record.complete) {
+            store.readStream(sessionKey(record.id)) { reader(it) }
+        } else {
+            // The index lists only acked segments (decision 17), so these are exactly the stored lines.
+            for (segment in record.segments.sortedBy { it.first }) {
+                store.readStream(segment.key) { reader(it) }
+            }
+        }
+    }
+
+    /**
+     * The summary of a **complete** session: the stored one if it's current,
+     * else built from its lines and stored (after `complete`, or on first view).
+     * Null for a session still uploading, whose summary would change.
+     */
+    public suspend fun summary(id: String): SessionSummary? {
+        val record = index.get(id) ?: return null
+        if (!record.complete) return null
+        record.summary?.takeIf { it.version == SessionSummary.VERSION }?.let { return it }
+        val reader = SessionReader()
+        read(record) { reader.read(it) }
+        val summary = reader.summary()
+        index.setSummary(id, summary)
+        return summary
     }
 
     /** One session's record, or null (the admin page, M6). */

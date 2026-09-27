@@ -57,10 +57,18 @@ fun main(args: Array<String>) {
                 ArchiveService.Append.Acked(lines.size - 1L))
             check("wrong car", archive.append("other", id, 1, chunk(1, 1)) == ArchiveService.Append.WrongCar)
             check("index holds the segments", index.get(id)?.segments?.map { it.first } == listOf(0L, 1L, 21L))
+            val streamed = java.io.ByteArrayOutputStream()
+            archive.read(index.get(id)!!) { it.copyTo(streamed) }
+            check("segments stream back in order (M7.1)", streamed.toByteArray().contentEquals(fixture))
 
             check("complete", archive.complete(car, id, lines.size - 1L, lines.size.toLong(), sha) == ArchiveService.Complete.Done)
             check("complete again", archive.complete(car, id, lines.size - 1L, lines.size.toLong(), sha) == ArchiveService.Complete.Done)
             check("only the session object remains", store.list("sessions/$id/") == listOf(ArchiveService.sessionKey(id)))
+            val summary = archive.summary(id)
+            check("the summary is built from the stored log (M7.1)", summary?.lines == lines.size.toLong() && summary.unreadable == 0)
+            check("and kept in Firestore", index.get(id)?.summary == summary)
+            check("a later write keeps it", archive.complete(car, id, lines.size - 1L, lines.size.toLong(), sha) == ArchiveService.Complete.Done &&
+                index.get(id)?.summary == summary)
 
             // The raw download, not through the store: it must be the gzip file itself.
             val storage = StorageOptions.newBuilder().setProjectId(project).build().service

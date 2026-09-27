@@ -9,6 +9,7 @@ import com.obd2dashboard.backend.archive.SessionIds
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.application
 import io.ktor.server.application.log
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receiveChannel
@@ -20,6 +21,7 @@ import io.ktor.server.routing.put
 import io.ktor.utils.io.readBuffer
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -105,7 +107,21 @@ fun Route.archiveRoutes(archive: ArchiveService) {
             }
             if (!SHA256.matches(request.sha256)) return@archiveCall call.badRecord("sha256 must be 64 hex digits")
             when (val result = archive.complete(car, id, request.lastIndex, request.recordCount, request.sha256)) {
-                ArchiveService.Complete.Done -> call.respond(HttpStatusCode.OK, Completed())
+                ArchiveService.Complete.Done -> {
+                    call.respond(HttpStatusCode.OK, Completed())
+                    // After the answer, so the tablet never waits on it (M7.1). A failure
+                    // is only logged: the summary is built again on first view.
+                    val log = call.application.log
+                    call.application.launch {
+                        try {
+                            archive.summary(id)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            log.warn("summary of $id failed; it will be built on first view", e)
+                        }
+                    }
+                }
                 is ArchiveService.Complete.Gap -> call.missing(result.missingFrom)
                 ArchiveService.Complete.NotOpen -> call.notOpen(id)
                 ArchiveService.Complete.WrongCar -> call.wrongCar(id)

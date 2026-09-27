@@ -1,6 +1,8 @@
 package com.obd2dashboard.backend.archive
 
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.OutputStream
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -33,6 +35,8 @@ public data class SessionRecord(
     val hashResets: Int,
     val created: Instant,
     val updated: Instant,
+    /** Built once the session is complete (M7.1); null before, or if not built yet. */
+    val summary: SessionSummary? = null,
 )
 
 /**
@@ -66,6 +70,9 @@ public interface SessionIndex {
 
     public suspend fun listByCar(car: String): List<SessionRecord>
 
+    /** Sets the session's summary (M7.1), touching nothing else; false if there's no such session. */
+    public suspend fun setSummary(id: String, summary: SessionSummary): Boolean
+
     public suspend fun list(): List<SessionRecord>
 
     public suspend fun delete(id: String): Boolean
@@ -79,6 +86,9 @@ public interface SegmentStore {
     public suspend fun put(key: String, lines: ByteArray)
 
     public suspend fun read(key: String): ByteArray
+
+    /** Reads an object's plain line bytes as a stream, so a long session is never held whole (M7.1). */
+    public suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T
 
     /**
      * Writes an object from a stream, so a long session is never held whole.
@@ -145,6 +155,9 @@ public class InMemorySessionIndex : SessionIndex {
 
     override suspend fun listByCar(car: String): List<SessionRecord> = sessions.values.filter { it.car == car }
 
+    override suspend fun setSummary(id: String, summary: SessionSummary): Boolean =
+        sessions.computeIfPresent(id) { _, current -> current.copy(summary = summary) } != null
+
     override suspend fun list(): List<SessionRecord> = sessions.values.toList()
 
     override suspend fun delete(id: String): Boolean = sessions.remove(id) != null
@@ -177,6 +190,9 @@ public class InMemorySegmentStore : SegmentStore {
     }
 
     override suspend fun read(key: String): ByteArray = objects[key]?.copyOf() ?: error("no object $key")
+
+    override suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T =
+        body(ByteArrayInputStream(objects[key] ?: error("no object $key")))
 
     override suspend fun write(key: String, body: suspend (OutputStream) -> Unit) {
         val out = ByteArrayOutputStream()

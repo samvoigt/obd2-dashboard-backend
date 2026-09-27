@@ -3,6 +3,7 @@ package com.obd2dashboard.backend.archive
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -296,5 +297,60 @@ class ArchiveServiceTest {
         store.list("sessions/$id/").shouldBeEmpty()
         index.get(id) shouldBe null
         index.list().shouldHaveSize(0)
+    }
+
+    // Summaries (M7.1)
+
+    @Test
+    fun `a complete session's summary is built once and stored`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture() shouldBe ArchiveService.Complete.Done
+        index.get(id)!!.summary.shouldBeNull() // not built by complete itself: the route does it after answering
+        val summary = archive.summary(id)!!
+        summary.lines shouldBe Fixtures.SESSION_LINES.toLong()
+        index.get(id)!!.summary shouldBe summary
+        store.objects.remove(ArchiveService.sessionKey(id)) // a second call must not read the log again
+        archive.summary(id) shouldBe summary
+    }
+
+    @Test
+    fun `a session still uploading has no summary, and an unknown one none either`() = runTest {
+        openFixture()
+        append(1, 10)
+        archive.summary(id).shouldBeNull()
+        index.get(id)!!.summary.shouldBeNull()
+        archive.summary("00000000-0000-4000-8000-000000000000").shouldBeNull()
+    }
+
+    @Test
+    fun `an older summary is rebuilt`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture()
+        val current = archive.summary(id)!!
+        index.setSummary(id, current.copy(version = SessionSummary.VERSION - 1, lines = 1))
+        archive.summary(id) shouldBe current
+    }
+
+    @Test
+    fun `reading a session streams its segments in order, up to what is acked`() = runTest {
+        openFixture()
+        append(1, 20)
+        append(21, 10)
+        val read = java.io.ByteArrayOutputStream()
+        archive.read(index.get(id)!!) { it.copyTo(read) }
+        val expected = lines.take(31).fold(ByteArray(0)) { acc, l -> acc + l + '\n'.code.toByte() }
+        read.toByteArray().contentEquals(expected) shouldBe true
+    }
+
+    @Test
+    fun `the summary survives the record being rewritten`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture()
+        val summary = archive.summary(id)!!
+        completeFixture() shouldBe ArchiveService.Complete.Done // idempotent, and it must not drop the summary
+        index.get(id)!!.summary shouldBe summary
     }
 }

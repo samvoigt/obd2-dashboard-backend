@@ -9,6 +9,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
+import java.io.InputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,12 @@ public class GcsSegmentStore(private val storage: Storage, private val bucket: S
     override suspend fun read(key: String): ByteArray = withContext(Dispatchers.IO) {
         val bytes = storage.readAllBytes(BlobId.of(bucket, key))
         GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readBytes() }
+    }
+
+    override suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T = withContext(Dispatchers.IO) {
+        storage.reader(BlobId.of(bucket, key)).use { channel ->
+            GZIPInputStream(Channels.newInputStream(channel), 64 * 1024).use { body(it) }
+        }
     }
 
     /**
