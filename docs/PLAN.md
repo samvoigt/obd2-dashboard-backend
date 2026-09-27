@@ -26,7 +26,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M9** | Tokens and passcodes readable on the admin page | **tabled** (Sam): [`plans/M9-READABLE-SECRETS.md`](plans/M9-READABLE-SECRETS.md) |
 | **M10** | The G-meter and map shown before their data | ✅ (`plans/COMPLETED.md`) |
 | **M11** | What the first drive found: the charging gauge, tablet and test-data sessions, icons, the tablet's clock | ✅ (`plans/COMPLETED.md`) |
-| **M12** | Courses drawn on the website, and sent down to the tablet, which times on them | outline: [`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md); needs the contract change agreed |
+| **M12** | Courses drawn on the website, and sent down to the tablet, which times on them | **planned**: [`plans/M12-COURSES.md`](plans/M12-COURSES.md) (builds what both sides of the contract already agree on) |
 | **M13** | Re-timing the tablet's own fixes when a line moves | outline |
 | **M14** | Drivers, and events with practice and a race | outline |
 | **M15** | The race: sessions stitched into one, stints by driver | outline |
