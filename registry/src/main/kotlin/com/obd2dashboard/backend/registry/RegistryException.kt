@@ -18,6 +18,11 @@ public sealed class RegistryException(message: String) : Exception(message) {
         "a passcode needs at least ${Passcodes.MIN_LENGTH} characters",
     )
 
+    public class InvalidToken(reason: String) : RegistryException(reason)
+
+    /** Another car already has that token, so a tablet using it would be ambiguous. */
+    public class TokenInUse(slug: Slug) : RegistryException("that token is already $slug's; choose another")
+
     /**
      * Two cars share one token hash. It cannot happen by chance with 256-bit
      * tokens, so it means the store is corrupt, and answering with either car

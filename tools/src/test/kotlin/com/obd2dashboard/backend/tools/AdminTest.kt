@@ -175,6 +175,80 @@ class AdminTest {
     }
 
     @Test
+    fun `set-token takes a chosen token typed twice, and the old one stops working`() {
+        val old = tokenIn(run("add-car yaris --name Yaris").stdout)
+        val io = FakeIo(secrets = listOf("bears-yaris-15", "bears-yaris-15"))
+        run("set-token yaris", io).let {
+            it.statusCode shouldBe 0
+            it.stdout shouldContain "Token set for yaris (ends …-15)"
+            it.stdout shouldNotContain "bears-yaris-15"
+        }
+        io.prompts shouldBe listOf("New token for yaris: ", "Again: ")
+        runBlocking { registry.authenticate("bears-yaris-15")?.slug } shouldBe yaris
+        runBlocking { registry.authenticate(old) }.shouldBeNull()
+    }
+
+    @Test
+    fun `set-token refuses a mismatch, a bad token, and another car's, changing nothing`() {
+        val old = tokenIn(run("add-car yaris --name Yaris").stdout)
+        run("add-car outback --name Outback --choose-token", FakeIo(secrets = listOf("bears-outback", "bears-outback")))
+        for ((secrets, message) in listOf(
+            listOf("bears-yaris-15", "bears-yaris-16") to "The two tokens differ. Nothing changed.",
+            listOf("short", "short") to "A token needs at least 8 characters. Nothing changed.",
+            listOf("has a space", "has a space") to "A token may use only letters, digits and . _ ~ - (no spaces). Nothing changed.",
+            listOf("bears-outback", "bears-outback") to "that token is already outback's; choose another",
+        )) {
+            run("set-token yaris", FakeIo(secrets = secrets)).let {
+                it.statusCode shouldBe 1
+                it.stderr shouldContain message
+            }
+        }
+        runBlocking { registry.authenticate(old)?.slug } shouldBe yaris
+        runBlocking { registry.authenticate("bears-outback")?.slug } shouldBe Slug.parse("outback")
+    }
+
+    @Test
+    fun `set-token from a file refuses one others can read`() {
+        run("add-car yaris --name Yaris")
+        val file = java.nio.file.Files.createTempFile("token", ".txt")
+        try {
+            java.nio.file.Files.writeString(file, "bears-yaris-15\n")
+            java.nio.file.Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"))
+            run("set-token yaris --token-file $file").let {
+                it.statusCode shouldBe 1
+                it.stderr shouldContain "chmod 600"
+            }
+            runBlocking { registry.authenticate("bears-yaris-15") }.shouldBeNull()
+            java.nio.file.Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"))
+            run("set-token yaris --token-file $file").statusCode shouldBe 0
+            runBlocking { registry.authenticate("bears-yaris-15")?.slug } shouldBe yaris
+        } finally {
+            java.nio.file.Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
+    fun `add-car --choose-token never shows a generated token`() {
+        val result = run("add-car yaris --name Yaris --choose-token", FakeIo(secrets = listOf("bears-yaris-15", "bears-yaris-15")))
+        result.statusCode shouldBe 0
+        tokenCount(result.stdout) shouldBe 0
+        result.stdout shouldContain "Added yaris (Yaris), with your token (ends …-15)."
+        runBlocking { registry.authenticate("bears-yaris-15")?.slug } shouldBe yaris
+    }
+
+    @Test
+    fun `add-car --choose-token with a bad or taken token leaves no car`() {
+        run("add-car yaris --name Yaris --choose-token", FakeIo(secrets = listOf("short", "short"))).statusCode shouldBe 1
+        runBlocking { registry.get(yaris) }.shouldBeNull()
+        run("add-car outback --name Outback --choose-token", FakeIo(secrets = listOf("bears-15-x", "bears-15-x")))
+        run("add-car yaris --name Yaris --choose-token", FakeIo(secrets = listOf("bears-15-x", "bears-15-x"))).let {
+            it.statusCode shouldBe 1
+            it.stderr shouldContain "already outback's"
+        }
+        runBlocking { registry.get(yaris) }.shouldBeNull()
+    }
+
+    @Test
     fun `remove-car with the wrong slug typed changes nothing`() {
         val token = tokenIn(run("add-car yaris --name Yaris").stdout)
         message("m_1", "yaris")

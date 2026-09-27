@@ -49,6 +49,19 @@ public class CarRegistry(
         return IssuedToken(car, token)
     }
 
+    /**
+     * Replaces the car's token with one the owner chose (decision 24); the old one
+     * stops working at once. Refused if it is malformed or another car's.
+     */
+    public suspend fun setToken(slug: Slug, token: String) {
+        Tokens.problemWith(token)?.let { throw RegistryException.InvalidToken(it) }
+        val car = require(slug)
+        val hash = Tokens.hash(token)
+        store.findByTokenHash(hash)?.let { if (it.slug != slug) throw RegistryException.TokenInUse(it.slug) }
+        val now = clock.instant()
+        save(car.copy(tokenHash = hash, tokenHint = Tokens.hint(token), tokenIssued = now, updated = now))
+    }
+
     public suspend fun setPasscode(slug: Slug, passcode: CharArray) {
         if (passcode.size < Passcodes.MIN_LENGTH) throw RegistryException.PasscodeTooShort()
         val hash = Passcodes.hash(passcode, random, passcodeIterations)

@@ -95,6 +95,29 @@ class CarRegistryTest {
     }
 
     @Test
+    fun `a chosen token replaces the old one at once`() = runTest {
+        val issued = registry.addCar(yaris, "Yaris")
+        registry.setToken(yaris, "bears-yaris-15")
+        registry.authenticate("bears-yaris-15")?.slug shouldBe yaris
+        registry.authenticate(issued.token).shouldBeNull()
+        registry.get(yaris)!!.tokenHint shouldBe "-15"
+        registry.setToken(yaris, "bears-yaris-15") // setting the same one again is fine
+        registry.authenticate("bears-yaris-15")?.slug shouldBe yaris
+    }
+
+    @Test
+    fun `a chosen token is refused if malformed, another car's, or for no car`() = runTest {
+        registry.addCar(yaris, "Yaris")
+        registry.addCar(outback, "Outback")
+        registry.setToken(outback, "bears-outback")
+        shouldThrow<RegistryException.InvalidToken> { registry.setToken(yaris, "short") }
+        shouldThrow<RegistryException.InvalidToken> { registry.setToken(yaris, "has spaces in it") }
+        shouldThrow<RegistryException.TokenInUse> { registry.setToken(yaris, "bears-outback") }
+        shouldThrow<RegistryException.NoSuchCar> { registry.setToken(Slug.parse("nope"), "bears-nope-1") }
+        registry.authenticate("bears-outback")?.slug shouldBe outback
+    }
+
+    @Test
     fun `a passcode round-trips and a short one is refused`() = runTest {
         registry.addCar(yaris, "Yaris")
         shouldThrow<RegistryException.PasscodeTooShort> { registry.setPasscode(yaris, "12345".toCharArray()) }

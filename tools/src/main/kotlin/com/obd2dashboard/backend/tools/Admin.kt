@@ -8,6 +8,7 @@ import com.github.ajalt.clikt.core.requireObject
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
@@ -21,6 +22,7 @@ import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.IssuedToken
 import com.obd2dashboard.backend.registry.RegistryException
 import com.obd2dashboard.backend.registry.Slug
+import com.obd2dashboard.backend.registry.Tokens
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
 import java.nio.file.Files
 import java.time.ZoneOffset
@@ -60,7 +62,7 @@ class Admin(
 
     init {
         subcommands(
-            AddCar(), RotateToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
+            AddCar(io), RotateToken(io), SetToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
             ListSessions(), ShowSession(), DeleteSession(io),
         )
     }
@@ -106,12 +108,31 @@ abstract class RegistryCommand(name: String, private val helpText: String) : Cli
     }
 }
 
-class AddCar : RegistryCommand("add-car", "Register a car and print its token, once.") {
+class AddCar(private val io: AdminIo) : RegistryCommand("add-car", "Register a car and print its token, once.") {
     private val slug by argument(help = "Permanent URL name: a-z, 0-9 and -, 2 to 32 characters")
     private val name by option("--name", help = "Display name; can be changed later").required()
+    private val chooseToken by option(
+        "--choose-token",
+        help = "type a token of your own (twice, not echoed) instead of getting a generated one",
+    ).flag()
+    private val tokenFile by option(
+        "--token-file",
+        help = "choose the token by reading it from a file only you can read (chmod 600)",
+    ).path(mustExist = true)
 
     override suspend fun execute(registry: CarRegistry) {
-        showToken(registry.addCar(slugOf(slug), name), "Added")
+        if (!chooseToken && tokenFile == null) return showToken(registry.addCar(slugOf(slug), name), "Added")
+        // Read and check the chosen token first, so a typo leaves no car behind.
+        val token = readChosenToken(io, tokenFile, "Token for ${slugOf(slug)}: ")
+        val car = registry.addCar(slugOf(slug), name).car.slug // its generated token is replaced unseen
+        try {
+            registry.setToken(car, token)
+        } catch (e: RegistryException) {
+            registry.removeCar(car)
+            throw e
+        }
+        echo("Added $car (${name.trim()}), with your token (ends …${Tokens.hint(token)}).")
+        echo("Put the same token in the tablet's Cars page.")
     }
 }
 
@@ -128,6 +149,53 @@ class RotateToken(private val io: AdminIo) :
     }
 }
 
+class SetToken(private val io: AdminIo) :
+    RegistryCommand("set-token", "Set a car's token to one you choose. The old one stops working at once.") {
+    private val slug by argument()
+    private val tokenFile by option(
+        "--token-file",
+        help = "read it from a file only you can read (chmod 600); else typed twice",
+    ).path(mustExist = true)
+
+    override suspend fun execute(registry: CarRegistry) {
+        val car = slugOf(slug)
+        registry.get(car) ?: throw RegistryException.NoSuchCar(car)
+        val token = readChosenToken(io, tokenFile, "New token for $car: ")
+        registry.setToken(car, token)
+        echo("Token set for $car (ends …${Tokens.hint(token)}). Its tablet needs the same one on its Cars page.")
+    }
+}
+
+/**
+ * A token the owner chose (decision 24): from a `chmod 600` file, or typed twice
+ * without echo. Checked here, so a bad one is refused before anything changes.
+ */
+private fun readChosenToken(io: AdminIo, file: java.nio.file.Path?, prompt: String): String {
+    val token = if (file != null) {
+        refuseIfShared(file)
+        Files.readString(file).trimEnd('\n', '\r')
+    } else {
+        val first = io.readSecret(prompt)
+        val second = io.readSecret("Again: ")
+        try {
+            if (!first.contentEquals(second)) throw CliktError("The two tokens differ. Nothing changed.")
+            String(first)
+        } finally {
+            first.fill('\u0000')
+            second.fill('\u0000')
+        }
+    }
+    Tokens.problemWith(token)?.let { throw CliktError("${it.replaceFirstChar(Char::uppercase)}. Nothing changed.") }
+    return token
+}
+
+private fun refuseIfShared(file: java.nio.file.Path) {
+    val perms = Files.getPosixFilePermissions(file)
+    if (perms.any { it.name.startsWith("GROUP") || it.name.startsWith("OTHERS") }) {
+        throw CliktError("$file can be read by others; chmod 600 it first. Nothing changed.")
+    }
+}
+
 class SetPasscode(private val io: AdminIo) :
     RegistryCommand("set-passcode", "Set a car's crew passcode, for sending messages.") {
     private val slug by argument()
@@ -140,10 +208,7 @@ class SetPasscode(private val io: AdminIo) :
         val car = slugOf(slug)
         registry.get(car) ?: throw RegistryException.NoSuchCar(car)
         passcodeFile?.let { file ->
-            val perms = Files.getPosixFilePermissions(file)
-            if (perms.any { it.name.startsWith("GROUP") || it.name.startsWith("OTHERS") }) {
-                throw CliktError("$file can be read by others; chmod 600 it first. Nothing changed.")
-            }
+            refuseIfShared(file)
             val passcode = Files.readString(file).trimEnd('\n', '\r').toCharArray()
             try {
                 registry.setPasscode(car, passcode)

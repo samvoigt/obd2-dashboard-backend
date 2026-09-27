@@ -39,7 +39,9 @@ Credentials (`gcloud auth application-default login`).
 
 ```sh
 scripts/admin.sh list
-scripts/admin.sh add-car yaris --name "Yaris"   # prints the car's token, once
+scripts/admin.sh add-car yaris --name "Yaris"   # prints a generated token, once
+scripts/admin.sh add-car yaris --name "Yaris" --choose-token   # or type your own (decision 24)
+scripts/admin.sh set-token yaris                # change it to one you choose
 scripts/admin.sh set-passcode yaris             # crew passcode, typed without echo
 scripts/admin.sh rotate-token yaris             # old token stops working at once
 scripts/admin.sh sessions [car]                 # a car's sessions (never a VIN)

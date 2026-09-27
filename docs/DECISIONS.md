@@ -200,6 +200,8 @@ sessions.
 > **Amended by 15:** the contract calls it a **token**. The tablet keeps one per car
 > and picks by VIN, with a default car for sessions without one. That is the
 > tablet's business; to the server, the token is still the whole identity.
+>
+> **Amended by 24:** the owner may choose a car's token instead of a 256-bit one.
 
 **Decision.**
 - A car is a Firestore document: slug, name, key hash, passcode hash.
@@ -537,4 +539,32 @@ revoked from one person without changing the passcode.
 **Revisit if.** Mappings leave preview in a way that changes them, the
 service moves to a region without them, or the crew trips over logging in
 separately on `www` (then redirect `www` to the bare domain).
+
+## 24. The owner may choose a car's token
+
+**Decision.**
+- `admin.sh set-token <car>` and `add-car … --choose-token` take a token the
+  owner types (twice, without echo) or reads from a `chmod 600` file
+  (`--token-file`). It replaces the old one at once, as a rotation does.
+- A token is 8 to 128 characters from `A–Z a–z 0–9 . _ ~ -`: what a bearer
+  token carries unchanged, and what a person can type into the tablet. Generated
+  tokens (`obd2_` and 43 characters) still exist and fit the same rule.
+- Two cars cannot share a token; the second is refused.
+- Still stored as a plain SHA-256, and the stored hint is 4 characters, or a
+  quarter of a short token.
+
+**Why.** Sam wanted a token that is easy to set on both the backend and the
+tablet, and does not need it to be very secure (2026-09-26). The contract
+leaves the format open: a token is "issued by the backend's owner" (§8).
+
+**What it costs.**
+- A chosen token can be guessed, and **tablet requests are not rate-limited**,
+  so a short or obvious one could be found by trying. A guesser could send data
+  as that car and read its crew messages; they could not see the crew's side
+  or anything of another car's.
+- A lookup by hash cannot use a salted, slow hash, so someone holding a copy of
+  the Firestore data could test guesses offline.
+
+**Revisit if.** The site or its data become worth protecting more: then
+rate-limit failed tablet logins, or go back to generated tokens only.
 

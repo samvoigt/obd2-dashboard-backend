@@ -40,14 +40,29 @@ class TokensTest {
     }
 
     @Test
-    fun `the hint is the last four characters`() {
-        Tokens.hint("obd2_xxxxABCD") shouldBe "ABCD"
+    fun `the hint is the last four characters, or a quarter of a short token`() {
+        Tokens.generate(random).let { Tokens.hint(it) shouldBe it.takeLast(4) }
+        Tokens.hint("bears-15") shouldBe "15"
+        Tokens.hint("abcdefghijklmnoP") shouldBe "mnoP"
+        Tokens.hint("abcdefghijklmnO") shouldBe "mnO"
+    }
+
+    @Test
+    fun `a chosen token is 8 to 128 of letters, digits and dot, underscore, tilde, hyphen`() {
+        for (good in listOf("bears-15", "Outback.Blue_2026~x", "a".repeat(128), Tokens.generate(random))) {
+            Tokens.isWellFormed(good) shouldBe true
+            Tokens.problemWith(good) shouldBe null
+        }
+        Tokens.problemWith("bears15") shouldBe "a token needs at least 8 characters"
+        Tokens.problemWith("a".repeat(129)) shouldBe "a token has at most 128 characters"
+        for (bad in listOf("bad bears", "bears/15!", "bearsé123", "bears\t15x")) {
+            Tokens.problemWith(bad) shouldBe "a token may use only letters, digits and . _ ~ - (no spaces)"
+        }
     }
 
     @Test
     fun `malformed tokens are recognised as such`() {
-        val good = Tokens.generate(random)
-        for (bad in listOf("", "obd2_", good.dropLast(1), good + "A", good.replaceFirst("obd2_", "obd3_"), "obd2_" + "!".repeat(43))) {
+        for (bad in listOf("", "obd2_", "bears15", "a".repeat(129), "bad bears", "Bearer x", "obd2_" + "!".repeat(43), "tab\tbears")) {
             Tokens.isWellFormed(bad) shouldBe false
         }
     }
