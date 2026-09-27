@@ -61,6 +61,8 @@ public data class SessionHeader(
     val app: String?,
     val vin: String?,
     val protocol: String?,
+    /** `tablet` (no car read, §20), `fake` (invented readings, §21), or absent: a car's session. */
+    val source: String? = null,
 ) {
     // The VIN is personal data (decision 16); keep it out of logs and assertion messages.
     override fun toString(): String =
@@ -90,6 +92,7 @@ public data class SessionHeader(
                     app = string("app"),
                     vin = string("vin"),
                     protocol = string("protocol"),
+                    source = string("source"),
                 ),
             )
         }

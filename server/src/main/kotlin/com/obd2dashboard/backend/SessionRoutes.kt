@@ -42,6 +42,8 @@ data class SessionItem(
     val laps: Int = 0,
     val bestLap: LapView? = null,
     val faults: List<String> = emptyList(),
+    /** `tablet` (no car read, §20), `fake` (test data, §21), or null for a car's session (M11). */
+    val source: String? = null,
 )
 
 /** Sessions close enough together to be one drive: an adapter reconnect starts a new session (§3.2). */
@@ -84,6 +86,8 @@ fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: Liv
             laps = summary?.laps ?: 0,
             bestLap = summary?.bestLap?.view(),
             faults = summary?.faults.orEmpty(),
+            // The summary's, or while uploading the header's.
+            source = summary?.source ?: record.header?.source,
         )
     }
 
@@ -160,16 +164,25 @@ suspend fun io.ktor.server.application.ApplicationCall.downloadSession(archive: 
     }
 }
 
-/** Newest first; a session starting within [gap] of the drive's end joins it. */
+/**
+ * Newest first; a session starting within [gap] of the drive's end joins it.
+ * **Test data is never part of a drive** (§21): each fake session stands alone,
+ * and doesn't bridge the real ones either side of it (M11).
+ */
 fun drives(sessions: List<SessionItem>, gap: Duration = DRIVE_GAP): List<Drive> {
     val drives = mutableListOf<MutableList<SessionItem>>()
-    for (s in sessions.sortedBy { it.started }) {
+    val (fake, real) = sessions.partition { it.source == FAKE }
+    for (s in real.sortedBy { it.started }) {
         val current = drives.lastOrNull()
         if (current != null && s.started - current.maxOf { it.ended } < gap.toMillis()) current += s else drives += mutableListOf(s)
     }
-    return drives.map { d -> Drive(d.first().started, d.maxOf { it.ended }, d.sortedByDescending { it.started }) }
+    fake.forEach { drives += mutableListOf(it) }
+    return drives.map { d -> Drive(d.minOf { it.started }, d.maxOf { it.ended }, d.sortedByDescending { it.started }) }
         .sortedByDescending { it.started }
 }
+
+/** The `source` of a session of invented readings (§21). */
+const val FAKE: String = "fake"
 
 val DRIVE_GAP: Duration = Duration.ofMinutes(10)
 

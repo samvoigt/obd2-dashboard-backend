@@ -1,5 +1,8 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.archive.SessionSummary
+import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
@@ -34,6 +37,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
 
@@ -68,12 +72,13 @@ class SessionRoutesTest {
      * The fixture as session [id] starting at [wall], with a VIN in its header,
      * a fault, and a lap, uploaded; completed unless [complete] is false.
      */
-    private suspend fun upload(id: String, car: String, wall: Long, complete: Boolean = true): List<String> {
+    private suspend fun upload(id: String, car: String, wall: Long, complete: Boolean = true, source: String? = null): List<String> {
         val shift = wall - 1758719312623
         val lines = fixture.mapIndexed { i, line ->
             var l = line.replace("7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f", id)
                 .replace(Regex("\"wall\":(\\d+)")) { "\"wall\":${it.groupValues[1].toLong() + shift}" }
             if (i == 0) l = l.replace("\"pids\":48", "\"vin\":\"TSTVEHCLE00000001\",\"pids\":48")
+            if (i == 0 && source != null) l = l.replace("\"type\":\"session\",", "\"type\":\"session\",\"source\":\"$source\",")
             l
         } + listOf(
             """{"type":"fault","codes":["P0420"],"seq":900001,"at":1,"wall":${wall + 60_000}}""",
@@ -241,6 +246,55 @@ class SessionRoutesTest {
         drives(listOf(s("a", 0, 30), s("b", 40, 45))).map { drive -> drive.sessions.map { it.id } } shouldBe listOf(listOf("b"), listOf("a"))
         // A long session covering a short one keeps the drive's end at the longest.
         drives(listOf(s("a", 0, 100), s("b", 5, 10), s("c", 105, 110))).single().sessions.map { it.id } shouldBe listOf("c", "b", "a")
+    }
+
+    @Test
+    fun `test data is never part of a drive, and doesn't bridge two sessions (M11)`() {
+        fun s(id: String, startMin: Long, endMin: Long, source: String? = null) =
+            SessionItem(id, startMin * 60_000, endMin * 60_000, 1, "complete", source = source)
+        // Tablet sessions group like any other; the fake one stands alone.
+        drives(listOf(s("t", 0, 2, "tablet"), s("f", 3, 4, "fake"), s("c", 6, 20)))
+            .map { d -> d.sessions.map { it.id } } shouldBe listOf(listOf("f"), listOf("c", "t")) // newest first, by start
+        // A fake session between two real ones 15 minutes apart doesn't join them.
+        drives(listOf(s("a", 0, 10), s("f", 12, 20, "fake"), s("b", 25, 30)))
+            .map { d -> d.sessions.map { it.id } } shouldBe listOf(listOf("b"), listOf("f"), listOf("a"))
+    }
+
+    @Test
+    fun `a session's source is listed, from its summary once complete, from its header while uploading`() = testApplication {
+        app()
+        runBlocking {
+            upload(A, "yaris", t, source = "tablet")
+            upload(B, "yaris", t + Duration.ofMinutes(3).toMillis(), source = "fake")
+            upload(C, "yaris", t + Duration.ofMinutes(6).toMillis(), complete = false, source = "tablet")
+            upload(D, "yaris", t + Duration.ofMinutes(9).toMillis())
+        }
+        val sessions = Json.parseToJsonElement(client.get("/api/cars/yaris/sessions").bodyAsText()).jsonArray
+            .flatMap { d -> d.jsonObject.getValue("sessions").jsonArray.map { it.jsonObject } }
+            .associate { it.getValue("id").jsonPrimitive.content to it["source"]?.jsonPrimitive?.contentOrNull }
+        sessions shouldBe mapOf(A to "tablet", B to "fake", C to "tablet", D to null)
+    }
+
+    @Test
+    fun `a session stored before M11 gains its source from its rebuilt summary`() = testApplication {
+        // As the first drive's sessions are stored: no source in the header, a version-1 summary.
+        val beforeM11 = object : SessionIndex by index {
+            private fun SessionRecord.old() = copy(header = header?.copy(source = null))
+            override suspend fun get(id: String) = index.get(id)?.old()
+            override suspend fun listByCar(car: String) = index.listByCar(car).map { it.old() }
+            override suspend fun list() = index.list().map { it.old() }
+        }
+        application {
+            module(registry, ArchiveService(beforeM11, store, clock), InMemoryLiveHub(clock), clock = clock, messages = testMessages(), crewKey = testCrewKey(), admin = config)
+        }
+        runBlocking {
+            upload(A, "yaris", t, source = "tablet")
+            index.get(A)?.summary?.let { index.setSummary(A, it.copy(version = 1, source = null)) }
+        }
+        val item = Json.parseToJsonElement(client.get("/api/cars/yaris/sessions").bodyAsText()).jsonArray
+            .single().jsonObject.getValue("sessions").jsonArray.single().jsonObject
+        item["source"]?.jsonPrimitive?.contentOrNull shouldBe "tablet"
+        index.get(A)!!.summary!!.version shouldBe SessionSummary.VERSION
     }
 
     private infix fun Set<String>.shouldContain2(key: String) = (key in this) shouldBe true

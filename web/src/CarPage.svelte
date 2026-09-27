@@ -10,6 +10,7 @@
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
   import Bar from './widgets/Bar.svelte'
   import { freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, SHOWN, SLOTS, slotSignal, timings, valueOf, type Peaks } from './lib/dashboard'
+  import { sourceLabel } from './lib/sessions'
   import { nearest } from './lib/sessionPage'
   import { columnShown, shownUnit, toShown } from './lib/units'
   import { units } from './lib/unitsState.svelte'
@@ -188,7 +189,9 @@
     <h1>{slug}</h1>
     <div class="sessionline">
       {#if live.session}
+        {@const src = sourceLabel(live.session.source)}
         <p class="session muted">
+          {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
           Session started {new Date(String(live.session.started)).toLocaleString()}
           {#if live.session.app} · app {String(live.session.app)}{/if}
           {#if live.session.device} · device {String(live.session.device).slice(0, 8)}{/if}
@@ -287,6 +290,8 @@
   .small { font-size: 0.85rem; font-weight: 400; }
   .session { margin-top: -8px; }
   .fault { color: var(--critical); font-weight: 600; }
+  .source { font-size: 0.85rem; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; margin-right: 6px; }
+  .source.test { color: var(--caution); border-color: var(--caution); font-weight: 600; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 16px 0; }
   .pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
   .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }

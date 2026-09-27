@@ -112,6 +112,14 @@ class SessionReaderTest {
     }
 
     @Test
+    fun `the summary carries the session's source, absent for a car's (M11)`() {
+        summarise("""{"type":"session","v":3,"id":"s","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":0}""").source shouldBe null
+        for (source in listOf("tablet", "fake")) {
+            summarise("""{"type":"session","v":3,"id":"s","source":"$source","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":0}""").source shouldBe source
+        }
+    }
+
+    @Test
     fun `started falls back to the header, and ended is the latest wall even if the clock stepped back`() {
         summarise(
             """{"type":"session","v":3,"id":"s","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":0}""",

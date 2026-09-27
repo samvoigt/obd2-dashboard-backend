@@ -129,6 +129,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 h.app?.let { put("app", it) }
                 h.vin?.let { put("vin", it) }
                 h.protocol?.let { put("protocol", it) }
+                h.source?.let { put("source", it) }
             }
             line0Sha256?.let { put("line0Sha256", it) }
             put("ackedThrough", ackedThrough)
@@ -159,6 +160,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             put("ended", ended)
             put("lines", lines)
             put("signals", signals.map { mapOf("name" to it.name, "unit" to it.unit, "kind" to it.kind) })
+            source?.let { put("source", it) }
             track?.let { put("track", it) }
             layout?.let { put("layout", it) }
             put("laps", laps.toLong())
@@ -191,6 +193,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 signals = (data["signals"] as? List<Map<String, Any?>>).orEmpty().map {
                     SignalInfo(it["name"] as String, it["unit"] as? String ?: "", it["kind"] as? String ?: "")
                 },
+                source = data["source"] as? String,
                 track = data["track"] as? String,
                 layout = data["layout"] as? String,
                 laps = long("laps").toInt(),
@@ -226,6 +229,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                     app = string("app"),
                     vin = string("vin"),
                     protocol = string("protocol"),
+                    source = string("source"),
                 )
             }
             @Suppress("UNCHECKED_CAST")

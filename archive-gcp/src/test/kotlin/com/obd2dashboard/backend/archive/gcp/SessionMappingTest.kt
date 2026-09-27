@@ -45,6 +45,17 @@ class SessionMappingTest {
         recordFrom(id, complete.toFields()) shouldBe complete
         val bare = complete.copy(summary = summary.copy(track = null, layout = null, laps = 0, bestLap = null, faults = emptyList()))
         recordFrom(id, bare.toFields()) shouldBe bare
+        // M11: a tablet's or a test session's source, in the summary.
+        val tablet = complete.copy(summary = summary.copy(source = "tablet"))
+        recordFrom(id, tablet.toFields()) shouldBe tablet
+    }
+
+    @Test
+    fun `a header's source is stored when there is one, and absent otherwise (M11)`() {
+        record.toFields() shouldNotContainKey "source"
+        val fake = record.copy(header = header.copy(source = "fake"))
+        fake.toFields()["source"] shouldBe "fake"
+        recordFrom(id, fake.toFields()).header!!.source shouldBe "fake"
     }
 
     @Test

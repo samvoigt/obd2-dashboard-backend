@@ -43,6 +43,8 @@ public data class SessionSummary(
     val ended: Long,
     val lines: Long,
     val signals: List<SignalInfo>,
+    /** The session record's `source` (§20, §21): `tablet`, `fake`, or null for a car's. Since version 2 (M11). */
+    val source: String? = null,
     val track: String?,
     val layout: String?,
     val laps: Int,
@@ -57,7 +59,8 @@ public data class SessionSummary(
     val unreadable: Int,
 ) {
     public companion object {
-        public const val VERSION: Int = 1
+        /** 2 (M11): `source`, so a tablet's or a test session says so. */
+        public const val VERSION: Int = 2
     }
 }
 
@@ -77,6 +80,7 @@ public class SessionReader(
     private var firstWall: Long? = null
     private var lastWall: Long? = null
     private var headerStarted: Long? = null
+    private var source: String? = null
     private val signals = LinkedHashMap<String, SignalInfo>()
     private val laps = mutableListOf<LapInfo>()
     private val faults = LinkedHashSet<String>()
@@ -94,6 +98,7 @@ public class SessionReader(
         when (record.string("type")) {
             "session" -> {
                 headerStarted = record.string("started")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                source = record.string("source")
                 announce(record)
             }
             "signals" -> announce(record)
@@ -136,6 +141,7 @@ public class SessionReader(
             ended = lastWall ?: started,
             lines = lines,
             signals = signals.values.toList(),
+            source = source,
             track = track,
             layout = laps.firstOrNull { it.track == track }?.layout,
             laps = laps.size,

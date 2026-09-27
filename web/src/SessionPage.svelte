@@ -6,7 +6,7 @@
     defaultSignals, events, fetchSeries, joined, lapRows, speedsAtPositions, unitOf,
     type LapRow, type Series,
   } from './lib/sessionPage'
-  import { badge, clockOf, dayOf, duration, lapTime, trackOf, type SessionItem } from './lib/sessions'
+  import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
   import { merge } from './lib/merge'
   import { columnShown, shownUnit } from './lib/units'
   import { units } from './lib/unitsState.svelte'
@@ -145,8 +145,10 @@
     {@const s = detail.session}
     {@const b = badge(s.state)}
     <h1>{detail.carName} <span class="muted">· {dayOf(s.started)}, {clockOf(s.started)}</span></h1>
+    {@const src = sourceLabel(s.source)}
     <p class="facts">
       <span>{duration(s.ended - s.started)}</span>
+      {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
       {#if trackOf(s)}<span>{trackOf(s)}</span>{/if}
       {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap})</span></span>{/if}
       {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
@@ -248,6 +250,8 @@
   .badge.live { color: var(--in-range); }
   .badge.stale { color: var(--caution); }
   .badge.offline { color: var(--muted); }
+  .source { font-size: 0.85rem; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+  .source.test { color: var(--caution); border-color: var(--caution); font-weight: 600; }
   .fault { color: var(--critical); font-weight: 600; }
   .small { font-size: 0.85rem; }
   .error { color: var(--critical); }

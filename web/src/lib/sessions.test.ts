@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, trackOf, type SessionItem } from './sessions'
+import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type SessionItem } from './sessions'
 
 describe('words for past sessions', () => {
   it('writes durations', () => {
@@ -44,5 +44,16 @@ describe('fetchDrives', () => {
     expect(await fetchDrives('nope', answer(404))).toBeNull()
     expect(await fetchDrives('yaris', answer(200, []))).toEqual([])
     await expect(fetchDrives('yaris', answer(500))).rejects.toThrow('500')
+  })
+})
+
+describe('what a session is (M11)', () => {
+  it('says tablet-only and test-data sessions, and nothing for a car', () => {
+    expect(sourceLabel('tablet')).toEqual({ text: 'Tablet only', kind: 'tablet' })
+    expect(sourceLabel('fake')).toEqual({ text: 'Test data', kind: 'test' })
+    for (const car of [undefined, null, '', 3]) expect(sourceLabel(car)).toBeNull()
+  })
+  it('shows a source it doesn’t know as sent, never guessed at', () => {
+    expect(sourceLabel('replay')).toEqual({ text: 'replay', kind: 'other' })
   })
 })

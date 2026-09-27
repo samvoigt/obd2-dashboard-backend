@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, trackOf, type Drive } from './lib/sessions'
+  import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type Drive } from './lib/sessions'
 
   let { slug }: { slug: string } = $props()
 
@@ -39,7 +39,8 @@
     <p class="muted">No sessions yet. They appear here as the tablet uploads them.</p>
   {/if}
 
-  {#each drives ?? [] as drive (drive.started)}
+  <!-- Keyed by a session: test data is a drive of its own and may start with another (M11). -->
+  {#each drives ?? [] as drive (drive.sessions[0]?.id ?? drive.started)}
     <section class="drive">
       <h2>
         {dayOf(drive.started)}
@@ -48,12 +49,14 @@
       <ul>
         {#each drive.sessions as s (s.id)}
           {@const b = badge(s.state)}
+          {@const src = sourceLabel(s.source)}
           <li>
             <a href={`/cars/${slug}/sessions/${s.id}`}>
               <span class="when">
                 <strong>{clockOf(s.started)}</strong>
                 <span class="muted">{duration(s.ended - s.started)}</span>
                 {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}
+                {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
               </span>
               <span class="facts">
                 {#if trackOf(s)}<span>{trackOf(s)}</span>{/if}
@@ -86,6 +89,8 @@
   .badge.live { color: var(--in-range); }
   .badge.stale { color: var(--caution); }
   .badge.offline { color: var(--muted); }
+  .source { font-size: 0.85rem; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+  .source.test { color: var(--caution); border-color: var(--caution); font-weight: 600; }
   .dot.stale { background: var(--caution); }
   .fault { color: var(--critical); font-weight: 600; }
   .error { color: var(--critical); }

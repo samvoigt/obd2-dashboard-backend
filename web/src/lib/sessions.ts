@@ -22,6 +22,20 @@ export interface SessionItem {
   laps: number
   bestLap: LapView | null
   faults: string[]
+  /** `tablet` (no car read), `fake` (test data), or absent for a car's session (M11). */
+  source?: string | null
+}
+
+/**
+ * What a session is, when it isn't a car's drive (§20, §21): "Tablet only" for
+ * the tablet's own signals, "Test data" for invented readings, and any other
+ * source as sent, never guessed at (M11). Null for a car's session.
+ */
+export function sourceLabel(source: unknown): { text: string; kind: 'tablet' | 'test' | 'other' } | null {
+  if (typeof source !== 'string' || source === '') return null
+  if (source === 'tablet') return { text: 'Tablet only', kind: 'tablet' }
+  if (source === 'fake') return { text: 'Test data', kind: 'test' }
+  return { text: source, kind: 'other' }
 }
 
 export interface Drive {

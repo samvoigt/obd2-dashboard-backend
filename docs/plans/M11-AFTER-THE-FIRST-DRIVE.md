@@ -106,7 +106,7 @@ synthetic race (`control_module.voltage`).
 
 > **✅ Done, 2026-09-27.** Slots are lists; `slotSignal` picks; the car page
 > and the preview use it; `vehicle.system_voltage` has the charging zones.
-> - **Tests:** 3 new (102 in all). **Mutations: 5, all killed**: no declared
+> - **Tests:** 2 new (101 in all). **Mutations: 5, all killed**: no declared
 >   step, readings before the declared list (which needed a new case: a
 >   declared signal beats a leftover reading), no readings step, the last
 >   choice instead of the first, no battery profile.
@@ -124,11 +124,52 @@ synthetic race (`control_module.voltage`).
 - `web/`: "Tablet only" and "Test data" on the car page's session line, the
   list and a session's page.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The header** is parsed at `PUT` (`SessionHeader.parse`) and written to
+>   Firestore field by field (`FirestoreSessionIndex`): `source` joins
+>   `protocol` there, optional, absent when absent.
+> - **The summary** is rebuilt whenever its `version` differs
+>   (`ArchiveService.summary`), which the list does on first view: version 2
+>   reads `source` from line 0 in `SessionReader`, and its Firestore mapping
+>   gains the field. The Outback's seven sessions rebuild on the first look at
+>   its list (7 logs read once, the largest 427 KB).
+> - **The list item** (`SessionItem`) takes the summary's `source`, or the
+>   header's while uploading. A live session before its `PUT` has neither; the
+>   car page gets `source` from the live stream's session record anyway.
+> - **`drives()`** groups by time only. Test-data sessions become drives of
+>   their own, and **don't bridge** the real ones: a drive's gap is measured
+>   from its last real session.
+> - **Unknown `source` values** are shown as sent, never guessed at (§3.1's
+>   spirit); only `fake` is kept out of drives.
+
 **Done when:** tests for the header and summary reading `source` (absent,
 `tablet`, `fake`, and an unknown value shown as sent); for `drives()` keeping
 test data apart; a session stored before M11 gaining `source` on rebuild.
 Replays of a tablet session and a fake one (the drive's own shape, made
 synthetic) seen in Chrome: labelled, and the fake one alone in the list.
+
+> **✅ Done, 2026-09-27.** `source` in the header (and its Firestore field),
+> in the summary (version 2, and its field), in the list item (the summary's,
+> else the header's); `drives()` keeps test data apart; `sourceLabel` on the
+> car page's session line, the list and a session's page.
+> - **Tests:** Kotlin 6 new: the header reading `source` as sent; the
+>   summary carrying it; both Firestore mappings; `drives()` (tablet sessions
+>   grouping, a fake one alone and bridging nothing); the list's `source`
+>   from summary and header; **a session stored before M11** (a header
+>   without `source`, a version-1 summary) gaining it on rebuild. Vitest 2 new
+>   (103 in all).
+> - **Mutations: 9, all killed**: fake grouped, the list reading only the
+>   header, the reader dropping `source`, the version not bumped, the summary
+>   mapping dropping it, the header parse dropping it; on the site, an empty
+>   `source` labelled, test data called "Tablet only", an unknown source hidden.
+> - **Looked at in Chrome:** a tablet session, a test-data one and a car's
+>   uploaded: the list shows "Tablet only" grouped with the car's session, and
+>   "Test data" (light pink) as a drive of its own; a session's page and the
+>   car page's live session line say "Test data".
+> - **Found by looking:** the list keyed drives by their start time, unique
+>   while drives couldn't overlap. A test-data session now can start with
+>   another drive, and the duplicate key stopped the list rendering at all.
+>   Drives are keyed by a session's id.
 
 ### M11.3 — The small ones
 

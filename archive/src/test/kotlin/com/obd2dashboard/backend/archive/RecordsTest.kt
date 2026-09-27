@@ -47,6 +47,15 @@ class RecordsTest {
         header.app shouldBe "1.0 (42)"
         header.protocol shouldBe "ISO 15765-4 CAN, 11-bit ID, 500 kbaud"
         header.vin.shouldBeNull() // the fixture has none: absent, as the app writes it
+        header.source.shouldBeNull() // a car's session: absent (§3.2)
+    }
+
+    @Test
+    fun `a session's source is read as sent (M11)`() {
+        for (source in listOf("tablet", "fake", "something-new")) {
+            val line = v3.decodeToString().replace("\"type\":\"session\",", "\"type\":\"session\",\"source\":\"$source\",")
+            (SessionHeader.parse(line.toByteArray(), Fixtures.SESSION_ID) as SessionHeader.Parsed.Ok).header.source shouldBe source
+        }
     }
 
     @Test
