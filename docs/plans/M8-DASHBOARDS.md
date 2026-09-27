@@ -291,7 +291,73 @@ a scratch page, with a replay streaming.
 ### M8.3 — The page
 
 **Checkpoint first: Sam picks the slots' signals**, from the proposal and the
-signals his car actually sends. Then the car's page is rebuilt in the layout's
+signals his car actually sends.
+
+> **Checkpoint, 2026-09-27.** From the signals the Outback's logs carry (53;
+> it has no `fuel.rate`), Sam chose: "rpm, speed, coolant temp, charging, gps
+> speed, acceleration, gps position, status lights… good enough for now".
+> - **Gauges:** `engine.rpm`, `vehicle.speed`, `engine.coolant_temperature`,
+>   and charging as `control_module.voltage` (10–16 V, caution under 12.0,
+>   critical under 11.5).
+> - **Numbers:** `gps.speed`.
+> - **Bars:** none, for now.
+> - **The G-meter** (acceleration) and **the map** (GPS position): the fixed
+>   sections.
+> - **Status:** `diagnostics.mil`, `fuel.system_1_status`, and the trouble
+>   codes.
+> - **Laps** stay: they aren't a signal, and the panel only shows when the
+>   tablet times laps at a track.
+>
+> **Validated against the code, 2026-09-27, before building.**
+> - **The car's page holds its live state as deep `$state`**, the cost that hung
+>   the preview (M8.2). It becomes **`$state.raw`**: `live.ts`'s reducers
+>   already return a new state on every event. Freshness uses `timings()`, once
+>   per batch.
+> - **Laps need the archive while the car is live**, not only with "Whole
+>   session" on: the page fetches the live session's prepared series each
+>   minute (usually a `304`), and both the laps panel and the "Whole session"
+>   chart use it.
+> - **Sections appear when their data does**: the G-meter once a
+>   `motion.acceleration.*` reading has come, the map once a `gps.position`
+>   has, laps once there's one. A car that sends none of them gets no empty
+>   boxes.
+> - **The trouble-codes line** gives way to the Faults widget, and **the tiles
+>   below leave out** everything the dashboard shows (`SHOWN`).
+> - **The units switch** sits beside the session line; the tiles below convert
+>   too, through `readout()`.
+> - **The map's trail** is coloured by `gps.speed`, nearest in time, as the
+>   session page's is.
+>
+> **✅ Done, 2026-09-27.** The car's page is the dashboard: Sam's four gauges,
+> GPS speed, the G-meter and map (when there's data for them), laps (when
+> there are any), the status lights and trouble codes, then the crew panel,
+> the chart and the other signals' tiles (the dashboard's own left out). Live
+> state raw, freshness from `timings()`, laps from `lapsFrom()`, the units
+> switch on the car's page and on each session's page.
+> - **Tests:** 4 new (98 in all). Mutations: 7 on the new logic, all killed.
+> - **Looked at in Chrome:**
+>   - the synthetic race streaming and uploading, in US units: gauges, GPS
+>     speed, the G-meter, the map (trail coloured by speed), a lap appearing
+>     from the live lane before the archive had it;
+>   - the Outback's real evening drive: no G-meter, map or laps, GPS speed "—",
+>     47 other signals as tiles;
+>   - a signal stopping: coolant at 244 °F in critical, then grey and
+>     "stopped" when the tablet said so; voltage at 11.8 V in caution;
+>   - 390 px wide: gauges two to a row, no sideways scroll.
+> - **Found by looking:**
+>   - **The chart didn't convert units**: km/h beside a page set to US. The
+>     car's page and the session page now convert its columns and labels
+>     (`columnShown`, which keeps gaps as gaps).
+>   - **A signal read once in 5 minutes went stale after 2 s** (the synthetic
+>     race sends the MIL twice a session). The real car sends it every 4 s, so
+>     only my test data showed it, but nothing in the contract promises that
+>     rate. **A signal with fewer than two readings in the history isn't judged
+>     by its own pace**; the car's banner covers everything going quiet.
+>   - **A missing space** in a gauge's "stopped" caption: Svelte trims the
+>     start of an `{#if}`.
+> - **Laps while live, cheaply:** the full merge copies every column of the
+>   session, too much on every batch of a long race, so `lapsFrom()` merges
+>   the lap events alone, by `seq`. Then the car's page is rebuilt in the layout's
 order, fed by the live stream, with the tiles below skipping what the
 dashboard shows.
 

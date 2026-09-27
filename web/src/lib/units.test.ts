@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromShown, shownUnit, toShown } from './units'
+import { columnShown, fromShown, shownUnit, toShown } from './units'
 
 describe('units', () => {
   it('shows metric as sent', () => {
@@ -30,3 +30,13 @@ describe('units', () => {
     }
   })
 })
+
+describe('chart columns', () => {
+  it('convert numbers and keep gaps and holes', () => {
+    expect(columnShown([0, null, undefined, 100], '°C', 'us')).toEqual([32, null, undefined, 212])
+    const same = [1, null]
+    expect(columnShown(same, '°C', 'metric')).toBe(same)
+    expect(columnShown(same, 'rpm', 'us')).toBe(same)
+  })
+})
+

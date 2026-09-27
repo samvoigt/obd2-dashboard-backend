@@ -5,14 +5,20 @@
  * it is tested without a browser.
  */
 import type { Point, Rec } from './live'
+import { lapRows, type LapRecord, type LapRow, type Series } from './sessionPage'
 
-/** Which signal fills each slot (Sam picks these at M8.3; this is the proposal). */
+/**
+ * Which signal fills each slot: Sam's choice (2026-09-27): "rpm, speed, coolant
+ * temp, charging, gps speed, acceleration, gps position, status lights".
+ * Charging is the control module's supply voltage, the charging system's. The
+ * G-meter and the map are fixed sections. No bars for now.
+ */
 export const SLOTS = {
-  gauges: ['engine.rpm', 'vehicle.speed', 'engine.coolant_temperature', 'engine.oil_temperature'],
-  numbers: ['control_module.voltage', 'intake.air_temperature', 'engine.load', 'fuel.rate', 'ambient.air_temperature', 'gps.speed'],
-  bars: ['fuel.tank_level', 'accelerator.relative_pedal_position', 'engine.throttle_position'],
+  gauges: ['engine.rpm', 'vehicle.speed', 'engine.coolant_temperature', 'control_module.voltage'],
+  numbers: ['gps.speed'],
+  bars: [],
   statuses: ['diagnostics.mil', 'fuel.system_1_status'],
-} as const
+} as const satisfies Record<string, readonly string[]>
 
 /** Every signal the dashboard shows, so the tiles below can leave them out. */
 export const SHOWN: ReadonlySet<string> = new Set([...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses])
@@ -106,7 +112,7 @@ export type Freshness = 'fresh' | 'stale' | 'stopped' | 'never'
 export const MIN_STALE_MS = 2000
 
 /** Each signal's last reading time and usual interval, from one pass over the history (M8). */
-export type Timing = Map<string, { last: number; usual: number }>
+export type Timing = Map<string, { last: number; usual: number | null }>
 
 /**
  * Every signal's timing, in **one pass**: the page asks for each widget's
@@ -124,7 +130,8 @@ export function timings(history: Point[]): Timing {
   const out: Timing = new Map()
   for (const [signal, list] of times) {
     const gaps = list.slice(1).map((t, i) => t - list[i]!).sort((a, b) => a - b)
-    out.set(signal, { last: list[list.length - 1]!, usual: gaps.length > 0 ? gaps[Math.floor(gaps.length / 2)]! : 0 })
+    // One reading has no usual interval to judge by (M8.3): null, and it isn't judged.
+    out.set(signal, { last: list[list.length - 1]!, usual: gaps.length > 0 ? gaps[Math.floor(gaps.length / 2)]! : null })
   }
   return out
 }
@@ -139,6 +146,9 @@ export function freshnessOf(signal: string, timing: Timing, latest: Rec | undefi
   if (stopped) return 'stopped'
   const t = timing.get(signal)
   if (!t) return latest ? 'fresh' : 'never' // only a snapshot's latest, no history to judge by
+  // A signal read once in 5 minutes can't be judged by its own pace: left alone, the car's
+  // banner says when everything has gone quiet (M8.3).
+  if (t.usual === null) return 'fresh'
   return serverNow - t.last > Math.max(MIN_STALE_MS, t.usual * 5) ? 'stale' : 'fresh'
 }
 
@@ -198,3 +208,25 @@ export function lapSummary(rows: { lap: number; time: number; best: boolean }[])
     delta: last && best ? last.time - best.time : null,
   }
 }
+
+/**
+ * The session's laps: the archive's, then the live lane's after its `lastSeq`
+ * (contract §7), **the lap events only**. The full merge copies every column
+ * of the session, too much to do on every batch of a long race (M8.3).
+ */
+export function lapsFrom(archived: Series | null, history: Point[]): LapRow[] {
+  const cutoff = archived?.lastSeq ?? -Infinity
+  const t0 = archived?.t0 ?? 0
+  const seen = new Set<number>()
+  const live: [number, LapRecord][] = []
+  for (const p of history) {
+    const r = p.rec
+    if (r.type !== 'lap' || typeof r.seq !== 'number' || typeof r.wall !== 'number' || r.seq <= cutoff || seen.has(r.seq)) continue
+    if (typeof r.lap !== 'number' || typeof r.time !== 'number') continue
+    seen.add(r.seq)
+    live.push([r.wall - t0, r as unknown as LapRecord])
+  }
+  const events = { stopped: [], fault: [], gap: [], lap: [...(archived?.events.lap ?? []), ...live] }
+  return lapRows({ version: 0, t0, lastSeq: null, signals: [], numbers: {}, states: {}, sets: {}, positions: { t: [], lat: [], lon: [] }, events })
+}
+

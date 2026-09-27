@@ -44,7 +44,7 @@
     <text class="value" x="100" y="146" text-anchor="middle">{shown.text}</text>
     <text class="unit" x="100" y="164" text-anchor="middle">{shown.unit}</text>
   </svg>
-  <figcaption>{label(signal)}{#if freshness === 'stopped'} · stopped{:else if freshness === 'stale'} · not updating{/if}</figcaption>
+  <figcaption>{label(signal)}{freshness === 'stopped' ? ' · stopped' : freshness === 'stale' ? ' · not updating' : ''}</figcaption>
 </figure>
 
 <style>

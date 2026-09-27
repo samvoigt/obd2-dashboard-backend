@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  fraction, freshnessOf, G, gTrail, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, SHOWN, SLOTS, SWEEP, valueOf, zoneBands,
+  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, SHOWN, SLOTS, SWEEP, valueOf, zoneBands,
 } from './dashboard'
 import type { Point } from './live'
 
@@ -73,6 +73,10 @@ describe('out of date', () => {
     expect(freshnessOf('fuel.tank_level', slow, every10s[2]!.rec, false, 20_000 + 50_000)).toBe('fresh')
     expect(freshnessOf('fuel.tank_level', slow, every10s[2]!.rec, false, 20_000 + 50_001)).toBe('stale')
   })
+  it('leaves a signal read once in the history alone, however old', () => {
+    const once = [sample('diagnostics.mil', 0, 0)]
+    expect(freshnessOf('diagnostics.mil', timings(once), once[0]!.rec, false, 60_000)).toBe('fresh')
+  })
   it('says stopped, or never, or fresh with only the snapshot’s reading', () => {
     const timing = timings(every200)
     expect(freshnessOf('engine.rpm', timing, every200[4]!.rec, true, 900)).toBe('stopped')
@@ -83,7 +87,7 @@ describe('out of date', () => {
   it('times every signal in one pass: its last reading and its median gap', () => {
     const t = timings([sample('a', 0, 1), sample('b', 50, 1), sample('a', 100, 1), sample('a', 300, 1), { t: 400, rec: { type: 'fault' } }])
     expect(t.get('a')).toEqual({ last: 300, usual: 200 })
-    expect(t.get('b')).toEqual({ last: 50, usual: 0 })
+    expect(t.get('b')).toEqual({ last: 50, usual: null })
     expect(t.has('fault')).toBe(false)
   })
   it('reads numbers only', () => {
@@ -118,3 +122,23 @@ describe('the lap panel', () => {
     expect(lapSummary([])).toEqual({ last: null, lastLap: null, best: null, bestLap: null, delta: null })
   })
 })
+
+describe('laps while live', () => {
+  const lap = (seq: number, n: number, time: number, extra: Record<string, unknown> = {}): Point =>
+    ({ t: seq, rec: { type: 'lap', lap: n, time, seq, wall: 1_000_000 + seq, ...extra } })
+  const archived = {
+    version: 2, t0: 1_000_000, lastSeq: 20, signals: [], numbers: {}, states: {}, sets: {}, positions: { t: [], lat: [], lon: [] },
+    events: { stopped: [], fault: [], gap: [], lap: [[10, { lap: 1, time: 96 }], [20, { lap: 2, time: 94.5 }]] as [number, { lap: number; time: number }][] },
+  }
+  it('are the archive’s, then live ones after its lastSeq, once each', () => {
+    const rows = lapsFrom(archived, [lap(20, 2, 99), lap(30, 3, 95), lap(30, 3, 95), lap(40, 4, 93, { pitIn: true })])
+    expect(rows.map((r) => [r.lap, r.time])).toEqual([[1, 96], [2, 94.5], [3, 95], [4, 93]])
+    expect(rows.find((r) => r.best)?.lap).toBe(2) // lap 4 is quicker, but into the pits
+  })
+  it('are only live ones with nothing archived, and none without laps', () => {
+    expect(lapsFrom(null, [lap(5, 1, 90)]).map((r) => r.lap)).toEqual([1])
+    expect(lapsFrom(null, [{ t: 1, rec: { type: 'sample', signal: 'engine.rpm', value: 1, seq: 1, wall: 1 } }])).toEqual([])
+    expect(lapsFrom(null, [{ t: 1, rec: { type: 'lap', lap: 1, seq: 1, wall: 1 } }])).toEqual([]) // no time: not a lap
+  })
+})
+

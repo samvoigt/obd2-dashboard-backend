@@ -1,5 +1,18 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
+  import SessionMap from './SessionMap.svelte'
+  import Faults from './widgets/Faults.svelte'
+  import Gauge from './widgets/Gauge.svelte'
+  import GMeter from './widgets/GMeter.svelte'
+  import LapsPanel from './widgets/LapsPanel.svelte'
+  import Readout from './widgets/Readout.svelte'
+  import Status from './widgets/Status.svelte'
+  import UnitsSwitch from './widgets/UnitsSwitch.svelte'
+  import Bar from './widgets/Bar.svelte'
+  import { freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, SHOWN, SLOTS, timings, valueOf, type Peaks } from './lib/dashboard'
+  import { nearest } from './lib/sessionPage'
+  import { columnShown, shownUnit, toShown } from './lib/units'
+  import { units } from './lib/unitsState.svelte'
   import Chart from './Chart.svelte'
   import MessagePanel from './MessagePanel.svelte'
   import { applyList, applyOne, type CrewMessage } from './lib/messages'
@@ -14,7 +27,9 @@
 
   let { slug }: { slug: string } = $props()
 
-  let live: LiveState = $state(empty())
+  // Raw: every event replaces the whole state, so it needs no deep proxies, which made a page
+  // of widgets crawl (M8.2).
+  let live: LiveState = $state.raw(empty())
   let now = $state(Date.now())
   let chosen: string[] = $state([])
   let notFound = $state(false)
@@ -32,15 +47,47 @@
   const names = $derived(
     [...new Set([...live.signals.map((s) => s.name), ...Object.keys(live.latest), ...Object.keys(live.stopped)])].sort(),
   )
+
+  // The dashboard (M8): its readings, and whether each is current, by one pass over the history per batch.
+  const serverNow = $derived(now - live.offsetMs)
+  const timing = $derived(timings(live.history))
+  const current = (n: string) => freshnessOf(n, timing, live.latest[n], !!live.stopped[n], serverNow)
+  const trail = $derived(gTrail(live.history, serverNow))
+  const hasG = $derived(live.history.some((p) => p.rec.signal === 'motion.acceleration.lateral' || p.rec.signal === 'motion.acceleration.longitudinal'))
+  let peak: Peaks = $state(NO_PEAKS)
+  // Peaks since the page opened; read untracked, or the effect would rerun itself (M8.2).
+  $effect(() => { const next = trail; peak = peaks(untrack(() => peak), next) })
+  const positions = $derived(live.history.filter((p) => p.rec.signal === 'gps.position' && typeof p.rec.lat === 'number' && typeof p.rec.lon === 'number'))
+  const trailSpeeds = $derived.by(() => {
+    const speed = live.history.filter((p) => p.rec.signal === 'gps.speed' && typeof p.rec.value === 'number')
+    const times = speed.map((p) => p.t)
+    return positions.map((p) => { const i = nearest(times, p.t); return i < 0 ? null : (speed[i]!.rec.value as number) })
+  })
+  const codes = $derived(Array.isArray(live.fault?.codes) ? (live.fault.codes as string[]).filter((c) => typeof c === 'string') : [])
+  const tileNames = $derived(names.filter((n) => !SHOWN.has(n)))
+
+  /** The chart's columns in the viewer's units (M8.3). */
+  function inUnits(data: [number[], ...(number | null | undefined)[][]]): [number[], ...(number | null | undefined)[][]] {
+    const [x, ...ys] = data
+    return [x, ...ys.map((y, i) => columnShown(y, unitOf(live, chartNames[i] ?? ''), units.system))]
+  }
+
+  /** A tile's reading, in the viewer's units. */
+  function tileText(n: string): string {
+    const rec = live.latest[n]
+    const unit = unitOf(live, n)
+    if (rec && typeof rec.value === 'number') return format({ ...rec, value: toShown(rec.value, unit, units.system) }, shownUnit(unit, units.system))
+    return format(rec, unit)
+  }
   const chartNames = $derived(chosen.length > 0 ? chosen : defaultChart(live))
-  const chartUnits = $derived(chartNames.map((n) => unitOf(live, n)))
-  // "Whole session" (M7.6): the archive's prepared file, merged with the live history after it.
+  const chartUnits = $derived(chartNames.map((n) => shownUnit(unitOf(live, n), units.system)))
+  // The archive's prepared file for the live session (M7.6), for "Whole session" and for laps (M8.3).
   let whole = $state(false)
-  let archived = $state<Series | null>(null)
+  let archived = $state.raw<Series | null>(null)
   const liveId = $derived(typeof live.session?.id === 'string' ? live.session.id : null)
   $effect(() => {
     const id = liveId
-    if (!whole || !id) {
+    if (!id) {
       archived = null
       return
     }
@@ -50,6 +97,8 @@
     const timer = setInterval(load, 60_000) // a new chunk every 2 minutes; usually a 304
     return () => { stopped = true; clearInterval(timer) }
   })
+
+  const laps = $derived(lapsFrom(archived, live.history))
 
   // The chart redraws at most every half second (a second for the whole session): the eye cannot use
   // more, and a phone should not work harder.
@@ -62,11 +111,11 @@
     lastChart = t
     if (whole) {
       const m = merge(archived, live.history.map((p) => p.rec as Record<string, unknown>), live.signals as Series['signals'])
-      chartData = joined(m.series, chartNames)
+      chartData = inUnits(joined(m.series, chartNames))
       const end = chartData[0][chartData[0].length - 1]
       chartBands = m.provisionalFrom !== null && end !== undefined ? [{ from: m.provisionalFrom / 1000, to: end, color: translucent(color('caution'), 0.1) }] : []
     } else {
-      chartData = series(live, chartNames)
+      chartData = inUnits(series(live, chartNames))
       chartBands = []
     }
   })
@@ -135,19 +184,48 @@
     </section>
 
     <h1>{slug}</h1>
-    {#if live.session}
-      <p class="session muted">
-        Session started {new Date(String(live.session.started)).toLocaleString()}
-        {#if live.session.app} · app {String(live.session.app)}{/if}
-        {#if live.session.device} · device {String(live.session.device).slice(0, 8)}{/if}
-      </p>
+    <div class="sessionline">
+      {#if live.session}
+        <p class="session muted">
+          Session started {new Date(String(live.session.started)).toLocaleString()}
+          {#if live.session.app} · app {String(live.session.app)}{/if}
+          {#if live.session.device} · device {String(live.session.device).slice(0, 8)}{/if}
+        </p>
+      {/if}
+      <UnitsSwitch />
+    </div>
+
+    <!-- The dashboard (M8): one fixed layout, Sam's slots (dashboard.ts). -->
+    {#if SLOTS.gauges.length > 0}
+      <section class="dash gauges">
+        {#each SLOTS.gauges as n (n)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+      </section>
     {/if}
+    {#if SLOTS.numbers.length > 0}
+      <section class="dash numbers">
+        {#each SLOTS.numbers as n (n)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+      </section>
+    {/if}
+    {#if SLOTS.bars.length > 0}
+      <section class="dash bars">
+        {#each SLOTS.bars as n (n)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+      </section>
+    {/if}
+    {#if hasG || positions.length > 0}
+      <section class="dash where">
+        {#if hasG}<GMeter {trail} peaks={peak} stale={trail.length === 0} />{/if}
+        {#if positions.length > 0}
+          <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />
+        {/if}
+      </section>
+    {/if}
+    {#if laps.length > 0}<LapsPanel rows={laps} />{/if}
+    <section class="dash statuses">
+      {#each SLOTS.statuses as n (n)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
+      <Faults {codes} />
+    </section>
 
     <MessagePanel {slug} {crew} list={messages} offsetMs={live.offsetMs} {now} onCrewChange={() => reconnect()} />
-
-    {#if live.fault && Array.isArray(live.fault.codes) && live.fault.codes.length > 0}
-      <p class="fault">Trouble codes: {(live.fault.codes as string[]).join(', ')}</p>
-    {/if}
 
     {#if names.length > 0}
       <section class="panel">
@@ -172,9 +250,9 @@
       </section>
 
       <section class="tiles">
-        {#each names as n (n)}
+        {#each tileNames as n (n)}
           {@const stopped = live.stopped[n]}
-          {@const text = format(live.latest[n], unitOf(live, n))}
+          {@const text = tileText(n)}
           <div class="tile" class:stopped={!!stopped} title={stopped ? String(stopped.reason ?? 'stopped') : n}>
             <div class="name">{label(n)}</div>
             <div class="value" class:long={text.length > 14}>{text}</div>
@@ -190,6 +268,14 @@
 
 <style>
   .back { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 12px; }
+  .sessionline { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .sessionline .session { margin: 0; }
+  .dash { display: grid; gap: 10px; margin: 12px 0; }
+  .gauges { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .numbers { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .bars { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .where { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+  .statuses { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .back a { color: var(--muted); text-decoration: none; }
   .banner {
     display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 12px;

@@ -8,6 +8,9 @@
   } from './lib/sessionPage'
   import { badge, clockOf, dayOf, duration, lapTime, trackOf, type SessionItem } from './lib/sessions'
   import { merge } from './lib/merge'
+  import { columnShown, shownUnit } from './lib/units'
+  import { units } from './lib/unitsState.svelte'
+  import UnitsSwitch from './widgets/UnitsSwitch.svelte'
   import { color, translucent } from './lib/theme'
 
   let { slug, id }: { slug: string; id: string } = $props()
@@ -45,13 +48,18 @@
   const view = $derived(merged.series)
 
   const names = $derived(view ? (chosen.length > 0 ? chosen : defaultSignals(view)) : [])
-  const data = $derived(view ? joined(view, names) : null)
+  const data = $derived.by(() => {
+    if (!view) return null
+    const [x, ...ys] = joined(view, names)
+    // In the viewer's units (M8.3), as the car's page is.
+    return [x, ...ys.map((y, i) => columnShown(y, unitOf(view!, names[i] ?? ''), units.system))] as [number[], ...(number | null | undefined)[][]]
+  })
   const bands = $derived(
     merged.provisionalFrom !== null && data && data[0].length > 0
       ? [{ from: merged.provisionalFrom / 1000, to: data[0][data[0].length - 1]!, color: translucent(color('caution'), 0.1) }]
       : [],
   )
-  const units = $derived(view ? names.map((n) => unitOf(view!, n)) : [])
+  const chartUnits = $derived(view ? names.map((n) => shownUnit(unitOf(view!, n), units.system)) : [])
   const numbers = $derived(view ? Object.keys(view.numbers).sort() : [])
   const laps: LapRow[] = $derived(view ? lapRows(view) : [])
   const happened = $derived(view ? events(view) : [])
@@ -144,6 +152,7 @@
       {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
       {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}
       {#if s.state === 'live'}<a href={`/cars/${slug}`}>Watch live →</a>{/if}
+      <span class="spacer"></span><UnitsSwitch />
     </p>
     {#if s.state === 'uploading'}
       <p class="muted small">Still being uploaded: this shows what has arrived so far. Reload for more.</p>
@@ -165,7 +174,7 @@
           <span class="muted small">Drag across the chart to zoom in; double-click to zoom out.</span>
         </div>
         {#if data && data[0].length > 0}
-          <Chart {data} {names} {units} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} />
+          <Chart {data} {names} units={chartUnits} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} />
         {:else}
           <p class="muted">No readings to chart.</p>
         {/if}
@@ -220,6 +229,7 @@
   h1 { overflow-wrap: anywhere; }
   h2 { font-size: 1rem; margin: 0 0 10px; }
   .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 8px; }
+  .facts .spacer { flex: 1; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 16px 0; }
   .pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
   select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 0.95rem; max-width: 100%; }

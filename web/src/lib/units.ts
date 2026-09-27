@@ -56,3 +56,11 @@ export function saveSystem(system: System): void {
     // A private window, or storage refused: the choice lasts this page only.
   }
 }
+
+/** A chart's column in the viewer's units; gaps (null) and holes (undefined) kept as they are. */
+export function columnShown(values: (number | null | undefined)[], unit: string, system: System): (number | null | undefined)[] {
+  const conversion = system === 'us' ? US[unit] : undefined
+  if (!conversion) return values
+  return values.map((v) => (typeof v === 'number' ? conversion.to(v) : v))
+}
+
