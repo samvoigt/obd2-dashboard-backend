@@ -105,8 +105,44 @@ the collection's `ETag` (from every course's id and version); `CourseStore`
 (get, list, the current version of each, a new version, delete) and an
 in-memory store.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The shape** follows `Messages` in `:live`: rules plus a store
+>   interface and an in-memory store, in a module whose build is `:live`'s
+>   (`explicitApi`, JUnit and Kotest), depending only on kotlinx
+>   serialization's JSON (a course is GeoJSON, kept as a `JsonObject` so
+>   nothing the editor or the tablet adds is lost in a round trip).
+> - **Ids** take the car slug's shape (`Slug` in `:registry`: lower case,
+>   letters, digits and hyphens, starting with a letter, 2–32), without its
+>   reserved words, since a course only ever sits under `/courses/`. Its own
+>   rule here, so `:courses` doesn't depend on `:registry`.
+> - **Roles** are exactly the proposal's seven; **an unknown role is
+>   refused** on the server (the tablet ignores unknown ones, but the website is
+>   the only source, so nothing unknown should ever be saved).
+> - **The rules, precisely:** a `FeatureCollection`; ≥ 1 `layout`
+>   (`LineString`, ≥ 2 points, a unique `id`, a `name`), exactly one with
+>   `default: true` (or the only one); for each layout, exactly one
+>   `start_finish` that applies (its own `layout`, or one without `layout`,
+>   never both); `sector`s with a `layout` that exists and `index`es 1…n
+>   without gaps per layout; at most one each of `pit_lane` (≥ 2 points),
+>   `pit_in`, `pit_out`, `pit_line`; every line 2 points, 1–200 m long;
+>   every coordinate `[lon, lat]` in range; the whole ≤ 256 KB. A name 1–60
+>   characters. Every breach reported, not just the first.
+> - **The collection's ETag** is from each course's id and version (sorted),
+>   so it moves exactly when a course is saved, renamed or removed.
+
 **Done when:** tests for every rule (and each refusal's reason), the ETag
 changing exactly when a course changes, versions counting up.
+
+> **✅ Done, 2026-09-27.** `:courses`: `Course`, `CourseShape` (layouts with
+> their start/finish and ordered sectors, the pit lines), `CourseRules`,
+> `coursesEtag`, `CourseStore` and `InMemoryCourseStore`.
+> - **Tests: 11**, every rule and its reason, several reported at once.
+> - **Mutations: 9, all killed**: an unknown role allowed, defaults
+>   unchecked, sectors in the order drawn, lines to 2 km, a layout with both
+>   its own and the shared start/finish, no size limit, coordinates
+>   unchecked, the ETag ignoring versions, a save over someone else's.
+> - **Found by the tests:** my own one-letter layout ids in them, which the
+>   2–32 rule rightly refused.
 
 ### M12.2 — NHMS, seeded
 
