@@ -111,6 +111,47 @@ misses the layout leaving it without sectors; the in-lap ending at the pit
 line, with the fallback pit line when the course has none. And **the same
 moments whatever the frame's origin**.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The tablet's code, line by line** (read only): `LapTimer.offer` (each
+>   move, every line's crossing in order of `t`, the direction sign against the
+>   line's own at the layout, the arming), `passSector` (only the next),
+>   `endLap` (the last sector only after all the others), `forwardSign`,
+>   `crossing` (touching an end counts), `Polyline.crossings` (a sector line
+>   must cut the layout's segments exactly once), `Track.startFinish(layout)`
+>   (its own, else the shared one), `Track.pitGate(layout)` (the fallback:
+>   the start/finish's middle projected onto the **open** pit lane, square to
+>   it at ±1 m along, 8 m each side), `LocalFrame` (equirectangular about the
+>   **default layout's first point**, 111,195 m a degree).
+> - **In `:courses`' terms:** `CourseShape` has each `Layout`'s `path`,
+>   `startFinish` and ordered `sectors`, and the course's `pitLane`,
+>   `pitLine`; so `:timing` depends only on `:courses`.
+> - **Times are milliseconds as doubles** on `at`'s clock (`fixAt` whole
+>   milliseconds, interpolated between), laps and sectors in seconds as the
+>   `lap` record has them.
+> - **Exactness:** on a straight at a steady speed, interpolating along the
+>   move is exact, so those tests expect the true moment to a microsecond; on a
+>   circle the chord cuts corners, so those expect the time within what a
+>   chord's error can be at that rate.
+
+> **✅ Done, 2026-09-27.** `:timing`'s `LapRule` (and `Fix`, `TimedLap`),
+> the tablet's rule line by line, on `:courses`' `CourseShape`.
+> - **Tests: 14**, on a 1000 × 400 m box with every line mid-straight (so
+>   true moments are exact): laps at 1 Hz to a microsecond; sectors to their
+>   true times and adding up; 10 Hz at a varying pace within 0.2 ms; a car sat
+>   on the line; arming at 150 m or a quarter of a short layout; the wrong way;
+>   fixes lost across the line; a sector line and the start/finish in one
+>   move; a missed sector line; a sector line off the track or cutting it
+>   twice; a start/finish missing the layout; the in-lap ending at the pit
+>   line and the out-lap starting there; the made pit line matching a drawn
+>   one; the same moments whatever the frame's origin.
+> - **Mutations: 9, all killed**, two only after tests were added: a sector
+>   line cutting the track twice (only one missing it had been tested) and the
+>   fallback pit line's width (the test car drove the pit lane's exact line;
+>   it now runs 5 m off it, as a GPS trace does).
+> - **Found by the tests:** my own first pit test sent the car into the pits
+>   on its first lap, which the rule rightly timed as an in-lap.
+
+
 ### M13.2 — A session's fixes and laps, and runs
 
 A reader streaming a session's log for its `gps.position` fixes (`fixAt`,
