@@ -25,3 +25,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions)
 }
+
+// import-course's test reads the NHMS seed: a changed seed must re-run it (M12.3).
+tasks.test {
+    inputs.dir("../courses/seed")
+}

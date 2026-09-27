@@ -72,7 +72,7 @@ class AdminCarsTest {
     private fun ApplicationTestBuilder.app() {
         application {
             module(registry, ArchiveService(sessions, InMemorySegmentStore()), hub,
-                messages = Messages(store), crewKey = testCrewKey(), admin = config)
+                messages = Messages(store), courses = testCourses(), crewKey = testCrewKey(), admin = config)
         }
     }
 

@@ -2,9 +2,11 @@ package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
+import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.live.InMemoryLiveHub
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.live.Messages
@@ -60,6 +62,7 @@ fun main() {
             registry, archive, InMemoryLiveHub(), project = project,
             messages = Messages(FirestoreMessageStore.connect(project)), crewKey = crewKey,
             admin = AdminConfig.fromEnvironment(System::getenv),
+            courses = FirestoreCourseStore.connect(project),
         )
     }
     server.start(wait = true)
@@ -82,6 +85,8 @@ fun Application.module(
     crewKey: ByteArray,
     /** The admin page (M6). Off unless given; production builds it from the environment. */
     admin: AdminConfig = AdminConfig.DISABLED,
+    /** Courses (M12), on the store production names; no default, as for messages. */
+    courses: CourseStore,
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val crewAuth = CrewAuth(crewKey, clock)
@@ -102,6 +107,11 @@ fun Application.module(
         val adminAuth = AdminAuth(crewKey, clock)
         adminSignInRoutes(adminAuth, admin)
         adminCarRoutes(registry, CarAdmin(registry, archive, messages, clock), archive, hub, clock, adminAuth, admin)
+        // A course is in use once any session's laps were timed at it (its summary's track, M12.3).
+        val courseInUse: suspend (String) -> Boolean = { id ->
+            registry.list().any { car -> archive.sessionsOf(car.slug.value).any { it.summary?.track == id } }
+        }
+        adminCourseRoutes(courses, courseInUse, clock, adminAuth, admin)
         sessionRoutes(registry, archive, hub, clock)
         messageRoutes(registry, crewAuth, crew)
         webRoutes()

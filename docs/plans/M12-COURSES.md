@@ -194,9 +194,51 @@ the same sign-in, origin check and change log as cars.
 Also `admin.sh import-course <file>` (from M12.2): validates a GeoJSON file
 and stores it as the next version.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Firestore:** `courses/{id}` holds the latest version's number, name and
+>   time; `courses/{id}/versions/{n}` each version. **The GeoJSON is stored
+>   as its JSON text**, since Firestore can't hold arrays inside arrays, which
+>   GeoJSON coordinates are. **A save is a transaction**: read the course,
+>   check its version is the one expected, write the course and the new
+>   version together, as `FirestoreMessageStore.update` does. Delete removes
+>   the versions in batches, then the course.
+> - **A mapping test** (as `MessageMappingTest`) and **a smoke test** against
+>   the real Firestore (as `MessageSmoke`, run by `scripts/course-smoke.sh`,
+>   never by `test`), a throwaway course removed after.
+> - **The admin API** uses `call.admin(auth, config, change)` (sign-in, and
+>   the same-origin check on a change) and `adminLog` for every change:
+>   `GET /api/admin/courses`, `GET …/{id}` (`?version=`), `GET
+>   …/{id}/versions`, `PUT …/{id}` (`expected`, `name`, `geojson`: 400 with
+>   every problem, 409 if someone saved first), `DELETE …/{id}`.
+> - **"Refused while a lap names it":** today's tablet laps name their track
+>   (`track: "nhms"`), and a session's summary keeps its most-used track
+>   (`SessionSummary.track`). A course is refused deletion while any session's
+>   summary names it. (M12.7 adds `course` to the same place.)
+> - **`admin.sh import-course <file> [--id] [--name]`** in `:tools`: reads
+>   the file, applies `CourseRules`, saves over the current version; the id
+>   defaults to the file's name, the name to the GeoJSON's.
+
 **Done when:** route tests (signed out, wrong origin, invalid course, a save
 making version N+1, delete refused when named); a Firestore smoke test with a
 throwaway course, removed after.
+
+> **✅ Done, 2026-09-27.** `FirestoreCourseStore` (versions under each
+> course, the GeoJSON as text, a save a transaction); the admin courses API
+> (`CourseRoutes.kt`); the module takes a `CourseStore` with no default (as
+> messages), `main()` the Firestore one, the dev server an in-memory one
+> seeded with NHMS; `admin.sh import-course`.
+> - **Tests:** 2 mapping (a version round-trips exactly; nothing stored as
+>   arrays), 4 routes (signed out and cross-origin change nothing; versions
+>   count up, a stale save 409, history newest first, layouts listed; an
+>   invalid course 400 with every problem; a course in use kept, an unused one
+>   deleted), 2 for `import-course`. The module's 23 test call sites pass a
+>   store.
+> - **The real Firestore** (`scripts/course-smoke.sh`): saved, read back
+>   exactly, a stale save refused, version 2, version 1 kept, both listed,
+>   deleted with its versions. PASSED.
+> - **Mutations: 6, all killed**: an invalid course saved, a course in use
+>   deleted, no origin check on a save, history oldest first, import ignoring
+>   problems, import always over version 0.
 
 ### M12.4 — The editor
 

@@ -18,9 +18,13 @@ import com.obd2dashboard.backend.admin.NoSuchSession
 import com.obd2dashboard.backend.admin.SessionBusy
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
+import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
+import com.obd2dashboard.backend.courses.CourseCheck
+import com.obd2dashboard.backend.courses.CourseRules
+import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.live.MessageStore
 import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
@@ -30,6 +34,11 @@ import com.obd2dashboard.backend.registry.Slug
 import com.obd2dashboard.backend.registry.Tokens
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
 import java.nio.file.Files
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.Json
+import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
@@ -49,6 +58,7 @@ fun main(args: Array<String>) {
                 sessions = index,
                 archive = ArchiveService(index, GcsSegmentStore.connect(project, bucket)),
                 messages = FirestoreMessageStore.connect(project),
+                courses = FirestoreCourseStore.connect(project),
             )
         },
         io = ConsoleIo,
@@ -68,7 +78,7 @@ class Admin(
     init {
         subcommands(
             AddCar(io), RotateToken(io), SetToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
-            ListSessions(), ShowSession(), DeleteSession(io),
+            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(),
         )
     }
 
@@ -80,7 +90,13 @@ class Admin(
 }
 
 /** What subcommands share, set by [Admin.run]. */
-class Tools(val registry: CarRegistry, val sessions: SessionIndex, val archive: ArchiveService, val messages: MessageStore) {
+class Tools(
+    val registry: CarRegistry,
+    val sessions: SessionIndex,
+    val archive: ArchiveService,
+    val messages: MessageStore,
+    val courses: CourseStore,
+) {
     /** The rules shared with the admin page (M6.1). */
     val admin: CarAdmin = CarAdmin(registry, archive, Messages(messages))
 }
@@ -352,3 +368,33 @@ class DeleteSession(private val io: AdminIo) :
         echo("Deleted ${session.id}.")
     }
 }
+
+/**
+ * A course from a GeoJSON file (M12.3), saved as the next version: how NHMS is
+ * seeded (`courses/seed/nhms.geojson`). The website's editor is the usual way.
+ */
+class ImportCourse : CliktCommand(name = "import-course") {
+    private val tools: Tools by requireObject<Tools>()
+    private val file by argument(help = "a course's GeoJSON").path(mustExist = true, canBeDir = false, mustBeReadable = true)
+    private val id by option("--id", help = "the course's id; the file's name if not given")
+    private val name by option("--name", help = "its name; the GeoJSON's own if not given")
+
+    override fun help(context: Context) = "Save a course from a GeoJSON file, as its next version."
+
+    override fun run() = runBlocking {
+        val geojson = runCatching { Json.parseToJsonElement(Files.readString(file)).jsonObject }
+            .getOrElse { throw CliktError("${file.fileName} is not a JSON object: ${it.message}") }
+        val courseId = id ?: file.fileName.toString().substringBefore('.')
+        val courseName = name ?: (geojson["name"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+        val problems = listOfNotNull(CourseRules.idProblem(courseId), CourseRules.nameProblem(courseName)) +
+            ((CourseRules.check(geojson) as? CourseCheck.Refused)?.problems.orEmpty())
+        if (problems.isNotEmpty()) throw CliktError("Not saved:\n" + problems.joinToString("\n") { "  - $it" })
+        val shape = (CourseRules.check(geojson) as CourseCheck.Ok).shape
+        val expected = tools.courses.get(courseId)?.version ?: 0
+        val saved = tools.courses.save(courseId, expected, courseName.trim(), geojson, Instant.now())
+            ?: throw CliktError("Someone saved $courseId while this ran; run it again.")
+        val layouts = shape.layouts.joinToString(", ") { "${it.id}${if (it.default) " (default)" else ""}, ${it.sectors.size} sector(s)" }
+        echo("Saved $courseId (${saved.name}) as version ${saved.version}: $layouts.")
+    }
+}
+

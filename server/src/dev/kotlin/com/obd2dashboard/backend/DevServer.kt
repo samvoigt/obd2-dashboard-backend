@@ -1,5 +1,10 @@
 package com.obd2dashboard.backend
 
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.Json
+import java.time.Instant
+import com.obd2dashboard.backend.courses.InMemoryCourseStore
+import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
@@ -42,6 +47,7 @@ fun main() {
             registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(),
             messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) },
             admin = devAdmin(),
+            courses = devCourses(),
         )
     }.start(wait = true)
 }
@@ -60,3 +66,12 @@ private fun devAdmin(): AdminConfig {
         dev = true,
     )
 }
+
+/** Courses in memory, with NHMS from its seed (M12.2) so the editor has one to open. */
+private fun devCourses(): CourseStore = InMemoryCourseStore().also { store ->
+    val seed = File("../courses/seed/nhms.geojson")
+    if (seed.isFile) {
+        runBlocking { store.save("nhms", 0, "New Hampshire Motor Speedway", Json.parseToJsonElement(seed.readText()).jsonObject, Instant.now()) }
+    }
+}
+

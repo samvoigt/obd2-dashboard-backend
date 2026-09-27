@@ -109,7 +109,7 @@ class AdminAuthTest {
 
     private fun ApplicationTestBuilder.app(admin: AdminConfig = fake) {
         application {
-            module(CarRegistry(InMemoryCarStore()), testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey(), admin = admin)
+            module(CarRegistry(InMemoryCarStore()), testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey(), admin = admin)
         }
     }
 

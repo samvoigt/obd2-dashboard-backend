@@ -33,7 +33,8 @@ class AdminTest {
     // Uploads are stamped 10 minutes ago, so a seeded session is quiet enough to delete (M6.7).
     private val archive = ArchiveService(sessions, segments, java.time.Clock.offset(java.time.Clock.systemUTC(), java.time.Duration.ofMinutes(-10)))
     private val messages = InMemoryMessageStore()
-    private val tools = Tools(registry, sessions, archive, messages)
+    private val courses = com.obd2dashboard.backend.courses.InMemoryCourseStore()
+    private val tools = Tools(registry, sessions, archive, messages, courses)
 
     private fun message(id: String, car: String) = runBlocking {
         messages.create(Message(id, car, "PIT NOW", "pit", Instant.EPOCH, Instant.EPOCH.plusSeconds(60), MessageState.Cleared))
@@ -372,5 +373,27 @@ class AdminTest {
 
         run("delete-session $sessionId", FakeIo(lines = listOf(sessionId)))
         run("remove-car yaris", FakeIo(lines = listOf("yaris"))).statusCode shouldBe 0
+    }
+
+    @Test
+    fun `import-course saves a course from its file, each run the next version`() {
+        val seed = java.io.File("../courses/seed/nhms.geojson").absolutePath
+        val first = run("import-course $seed --name \"New Hampshire Motor Speedway\"")
+        first.statusCode shouldBe 0
+        first.output shouldContain "Saved nhms (New Hampshire Motor Speedway) as version 1: road (default), 0 sector(s)"
+        run("import-course $seed").output shouldContain "as version 2" // the id from the file's name, the name from the GeoJSON
+        runBlocking { courses.get("nhms")!!.name } shouldBe "New Hampshire Motor Speedway"
+    }
+
+    @Test
+    fun `import-course refuses an invalid course, saying every problem, and saves nothing`() {
+        val bad = kotlin.io.path.createTempFile("bad", ".geojson").toFile().apply {
+            writeText("""{"type":"FeatureCollection","features":[]}""")
+            deleteOnExit()
+        }
+        val result = run("import-course ${bad.absolutePath} --id home-loop --name Loop")
+        result.statusCode shouldBe 1
+        result.output shouldContain "a course needs at least one layout"
+        runBlocking { courses.current() } shouldBe emptyList()
     }
 }

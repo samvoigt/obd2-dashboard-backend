@@ -105,3 +105,8 @@ tasks.register<JavaExec>("devServer") {
     systemProperty("devTokenFile", layout.buildDirectory.file("dev-token").get().asFile.path)
 }
 
+// Course tests read the NHMS seed: a changed seed must re-run them (M12.3).
+tasks.test {
+    inputs.dir("../courses/seed")
+}
+
