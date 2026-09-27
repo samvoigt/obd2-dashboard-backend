@@ -311,6 +311,51 @@ server** (dev sign-in):
 - a token shown once and gone on reload;
 - phone width.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - `routes.ts` gains `{ page: 'admin' }` for `/admin`; `WebRoutes` serves
+>   `index.html` there, **with `X-Frame-Options: DENY`** and
+>   `Content-Security-Policy: frame-ancestors 'none'`, so no other site can put
+>   the page inside its own. Tested in `WebRoutesTest`.
+> - **Google's script (`accounts.google.com/gsi/client`) is loaded only when
+>   `config` sends a client ID**: never locally, where the dev button shows. The
+>   page's code is in the same bundle as the rest of the site, which is fine:
+>   every action is behind the API.
+> - **Pure logic in `admin.ts`**, with Vitest: the slug and token rules (a
+>   mirror of the server's, for instant hints; the server still decides), the
+>   confirmation check, the state labels, dates, and error text.
+> - The cookie's `Path=/api/admin` covers every call the page makes; Vite's
+>   proxy passes it through locally.
+> - **Correction found in Chrome:** Vite's shorthand proxy (`'/api': url`) sets
+>   `changeOrigin`, which rewrites `Host` to `localhost:8080`, so every change
+>   from the page was a `403`. M6.3's note was wrong about that. `/api` now keeps
+>   the page's `Host`, as production does.
+
+> **✅ Done, 2026-09-26.** `/admin` on the server (framing refused) and in the
+> router; `Admin.svelte`; `admin.ts` (11 Vitest tests here, 34 in all; type check
+> clean). Looked at in Chrome against the dev server:
+> - the dev sign-in; the car list;
+> - adding a car with a generated token, shown once with Copy, and gone after a
+>   reload (no full token anywhere in the page);
+> - a bad slug hinted at once;
+> - rename; replacing with a chosen token (a mismatch and a wrong "Replace"
+>   both blocked), and the new one authenticates while the mismatched one
+>   doesn't;
+> - setting a passcode (a short one hinted);
+> - removing (a wrong slug blocked), and a car with a session refused;
+> - 390 px wide: no sideways scroll; sign out: back to sign-in, the API `401`;
+> - the dev server's log names each action and holds no token or passcode.
+>
+> **Found by looking:**
+> - **Vite's proxy** (above).
+> - **The error line showed only once signed in**, so a failed sign-in looked
+>   like nothing happening. It now shows everywhere.
+> - **Labels with bold words split into rows** (a grid label makes each text
+>   piece a row); each label's text is now one element.
+>
+> Mutations: 19 in `admin.ts` and `routes.ts`, all killed. **M6.7 is built next,
+> before M6.6**, so that Sam's Google setup and the deploy come once, with
+> everything in.
+
 ### M6.6 — Google setup, and deploy
 
 **Sam, about 10 minutes in the Cloud console**, guided step by step:

@@ -7,8 +7,12 @@ describe('route', () => {
     expect(route('/cars/yaris')).toEqual({ page: 'car', slug: 'yaris' })
     expect(route('/cars/car-42/')).toEqual({ page: 'car', slug: 'car-42' })
   })
+  it('reads the admin page', () => {
+    expect(route('/admin')).toEqual({ page: 'admin' })
+    expect(route('/admin/')).toEqual({ page: 'admin' })
+  })
   it('sends anything else to the landing page', () => {
-    for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars']) {
+    for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin/x', '/administrator']) {
       expect(route(path)).toEqual({ page: 'landing' })
     }
   })

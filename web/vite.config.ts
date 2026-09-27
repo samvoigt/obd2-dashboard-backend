@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [svelte()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8080',
+      // changeOrigin off: the server sees the page's own Host, as it does in production,
+      // which the admin API's same-origin check compares with Origin (M6.3).
+      '/api': { target: 'http://localhost:8080', changeOrigin: false },
       '/v1': { target: 'http://localhost:8080', ws: true },
     },
   },

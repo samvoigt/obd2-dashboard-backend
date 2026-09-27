@@ -31,6 +31,19 @@ class WebRoutesTest {
     }
 
     @Test
+    fun `the admin page is the site, and can't be framed by anyone`() = testApplication {
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
+        for (path in listOf("/admin", "/admin/")) {
+            val response = client.get(path)
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldContain "SITE-STUB"
+            response.headers["X-Frame-Options"] shouldBe "DENY"
+            response.headers["Content-Security-Policy"] shouldBe "frame-ancestors 'none'"
+        }
+        client.get("/").headers["X-Frame-Options"] shouldBe null // the public pages are unchanged
+    }
+
+    @Test
     fun `assets are served and cached for a year`() = testApplication {
         application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
         val response = client.get("/assets/app-test.js")
@@ -46,7 +59,7 @@ class WebRoutesTest {
             it.status shouldBe HttpStatusCode.OK
             it.headers[HttpHeaders.ContentType]!! shouldStartWith "application/json"
         }
-        for (path in listOf("/api/nope", "/api/cars/x/y", "/v1/nope", "/assets/missing.js", "/elsewhere")) {
+        for (path in listOf("/api/nope", "/api/cars/x/y", "/api/admin/nope", "/v1/nope", "/assets/missing.js", "/elsewhere", "/admin/x")) {
             val response = client.get(path)
             response.status shouldBe HttpStatusCode.NotFound
             response.bodyAsText() shouldNotContain "SITE-STUB"
