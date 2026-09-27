@@ -24,7 +24,7 @@
   }
 
   let detail = $state<Detail | null>(null)
-  let series = $state<Series | null>(null)
+  let series = $state.raw<Series | null>(null)
   let missing = $state(false)
   let error = $state<string | null>(null)
 

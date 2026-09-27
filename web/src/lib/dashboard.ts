@@ -119,10 +119,11 @@ export type Timing = Map<string, { last: number; usual: number | null }>
  * freshness many times a second, and scanning the whole history per widget was
  * enough to hang it (found in M8.2).
  */
-export function timings(history: Point[]): Timing {
+export function timings(history: Point[], only?: ReadonlySet<string>): Timing {
   const times = new Map<string, number[]>()
   for (const p of history) {
     if (p.rec.type !== 'sample' || typeof p.rec.signal !== 'string') continue
+    if (only && !only.has(p.rec.signal)) continue // the page needs only its slots' (M8.4)
     let list = times.get(p.rec.signal)
     if (!list) times.set(p.rec.signal, (list = []))
     list.push(p.t)

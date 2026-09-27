@@ -29,6 +29,7 @@
   let dot: L.CircleMarker | null = null
   let trace: L.LayerGroup | null = null
   let fitted = false
+  let drawn = '' // the trace last drawn, by its ends and length
   // Following (M8): the page's own moves are marked, so any other move is the viewer's.
   let moving = false
   let viewerMoved = $state(false)
@@ -46,7 +47,6 @@
 
     trace = L.layerGroup().addTo(map)
     map.on('movestart', () => { if (!moving) viewerMoved = true })
-    map.on('moveend', () => { moving = false })
     dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: color('text'), weight: 2, fillColor: color('bg'), fillOpacity: 1 })
 
     const resize = new ResizeObserver(() => map?.invalidateSize())
@@ -70,9 +70,16 @@
     if (follow) {
       // Following, the car stays in view until the viewer moves the map (M8).
       if (!viewerMoved) {
+        // Unanimated, so the move is over when the call returns. Marked around the call, not
+        // until a moveend: setView first stops the viewer's drag inertia, whose moveend came
+        // before this move's movestart and read as the viewer's (found in M8.4).
         moving = true
-        if (fitted) m.panTo(car, { animate: false })
-        else m.setView(car, 16, { animate: false })
+        try {
+          if (fitted) m.panTo(car, { animate: false })
+          else m.setView(car, 16, { animate: false })
+        } finally {
+          moving = false
+        }
         fitted = true
       }
     } else if (!fitted) {
@@ -81,6 +88,12 @@
       fitted = true
     }
     if (!fitted) return // the viewer moved it before it was ever set: wait for one
+
+    // Live, a batch comes 5 times a second but a position about once: the trace is drawn
+    // again only when it changed, the map's largest cost per batch otherwise (M8.4).
+    const key = `${t.length}:${t[0]}:${t[t.length - 1]}:${speeds[speeds.length - 1]}`
+    if (key === drawn) return
+    drawn = key
 
     layer.clearLayers()
     const known = speeds.filter((s): s is number => s !== null)

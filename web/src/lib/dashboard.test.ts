@@ -73,6 +73,12 @@ describe('out of date', () => {
     expect(freshnessOf('fuel.tank_level', slow, every10s[2]!.rec, false, 20_000 + 50_000)).toBe('fresh')
     expect(freshnessOf('fuel.tank_level', slow, every10s[2]!.rec, false, 20_000 + 50_001)).toBe('stale')
   })
+  it('times only the signals asked for', () => {
+    const both = [...every200, sample('fuel.tank_level', 0, 50), sample('fuel.tank_level', 10_000, 50)]
+    const timing = timings(both, new Set(['engine.rpm']))
+    expect([...timing.keys()]).toEqual(['engine.rpm'])
+    expect(timing.get('engine.rpm')).toEqual({ last: 800, usual: 200 })
+  })
   it('leaves a signal read once in the history alone, however old', () => {
     const once = [sample('diagnostics.mil', 0, 0)]
     expect(freshnessOf('diagnostics.mil', timings(once), once[0]!.rec, false, 60_000)).toBe('fresh')

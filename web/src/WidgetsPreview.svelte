@@ -21,7 +21,7 @@
   // Raw: every update replaces the whole state, so it needs no deep proxies (M8.2: they made it crawl).
   let live: LiveState = $state.raw(empty())
   let now = $state(Date.now())
-  let archived = $state<Series | null>(null)
+  let archived = $state.raw<Series | null>(null)
   let peak: Peaks = $state(NO_PEAKS)
 
   const serverNow = $derived(now - live.offsetMs)

@@ -374,6 +374,72 @@ second, time per frame, memory.
 **Done when:** it holds 30 fps on the slowed profile with no memory growth, or
 what it costs is found and fixed.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The browser tools can't slow the CPU**: that's the DevTools protocol's
+>   `Emulation.setCPUThrottlingRate`, which the automation extension doesn't
+>   offer. So `web/scripts/measure.mjs` starts **its own headless Chrome**
+>   (a throwaway profile, never Sam's), speaks the DevTools protocol over
+>   Node's built-in WebSocket (no new dependency), slows the CPU 4×, sets a
+>   390 × 844 screen, and records each minute: frames per second (from
+>   `requestAnimationFrame` in the page), long tasks (over 50 ms), and the JS
+>   heap (`Performance.getMetrics`).
+> - **The synthetic race is 20 minutes**; a 35-minute one is generated, so 30
+>   minutes are measured while it streams.
+> - **What M8.3 built has no frame throttle**: it redraws as each batch comes
+>   (5 a second), not in the plan's 10-a-second loop. It's measured as it is,
+>   and only changed if the numbers say so.
+
+**Measured, 2026-09-27** (dev build, 4× slower CPU, 390 × 844, the race streaming live):
+
+- **Before:** 50.9–53.5 fps, but about **300 long tasks a minute totalling
+  15–16 s**: a quarter of every minute blocked, which on a real phone is
+  taps that don't answer.
+- **Found by a CPU profile** (the DevTools protocol's `Profiler`, 30 s, a
+  scratch script): the busy time was **the chart**. `chartData` was a deep
+  `$state`, so uPlot read every one of its thousands of points through
+  Svelte's proxy on each half-second redraw: about 5 s of every 30 s in
+  uPlot's draw and min/max, and more in the proxy's `get`. The history passes
+  counted as the suspects were cheap: about 1 ms each at full speed on 12,900
+  records (timed in a throwaway test), none over 4 ms slowed.
+- **Fixed:** the chart's data and bands are `$state.raw` (replaced, never
+  changed in place, like `live` since M8.2). The same trap was in
+  `SessionPage`'s whole-session `series` and the preview's `archived`: raw
+  too. `timings` now times only the dashboard's slots (`SHOWN`), not all ~50
+  signals, each needing a sort: the largest remaining cost (a test pins
+  that it times only those asked for).
+- **After:** the first minute with the fix loaded (still the old run, by hot
+  reload) had **1 long task, 108 ms**, and 57.9 fps.
+- **30 minutes after**, a fresh race streaming: minutes 1–21 held **59.7–60
+  fps with no long tasks** but two (one of 72 ms, one of 521 ms). The heap
+  moved between 12 and 40 MB with no growth, and DOM nodes went 1,721 →
+  1,788 (the laps table's rows). From minute 22 the long tasks came back
+  (up to 300 a minute), and so did a busy Mac: Photos' `mediaanalysisd` at
+  80–90 % of a core and a renderer of another Chrome window at 40 %, load
+  average 10. A page loaded fresh then, with 5 minutes of history like
+  minute 5's, profiled as busy as the 22-minute one: the cost was the
+  machine, not the page's age. Re-measured quiet below.
+- **The whole race, on a quiet Mac** (load 3–5, logged each minute beside
+  it), all of this in: **34 minutes at 59.8–60 fps, no long tasks at all**,
+  the heap between 9 and 37 MB with no growth, DOM nodes 1,650 → 1,773 (the
+  laps). Minutes 22 onward, where the busy-Mac run slowed, were as clean as
+  the first. Done: the 30 fps bar is met with room, and nothing grows.
+- **The map**, the largest cost per batch left in that profile: it cleared and
+  redrew its whole trace on every batch (5 a second) though a position comes
+  about once a second. It now redraws only when the trace changed (its length,
+  its ends, the last speed); following still pans on every change.
+- **A bug in M8.3's following, found looking at that in Chrome:** after the
+  viewer dragged the map and pressed "Follow the car", it followed once and
+  stopped. The page's own pan was marked from its start until a `moveend`,
+  but Leaflet's `setView` first stops the drag's inertia, whose `moveend`
+  cleared the mark before the pan's `movestart`, which then read as the
+  viewer's. Unanimated pans finish inside the call, so the mark is now set
+  around the call (`try`/`finally`). Checked with a hook on Leaflet's events:
+  a drag (one viewer `movestart`), the button, then a page pan every second.
+- **Two measuring traps found**, for next time: the Mac's idle sleep froze
+  the replay and the measure alike (a "minute" became twenty), so both run
+  under `caffeinate -s` (`-i` let a closed lid's maintenance sleep through); and an edit under `web/src` while measuring hot-reloads
+  the page and resets its counters, so nothing is edited during a run.
+
 ### M8.5 — Deploy, and prove it live
 
 Deploy, with a drive streaming across it; a throwaway car; the synthetic race

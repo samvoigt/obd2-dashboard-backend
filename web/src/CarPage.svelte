@@ -50,7 +50,7 @@
 
   // The dashboard (M8): its readings, and whether each is current, by one pass over the history per batch.
   const serverNow = $derived(now - live.offsetMs)
-  const timing = $derived(timings(live.history))
+  const timing = $derived(timings(live.history, SHOWN))
   const current = (n: string) => freshnessOf(n, timing, live.latest[n], !!live.stopped[n], serverNow)
   const trail = $derived(gTrail(live.history, serverNow))
   const hasG = $derived(live.history.some((p) => p.rec.signal === 'motion.acceleration.lateral' || p.rec.signal === 'motion.acceleration.longitudinal'))
@@ -102,8 +102,8 @@
 
   // The chart redraws at most every half second (a second for the whole session): the eye cannot use
   // more, and a phone should not work harder.
-  let chartData: [number[], ...(number | null | undefined)[][]] = $state([[]])
-  let chartBands: { from: number; to: number; color: string }[] = $state([])
+  let chartData: [number[], ...(number | null | undefined)[][]] = $state.raw([[]])
+  let chartBands: { from: number; to: number; color: string }[] = $state.raw([])
   let lastChart = 0
   $effect(() => {
     const t = now
