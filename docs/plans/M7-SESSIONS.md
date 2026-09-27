@@ -457,6 +457,48 @@ list, pages and map on the deployed site, and the download through the API; the 
 
 **Done when:** every step passes on the deployed site, with screenshots kept.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **Production has no sessions now** (the earlier test ones were all
+>   deleted). So a throwaway car uploads one **before** the deploy, with
+>   revision `00015`, which has no M7; after the deploy it must get its summary
+>   and series on first view.
+> - **"Built after `complete`"** is shown by the bucket: after a replay
+>   completes on the new revision, `series-v2.json.gz` is there before anyone
+>   has looked at the session.
+> - **The admin download needs a Google sign-in**, which is Sam's alone
+>   (M6). Its route and `readRaw` are tested, and `readRaw` passes against the
+>   real bucket, so here it's checked to refuse without a sign-in, and the
+>   button is left to Sam.
+> - **The first deploy of the JVM's 75%.** Watch that the revision starts and
+>   the live lane still streams.
+> - **Cleanup:** the live replay is a short log, so it completes by itself and
+>   its session can be deleted without waiting out the 5 quiet minutes.
+
+> **✅ Done, 2026-09-26.** Revision **`00016`**, deployed with a drive
+> streaming live: it drained over (`1012`, reconnected at once), so the JVM's
+> 75% changed nothing for the live lane. With a throwaway car `smoke-m7`:
+> - **Made before M7** (on `00015`): the cold-start drive had only its log;
+>   its first view on `00016` built the summary (29.4 min) and
+>   `series-v2.json.gz` (150 KB gzipped).
+> - **Made after:** the synthetic race's `series-v2.json.gz` was in the bucket
+>   before anyone looked at it (prepared after `complete`).
+> - **In Chrome, on badnewsbears.live:**
+>   - the list: live, the race (track, best lap, fault) and the older drive;
+>   - the race's page: chart, map (tiles from OpenStreetMap), 12 laps with lap
+>     11 best, both events, no VIN;
+>   - the live page's "Whole session" on the streaming drive (live only, all
+>     shaded, since it wasn't uploading).
+>
+>   Screenshots kept.
+> - **API:** no VIN in the list, the details or the series; the series' `ETag`
+>   gives a `304`; the admin download is `401` without a sign-in; there's no
+>   public download (`404`).
+> - **Cleanup:** its three sessions deleted, the car removed, the token file
+>   deleted; the bucket holds no sessions. Sam's `outback-2018` untouched.
+> - **Left to Sam:** the admin page's Download button, which needs his
+>   sign-in (the route and `readRaw` are tested, the latter on the real
+>   bucket).
+
 ### M7.8 — Record it
 
 Decisions (the summary and series, the gap rule, drives, the merge);
