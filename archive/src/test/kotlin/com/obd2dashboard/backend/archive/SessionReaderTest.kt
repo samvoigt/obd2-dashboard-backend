@@ -112,6 +112,27 @@ class SessionReaderTest {
     }
 
     @Test
+    fun `the summary carries the device, the span of at, and where the fixes were (M13)`() {
+        val s = summarise(
+            """{"type":"session","v":3,"id":"s","device":"tab-1","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":5000}""",
+            """{"type":"sample","signal":"gps.position","lat":43.36,"lon":-71.46,"fixAt":5100,"seq":1,"at":5200,"wall":1790000000000}""",
+            """{"type":"sample","signal":"engine.rpm","value":900,"seq":2,"at":9000,"wall":1790000004000}""",
+            """{"type":"sample","signal":"gps.position","lat":43.37,"lon":-71.47,"seq":3,"at":7000,"wall":1790000002000}""",
+        )
+        s.device shouldBe "tab-1"
+        s.firstAt shouldBe 5000
+        s.lastAt shouldBe 9000
+        s.bounds shouldBe Bounds(-71.47, 43.36, -71.46, 43.37)
+        // No fixes, no bounds; no device, none.
+        summarise("""{"type":"session","v":3,"id":"s","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":0}""").let {
+            it.bounds shouldBe null
+            it.device shouldBe null
+        }
+        Bounds(0.0, 0.0, 1.0, 1.0).intersects(Bounds(0.5, 0.5, 2.0, 2.0)) shouldBe true
+        Bounds(0.0, 0.0, 1.0, 1.0).intersects(Bounds(1.5, 0.0, 2.0, 1.0)) shouldBe false
+    }
+
+    @Test
     fun `the summary carries the session's source, absent for a car's (M11)`() {
         summarise("""{"type":"session","v":3,"id":"s","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":0}""").source shouldBe null
         for (source in listOf("tablet", "fake")) {

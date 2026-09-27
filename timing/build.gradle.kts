@@ -9,6 +9,7 @@ kotlin {
 
 dependencies {
     api(project(":courses"))
+    api(project(":archive"))
 
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions)

@@ -159,11 +159,39 @@ else `at`) and its `lap` records; the summary (version 3) gains the device,
 the first and last `at`, and the positions' bounds; runs found from
 summaries.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The summary** (`SessionReader`, one pass over the log) gains, as
+>   version 3: the session record's `device`; the first and last `at` of the
+>   session's records (a run is `at` rising from one session to the next,
+>   §22.8); and the **bounds** of its `gps.position` fixes, to find which
+>   sessions a course touches without reading every log. Its Firestore mapping
+>   gains the fields. Older summaries rebuild on first view, as in M7 and M11.
+> - **The fix reader** lives in `:timing`, which now also depends on
+>   `:archive` for `Records.parseObject` and `LineSplitter` (a log is read a
+>   line at a time, never whole): each `gps.position`'s `lat`, `lon` and
+>   `fixAt` (else `at`), skipping any that goes back in time (§22.3 says the
+>   tablet never sends one); each `lap` record with §22.6's fields.
+> - **Runs** from summaries: one car, one `device`, sessions back to back
+>   in time, each first `at` above the last one's last `at`; a device-less
+>   session (older logs) is a run of its own; so is anything more than 12 hours
+>   from the last.
+
 **Done when:** tests for the reader (old logs without `fixAt`, new ones with
 it, a `fixAt` that goes backwards skipped as §22.3 promises it never does);
 for runs (one device back to back; an app restart, `at` falling, starting a
 new run; another device; a gap of hours); the summary rebuilt on first view,
 as before.
+
+> **✅ Done, 2026-09-27.** The summary is version 3 (`device`, `firstAt`,
+> `lastAt`, `Bounds`), in Firestore as plain fields and a list of four;
+> `:timing`'s `SessionTrace` (fixes and `TabletLap`s from a log, streamed)
+> and `runs()`.
+> - **Tests: 5** (the summary's new fields and bounds' overlap; their
+>   Firestore round trip; fixes on `fixAt`, else `at`, a backward one left
+>   out; old and new `lap` records; runs joined and split each way).
+> - **Mutations: 13, all killed**, one only after a fix to the test: the
+>   device-less sessions had no `at` either, so they split for the wrong
+>   reason; they now have rising `at` and split only for having no device.
 
 ### M13.3 — Re-timing a run, stored, and checked
 

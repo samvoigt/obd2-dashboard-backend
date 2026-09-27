@@ -57,11 +57,23 @@ public data class SessionSummary(
     val missed: Long,
     /** Lines that aren't JSON objects. The archive takes none, so this should stay 0. */
     val unreadable: Int,
+    /** The session record's `device`: with [firstAt] and [lastAt], how a run of the app is found (§22.8). Since version 3 (M13). */
+    val device: String? = null,
+    /** The smallest and largest `at` of the session's records (the tablet's monotonic clock, one per run of the app). */
+    val firstAt: Long? = null,
+    val lastAt: Long? = null,
+    /** Where its fixes were, to find the sessions a course touches without reading every log (M13). */
+    val bounds: Bounds? = null,
 ) {
     public companion object {
-        /** 2 (M11): `source`, so a tablet's or a test session says so. */
-        public const val VERSION: Int = 2
+        /** 2 (M11): `source`, so a tablet's or a test session says so. 3 (M13): `device`, `firstAt`, `lastAt`, `bounds`. */
+        public const val VERSION: Int = 3
     }
+}
+
+/** A box of longitude and latitude, degrees. */
+public data class Bounds(val minLon: Double, val minLat: Double, val maxLon: Double, val maxLat: Double) {
+    public fun intersects(o: Bounds): Boolean = minLon <= o.maxLon && o.minLon <= maxLon && minLat <= o.maxLat && o.minLat <= maxLat
 }
 
 /**
@@ -81,6 +93,13 @@ public class SessionReader(
     private var lastWall: Long? = null
     private var headerStarted: Long? = null
     private var source: String? = null
+    private var device: String? = null
+    private var firstAt: Long? = null
+    private var lastAt: Long? = null
+    private var minLon = Double.MAX_VALUE
+    private var minLat = Double.MAX_VALUE
+    private var maxLon = -Double.MAX_VALUE
+    private var maxLat = -Double.MAX_VALUE
     private val signals = LinkedHashMap<String, SignalInfo>()
     private val laps = mutableListOf<LapInfo>()
     private val faults = LinkedHashSet<String>()
@@ -95,13 +114,26 @@ public class SessionReader(
             if (firstWall == null) firstWall = wall
             lastWall = maxOf(lastWall ?: wall, wall)
         }
+        record.long("at")?.let { at ->
+            firstAt = minOf(firstAt ?: at, at)
+            lastAt = maxOf(lastAt ?: at, at)
+        }
         when (record.string("type")) {
             "session" -> {
                 headerStarted = record.string("started")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
                 source = record.string("source")
+                device = record.string("device")
                 announce(record)
             }
             "signals" -> announce(record)
+            "sample" -> if (record.string("signal") == "gps.position") {
+                val lon = (record["lon"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull
+                val lat = (record["lat"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull
+                if (lon != null && lat != null) {
+                    minLon = minOf(minLon, lon); maxLon = maxOf(maxLon, lon)
+                    minLat = minOf(minLat, lat); maxLat = maxOf(maxLat, lat)
+                }
+            }
             "fault" -> (record["codes"] as? JsonArray)?.forEach { code ->
                 (code as? JsonPrimitive)?.takeIf { it.isString }?.content?.let { faults += it }
             }
@@ -148,6 +180,10 @@ public class SessionReader(
             bestLap = laps.filter { it.onTrack }.minByOrNull { it.time },
             faults = faults.toList(),
             gaps = gaps,
+            device = device,
+            firstAt = firstAt,
+            lastAt = lastAt,
+            bounds = if (minLon <= maxLon) Bounds(minLon, minLat, maxLon, maxLat) else null,
             missed = missed,
             unreadable = unreadable,
         )

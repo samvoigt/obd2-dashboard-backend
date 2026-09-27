@@ -10,10 +10,11 @@ import com.google.cloud.firestore.Firestore
 import com.google.cloud.firestore.FirestoreOptions
 import com.google.cloud.firestore.Transaction
 import com.google.common.util.concurrent.MoreExecutors
+import com.obd2dashboard.backend.archive.Bounds
+import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.Segment
 import com.obd2dashboard.backend.archive.SessionHeader
 import com.obd2dashboard.backend.archive.SessionIndex
-import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.archive.SessionSummary
 import com.obd2dashboard.backend.archive.SignalInfo
@@ -169,6 +170,10 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             put("gaps", gaps.toLong())
             put("missed", missed)
             put("unreadable", unreadable.toLong())
+            device?.let { put("device", it) }
+            firstAt?.let { put("firstAt", it) }
+            lastAt?.let { put("lastAt", it) }
+            bounds?.let { put("bounds", listOf(it.minLon, it.minLat, it.maxLon, it.maxLat)) }
         }
 
         private fun LapInfo.toFields(): Map<String, Any> = buildMap {
@@ -212,6 +217,11 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 gaps = long("gaps").toInt(),
                 missed = long("missed"),
                 unreadable = long("unreadable").toInt(),
+                device = data["device"] as? String,
+                firstAt = (data["firstAt"] as? Number)?.toLong(),
+                lastAt = (data["lastAt"] as? Number)?.toLong(),
+                bounds = (data["bounds"] as? List<*>)?.mapNotNull { (it as? Number)?.toDouble() }?.takeIf { it.size == 4 }
+                    ?.let { (a, b, c, d) -> Bounds(a, b, c, d) },
             )
         }
 

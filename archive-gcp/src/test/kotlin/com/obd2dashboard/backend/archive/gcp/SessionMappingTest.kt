@@ -1,5 +1,6 @@
 package com.obd2dashboard.backend.archive.gcp
 
+import com.obd2dashboard.backend.archive.Bounds
 import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.Segment
 import com.obd2dashboard.backend.archive.SessionHeader
@@ -48,6 +49,9 @@ class SessionMappingTest {
         // M11: a tablet's or a test session's source, in the summary.
         val tablet = complete.copy(summary = summary.copy(source = "tablet"))
         recordFrom(id, tablet.toFields()) shouldBe tablet
+        // M13: the device, the span of at, and the fixes' bounds.
+        val run = complete.copy(summary = summary.copy(device = "tab-1", firstAt = 5_000, lastAt = 9_000, bounds = Bounds(-71.47, 43.36, -71.46, 43.37)))
+        recordFrom(id, run.toFields()) shouldBe run
     }
 
     @Test
