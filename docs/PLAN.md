@@ -22,7 +22,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
 | **M6** | The admin page: cars, tokens and sessions, behind Google sign-in | ✅ (`plans/COMPLETED.md`) |
 | **M7** | Past sessions on the site, and a session being driven, whole | ✅ (`plans/COMPLETED.md`) |
-| **M8** | Dashboards: crew views and mirrored tablet layouts | |
+| **M8** | Dashboards configured on the site, updating live | **planned**: [`plans/M8-DASHBOARDS.md`](plans/M8-DASHBOARDS.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -129,10 +129,9 @@ one to be committed as a fixture.
 
 ### M8 — Dashboards
 
-- **Crew views:** configurable pages stored per car.
-- **Mirrored tablet layouts:** need a layout message, which is a contract v2.
-  Reimplement the gauges in Svelte, or build the app's gauges for the web with
-  Compose Multiplatform? Decide when M8 starts.
+Configured on the site per car, updating in real time. **Not a mirror of the
+tablet** (Sam, 2026-09-27), so no contract change. See
+[`plans/M8-DASHBOARDS.md`](plans/M8-DASHBOARDS.md).
 
 ---
 
@@ -156,4 +155,4 @@ is enough to test in a car.
 
 ## Open questions
 
-- **Mirrored gauges (M8):** see above.
+None right now; each milestone's plan asks its own.
