@@ -22,7 +22,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
 | **M6** | The admin page: cars, tokens and sessions, behind Google sign-in | ✅ (`plans/COMPLETED.md`) |
 | **M7** | Past sessions on the site, and a session being driven, whole | ✅ (`plans/COMPLETED.md`) |
-| **M8** | Dashboards configured on the site, updating live | **planned**: [`plans/M8-DASHBOARDS.md`](plans/M8-DASHBOARDS.md) |
+| **M8** | The car's page as a dashboard: one fixed layout, updating live | **planned**: [`plans/M8-DASHBOARDS.md`](plans/M8-DASHBOARDS.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -129,8 +129,9 @@ one to be committed as a fixture.
 
 ### M8 — Dashboards
 
-Configured on the site per car, updating in real time. **Not a mirror of the
-tablet** (Sam, 2026-09-27), so no contract change. See
+One fixed layout for every car (Sam, 2026-09-27), updating in real time:
+gauges, numbers, bars, the G-meter, the map, laps, status. Not configurable,
+and not a mirror of the tablet, so neither storage nor a contract change. See
 [`plans/M8-DASHBOARDS.md`](plans/M8-DASHBOARDS.md).
 
 ---

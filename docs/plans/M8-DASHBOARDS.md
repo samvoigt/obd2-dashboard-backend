@@ -1,174 +1,168 @@
-# M8 — Dashboards
+# M8 — The dashboard
 
-Dashboards configured on the site, per car, updating in real time: gauges,
-big numbers, bars, the G-meter, the map, laps and status. **Not a mirror of the
-tablet** (Sam, 2026-09-27): the site has its own layouts, so no contract
-change is needed.
+A car's page becomes a dashboard: **one fixed layout for every car**, updating
+in real time. Gauges, big numbers and bars, the G-meter, the map, laps, status
+lights and fault codes, then every other signal as a number, as today.
+
+**Not configurable** (Sam, 2026-09-27): no dashboard storage, no editor, no
+per-car settings. **Not a mirror of the tablet** either, so no contract change.
+Sam picks which signals fill the layout's slots, at a checkpoint in M8.2.
 
 ---
 
 ## Settled with Sam, 2026-09-27
 
-1. **Only admins edit** (signed in with Google, on the allowlist). Viewing
-   stays public.
-2. **Units: a switch each viewer sets**, metric or US (mph, °F, psi…), kept in
-   their browser, converting every widget.
-3. **Widgets for the first version:** numbers, gauges and bars; the G-meter
-   and the map; laps and status. **No chart widget** in M8. The built-in "All
-   signals" dashboard keeps today's chart, with its "Whole session" view.
-4. **The car's page shows its default dashboard**, with a picker for the
-   others. Today's page becomes the built-in "All signals" dashboard.
+1. **One fixed layout**, the same for every car, designed in code. Per-car
+   choices (which signal in each gauge, ranges and redlines) could come later
+   as a small form on the admin page, if the generic ranges bother him.
+2. **Sam chooses the signals for the slots** when the time comes: a checkpoint
+   in M8.2, starting from the proposal below.
+3. **Units: a switch each viewer sets**, metric or US (mph, °F, psi…), kept in
+   their browser, converting every reading.
+4. **No chart widget.** The page keeps today's chart, with its "Whole session"
+   view, below the dashboard.
 
 ---
 
 ## What exists, and what it means for this
 
-- **The live stream is what a dashboard needs.** A car's SSE stream sends a
+- **The live stream is what the dashboard needs.** A car's SSE stream sends a
   snapshot (the latest reading of every signal, stopped signals, faults, and 5
   minutes of history), then every record as it comes, with freshness
-  (decision 19). `live.ts` folds it into `LiveState`. A dashboard reads the same
-  state; no new server stream is needed.
-- **Whole sessions (M7):** the merge of the archive and the live lane gives
-  laps and long charts. Laps come **only** in batches and in the archive,
-  never in a snapshot (§16), so a lap widget reads the merge.
-- **Widgets to reuse:** `Chart.svelte` (with zoom, bands, markers), the tile
-  format (`format()`, by kind), `SessionMap.svelte` (Leaflet), the lap table
-  (`lapRows`). The G-meter is the two `motion.acceleration.*` signals
-  (§4.2), and GPS is `gps.*` (§4.3).
-- **The contract gives units, not ranges.** A gauge needs a minimum, a
-  maximum and warning zones, so those are part of each widget's settings,
-  with defaults by unit (`rpm` 0–8,000, `km/h` 0–250, `°C` −40–150…).
-- **Stores:** Firestore, as for cars and messages. A dashboard is a small
-  document.
+  (decision 19). `live.ts` folds it into `LiveState`. The dashboard reads the
+  same state, so **the server doesn't change**.
+- **Laps are never in a snapshot** (§16): they come in batches, and in the
+  archive. So the lap panel reads M7's merge (the archive's series plus the
+  live records after it), as the "Whole session" chart does.
+- **To reuse:** the tile format (`format()`, by kind), `SessionMap.svelte`
+  (Leaflet), the lap table (`lapRows`), the merge (`merge.ts`). The G-meter is
+  the two `motion.acceleration.*` signals (§4.2); position is `gps.*` (§4.3).
+- **The contract gives units, not ranges**, and the server never holds facts
+  about a particular vehicle in its code (the app's decision 33). So a gauge's
+  range and redline come **from its unit**, generically (`rpm` 0–8,000, `km/h`
+  0–250, `°C` −40–150…), never from which car it is.
+- **A signal a car doesn't send** leaves its slot showing "—" (never sent) or
+  "stopped" (the tablet said so), so the layout doesn't jump around between
+  cars.
 - **Performance:** batches arrive every 200 ms. The live page redraws its
-  chart at most every 500 ms; a dashboard with a dozen widgets must do the
-  same on a phone.
+  chart at most every 500 ms; a dashboard of a dozen widgets must keep up on a
+  phone.
+
+---
+
+## The layout
+
+On a wide screen, top to bottom; on a phone, the same order, one column:
+
+1. **The freshness banner** and session line, as today.
+2. **Gauges**, a row of up to four dials, each with its reading as a number
+   underneath.
+3. **Numbers**, a row of up to six big readings.
+4. **Bars**, up to four fill bars (fuel, throttle and the like).
+5. **The G-meter** beside **the map** (each hidden if the car sends no
+   `motion.*` or `gps.*`).
+6. **Laps**: the last lap, the best lap (never a pit lap) and the difference,
+   then the lap table (hidden with no laps).
+7. **Status**: lights for flag and state signals (the MIL, the fuel system),
+   and the current fault codes.
+8. **The crew message panel**, as today.
+9. **Today's chart**, with "Last 5 minutes | Whole session".
+10. **Every other signal** as a tile, as today.
+
+**Proposed slots** (Sam decides at M8.2):
+- gauges: `engine.rpm`, `vehicle.speed`, `engine.coolant_temperature`,
+  `engine.oil_temperature`;
+- numbers: `control_module.voltage`, `intake.air_temperature`,
+  `engine.load`, `fuel.rate`, `ambient.air_temperature`, `gps.speed`;
+- bars: `fuel.tank_level`, `accelerator.relative_pedal_position`,
+  `engine.throttle_position`;
+- status: `diagnostics.mil`, `fuel.system_1_status`, and the fault codes.
+
+Every name is in the contract's catalogue (checked 2026-09-27).
 
 ---
 
 ## Decided here, not asked (say if any is wrong)
 
-- **Several named dashboards per car**, one marked as its default. Each is a
-  Firestore document: `car`, `name`, `order`, and `widgets`.
-- **A widget** has an id, a type, its place on a **12-column grid** (`x`,
-  `y`, `w`, `h`), and its settings: the signal or signals, a label, and for
-  number widgets a range and warning zones. Unknown settings are kept, so an
-  older page doesn't lose what a newer one saved.
-- **On a phone**, widgets stack in reading order (top to bottom, left to
-  right), full width, whatever the grid says.
-- **The widgets** (Sam's choice, above):
-  - **Number:** a big reading with its unit, coloured by its warning zones.
-  - **Gauge:** a dial with a needle, its range and a redline.
-  - **Bar:** a horizontal or vertical fill (fuel, throttle, temperatures).
-  - **G-meter:** the lateral and longitudinal acceleration as a dot in a
-    circle, with a short trail and the session's peaks.
-  - **Map:** the car's position now, with its trail, on OpenStreetMap.
-  - **Laps:** the last lap, the best lap and a delta, and the lap table.
-  - **Status:** a state or flag signal as a word or light (the MIL, the fuel
-    system), and the current fault codes.
-  - **Text:** a heading or a note, for arranging a page (cheap, and it helps a
-    layout read; say if it's unwanted).
-- **Every widget shows when its data is stale**: grey after its signal's
-  usual interval five times over, and "stopped" if the tablet said so. Same
-  rule as gaps (decision 26).
-- **Edit mode**, for admins only: add a widget, choose its
-  signal from the car's signals, set its range and zones, drag to move,
-  drag a corner to resize, delete; then save. Nothing changes for viewers until
-  saved. Last save wins, and the page says so if someone else saved first
-  (a version number on the document).
+- **The slots are a list in one file** (`dashboard.ts`), with each gauge's
+  range and redline by unit. Changing a slot later is a one-line change and a
+  deploy.
+- **A signal in a slot isn't repeated** in the tiles at the bottom.
+- **Warning colours**, generic by unit: amber and red zones for engine speed,
+  temperatures and voltage (for example coolant over 105 °C amber, over 115 °C
+  red; voltage under 12.0 V amber). Only colour; nothing notifies anyone.
+- **Every reading shows when it's out of date**: grey once overdue by five
+  times its usual interval, "stopped" if the tablet said so. The same rule as
+  gaps (decision 26).
+- **The G-meter:** a dot in a circle (1.5 g full scale, in g whatever the
+  units), a 5-second trail, and the session's peaks in each direction since
+  the page opened.
+- **The map:** the car's position now and its trail over the last 5 minutes,
+  following the car unless the viewer has moved the map.
+- **Units:** conversions for each unit in the catalogue with a US counterpart
+  (km/h→mph, °C→°F, kPa→psi, km→mi, L→gal, L/h→gal/h, m→ft); anything else is
+  shown as sent. Ranges and warning zones convert with them.
 - **Redrawing:** numbers, gauges and bars at most 10 times a second; the map
-  and the G-meter trail at most twice a second; all in one animation
-  frame loop, paused while the page is hidden.
-- **"All signals" is built in, for every car**: today's live page, unchanged
-  (its tiles, its chart and "Whole session", the crew message panel). It is
-  the default until an admin makes another dashboard the default, and it
-  can't be edited or deleted.
-- **Units:** conversions for every unit in the contract's catalogue that has a
-  US counterpart (km/h→mph, °C→°F, kPa→psi, km→mi, L→gal, L/h→gal/h, m→ft);
-  everything else is shown as sent. A widget's range and zones are stored in
-  the tablet's units and converted for display.
-- **The crew message panel** stays on every dashboard view of the car's page,
-  as today, whatever dashboard is showing.
+  and the G-meter trail at most twice a second; in one animation-frame loop,
+  paused while the page is hidden.
 
 ---
 
 ## The steps
 
-### M8.1 — The dashboard model and its API
+### M8.1 — The widgets
 
-`:dashboards`, pure: the `Dashboard` and `Widget` types, validation (types,
-grid bounds, at most 60 widgets, names, sizes), and a `DashboardStore` with
-an in-memory fake. Firestore in `:archive-gcp`. Routes:
-- `GET /api/cars/{slug}/dashboards`, `GET /api/dashboards/{id}` (public);
-- create, save (with its version), reorder, set default, delete: **admins
-  only**, through the admin sign-in (M6), whose cookie is scoped to
-  `/api/admin`, so these routes live under `/api/admin/…`.
+`web/`: Gauge, Number, Bar, Status light, Faults, G-meter, Live map, Laps
+panel, and the units switch. Pure logic in `dashboard.ts` and `units.ts`, with
+Vitest:
+- the needle's angle and a range's zones;
+- conversions (to and from, for ranges);
+- staleness;
+- the G-meter's scale, trail and peaks;
+- the lap panel's last, best and difference.
 
-**Done when:** tests for validation, versions (a stale save refused), admins
-only, unknown settings kept; a live Firestore smoke; mutations checked.
+**Done when:** Vitest and a type check, and every widget looked at in Chrome on
+a scratch page, with a replay streaming.
 
-### M8.2 — The dashboard page, read-only
+### M8.2 — The page
 
-The car's page: the default dashboard's widgets on the grid, stacked on a
-phone, fed by the live stream through `LiveState`; a picker for the car's
-other dashboards and "All signals"; freshness for the whole car and the crew
-panel as today; the units switch. Number, Gauge, Bar, Status and Text
-widgets.
+**Checkpoint first: Sam picks the slots' signals**, from the proposal and the
+signals his car actually sends. Then the car's page is rebuilt in the layout's
+order, fed by the live stream, with the tiles below skipping what the
+dashboard shows.
 
-**Done when:** Vitest for the pure parts (ranges, zones, staleness, unit
-conversion, reading order); looked at in Chrome with a replay streaming;
-phone width.
+**Done when:** looked at in Chrome with a real log and the synthetic race
+streaming: every section; a car that sends no GPS or G-meter (sections hidden);
+a signal stopping; US units; phone width.
 
-### M8.3 — The G-meter, the map, laps
+### M8.3 — Performance
 
-The three widgets that need history: the G-meter (its trail and the session's
-peaks), the map (its trail, and the whole session's from M7's merge), and laps
-(from the merge, since laps are never in a snapshot).
+The page streaming the synthetic race (every section busy), on a desktop and at
+phone size with the CPU slowed 4×, measured over 30 minutes: frames per
+second, time per frame, memory.
 
-**Done when:** Vitest; looked at in Chrome with the synthetic race streaming
-and uploading.
+**Done when:** it holds 30 fps on the slowed profile with no memory growth, or
+what it costs is found and fixed.
 
-### M8.4 — Editing
+### M8.4 — Deploy, and prove it live
 
-Edit mode: add, configure, move, resize, delete, save; rename, reorder, set
-default, delete dashboards. Conflicts shown. Only for admins: the page asks
-`/api/admin/me`, and the server refuses anyone else anyway.
-
-**Done when:** Vitest for grid placement (moves, resizes, collisions,
-reading order); looked at in Chrome: every action, a conflicting save, a
-viewer seeing the change on reload.
-
-### M8.5 — Performance
-
-A dashboard of 20 widgets, streaming, on a desktop and at phone size with the
-CPU slowed. Measured: frames per second, time per frame, memory over 30
-minutes.
-
-**Done when:** it holds 30 fps on the slowed phone profile with no memory
-growth, or what it costs is recorded and fixed.
-
-### M8.6 — Deploy, and prove it live
-
-Deploy; a throwaway car; **Sam signs in and builds a dashboard** on the
-deployed site (editing is admin-only, and signing in is his); a replay
-streaming, viewed publicly; phone width; then clean up.
+Deploy, with a drive streaming across it; a throwaway car; the synthetic race
+streaming and uploading; the page in Chrome on badnewsbears.live, US units,
+phone width; then clean up.
 
 **Done when:** every step passes on the deployed site, with screenshots kept.
 
-### M8.7 — Record it
+### M8.5 — Record it
 
-Decisions, `COMPLETED.md`, `JOURNAL.md`, `PLAN.md`, README, `CLAUDE.md`. This
-plan deleted, and pushed.
+A decision (the fixed layout, its slots and generic ranges), `COMPLETED.md`,
+`JOURNAL.md`, `PLAN.md`, README, `CLAUDE.md`. This plan deleted, and pushed.
 
 ---
 
 ## Not in M8
 
-- Mirroring the tablet's layout (Sam: not needed).
-- **A chart widget** (Sam: not in the first version). "All signals" keeps its
-  chart.
-- Alerts that notify someone (sounds, push notifications). Warning zones only
-  colour the widget.
+- **Configuring the layout** (Sam: fixed for now). A per-car form for the
+  slots, ranges and redlines is the natural next step if wanted.
+- **A chart widget** (the page keeps today's chart).
+- **Alerts that notify someone** (sounds, push notifications).
 - Comparing laps (a later milestone).
-- Sharing a dashboard between cars. Each car has its own; copying one could
-  come later.
