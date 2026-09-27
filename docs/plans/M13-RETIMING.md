@@ -206,6 +206,56 @@ one; an app restart starting afresh with an out-lap; a disagreement of 3 ms
 flagged and one of 1 ms not; the file rebuilt when the course moves on, and
 read back when it hasn't.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Reading a run:** `ArchiveService.read(record)` streams a session's
+>   lines; each session gives a `SessionTrace`, and the run's fixes go through
+>   **one** `LapRule` in session order, so a lap across an OBD drop is one lap.
+>   A lap belongs to the session it **ends** in (where the tablet writes its
+>   `lap` record); a server lap to the session of the fix that completed it.
+> - **Storing:** the archive's `SegmentStore` is private to `ArchiveService`,
+>   so it gains a small derived-file API beside the series (read, write, list,
+>   delete under `sessions/{id}/`), deleted with the session as the series is.
+>   The file names the run's sessions, and is **read back only if they still
+>   match** (a run grows when a later session joins it); a new version deletes
+>   the older files of that course.
+> - **The course:** `CourseStore.get(id)` for the current version,
+>   `CourseRules.check` for its `CourseShape`. **The layout** is the one the
+>   run's tablet laps name (by `id`, or by name in older logs), else the
+>   default.
+> - **What stands**, lap by lap: every tablet lap on this course, current
+>   version and layout; and every re-timed lap that doesn't overlap one of
+>   those in time. **The check:** a tablet lap agrees if a re-timed lap starts
+>   and ends within 2 ms of it; else it's flagged, with what re-timing found
+>   there (or that it found no such lap). A current-version lap without
+>   `startAt` and `endAt` (not expected, §22.6) is placed from its record's `at`
+>   and `time`, and marked unchecked.
+> - **The file** is JSON through kotlinx serialization (`:timing` gains the
+>   plugin, as the server has); `RULE_VERSION` 1 is in its name, so a rule
+>   change rebuilds it.
+
+> **✅ Done, 2026-09-27.** `:timing`'s `Retiming.retime` (pure: a run's
+> traces and a course to a `RunTiming`, the laps that stand and every re-timed
+> one) and `Retimer` (stored beside the run's first session, read back while
+> the run and version match); `ArchiveService`'s derived files, `timing-*`
+> only.
+> - **Changed while building:** a tablet lap displaces a re-timed one only if
+>   they **share more than half the shorter lap**, not on any overlap. Laps are
+>   back to back, so a tablet lap 1 ms early overlapped the re-timed lap before
+>   it by that millisecond and knocked it out (the tests found it).
+> - **Tests: 10**: the tablet's laps on the current version standing and
+>   agreeing; an older version's re-timed on the new (the line 100 m on,
+>   2.5 s later); no laps of its own, and older laps naming the layout by
+>   name; another course's laps not standing; a lap across an OBD drop as one
+>   lap in the session it ended in, and two runs starting afresh; 3 ms flagged
+>   (with what re-timing found), 1 ms agreeing; a lap without crossings placed
+>   from its record, unchecked; the file read back, rebuilt on a new version
+>   (the old one deleted) and for a changed run; no such course.
+> - **Mutations: 14, all killed**, two only after tests were added (a layout
+>   named by name when it isn't the default; laps from another course).
+> - **Not tested here:** an app restart *from the pits* starting with an
+>   out-lap: that's the rule's (M13.1 tests the out-lap from the pit line),
+>   and runs are split by M13.2.
+
 ### M13.4 — When it runs
 
 After a session is prepared; and for every session a course touches (its

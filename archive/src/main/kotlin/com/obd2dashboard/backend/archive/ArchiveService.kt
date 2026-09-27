@@ -228,6 +228,20 @@ public class ArchiveService(
         return key
     }
 
+    /** A file derived from session [id]'s lines, kept beside it and deleted with it (M13): null if there's none. */
+    public suspend fun derived(id: String, name: String): ByteArray? {
+        val key = derivedKey(id, name)
+        return if (key in store.list(key)) store.read(key) else null
+    }
+
+    public suspend fun putDerived(id: String, name: String, bytes: ByteArray): Unit = store.put(derivedKey(id, name), bytes)
+
+    /** The names of session [id]'s derived files starting [prefix]. */
+    public suspend fun derivedNames(id: String, prefix: String): List<String> =
+        store.list(derivedKey(id, prefix)).map { it.removePrefix(sessionPrefix(id)) }
+
+    public suspend fun deleteDerived(id: String, name: String): Unit = store.delete(derivedKey(id, name))
+
     /** An object as stored, gzip and all (M7.3). */
     public suspend fun <T> readRaw(key: String, body: suspend (InputStream) -> T): T = store.readRaw(key, body)
 
@@ -292,6 +306,12 @@ public class ArchiveService(
 
         public fun sessionPrefix(id: String): String = "sessions/$id/"
         public fun segmentsPrefix(id: String): String = "sessions/$id/segments/"
+
+        /** A derived file's key (M13); never a name the archive itself uses. */
+        public fun derivedKey(id: String, name: String): String {
+            require(name.startsWith("timing-") && '/' !in name) { "not a derived file name: $name" }
+            return sessionPrefix(id) + name
+        }
         public fun sessionKey(id: String): String = "sessions/$id/session.jsonl.gz"
 
         /** The prepared series (M7.2); versioned in its name, and per `ackedThrough` while uploading. */

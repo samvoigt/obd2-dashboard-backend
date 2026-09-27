@@ -29,8 +29,8 @@ class SessionTraceTest {
             """{"type":"lap","lap":"three","time":90}""", // unreadable: left out
         )
         t.tabletLaps shouldBe listOf(
-            TabletLap("nhms", null, "Road Course", 1, 96.0, emptyList(), null, null, pitIn = false, pitOut = false, seq = 10),
-            TabletLap("nhms", 7, "road", 2, 94.532, listOf(31.298, 32.99, 30.244), 4315701, 4410233, pitIn = true, pitOut = false, seq = 11),
+            TabletLap("nhms", null, "Road Course", 1, 96.0, emptyList(), null, null, pitIn = false, pitOut = false, seq = 10, at = 1),
+            TabletLap("nhms", 7, "road", 2, 94.532, listOf(31.298, 32.99, 30.244), 4315701, 4410233, pitIn = true, pitOut = false, seq = 11, at = 2),
         )
     }
 }

@@ -28,6 +28,8 @@ public data class TabletLap(
     val pitIn: Boolean,
     val pitOut: Boolean,
     val seq: Long?,
+    /** When the record was written, on `at`'s clock: about when the lap ended. */
+    val at: Long? = null,
 )
 
 /** A session's fixes and laps, read from its log a line at a time (M13.2). */
@@ -75,6 +77,7 @@ public class SessionTrace {
             pitIn = record.bool("pitIn"),
             pitOut = record.bool("pitOut"),
             seq = record.lng("seq"),
+            at = record.lng("at"),
         )
     }
 
