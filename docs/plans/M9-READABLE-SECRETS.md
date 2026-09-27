@@ -1,5 +1,9 @@
 # M9 — Readable tokens and passcodes
 
+> **Tabled** (Sam, 2026-09-27): planned and answered, not to be built until
+> Sam says. Nothing below is validated against the code yet beyond the
+> checks in "What exists"; each step still is, just before it's built.
+
 Each car's token and crew passcode, readable on the admin page, so Sam can look
 one up rather than replace it. **Sam, 2026-09-27:** "make those readable, we
 don't need super high security here."
@@ -61,14 +65,10 @@ one and a trip to the tablet. After M9 the admin page shows both, in full.
 - **Hashes stay** as the way in: nothing about a tablet's or a crew member's
   sign-in changes.
 
-## Questions for Sam
+## Settled with Sam, 2026-09-27
 
-1. **Plain, or behind a "Show" button?** Plain is what was asked. "Show" only
-   hides them from someone looking over your shoulder in the pits, and costs a
-   tap. *Proposed: plain.*
-2. **The crew login box on each car's page** is still a password field. Make
-   it visible text too? *Proposed: yes, for the same reason as the admin
-   page.*
+1. **Shown plainly**, no "Show" button.
+2. **The crew login box on a car's page stays a password field.**
 
 ---
 
