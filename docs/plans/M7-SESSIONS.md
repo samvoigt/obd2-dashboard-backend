@@ -2,36 +2,27 @@
 
 Every session a car has uploaded, on the site:
 - a list per car, grouped into drives;
-- a session page with full-length charts, laps, where it went, and what
-  happened (faults, signals that stopped, gaps);
-- a download of the log.
+- a session page with full-length charts, laps, where it went on a map, and
+  what happened (faults, signals that stopped, gaps);
+- the exact log, downloadable from the admin page.
 
 A session still being driven is shown whole, with the archive and the live lane
 merged (contract §7).
 
 ---
 
-## Questions for Sam
+## Settled with Sam, 2026-09-26
 
-1. **Downloads.** A session's log holds the car's VIN, which the site never
-   shows (decision 16).
-   - **Proposed:** anyone can download a session with the VIN removed from its
-     first line; the exact original, VIN included, is on the admin page only.
-   - Or: downloads only from the admin page.
-2. **The map.** Positions are public already (§12.8).
-   - **Proposed:** a real map (OpenStreetMap tiles, with Leaflet) under the
-     GPS trace, colored by speed. Viewers' browsers fetch the tiles from
-     OpenStreetMap.
-   - Or: the trace alone, drawn on a blank background, with nothing fetched
-     from anyone else.
-3. **The live page.** Its chart shows the last 5 minutes (decision 19).
-   - **Proposed:** a "whole session" switch there, using the same archive and
-     live merge as the session page, so the crew can see the whole race so far.
-   - Or: leave the live page as it is, and link to the session page.
-4. **Laps.** Proposed for M7: a lap table (the best lap not counting pit laps,
-   as §18 asks), and choosing a lap zooms the charts to it.
-   - **Comparing laps**, overlaid by distance or by time, is a bigger piece.
-     Proposed for a later milestone. Or do you want it now?
+1. **Downloads are on the admin page only**, as the exact original log (VIN
+   included). The public site has no download.
+2. **A real map:** OpenStreetMap tiles with Leaflet, and the GPS trace on top,
+   colored by speed. Viewers' browsers fetch the tiles from OpenStreetMap,
+   with its attribution shown, as its tile policy asks.
+3. **The live page gets a "whole session" switch**, using the same merge of
+   the archive and the live lane as the session page.
+4. **Laps: a table now, comparison later.** The best lap never counts a pit
+   lap (§18); choosing a lap zooms the charts to it. Overlaying laps is a later
+   milestone.
 
 ---
 
@@ -104,15 +95,20 @@ merged (contract §7).
   updates as they come. **Archive rows win** wherever both have a `seq`. Live
   rows show as provisional until the archive covers them.
 - **Everything is public, like the live pages** (decision 11), and never shows
-  a VIN. Session ids are UUIDs. Only the admin page deletes.
+  a VIN. Session ids are UUIDs. Only the admin page deletes, and downloads.
 - **Routes:**
   - pages: `/cars/{slug}/sessions` and `/cars/{slug}/sessions/{id}`;
   - API: `GET /api/cars/{slug}/sessions` (drives and summaries),
     `GET /api/sessions/{id}` (summary and signals),
-    `GET /api/sessions/{id}/series` (the prepared file, sent gzipped as it
-    is), and `GET /api/sessions/{id}/download`.
+    and `GET /api/sessions/{id}/series` (the prepared file, sent gzipped as it
+    is);
+  - admin: `GET /api/admin/sessions/{id}/download`, the exact log (the
+    completed file, or its segments joined), as `{id}.jsonl.gz`.
 - **Links:** the car page links "Past sessions"; the admin page's session rows
-  link to their pages.
+  link to their pages, and have Download.
+- **The map is Leaflet** (bundled from npm, as uPlot is), with OpenStreetMap's
+  standard tiles and attribution. The trace is colored by `gps.speed` where
+  there is one, else by the car's speed.
 
 ---
 
@@ -144,12 +140,14 @@ mutations are checked.
 
 ### M7.3 — The sessions API
 
-The four routes. The list groups drives. `series` streams the stored file with
-`Content-Encoding: gzip`. `download` follows question 1.
+The three public routes, and the admin download. The list groups drives.
+`series` streams the stored file with `Content-Encoding: gzip`. The download
+is the exact log, VIN and all, and is admin-only.
 
 **Done when:** each route is tested (an unknown session, another car's slug, a
-session still uploading); the VIN appears in no response (a raw-bytes test, as
-decision 19's); mutations are checked.
+session still uploading); the VIN appears in no public response (a raw-bytes
+test, as decision 19's); the download is byte for byte the log and `401`
+without a sign-in; mutations are checked.
 
 ### M7.4 — The sessions list
 
@@ -166,10 +164,11 @@ several replayed sessions; phone width.
 - the summary;
 - the full-length chart: signals chosen as on the live page, drag to zoom,
   double-click to reset, gaps as gaps;
-- the lap table (question 4), where choosing a lap zooms to it;
-- the map or trace (question 2), with the chart's cursor shown on it;
-- events on the chart's time line (faults, stopped signals, gaps);
-- the download.
+- the lap table, where choosing a lap zooms to it (the best never a pit lap);
+- the map, with the trace colored by speed, and the chart's cursor shown on it;
+- events on the chart's time line (faults, stopped signals, gaps).
+
+The admin page's sessions get a link to this page, and Download.
 
 **Done when:** Vitest for the pure parts; looked at in Chrome with a real log,
 a synthetic race with laps and GPS, and a session with gaps; phone width.
@@ -178,7 +177,8 @@ a synthetic race with laps and GPS, and a session with gaps; phone width.
 
 The merge: the session page of a live session shows the archive, then the live
 tail, then live updates, with archive rows replacing provisional ones as
-chunks arrive. The live page's "whole session" switch follows question 3.
+chunks arrive. The live page gets its "whole session" switch, on the same
+merge.
 
 **Done when:** tests for the merge by `seq` (overlap, archive ahead, live
 ahead, a reconnect); looked at in Chrome with a replay streaming live and
@@ -187,7 +187,7 @@ uploading, through at least two chunk uploads.
 ### M7.7 — Deploy, and prove it live
 
 Deploy; replay the test logs into a throwaway car (archive, and one live); the
-list, pages, map and download on the deployed site; the summary built after
+list, pages and map on the deployed site, and the download through the API; the summary built after
 `complete`, and on first view for a session made before M7. Then clean up.
 
 **Done when:** every step passes on the deployed site, with screenshots kept.
@@ -202,7 +202,7 @@ and pushed.
 
 ## Not in M7
 
-- Comparing laps (question 4 may move it in).
+- Comparing laps (Sam: a later milestone).
 - Naming or annotating sessions.
 - Dashboards (M8).
 - Showing crew messages beside a session (they're kept for it, decision 21).
