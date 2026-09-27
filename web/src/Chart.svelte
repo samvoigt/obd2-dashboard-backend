@@ -7,7 +7,23 @@
     data,
     names,
     units,
-  }: { data: [number[], ...(number | null)[][]]; names: string[]; units: string[] } = $props()
+    zoom = false,
+    range = null,
+    onCursor,
+    markers = [],
+  }: {
+    data: [number[], ...(number | null | undefined)[][]]
+    names: string[]
+    units: string[]
+    /** Drag across to zoom in, double-click to zoom out (the session page, M7.5). */
+    zoom?: boolean
+    /** Seconds; set from outside, as choosing a lap does. */
+    range?: [number, number] | null
+    /** The time under the cursor, in seconds, or null when it leaves. */
+    onCursor?: (t: number | null) => void
+    /** Thin lines across the plot, at seconds. */
+    markers?: { t: number; color: string }[]
+  } = $props()
 
   const COLORS = ['#3ddc84', '#5aa0ff', '#ffb020']
   let box: HTMLDivElement
@@ -20,7 +36,28 @@
     return {
       width,
       height: 280,
-      cursor: { drag: { x: false, y: false } },
+      cursor: { drag: { x: zoom, y: false } },
+      hooks: {
+        setCursor: [(u) => {
+          const i = u.cursor.idx
+          onCursor?.(i == null ? null : (u.data[0][i] ?? null))
+        }],
+        draw: [(u) => {
+          const { ctx, bbox } = u
+          ctx.save()
+          ctx.lineWidth = 1
+          for (const m of markers) {
+            const x = Math.round(u.valToPos(m.t, 'x', true))
+            if (x < bbox.left || x > bbox.left + bbox.width) continue
+            ctx.strokeStyle = m.color
+            ctx.beginPath()
+            ctx.moveTo(x + 0.5, bbox.top)
+            ctx.lineTo(x + 0.5, bbox.top + bbox.height)
+            ctx.stroke()
+          }
+          ctx.restore()
+        }],
+      },
       legend: { show: true },
       scales: { x: { time: true } },
       axes: [
@@ -35,7 +72,11 @@
         ...(twoScales ? [{ stroke: '#8b97a5', side: 1, grid: { show: false }, label: units[1] ?? '', scale: 'b' } as uPlot.Axis] : []),
       ],
       series: [
-        {},
+        // The legend's time, as the axis writes it: 24-hour, to the second.
+        {
+          value: (_u: uPlot, v: number | null) =>
+            v == null ? '--' : new Date(v * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }),
+        },
         ...names.map((n, i) => ({
           label: units[i] ? `${n} (${units[i]})` : n,
           stroke: COLORS[i % COLORS.length],
@@ -67,6 +108,12 @@
     if (!plot) return
     if (nextShape !== shape) rebuild()
     else plot.setData(data as uPlot.AlignedData)
+  })
+
+  // A range from outside (a lap chosen): zoom the time axis to it.
+  $effect(() => {
+    const r = range
+    if (plot && r) plot.setScale('x', { min: r[0], max: r[1] })
   })
 
   onDestroy(() => plot?.destroy())

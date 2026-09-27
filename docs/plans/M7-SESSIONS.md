@@ -343,6 +343,53 @@ The admin page's sessions get a link to this page, and Download.
 **Done when:** Vitest for the pure parts; looked at in Chrome with a real log,
 a synthetic race with laps and GPS, and a session with gaps; phone width.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **`Chart.svelte` is the live page's**: drag is off, and it has no range,
+>   cursor or markers. It gains four **optional** props, so the live page is
+>   unchanged: `zoom` (drag to zoom, double-click to reset, as uPlot does),
+>   `range` (set from outside: a lap), `onCursor` (the time under the cursor,
+>   for the map), and `markers` (thin lines at faults, gaps and stopped
+>   signals, drawn in uPlot's `draw` hook).
+> - **Joining signals:** each has its own times, so the page joins them with
+>   `uPlot.join`. It keeps the file's explicit `null`s (gaps) and leaves the
+>   holes joining makes as `undefined`, which uPlot bridges, as M7.2 said.
+>   Times are the file's `t0 + t`, in seconds, as uPlot's time scale wants.
+> - **Default signals:** `engine.rpm` and `vehicle.speed` when present, as the
+>   live page's `defaultChart` does; otherwise the first two numbers.
+> - **Leaflet isn't installed.** It's added pinned (`leaflet`, and
+>   `@types/leaflet` for the type check), as uPlot is. The map uses the canvas
+>   renderer, since a 3-hour trace at 1 Hz is about 10,000 coloured segments.
+>   Each segment's colour is the nearest `gps.speed` (else `vehicle.speed`) in
+>   time. With no positions, there's no map.
+> - **Pure parts in `sessionPage.ts`**, with Vitest: the lap table (the best,
+>   never a pit lap), a lap's time span (it ends at its `wall`, and lasts its
+>   `time`), joining, the speed colour, and the position nearest a time.
+
+> **✅ Done, 2026-09-26.**
+> - **New:** `SessionPage.svelte`, `SessionMap.svelte` (Leaflet 1.9.4 on
+>   OpenStreetMap), `sessionPage.ts` (8 Vitest tests; 53 in all), and
+>   `Chart.svelte`'s four optional props. The live page is unchanged except
+>   that its legend's time now matches its axis.
+> - **Looked at in Chrome**, on the synthetic race and a real 29-minute log:
+>   - the full-length chart, with the fault (red) and the gap (amber) marked;
+>   - the map at the track, coloured by speed;
+>   - the lap table, lap 11 marked best and the quicker in-lap not counted;
+>     choosing a lap zooms the chart to its 94 seconds;
+>   - the dot on the map following the chart's cursor;
+>   - the events listed;
+>   - the gap breaking every signal just after the last sample before it;
+>   - a session with no GPS or laps has neither section;
+>   - 390 px wide with no sideways scroll.
+> - **Found by looking:** the legend wrote the time as "11:16am" beside a
+>   24-hour axis; it now matches. Faint seams between map tiles appear in this
+>   browser (a fractional pixel ratio). Leaflet's usual fix didn't clear them,
+>   so it was left out; noted as cosmetic.
+> - **The upgraded test logs have no units** unless replayed with
+>   `--units-from`, so engine and road speed share an axis there. Real v3 logs
+>   carry units, and different units get two axes.
+> - **Mutations:** 13, 12 killed. The equivalent one is an infinite speed,
+>   which the server never sends: it writes a break instead.
+
 ### M7.6 — A session being driven
 
 The merge: the session page of a live session shows the archive, then the live
