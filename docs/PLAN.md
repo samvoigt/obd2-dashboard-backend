@@ -21,7 +21,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
 | **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
 | **M6** | The admin page: cars, tokens and sessions, behind Google sign-in | ✅ (`plans/COMPLETED.md`) |
-| **M7** | Past sessions on the site | |
+| **M7** | Past sessions on the site | **planned**: [`plans/M7-SESSIONS.md`](plans/M7-SESSIONS.md) |
 | **M8** | Dashboards: crew views and mirrored tablet layouts | |
 
 **How a milestone runs**, as in the app:
