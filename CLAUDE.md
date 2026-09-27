@@ -17,6 +17,9 @@ Google Cloud Run.
   pinned at app commit `918fa1e`. It is the protocol (decision 15), and
   `docs/PROTOCOL.md` says where to find it and what this side committed to.
   **Never edit it from here**: a change is a v2, agreed through Sam.
+  **Nothing in `../obd2-dashboard` is ever modified from here** (Sam,
+  2026-09-27): read its contract, logs and branding; make anything derived
+  from them in this repo, and put notes for the tablet side in chat.
 - `docs/plans/` — the plan for the current milestone. Each step is **validated
   against the code before it is built**, and that validation is written into
   the plan. When a milestone closes, its lasting content goes to
