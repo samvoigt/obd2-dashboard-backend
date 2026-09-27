@@ -92,16 +92,19 @@ def main():
             props.update({k: v for k, v in f["properties"].items() if k != "role"})
             f["properties"] = props
         out.append(f)
+    # The tablet's own pit gate, to the coordinate (contract §22.5 asks the website to seed NHMS's from it),
+    # so neither side relies on its fallback. Ours, worked out the same way, must agree within half a metre.
+    tablets = [[-71.4616871, 43.3629732], [-71.4618739, 43.3630206]]
+    ours = [frame.geo((centre[0] + across[0], centre[1] + across[1])), frame.geo((centre[0] - across[0], centre[1] - across[1]))]
+    worst = max(math.dist(frame.xy(t), frame.xy(o)) for t, o in zip(tablets, ours))
+    assert worst < 0.5, f"our pit line is {worst:.2f} m from the tablet's"
     out.append({
         "type": "Feature",
         "properties": {
             "role": "pit_line",
-            "note": "Where the tablet made its pit gate before M12: across the pit lane, level with the start/finish, 8 m each side.",
+            "note": "The tablet's pit gate (contract §22.5): across the pit lane, level with the start/finish, 8 m each side.",
         },
-        "geometry": {"type": "LineString", "coordinates": [
-            frame.geo((centre[0] + across[0], centre[1] + across[1])),
-            frame.geo((centre[0] - across[0], centre[1] - across[1])),
-        ]},
+        "geometry": {"type": "LineString", "coordinates": tablets},
     })
     course = {k: v for k, v in track.items() if k != "features"}
     course["features"] = out

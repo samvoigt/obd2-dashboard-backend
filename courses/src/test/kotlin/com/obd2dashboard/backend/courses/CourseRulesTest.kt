@@ -144,6 +144,12 @@ class CourseRulesTest {
     }
 
     @Test
+    fun `a layout is closed, its last point its first (contract section 22-4)`() {
+        val open = feature("layout", loop.dropLast(1), mapOf("id" to "east", "name" to "East"))
+        refused(open, feature("start_finish", across(0.0005))).single() shouldBe "feature 1 (layout) isn't closed: its last point must be its first"
+    }
+
+    @Test
     fun `a course is at most 256 KB`() {
         val huge = feature("layout", List(12_000) { LON + it * 1e-7 to LAT }, mapOf("id" to "east", "name" to "East"))
         refused(huge, feature("start_finish", across(0.0005))) shouldContain "a course is at most 256 KB"

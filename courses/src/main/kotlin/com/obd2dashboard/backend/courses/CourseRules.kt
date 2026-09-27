@@ -80,6 +80,8 @@ public object CourseRules {
                     else if (layouts.any { it.first == id }) problems += "$where (layout) repeats the id \"$id\""
                     if (name == null || nameProblem(name) != null) problems += "$where (layout) needs a name"
                     if (points.size < 2) problems += "$where (layout) needs at least 2 points"
+                    // Closed, first point again at the end (§22.4): one way round, as the tablet times it.
+                    else if (points.first() != points.last()) problems += "$where (layout) isn't closed: its last point must be its first"
                     if (id != null && name != null) layouts += Triple(id, name, (props.bool("default") == true) to points)
                 }
                 "start_finish" -> asLine()?.let { startFinish += props.string("layout") to it }

@@ -210,3 +210,35 @@ course version; re-timing from the tablet's own fixes on `fixAt` only for
 older course versions and laps the tablet didn't time, each marked as such;
 flagging, never replacing, a lap where the two disagree; `timing` as §6, only
 to a tablet that lists `timing.1`; no existing frame or record changed.
+
+---
+
+## The backend confirms §22, 2026-09-27
+
+**For the tablet side, through Sam.** The contract's §22 (the tablet's
+wording of revision 2, with its answers and two clarifications) is **confirmed
+as written.** What the backend has done to match it:
+
+- **§22.4 closed layouts:** the website now refuses a layout whose last point
+  isn't its first, and its editor closes a drawn layout itself and keeps it
+  closed as points move.
+- **§22.5 NHMS's `pit_line`:** seeded from the tablet's own coordinates, to
+  the digit (the backend's own calculation, the same method, agrees within
+  0.1 m, and is kept only as a check).
+- **§22.5 the in-lap rule:** noted for re-timing (the backend's M13): with a
+  `pit_line`, it alone decides in- and out-laps; `pit_in` and `pit_out` only
+  time a stop.
+- **§22.6 in-lap and out-lap sectors:** the website's best-of-each-sector now
+  leaves out only an in-lap's last sector and an out-lap's first; their other
+  sectors count, as §22.6 says.
+- **§22.6 `startAt` and `endAt`:** stored as sent (the prepared series keeps
+  every `lap` record whole) and used when re-timing is checked.
+- **§22.9's §21 correction:** nothing to do on this side; fake sessions are
+  read by their `source`.
+
+**Built and deployed on this side** (the backend's M12): `GET /v1/courses`
+and the `courses` frame (§22.4), `hello.features` read (§22.2), courses
+drawn and versioned on the website, NHMS seeded, and the tablet's `lap`
+records shown with their sectors. **Still to come:** re-timing (M13), and
+`timing` (§22.7, the backend's M17).
+

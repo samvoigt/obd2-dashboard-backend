@@ -6,7 +6,7 @@
   import { onMount, untrack } from 'svelte'
   import { api, AdminError, day, type CourseVersion, type CourseView } from './lib/admin'
   import {
-    addSector, arrows, emptyCourse, fromGeoJSON, idFrom, makeDefault, metres, moveSector, removeLayout, removeSector,
+    addSector, arrows, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector, removeLayout, removeSector,
     sectorsOf, toGeoJSON, type EditCourse, type Pt,
   } from './lib/courseEdit'
   import { fetchSeries } from './lib/sessionPage'
@@ -201,7 +201,8 @@
     if (c.pitLane) drawPath(c.pitLane.path, color('muted'), 4, pointsOf === 'pit_lane', (p) => change({ ...c, pitLane: { ...c.pitLane!, path: p } }))
     for (const l of c.layouts) {
       const mine = l.id === sel
-      drawPath(l.path, color('accent'), mine ? 4 : 2, mine && pointsOf === 'layout', (p) => change({ ...c, layouts: c.layouts.map((x) => (x.id === l.id ? { ...x, path: p } : x)) }))
+      drawPath(l.path, color('accent'), mine ? 4 : 2, mine && pointsOf === 'layout', (p) =>
+        change({ ...c, layouts: c.layouts.map((x) => (x.id === l.id ? { ...x, path: keepClosed(x.path, p) } : x)) }))
       for (const head of arrows(l.path)) drawn.addLayer(L.polyline(head.map(latlng), { color: color('accent'), weight: 2, opacity: mine ? 1 : 0.5, interactive: false }))
     }
     c.startFinish.forEach((s, i) => {
@@ -268,7 +269,7 @@
     const c = course
     if (tool === 'layout') {
       const id = idFrom(newLayoutName, c.layouts.map((l) => l.id))
-      change({ ...c, layouts: [...c.layouts, { id, name: newLayoutName.trim(), default: c.layouts.length === 0, path, extra: {} }] })
+      change({ ...c, layouts: [...c.layouts, { id, name: newLayoutName.trim(), default: c.layouts.length === 0, path: closed(path), extra: {} }] })
       selected = id
       newLayoutName = ''
     } else if (tool === 'pit_lane') {

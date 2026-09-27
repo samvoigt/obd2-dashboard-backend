@@ -47,13 +47,19 @@ None of these is in the contract's body, and each has to be true of the server:
 | §5.1–5.3 live lane | M4 |
 | §5.4 crew messages | M5 ✅ |
 
-## Proposed, not agreed
+## Agreed since the pin: courses and timing (contract §22)
 
-- **Courses and timing to the tablet** (race logging, M12–M17):
-  [`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md).
-  Revision 2, answering the tablet's reply (contract §22): the tablet times
-  and its numbers are the results (Sam); `GET /v1/courses` and a `courses`
-  frame; `fixAt` on `gps.position`; richer `lap` records; a `timing` frame of
-  what only the server knows; a `pit_line`; all opted into by
-  `hello.features`. Not part of the contract until both sides and Sam agree;
-  the tablet side writes it into the contract, never this side.
+- **Contract §22** (the app's repo, 2026-09-27): the tablet times laps and
+  sectors, and its numbers are the results; the server keeps the books.
+  Proposed by this side
+  ([`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md),
+  revision 2), written into the contract by the tablet side, agreed by Sam and
+  the tablet side, and **confirmed by this side** (the proposal file's last
+  section).
+- **Built here (M12):** `GET /v1/courses` and the `courses` frame to a tablet
+  listing `courses.1` (§22.2, §22.4); courses drawn and versioned on the
+  website, closed layouts, NHMS's `pit_line` from the tablet's coordinates
+  (§22.5); the tablet's `lap` records with `course`, `courseVersion`, layout
+  `id`, `sectors`, `startAt`, `endAt` (§22.6) stored whole and shown.
+- **To come:** re-timing on `fixAt` (§22.1, §22.3, §22.8; M13), `timing`
+  (§22.7; M17).

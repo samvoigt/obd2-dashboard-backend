@@ -225,3 +225,20 @@ export function arrows(path: readonly Pt[], every = 150, size = 10): [Pt, Pt, Pt
   }
   return out
 }
+
+/** A layout's line closed, its first point again at the end (§22.4), as the server requires. */
+export function closed(path: readonly Pt[]): Pt[] {
+  if (path.length < 2) return [...path]
+  const first = path[0]!
+  const last = path[path.length - 1]!
+  return first[0] === last[0] && first[1] === last[1] ? [...path] : [...path, [first[0], first[1]]]
+}
+
+/** After a point was moved: the closing point follows the first, whichever of the two moved. */
+export function keepClosed(before: readonly Pt[], after: readonly Pt[]): Pt[] {
+  if (after.length < 2) return [...after]
+  const movedLast = before.length === after.length && (after[0]![0] === before[0]![0] && after[0]![1] === before[0]![1])
+  const anchor = movedLast ? after[after.length - 1]! : after[0]!
+  return [[anchor[0], anchor[1]], ...after.slice(1, -1), [anchor[0], anchor[1]]]
+}
+

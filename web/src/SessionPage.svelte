@@ -3,7 +3,7 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    bestSectors, defaultSignals, events, fetchSeries, joined, lapRows, speedsAtPositions, unitOf,
+    bestSectors, countsForBest, defaultSignals, events, fetchSeries, joined, lapRows, speedsAtPositions, unitOf,
     type LapRow, type Series,
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
@@ -222,7 +222,7 @@
                   <td class="time">{lapTime(lap.time)}</td>
                   {#each sectorBests as bestOf, i (i)}
                     {@const t = lap.sectors?.[i]}
-                    <td class="sector" class:bestsector={t !== undefined && t === bestOf && !lap.pitIn && !lap.pitOut}>{t === undefined ? '' : t.toFixed(3)}</td>
+                    <td class="sector" class:bestsector={t !== undefined && t === bestOf && countsForBest(lap, i)}>{t === undefined ? '' : t.toFixed(3)}</td>
                   {/each}
                   <td class="muted">{lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}</td>
                 </tr>

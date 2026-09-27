@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import seedText from '../../../courses/seed/nhms.geojson?raw'
 import {
-  addSector, arrows, emptyCourse, fromGeoJSON, idFrom, makeDefault, metres, moveSector, removeLayout, removeSector, sectorsOf,
+  addSector, arrows, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector, removeLayout, removeSector, sectorsOf,
   toGeoJSON, type Pt,
 } from './courseEdit'
 
@@ -80,3 +80,20 @@ describe('ids, distances and arrows', () => {
     expect(arrows([[LON, LAT]], 150)).toEqual([])
   })
 })
+
+describe('layouts stay closed (contract §22.4)', () => {
+  const A: Pt = [LON, LAT]
+  const B: Pt = [LON + 0.001, LAT]
+  const C: Pt = [LON + 0.001, LAT + 0.001]
+  it('closes a drawn line by returning to its first point, once', () => {
+    expect(closed([A, B, C])).toEqual([A, B, C, A])
+    expect(closed([A, B, C, A])).toEqual([A, B, C, A])
+  })
+  it('keeps the closing point with the first, whichever of the two was moved', () => {
+    const moved: Pt = [LON - 0.0005, LAT]
+    expect(keepClosed([A, B, C, A], [moved, B, C, A])).toEqual([moved, B, C, moved]) // the first dragged
+    expect(keepClosed([A, B, C, A], [A, B, C, moved])).toEqual([moved, B, C, moved]) // the last dragged
+    expect(keepClosed([A, B, C, A], [A, B, moved, A])).toEqual([A, B, moved, A]) // a middle point: nothing to follow
+  })
+})
+

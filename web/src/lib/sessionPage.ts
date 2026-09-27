@@ -75,15 +75,25 @@ export function lapRows(series: Series): LapRow[] {
 }
 
 /**
- * The best time for each sector (M12.7), from laps on track only (never a pit
- * lap, §18): null for a sector no such lap has. As many as the most any lap has.
+ * The best time for each sector (M12.7), null for a sector no lap has. As many
+ * as the most any lap has. **An in-lap's last sector** (it ends at the pit line)
+ * **and an out-lap's first** (it begins there) **never count**; their other
+ * sectors are ordinary ones (contract §22.6).
  */
 export function bestSectors(rows: LapRow[]): (number | null)[] {
   const n = Math.max(0, ...rows.map((r) => r.sectors?.length ?? 0))
   return Array.from({ length: n }, (_, i) => {
-    const times = rows.filter((r) => !r.pitIn && !r.pitOut).map((r) => r.sectors?.[i]).filter((x): x is number => typeof x === 'number')
+    const times = rows
+      .filter((r) => countsForBest(r, i))
+      .map((r) => r.sectors?.[i])
+      .filter((x): x is number => typeof x === 'number')
     return times.length > 0 ? Math.min(...times) : null
   })
+}
+
+/** Whether sector [i] of [row] is one that could be a best (§22.6): not an in-lap's last, nor an out-lap's first. */
+export function countsForBest(row: LapRow, i: number): boolean {
+  return !(row.pitIn && i === (row.sectors?.length ?? 0) - 1) && !(row.pitOut && i === 0)
 }
 
 /** The signals to chart first: engine speed and road speed, as the live page does; else the first two. */

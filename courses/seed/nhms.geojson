@@ -2026,18 +2026,18 @@
    "type": "Feature",
    "properties": {
     "role": "pit_line",
-    "note": "Where the tablet made its pit gate before M12: across the pit lane, level with the start/finish, 8 m each side."
+    "note": "The tablet's pit gate (contract §22.5): across the pit lane, level with the start/finish, 8 m each side."
    },
    "geometry": {
     "type": "LineString",
     "coordinates": [
      [
-      -71.4616876,
-      43.3629722
+      -71.4616871,
+      43.3629732
      ],
      [
-      -71.4618742,
-      43.3630201
+      -71.4618739,
+      43.3630206
      ]
     ]
    }

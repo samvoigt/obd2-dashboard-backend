@@ -42,19 +42,20 @@ describe('laps', () => {
           [100_000, { lap: 1, time: 96.0 }], // before courses came from the website
           [200_000, { lap: 2, time: 94.5, course: 'nhms', courseVersion: 7, layout: 'road', sectors: [31.5, 33.0, 30.0] }],
           [300_000, { lap: 3, time: 94.2, course: 'nhms', courseVersion: 7, layout: 'road', sectors: [31.2, 33.4, 29.6] }],
-          [390_000, { lap: 4, time: 88.0, pitIn: true, sectors: [30.0, 30.0, 28.0] }], // faster, but into the pits
+          [390_000, { lap: 4, time: 88.0, pitIn: true, sectors: [30.0, 30.0, 28.0] }], // into the pits: its last sector ends at the pit line
         ],
       },
     }))
     expect(rows.map((r) => r.sectors)).toEqual([null, [31.5, 33.0, 30.0], [31.2, 33.4, 29.6], [30.0, 30.0, 28.0]])
-    expect(bestSectors(rows)).toEqual([31.2, 33.0, 29.6]) // each sector's best on track, never a pit lap's
+    // §22.6: an in-lap's last sector never counts; its others are ordinary sectors.
+    expect(bestSectors(rows)).toEqual([30.0, 30.0, 29.6])
   })
   it('have no sector columns when no lap has sectors, and a sector no lap on track has is null', () => {
     expect(bestSectors(lapRows(series({ events: { stopped: [], fault: [], gap: [], lap: [[1, { lap: 1, time: 90 }]] } })))).toEqual([])
     const odd = lapRows(series({
       events: { stopped: [], fault: [], gap: [], lap: [[1, { lap: 1, time: 90, sectors: [45, 45] }], [2, { lap: 2, time: 91, pitOut: true, sectors: [30, 30, 31] }]] },
     }))
-    expect(bestSectors(odd)).toEqual([45, 45, null])
+    expect(bestSectors(odd)).toEqual([45, 30, 31]) // an out-lap's first sector never counts; its others do
     expect(lapRows(series({ events: { stopped: [], fault: [], gap: [], lap: [[1, { lap: 1, time: 90, sectors: ['x'] as unknown as number[] }]] } }))[0]!.sectors).toBeNull()
   })
 })
