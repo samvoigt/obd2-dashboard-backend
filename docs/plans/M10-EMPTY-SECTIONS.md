@@ -109,6 +109,10 @@ server:
 Deployed as usual, and looked at on https://badnewsbears.live/cars/outback-2018
 (both empty unless the tablet is streaming them).
 
+> **Validated, 2026-09-27, before deploying.** The Outback is offline (the
+> landing page's state), so no tablet link is cut. The site's only change is
+> the page; the server is the same code as `00018`.
+
 ### M10.3 — Record
 
 Decision 28 amended (sections that show before their data: the G-meter and
