@@ -57,7 +57,7 @@ public class CarLive(
     private var inSession = false
     private var lastDataAt: Instant? = null
 
-    public fun status(): CarStatus = CarStatus(connected, inSession, lastDataAt)
+    public fun status(): CarStatus = CarStatus(connected, inSession, lastDataAt, sessionId.takeIf { inSession })
 
     public fun connected(): LiveUpdate.Status {
         connected = true
@@ -153,7 +153,13 @@ public class CarLive(
  * Where a car stands, from the server's side. [freshness] turns it into what a
  * page shows; the page then counts the seconds itself.
  */
-public data class CarStatus(val connected: Boolean, val inSession: Boolean, val lastDataAt: Instant?) {
+public data class CarStatus(
+    val connected: Boolean,
+    val inSession: Boolean,
+    val lastDataAt: Instant?,
+    /** The session being streamed, only while in one (the admin page, M6.7). Never sent to public streams. */
+    val sessionId: String? = null,
+) {
     public fun freshness(now: Instant): Freshness = when {
         !connected -> Freshness.Offline
         !inSession -> Freshness.NoSession

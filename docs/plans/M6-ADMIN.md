@@ -389,6 +389,53 @@ On the admin page:
 (the link, the live marker, a delete refused while live, a delete after it
 ends); mutations are checked.
 
+> **Validated against the code, 2026-09-26, before building** (moved ahead of
+> M6.6, so that there's one deploy).
+> - **"Not while live" is too narrow.** A session deleted while its archive
+>   upload is still going gets `not_open` on its next chunk, and the tablet then
+>   re-sends it from line 0 (contract §6), so the delete doesn't stick. The rule
+>   is **no delete while the tablet is live on that session, or while its upload
+>   is incomplete and was active in the last 5 minutes**. The page says which.
+> - **The upload rule needs no live state**, so it goes in `CarAdmin`
+>   (`deleteSession`, with a clock), and **`admin.sh delete-session` gains it
+>   too**. The live rule needs the hub, so the server adds it, passing whether
+>   the session is live.
+> - **The hub knows the live session's id** (`CarLive.sessionId`) but doesn't
+>   pass it out. `CarStatus` gains `sessionId`, set only while in a session.
+>   `GET cars` gives `liveSession`.
+> - `GET cars/{slug}/sessions`: id, started (the header's, else when the record
+>   was made), lines (`ackedThrough + 1`), and state: `live`, `uploading`,
+>   `complete` or `incomplete`. Newest first.
+> - **The confirmation is the id's first 8 characters**, not all 36: typing a
+>   UUID on a phone is unreasonable, and 8 hex characters can't be hit by
+>   accident.
+
+> **✅ Done, 2026-09-26.** `CarStatus.sessionId`; `ArchiveService.session`;
+> `CarAdmin.checkDeletable` and `deleteSession`, which `admin.sh
+> delete-session` now uses too; `GET cars/{slug}/sessions`, `DELETE
+> sessions/{id}`, and `liveSession` in the car list; the page's Sessions panel
+> and "Watch live". Tests: 2 API, 2 `:admin`, 1 `:live`, 1 tool, 4 Vitest.
+> Looked at in Chrome with a real drive streaming live into the dev server:
+> - the live session marked "Live now", with "Watch live" on the car and on
+>   the session; an archived one listed as Complete;
+> - deleting the live one blocked with its reason and no field; the complete
+>   one deleted after typing 8 characters (7 blocked);
+> - the replay stopped: the car offline and the session "Uploading", still
+>   blocked.
+>
+> **Found by looking:** the server gave "still uploading" for a live session,
+> because the upload check ran first; a live session is usually uploading too.
+> Live is now checked first, and the test's live session is a realistic one
+> (incomplete, just updated), which the old order fails. Also "1 lines".
+>
+> Mutations: 15 server/`:admin`/tool (an id with no letters hid the
+> lower-casing until the test's id got some), and 5 in the page, all killed
+> but one equivalent (the 24-hour option, which `en-GB` gives anyway).
+>
+> One `check` run failed while the dev server was being stopped, and the log
+> was lost; three full reruns with nothing cached all passed. Noted, not
+> explained.
+
 ### M6.8 — Record it
 
 - Decision 25 (the admin page, and how it is guarded); decision 10 amended.

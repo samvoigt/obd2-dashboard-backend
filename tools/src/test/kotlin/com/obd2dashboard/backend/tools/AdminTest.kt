@@ -30,7 +30,8 @@ class AdminTest {
     private val registry = CarRegistry(store, random = SecureRandom(), passcodeIterations = 1_000)
     private val sessions = InMemorySessionIndex()
     private val segments = InMemorySegmentStore()
-    private val archive = ArchiveService(sessions, segments)
+    // Uploads are stamped 10 minutes ago, so a seeded session is quiet enough to delete (M6.7).
+    private val archive = ArchiveService(sessions, segments, java.time.Clock.offset(java.time.Clock.systemUTC(), java.time.Duration.ofMinutes(-10)))
     private val messages = InMemoryMessageStore()
     private val tools = Tools(registry, sessions, archive, messages)
 
@@ -341,6 +342,20 @@ class AdminTest {
         run("delete-session $sessionId", FakeIo(lines = listOf(sessionId))).statusCode shouldBe 0
         runBlocking { sessions.get(sessionId) }.shouldBeNull()
         segments.objects.keys.none { it.contains(sessionId) } shouldBe true
+    }
+
+    @Test
+    fun `delete-session refuses an upload still going, before asking`() {
+        run("add-car yaris --name Yaris")
+        runBlocking { ArchiveService(sessions, segments).open("yaris", sessionId, line0.toByteArray()) } // stamped now
+        val io = FakeIo(lines = listOf(sessionId))
+        run("delete-session $sessionId", io).let {
+            it.statusCode shouldBe 1
+            it.stderr shouldContain "still uploading"
+        }
+        io.prompts shouldBe emptyList()
+        runBlocking { sessions.get(sessionId) } shouldNotBe null
+        run("delete-session 00000000-0000-4000-8000-000000000000").stderr shouldContain "No session"
     }
 
     @Test

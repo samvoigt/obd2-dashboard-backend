@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { AdminError, api, confirmed, day, errorText, passcodeProblem, slugProblem, stateText, tokenProblem, twiceProblem } from './admin'
+import {
+  AdminError, api, confirmed, day, deleteBlocked, errorText, passcodeProblem, sessionConfirmation, sessionStateText, slugProblem,
+  stateText, tokenProblem, twiceProblem, when, type AdminSession,
+} from './admin'
 
 describe('the rules, as the server words them', () => {
   it('checks a slug', () => {
@@ -41,6 +44,28 @@ describe('words for the page', () => {
   })
   it('writes a day', () => {
     expect(day(Date.UTC(2026, 8, 26, 12), 'en-GB', 'UTC')).toBe('26 Sept 2026')
+  })
+})
+
+describe('sessions', () => {
+  const s = (state: AdminSession['state']): AdminSession => ({ id: '3a3b3c3d-3333-4333-8333-33333333abcd', started: 0, lines: 42, state })
+  it('names their states', () => {
+    expect(sessionStateText('live')).toBe('Live now')
+    expect(sessionStateText('uploading')).toBe('Uploading')
+    expect(sessionStateText('complete')).toBe('Complete')
+    expect(sessionStateText('incomplete')).toBe('Incomplete (upload stopped)')
+  })
+  it('blocks deleting a live or uploading one, and says why', () => {
+    expect(deleteBlocked(s('live'))).toContain('Live')
+    expect(deleteBlocked(s('uploading'))).toContain('Still uploading')
+    expect(deleteBlocked(s('complete'))).toBeNull()
+    expect(deleteBlocked(s('incomplete'))).toBeNull()
+  })
+  it('asks for the first 8 characters of the id', () => {
+    expect(sessionConfirmation('3a3b3c3d-3333-4333-8333-33333333abcd')).toBe('3a3b3c3d')
+  })
+  it('writes a date and time', () => {
+    expect(when(Date.UTC(2026, 8, 26, 14, 5), 'en-GB', 'UTC')).toBe('26 Sept 2026, 14:05')
   })
 })
 

@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import {
-    AdminError, api, confirmed, day, passcodeProblem, slugProblem, stateText, tokenProblem, twiceProblem,
-    type AdminCar, type AdminConfig, type CarWithToken,
+    AdminError, api, confirmed, day, deleteBlocked, passcodeProblem, sessionConfirmation, sessionStateText, slugProblem,
+    stateText, tokenProblem, twiceProblem, when,
+    type AdminCar, type AdminConfig, type AdminSession, type CarWithToken,
   } from './lib/admin'
 
-  type Action = 'rename' | 'token' | 'passcode' | 'remove'
+  type Action = 'sessions' | 'rename' | 'token' | 'passcode' | 'remove'
 
   let config: AdminConfig | null = $state(null)
   let email: string | null = $state(null)
@@ -35,6 +36,8 @@
   let passcode = $state('')
   let passcode2 = $state('')
   let typed = $state('')
+  let carSessions: AdminSession[] = $state([])
+  let deleting: string | null = $state(null)
 
   let googleButton: HTMLDivElement | undefined = $state()
 
@@ -158,6 +161,25 @@
     choose = false
     token = token2 = passcode = passcode2 = typed = ''
     error = null
+    carSessions = []
+    deleting = null
+    if (action === 'sessions') void loadSessions(car.slug)
+  }
+
+  async function loadSessions(slug: string) {
+    await run(async () => {
+      carSessions = await api<AdminSession[]>('GET', `/cars/${slug}/sessions`)
+    })
+  }
+
+  async function deleteSession(car: AdminCar, session: AdminSession) {
+    await run(async () => {
+      await api('DELETE', `/sessions/${session.id}`)
+      deleting = null
+      typed = ''
+      await load()
+      await loadSessions(car.slug)
+    })
   }
 
   async function rename(car: AdminCar) {
@@ -272,7 +294,11 @@
             <dt>Crew passcode</dt><dd>{car.passcodeSet ? 'Set' : 'Not set'}</dd>
             <dt>Sessions</dt><dd>{car.sessions}</dd>
           </dl>
+          {#if car.liveSession}
+            <p class="live-now"><span class="dot live"></span>Streaming a session now. <a href={`/cars/${car.slug}`}>Watch live →</a></p>
+          {/if}
           <div class="row actions">
+            <button onclick={() => begin(car, 'sessions')}>Sessions</button>
             <button onclick={() => begin(car, 'rename')}>Rename</button>
             <button onclick={() => begin(car, 'token')}>Replace token</button>
             <button onclick={() => begin(car, 'passcode')}>{car.passcodeSet ? 'Change passcode' : 'Set passcode'}</button>
@@ -281,7 +307,43 @@
 
           {#if open?.slug === car.slug}
             <div class="form inner">
-              {#if open.action === 'rename'}
+              {#if open.action === 'sessions'}
+                {#if carSessions.length === 0}
+                  <p class="muted">No sessions.</p>
+                {/if}
+                <ul class="sessions">
+                  {#each carSessions as s (s.id)}
+                    <li>
+                      <div class="srow">
+                        <span>
+                          <strong>{when(s.started)}</strong>
+                          <span class="muted"> · {s.lines.toLocaleString()} {s.lines === 1 ? 'line' : 'lines'} · </span>
+                          <span class:live-text={s.state === 'live'}>{sessionStateText(s.state)}</span>
+                        </span>
+                        <span class="row">
+                          {#if s.state === 'live'}<a href={`/cars/${car.slug}`}>Watch live →</a>{/if}
+                          <button class="danger small-btn" onclick={() => { deleting = deleting === s.id ? null : s.id; typed = '' }}>Delete</button>
+                        </span>
+                      </div>
+                      <div class="muted small mono">{s.id}</div>
+                      {#if deleting === s.id}
+                        {@const blocked = deleteBlocked(s)}
+                        {#if blocked}
+                          <p class="warn">{blocked}</p>
+                        {:else}
+                          <p class="warn">Its data and record are deleted. This can't be undone.</p>
+                          <label><span>Type <strong>{sessionConfirmation(s.id)}</strong> (the start of its id) to confirm</span>
+                            <input bind:value={typed} autocapitalize="off" autocomplete="off" spellcheck="false" />
+                          </label>
+                          <div class="row">
+                            <button class="danger" disabled={busy || !confirmed(typed, sessionConfirmation(s.id))} onclick={() => deleteSession(car, s)}>Delete session</button>
+                          </div>
+                        {/if}
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              {:else if open.action === 'rename'}
                 <label><span>New name</span> <input bind:value={name} /></label>
                 <div class="row">
                   <button class="primary" disabled={busy || name.trim() === '' || name.trim() === car.name} onclick={() => rename(car)}>Rename</button>
@@ -359,4 +421,12 @@
   .warn { color: var(--stale); margin: 0; }
   .error { color: var(--danger); }
   .small { font-size: 0.85rem; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .live-now { margin: 0 0 10px; }
+  .live-text { color: var(--live); font-weight: 600; }
+  .sessions { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .sessions li { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .sessions li:first-child { border-top: none; padding-top: 0; }
+  .srow { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .small-btn { padding: 4px 10px; font-size: 0.85rem; }
 </style>

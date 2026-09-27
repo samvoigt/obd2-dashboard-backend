@@ -14,6 +14,8 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
 import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.admin.CarHasSessions
+import com.obd2dashboard.backend.admin.NoSuchSession
+import com.obd2dashboard.backend.admin.SessionBusy
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
@@ -335,10 +337,18 @@ class DeleteSession(private val io: AdminIo) :
     private val id by argument()
 
     override suspend fun execute(registry: CarRegistry) {
-        val session = tools.sessions.get(id.lowercase()) ?: throw CliktError("No session $id.")
+        // The rule shared with the admin page (M6.7). The tool can't see whether the
+        // tablet is live, so it relies on the upload check alone.
+        val session = try {
+            tools.admin.checkDeletable(id.lowercase())
+        } catch (_: NoSuchSession) {
+            throw CliktError("No session $id.")
+        } catch (_: SessionBusy) {
+            throw CliktError("Session $id is still uploading. Try again once it has been quiet for 5 minutes.")
+        }
         val typed = io.readLine("Type the session id again to delete it (car ${session.car}): ")
         if (typed?.trim()?.lowercase() != session.id) throw CliktError("Not deleted.")
-        tools.archive.delete(session.id)
+        tools.admin.deleteSession(session.id)
         echo("Deleted ${session.id}.")
     }
 }

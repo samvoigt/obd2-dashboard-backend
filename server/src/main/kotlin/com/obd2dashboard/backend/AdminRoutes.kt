@@ -2,6 +2,10 @@ package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.admin.CarHasSessions
+import com.obd2dashboard.backend.admin.NoSuchSession
+import com.obd2dashboard.backend.admin.SessionBusy
+import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.live.CarStatus
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.registry.Car
@@ -23,6 +27,8 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -120,6 +126,19 @@ data class AdminCar(
     /** The landing page's live state: `live`, `stale`, `no_session` or `offline`. */
     val state: String,
     val sessions: Int,
+    /** The session its tablet is streaming now, if any (M6.7). */
+    val liveSession: String? = null,
+)
+
+/** A session as the admin page lists it (M6.7): never its VIN. */
+@Serializable
+data class AdminSession(
+    val id: String,
+    /** Epoch milliseconds: the session's own start, else when its record was made. */
+    val started: Long,
+    val lines: Long,
+    /** `live`, `uploading`, `complete` or `incomplete`. */
+    val state: String,
 )
 
 @Serializable
@@ -154,15 +173,34 @@ fun Route.adminCarRoutes(
     auth: AdminAuth,
     config: AdminConfig,
 ) {
-    suspend fun view(car: Car) = AdminCar(
-        slug = car.slug.value,
-        name = car.name,
-        tokenHint = car.tokenHint,
-        tokenIssued = car.tokenIssued.toEpochMilli(),
-        passcodeSet = car.passcodeHash != null,
-        state = hub.status(car.slug.value).freshness(clock.instant()).wire,
-        sessions = archive.sessionsOf(car.slug.value).size,
-    )
+    suspend fun view(car: Car): AdminCar {
+        val status = hub.status(car.slug.value)
+        return AdminCar(
+            slug = car.slug.value,
+            name = car.name,
+            tokenHint = car.tokenHint,
+            tokenIssued = car.tokenIssued.toEpochMilli(),
+            passcodeSet = car.passcodeHash != null,
+            state = status.freshness(clock.instant()).wire,
+            sessions = archive.sessionsOf(car.slug.value).size,
+            liveSession = status.liveSession(),
+        )
+    }
+
+    /** Whether [id] is being streamed by its car's tablet right now. */
+    suspend fun isLive(car: String, id: String) = hub.status(car).liveSession() == id
+
+    fun sessionView(record: SessionRecord, live: String?): AdminSession {
+        val started = record.header?.started?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: record.created
+        val quiet = Duration.between(record.updated, clock.instant()) >= CarAdmin.UPLOAD_QUIET
+        val state = when {
+            record.id == live -> "live"
+            record.complete -> "complete"
+            quiet -> "incomplete"
+            else -> "uploading"
+        }
+        return AdminSession(record.id, started.toEpochMilli(), record.ackedThrough + 1, state)
+    }
 
     suspend fun ApplicationCall.pathSlug(): Slug? =
         (Slug.check(parameters["slug"].orEmpty()) as? SlugCheck.Ok)?.slug
@@ -227,6 +265,36 @@ fun Route.adminCarRoutes(
         }
     }
 
+    get("/api/admin/cars/{slug}/sessions") {
+        call.admin(auth, config, change = false) ?: return@get
+        val slug = call.pathSlug() ?: return@get
+        registry.get(slug) ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
+        val live = hub.status(slug.value).liveSession()
+        call.respond(archive.sessionsOf(slug.value).map { sessionView(it, live) }.sortedByDescending { it.started })
+    }
+
+    delete("/api/admin/sessions/{id}") {
+        val email = call.admin(auth, config, change = true) ?: return@delete
+        val id = call.parameters["id"].orEmpty().lowercase()
+        val record = archive.session(id)
+            ?: return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        try {
+            // Live first: a live session is usually uploading too, and "live" is the reason that matters.
+            carAdmin.deleteSession(id, live = isLive(record.car, id))
+            adminLog.info("session deleted: {} of {} by {}", id, record.car, email)
+            call.respond(HttpStatusCode.NoContent)
+        } catch (_: NoSuchSession) {
+            call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        } catch (e: SessionBusy) {
+            val message = if (e.live) {
+                "That session is live: its tablet is still sending. Delete it once the drive has ended."
+            } else {
+                "That session is still uploading. Try again once it has been quiet for 5 minutes."
+            }
+            call.respond(HttpStatusCode.Conflict, ApiError("busy", message))
+        }
+    }
+
     delete("/api/admin/cars/{slug}") {
         val email = call.admin(auth, config, change = true) ?: return@delete
         val slug = call.pathSlug() ?: return@delete
@@ -237,6 +305,9 @@ fun Route.adminCarRoutes(
         }
     }
 }
+
+/** The live session's id while the tablet is connected and in one. */
+private fun CarStatus.liveSession(): String? = sessionId.takeIf { connected && inSession }
 
 /** The registry's refusals as statuses, keeping its plain words: bad input 400, unknown 404, a conflict 409. */
 private suspend fun ApplicationCall.refusals(action: suspend () -> Unit) {

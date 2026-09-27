@@ -173,6 +173,9 @@ public class ArchiveService(
         }
     }
 
+    /** One session's record, or null (the admin page, M6). */
+    public suspend fun session(id: String): SessionRecord? = index.get(id)
+
     /** A car's sessions, as the index holds them (the admin page, M6). */
     public suspend fun sessionsOf(car: String): List<SessionRecord> = index.listByCar(car)
 

@@ -16,7 +16,9 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -24,7 +26,8 @@ class CarAdminTest {
     private val registry = CarRegistry(InMemoryCarStore(), passcodeIterations = 1_000)
     private val sessions = InMemorySessionIndex()
     private val messages = InMemoryMessageStore()
-    private val admin = CarAdmin(registry, ArchiveService(sessions, InMemorySegmentStore()), Messages(messages))
+    private val now = Instant.parse("2026-09-26T12:00:00Z")
+    private val admin = CarAdmin(registry, ArchiveService(sessions, InMemorySegmentStore()), Messages(messages), Clock.fixed(now, ZoneOffset.UTC))
     private val yaris = Slug.parse("yaris")
 
     private suspend fun message(id: String, car: String) =
@@ -74,6 +77,32 @@ class CarAdminTest {
         shouldThrow<RegistryException.TokenInUse> { admin.addCar(yaris, "Yaris", "bears-outback") }
         registry.get(yaris).shouldBeNull()
         registry.authenticate("bears-outback")?.slug shouldBe Slug.parse("outback")
+    }
+
+    private suspend fun session(complete: Boolean, updated: Instant) =
+        sessions.create(SessionRecord(SESSION, "yaris", null, null, -1, emptyList(), complete, null, 0, Instant.EPOCH, updated))
+
+    @Test
+    fun `a quiet incomplete session, or a complete one, can be deleted`() = runTest {
+        session(complete = false, updated = now.minus(CarAdmin.UPLOAD_QUIET))
+        admin.checkDeletable(SESSION).id shouldBe SESSION
+        admin.deleteSession(SESSION)
+        sessions.get(SESSION).shouldBeNull()
+        session(complete = true, updated = now)
+        admin.deleteSession(SESSION)
+        sessions.get(SESSION).shouldBeNull()
+    }
+
+    @Test
+    fun `a session still uploading, or live, is refused and kept`() = runTest {
+        session(complete = false, updated = now.minus(CarAdmin.UPLOAD_QUIET).plusSeconds(1))
+        shouldThrow<SessionBusy> { admin.deleteSession(SESSION) }.live shouldBe false
+        sessions.get(SESSION).shouldNotBeNull()
+        sessions.delete(SESSION)
+        session(complete = true, updated = Instant.EPOCH)
+        shouldThrow<SessionBusy> { admin.deleteSession(SESSION, live = true) }.live shouldBe true
+        sessions.get(SESSION).shouldNotBeNull()
+        shouldThrow<NoSuchSession> { admin.deleteSession("00000000-0000-4000-8000-000000000000") }
     }
 
     @Test

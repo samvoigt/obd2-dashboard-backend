@@ -31,6 +31,16 @@ class CarLiveTest {
     }
 
     @Test
+    fun `the status names the live session only while in it`() {
+        car.status().sessionId.shouldBeNull()
+        car.connected()
+        apply(sessionFrame())
+        car.status().sessionId shouldBe SESSION
+        apply("""{"t":"end","session":"$SESSION"}""")
+        car.status().sessionId.shouldBeNull()
+    }
+
+    @Test
     fun `nothing derived from the session holds the VIN`() {
         car.connected()
         val updates = apply(sessionFrame()).shouldBeInstanceOf<CarLive.Applied.Ok>().updates

@@ -101,7 +101,7 @@ fun Application.module(
         crewRoutes(registry, crewAuth, loginLimiter)
         val adminAuth = AdminAuth(crewKey, clock)
         adminSignInRoutes(adminAuth, admin)
-        adminCarRoutes(registry, CarAdmin(registry, archive, messages), archive, hub, clock, adminAuth, admin)
+        adminCarRoutes(registry, CarAdmin(registry, archive, messages, clock), archive, hub, clock, adminAuth, admin)
         messageRoutes(registry, crewAuth, crew)
         webRoutes()
 
