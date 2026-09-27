@@ -114,11 +114,11 @@ fun Route.archiveRoutes(archive: ArchiveService) {
                     val log = call.application.log
                     call.application.launch {
                         try {
-                            archive.summary(id)
+                            archive.prepare(id) // the summary and the series, in one pass (M7.2)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            log.warn("summary of $id failed; it will be built on first view", e)
+                            log.warn("preparing $id failed; it will be built on first view", e)
                         }
                     }
                 }

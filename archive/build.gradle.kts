@@ -17,3 +17,8 @@ dependencies {
     testImplementation(libs.kotest.assertions)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// MeasureSeries (M7.2) runs only with MEASURE=1; MEASURE_HEAP caps its heap as Cloud Run's JVM is.
+tasks.test {
+    System.getenv("MEASURE_HEAP")?.let { maxHeapSize = it }
+}

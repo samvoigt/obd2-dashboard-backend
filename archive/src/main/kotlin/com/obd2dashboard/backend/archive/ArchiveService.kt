@@ -206,6 +206,28 @@ public class ArchiveService(
         return summary
     }
 
+    /**
+     * The key of the session's prepared series (M7.2), building it if it isn't
+     * stored yet, in one pass with the summary. A complete session's is built
+     * once; one still uploading gets one per `ackedThrough`. Every other one
+     * is then deleted. Null for an unknown session or one with no lines yet.
+     */
+    public suspend fun prepare(id: String): String? {
+        val record = index.get(id) ?: return null
+        if (record.ackedThrough < 0) return null
+        val key = seriesKey(id, if (record.complete) null else record.ackedThrough)
+        if (key in store.list(key)) return key
+        val builder = SeriesBuilder()
+        val reader = SessionReader(also = builder::record)
+        read(record) { reader.read(it) }
+        val summary = reader.summary()
+        store.write(key) { builder.write(it, summary.started, summary.signals) }
+        if (record.complete && record.summary?.version != SessionSummary.VERSION) index.setSummary(id, summary)
+        // Only the newest stays: earlier partial ones, and any of an older version.
+        store.list(seriesPrefix(id)).filter { it != key }.forEach { store.delete(it) }
+        return key
+    }
+
     /** One session's record, or null (the admin page, M6). */
     public suspend fun session(id: String): SessionRecord? = index.get(id)
 
@@ -268,6 +290,13 @@ public class ArchiveService(
         public fun sessionPrefix(id: String): String = "sessions/$id/"
         public fun segmentsPrefix(id: String): String = "sessions/$id/segments/"
         public fun sessionKey(id: String): String = "sessions/$id/session.jsonl.gz"
+
+        /** The prepared series (M7.2); versioned in its name, and per `ackedThrough` while uploading. */
+        public fun seriesKey(id: String, ackedThrough: Long?): String =
+            "${seriesPrefix(id)}v${SeriesBuilder.VERSION}${ackedThrough?.let { "-$it" } ?: ""}.json.gz"
+
+        public fun seriesPrefix(id: String): String = "sessions/$id/series-"
+
         public fun segmentKey(id: String, first: Long, last: Long): String =
             segmentsPrefix(id) + "%010d-%010d.jsonl.gz".format(first, last)
 

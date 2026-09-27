@@ -68,7 +68,10 @@ public data class SessionSummary(
  * **Never fails a session** on a line it doesn't understand: unknown types and
  * fields are skipped (§3.1), and an unparsable line is only counted.
  */
-public class SessionReader {
+public class SessionReader(
+    /** Also given every parsed record, so one pass can build more than the summary (M7.2). */
+    private val also: (JsonObject) -> Unit = {},
+) {
     private var lines = 0L
     private var unreadable = 0
     private var firstWall: Long? = null
@@ -83,6 +86,7 @@ public class SessionReader {
     public fun line(bytes: ByteArray) {
         lines++
         val record = Records.parseObject(bytes) ?: run { unreadable++; return }
+        also(record)
         record.long("wall")?.let { wall ->
             if (firstWall == null) firstWall = wall
             lastWall = maxOf(lastWall ?: wall, wall)
@@ -176,10 +180,10 @@ public class LineSplitter(private val each: (ByteArray) -> Unit) {
     }
 }
 
-private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+internal fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
 
-private fun JsonObject.long(key: String): Long? = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.longOrNull
+internal fun JsonObject.long(key: String): Long? = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.longOrNull
 
-private fun JsonObject.int(key: String): Int? = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull
+internal fun JsonObject.int(key: String): Int? = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull
 
-private fun JsonObject.flag(key: String): Boolean = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull == true
+internal fun JsonObject.flag(key: String): Boolean = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull == true

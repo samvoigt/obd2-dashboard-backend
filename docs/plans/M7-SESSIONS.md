@@ -85,8 +85,9 @@ merged (contract §7).
 - **A session still uploading is prepared on request, from its segments**, and
   kept until `ackedThrough` moves, so reloading it costs nothing.
 - **Gaps are drawn as gaps.** A signal's line breaks where two of its samples
-  are more than 5 times its own usual interval apart, at every `gap` record,
-  and after its `stopped`. Never interpolated.
+  are more than 5 times its own median interval apart (never under a second),
+  and where a `gap` record's `seq` falls between theirs. After `stopped` no
+  samples come. Never interpolated. (By `seq`, since M7.2: see there.)
 - **Drives:** a car's sessions less than 10 minutes apart (one's end to the
   next's start) are one drive, since an adapter reconnect starts a new session
   (§3.2). The list shows drives, newest first, each with its sessions.
@@ -181,6 +182,57 @@ race (time and memory).
 **Done when:** tests for each kind, gaps (the 5× rule, `gap` records,
 `stopped`), and rebuilding after a version change; measured sizes and times;
 mutations are checked.
+
+> **Validated against the code, 2026-09-26, before building.**
+> - **Gaps must be explicit nulls.** The chart (uPlot) joins every signal onto
+>   one time axis, and the holes that joining makes are bridged; only a `null`
+>   in the data breaks a line. So the file puts a `null` value at each break,
+>   and the page only draws it. A break comes where two samples of a signal
+>   are more than 5× its median interval apart, or where a `gap` record falls
+>   between them. After `stopped` no samples come, so nothing is drawn anyway.
+> - **Its shape** (JSON, gzipped): `version`, `t0` (the summary's `started`),
+>   `signals`, and times as **milliseconds after `t0`**, which are short
+>   integers:
+>   - `numbers`: per `number` or `flag` signal (a flag is 0 or 1), `t` and `v`;
+>   - `states`: per `state` signal, its changes (`t`, `code`, `text`);
+>   - `sets`: per `flags` signal, its changes (`t`, `flags`);
+>   - `positions`: `t`, `lat`, `lon`;
+>   - `events`: `stopped`, `fault`, `gap`, `lap`.
+> - **The version is in the name**, since a stored object can't be checked
+>   without reading it: `sessions/{id}/series-v1.json.gz`. A session still
+>   uploading gets `series-v1-{ackedThrough}.json.gz`, and older partial files
+>   are deleted when a newer one is written. `delete` already removes
+>   everything under the session's prefix.
+> - **Memory:** `SeriesBuilder`, beside `SessionReader`, keeps growable arrays
+>   of plain numbers per signal, and writes its JSON straight into the store's
+>   gzip stream, never as one string.
+> - **Built with the summary**, in the same background task after `complete`,
+>   and on first view if missing.
+> - **Serving it without re-compressing** (the stored gzip as the response's
+>   `Content-Encoding: gzip`) needs a raw read from the store; that's M7.3's.
+>
+> **✅ Done, 2026-09-26.** `SeriesBuilder` (fed by `SessionReader`, one parse
+> per line), `ArchiveService.prepare` and `seriesKey`; `complete` now prepares,
+> building the summary and the series in one pass.
+> - **Measured**, with the heap capped at Cloud Run's real default (128 MiB),
+>   on a synthetic race streamed from disk:
+>   - **3 hours:** 530,514 lines (65 MB raw, 8.4 MB gzipped) became a 14 MB
+>     file (5.9 MB gzipped) in 1.5 s, the heap peaking at 62 MiB;
+>   - **6 hours:** 1.06 million lines in 2.9 s, peaking at 69 MiB.
+>
+>   The peak is parsing garbage, not data (6 h peaks where 3 h does). Still,
+>   **the JVM had only 128 MiB of the container's 512**, by default, so the
+>   Dockerfile now gives it 75% (384 MiB), for room beside the live lane.
+> - **Tests:** 15 for the builder, 4 more for `prepare`. Mutations: 24, all
+>   killed in the end. Two survivors led to changes:
+>   - **Gaps placed by `seq`, not `wall`.** A gap record sharing a millisecond
+>     with a sample was put on the wrong side of it. `seq` places it exactly
+>     (§3.5: missed from its `seq` on), at 8 more bytes a sample.
+>   - **Numbers JSON can't hold** (`1e999` parses as infinity) are written as
+>     a break, now tested.
+>
+>   A JSON-writing slip (an unclosed object) was caught by the tests, which
+>   parse every output as JSON.
 
 ### M7.3 — The sessions API
 

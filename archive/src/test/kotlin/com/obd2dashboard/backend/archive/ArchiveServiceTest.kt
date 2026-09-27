@@ -353,4 +353,63 @@ class ArchiveServiceTest {
         completeFixture() shouldBe ArchiveService.Complete.Done // idempotent, and it must not drop the summary
         index.get(id)!!.summary shouldBe summary
     }
+
+    // The prepared series (M7.2)
+
+    private fun seriesKeys() = store.objects.keys.filter { it.startsWith(ArchiveService.seriesPrefix(id)) }.sorted()
+
+    @Test
+    fun `a complete session is prepared once, with its summary`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture()
+        val key = archive.prepare(id)
+        key shouldBe ArchiveService.seriesKey(id, null)
+        key shouldBe "sessions/$id/series-v${SeriesBuilder.VERSION}.json.gz"
+        index.get(id)!!.summary!!.lines shouldBe Fixtures.SESSION_LINES.toLong()
+        val first = store.objects.getValue(key!!)
+        store.objects.remove(ArchiveService.sessionKey(id)) // a second call must not read the log again
+        archive.prepare(id) shouldBe key
+        store.objects.getValue(key).contentEquals(first) shouldBe true
+    }
+
+    @Test
+    fun `a session uploading is prepared per ackedThrough, the older one deleted, and all go once complete`() = runTest {
+        openFixture()
+        append(1, 10)
+        archive.prepare(id) shouldBe ArchiveService.seriesKey(id, 10)
+        index.get(id)!!.summary.shouldBeNull() // a moving session gets no stored summary
+        append(11, 10)
+        archive.prepare(id) shouldBe ArchiveService.seriesKey(id, 20)
+        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, 20))
+        append(21, lines.size - 21)
+        completeFixture()
+        archive.prepare(id) shouldBe ArchiveService.seriesKey(id, null)
+        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, null))
+    }
+
+    @Test
+    fun `an older version's file is replaced, and nothing is prepared without lines`() = runTest {
+        archive.prepare(id).shouldBeNull()
+        index.create(SessionRecord(id, car, null, null, -1, emptyList(), false, null, 0, Instant.EPOCH, Instant.EPOCH))
+        archive.prepare(id).shouldBeNull() // created by the live lane: no lines yet
+        index.delete(id)
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture()
+        store.objects["sessions/$id/series-v0.json.gz"] = ByteArray(1)
+        archive.prepare(id)
+        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, null))
+    }
+
+    @Test
+    fun `deleting a session deletes its prepared series too`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture()
+        archive.prepare(id)
+        archive.delete(id)
+        seriesKeys() shouldBe emptyList()
+    }
 }
+
