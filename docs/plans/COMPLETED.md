@@ -429,3 +429,42 @@ and 30.
 ticking `fuel.system_1_status` as an extra on the tablet, for the fuel light.
 **Left for the app:** the G-meter's offset at a cruise (A17), the live link's
 second socket, the fake session's `protocol` (JOURNAL).
+
+## M12 — Courses, and down to the tablet  ✅ 2026-09-27
+
+The first milestone of race logging (`plans/RACE-LOGGING.md`). Decisions 31
+and 32; contract §22, proposed here, agreed by Sam and the tablet side, and
+confirmed here.
+
+- **`:courses`** (pure): `Course`, `CourseRules` (every rule, every reason),
+  `coursesEtag`, `CourseStore`; NHMS seeded from the app's file
+  (`courses/seed/`, its `pit_line` the tablet's own coordinates).
+- **Storage and the admin:** `FirestoreCourseStore` (versions under each
+  course, a save a transaction); the admin courses API and
+  `POST …/courses/check`; `admin.sh import-course`.
+- **The editor** (`/admin/courses`): layouts drawn with Leaflet-Geoman (MIT),
+  timing lines with two clicks, points moved one line at a time, sectors kept
+  1…n, closed layouts kept closed, OpenStreetMap or USGS imagery, a session's
+  route to trace, the rules as you draw, version history.
+- **Public:** `/courses`, `/courses/{id}` and their API; a session's page
+  links to its course.
+- **Down to the tablet:** `hello.features`; `GET /v1/courses`; the `courses`
+  frame after `hello` and on every save; the replay tool's `--courses`.
+- **The tablet's laps with sectors:** the session page's lap table, a column
+  per sector, the best of each (an in-lap's last and an out-lap's first
+  never counting, §22.6), the course's and layout's names.
+- **Tests:** Vitest 119 (13 new); Kotlin 28 new across `:courses`,
+  `:archive-gcp`, `:server`, `:tools`, `:replay` (and `:live`'s hello test
+  extended). **Mutations: 40, all killed but two shown equivalent**; tests
+  were added after three survivors (the seed not re-tested when it changed, a
+  closed tablet never forgotten, an arrow's direction).
+- **Proven:** the real Firestore (`scripts/course-smoke.sh`); the editor in
+  Chrome (NHMS edited through three versions, an invalid line refused, a new
+  course traced over a replayed route); a replay taking courses end to end;
+  **deployed as `00021`** with a drive streaming across it, NHMS imported,
+  `/v1/courses` answering with the tablet's pit line, `304` and `401`.
+
+**Owed:** Sam drawing a course on the live site; the tablet timing on a
+downloaded course, when the app's half (its M44) lands.
+**Left for later:** re-timing (M13); drivers and events (M14 on);
+`import-course` telling connected tablets (they hear at their next `hello`).

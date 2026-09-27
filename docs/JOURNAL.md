@@ -262,3 +262,24 @@ never printed). The plan was `plans/ROAD-TEST.md`, closed with this entry.
 **Not reported, from the plan's checklist:** the hotspot switched off on
 purpose, "Whole session" while driving, the page on a phone through the
 whole drive, the admin page's Download.
+
+## 2026-09-27 — M12, courses
+
+- **A contract change can be built in step with the other side** when both
+  have agreed the parts being built: M12 built only what §22 already had from
+  both sides, and folded in the rest (closed layouts, the pit line's exact
+  coordinates, in-lap sectors) the moment the tablet side wrote §22 up.
+- **Gradle doesn't know what a test reads from outside its source set.** The
+  NHMS seed test stayed "up to date" after the seed changed, so every mutant
+  of the seed script survived. Every test task that reads `courses/seed/` now
+  declares it as an input.
+- **A drawing tool's defaults can bury the drawing.** Geoman's vertex
+  handles on a 153-point layout covered the course; editing points is a
+  switch, one line at a time.
+- **Two labels 22 m apart overlap at a normal zoom**: the start/finish's hid
+  under the pit line's until they were put either side.
+- **USGS The National Map's orthoimagery** is public domain, tiles to zoom 16
+  at NHMS (2.4 m a pixel), enough to place a line within a few metres.
+- **Firestore holds no arrays inside arrays**, so GeoJSON is stored as text.
+- **Deployed with a drive streaming** (`00021`): the replay reconnected on the
+  `1012` and took `courses` from the new revision straight away.

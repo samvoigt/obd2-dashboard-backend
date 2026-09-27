@@ -776,3 +776,46 @@ look changes in one file, and a colour always means one thing.
 **Why.** The first real drive (JOURNAL, 2026-09-27) listed six setup sessions,
 one of them invented readings, as part of the drive, and was dated 1:27 AM by
 a tablet 11 hours slow, with nothing on the site to say either.
+
+## 31. Laps: the tablet times them, the server keeps the books
+
+**Decision.** (Contract §22, agreed 2026-09-27.)
+- **The tablet times laps and sectors, and its numbers are the results**
+  (Sam: "the tablet's number wins, it is the source of truth for the location
+  data"). The server stores its `lap` records whole and shows them, and
+  **never overrides** one timed on the course version that is current.
+- **The server re-times** only laps timed on an older version of a course
+  (after a line moves) and sessions with no laps, from the tablet's own fixes
+  on `fixAt`, by the tablet's rule, each marked as re-timed; where both exist,
+  it flags a disagreement and never replaces the tablet's number (M13).
+- **What only the server knows goes down to the tablet** in `timing`: the
+  driver, the stint, the race, the event's bests (M17).
+
+**Why.** The tablet has every fix the moment it's taken, times offline, and
+must keep the live delta itself; the server sees coalesced fixes live and
+the rest only later. So the tablet is the timer, and the server is where
+courses, drivers, events and results live.
+
+## 32. Courses live on the website, versioned, and go down to the tablet
+
+**Decision.**
+- **A course is drawn on the admin page**, and only there: layouts (closed,
+  in the direction cars go), a start/finish, sector lines, the pit lane,
+  `pit_in`/`pit_out` (a stop's length) and `pit_line` (where an in-lap ends).
+  Only the admin edits; **everyone sees** courses, on `/courses`.
+- **Every save is a new version**, and old ones are kept: a lap names the
+  version it was timed on. A course is never deleted once laps were timed at
+  it.
+- **The server's `CourseRules` are the only rules**: the editor asks them as
+  you draw (`POST /api/admin/courses/check`), the save and `admin.sh
+  import-course` apply them. Lines 1–200 m, sectors 1…n per layout, one
+  start/finish per layout, one default layout, closed layouts, ≤ 256 KB.
+- **Down to the tablet**: `GET /v1/courses` (any car's token, one `ETag`,
+  `304`) and the `courses` frame after `hello` and on every save, to a tablet
+  listing `courses.1`. Stored in Firestore with the GeoJSON as text (no arrays
+  inside arrays there).
+- **Imagery**: OpenStreetMap, and USGS The National Map's orthoimagery
+  (public domain, US only) for placing lines.
+
+**Why.** One source for every line, so the tablet and the results agree; a
+line moved at the track reaches every tablet and re-times the past, visibly.

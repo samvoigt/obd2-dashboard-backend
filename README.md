@@ -6,7 +6,11 @@ shows the car's data live.
 
 ## Status
 
-M8 done. A car's page is a live dashboard, the same for every car: gauges,
+M12 done: courses are drawn on the website (layouts, start/finish, sectors,
+pit lines, every save a version, public at https://badnewsbears.live/courses)
+and sent down to the tablet, which times laps on them; the session page shows
+each lap's sectors. Race logging goes on from here (drivers, events, the race;
+`docs/plans/RACE-LOGGING.md`). A car's page is a live dashboard, the same for every car: gauges,
 GPS speed, a G-meter, a map following the car, laps, status lights and
 trouble codes, in metric or US units, in the Bad News Bears look. Every
 session a car uploads is on the site too, with full-length charts, laps and a

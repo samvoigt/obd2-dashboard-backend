@@ -456,6 +456,21 @@ pages looked at on badnewsbears.live. **The tablet timing on it** comes when
 the app's half lands, and is proven then (recorded as owed, like the app's
 own A-rows).
 
+> **✅ Done, 2026-09-27.** Revision `00021`, deployed with the synthetic race
+> streaming live and uploading under `--courses`: it reconnected at once on the
+> `1012`, and the new revision sent it `courses`, which it fetched (none yet).
+> NHMS imported (`admin.sh import-course`, version 1). `GET /v1/courses` with
+> the throwaway car's token (compared, never printed): NHMS v1, its `pit_line`
+> the tablet's coordinates to the digit; `304` on its `ETag`; `401` without a
+> token. `/courses/nhms` on badnewsbears.live: the layouts, "start/finish not
+> yet checked at the track", S/F and pit line labelled side by side. The
+> throwaway car, its session and files deleted; the Outback untouched.
+> - **Found:** `admin.sh import-course` writes Firestore directly, not through
+>   the server, so connected tablets aren't told; they hear of it at their next
+>   `hello`. The website's saves are told at once.
+> - **Owed:** Sam drawing a course on the live site (his sign-in), and the
+>   tablet timing on a downloaded course, when the app's half lands.
+
 ### M12.9 — Record it
 
 Decisions (courses on the website, versions, validity, imagery); `COMPLETED`,

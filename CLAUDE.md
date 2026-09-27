@@ -14,7 +14,8 @@ Google Cloud Run.
 - `docs/DECISIONS.md` — what was decided and *why*. Add to it; don't silently
   reverse one.
 - **The telemetry contract**, the app's `docs/TELEMETRY-CONTRACT.md`, v1, final,
-  pinned at app commit `918fa1e`. It is the protocol (decision 15), and
+  pinned at app commit `918fa1e`, plus the notes since (§§15–22; §22, courses
+  and timing, proposed here in `docs/proposals/` and confirmed). It is the protocol (decision 15), and
   `docs/PROTOCOL.md` says where to find it and what this side committed to.
   **Never edit it from here**: a change is a v2, agreed through Sam.
   **Nothing in `../obd2-dashboard` is ever modified from here** (Sam,
@@ -42,8 +43,8 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
-Modules: `:registry`, `:archive`, `:live` and `:admin` (pure, where the rules
-and most tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
+Modules: `:registry`, `:archive`, `:live`, `:admin` and `:courses` (pure, where
+the rules and most tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
 `:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot, Leaflet;
 Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 Colours are roles in `web/src/app.css` only (decision 29; a test enforces
@@ -71,6 +72,9 @@ MEASURE=1 MEASURE_HEAP=128m ./gradlew :archive:test --tests '*MeasureSeries*' -i
 scripts/firestore-smoke.sh      # throwaway car through the real Firestore
 scripts/archive-smoke.sh        # throwaway session through the real bucket
 scripts/message-smoke.sh        # throwaway messages through the real Firestore
+scripts/course-smoke.sh         # a throwaway course through the real Firestore
+scripts/admin.sh import-course courses/seed/nhms.geojson   # a course from a file, as its next version
+python3 courses/seed/make_nhms.py   # remake NHMS's seed from the app's file (only read)
 ```
 
 Warnings fail the build (`allWarningsAsErrors`), as in the app. `gcloud` needs
