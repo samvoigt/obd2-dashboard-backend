@@ -66,9 +66,9 @@ code before it's built**, as always. Nothing here is built yet.
 
 **Course.** What the app calls a track, but anything drawn:
 - a name; one or more **layouts** (the line around, for the map);
-- per layout, a **start/finish line** and **sector lines**, in order (a line
-  is two points, crossed in either direction? no: in the layout's direction,
-  so a car going the wrong way isn't timed);
+- per layout, a **start/finish line** and **sector lines**, in order. A line
+  is two points, and counts only when crossed in the layout's direction, so a
+  car going the wrong way (or reversing over it in the pits) isn't timed;
 - optionally a **pit lane** (entry and exit lines), to mark in-laps and
   out-laps and to time stops;
 - **versions**: every edit is a new version, and every lap names the version
