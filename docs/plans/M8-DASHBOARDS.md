@@ -468,6 +468,26 @@ look throughout), US units, phone width; then clean up.
 >   the car removed, the token file deleted; `admin.sh list` shows only
 >   `outback-2018` again.
 
+**Done, 2026-09-27.**
+- **Deployed across a drive:** revision `00017`, with the synthetic race
+  streaming live and uploading. The replay reconnected at once (close `1012`,
+  the server's restart), and M7's page, open on badnewsbears.live, stayed
+  "Live" through it. No errors in the replay's log.
+- **The new page on the domain**, reloaded: the gauges with their zone
+  bands (coolant at 109 °C in the caution pink, rpm over 6,000 too), the
+  G-meter with its peaks, the map following the car, laps with the best in
+  mint, the status lights, the crew login, the chart; the logo on the
+  landing page, with the throwaway car Live and the Outback Offline.
+- **US units** by the switch: mph and °F, the gauges' scales converted, the
+  chart's axis in mph.
+- **Phone width:** Chrome's window wouldn't resize (it reported 1,728 px
+  whatever was asked), so the same page was laid out in a 390 × 844 frame on
+  the same host (its media queries follow the frame). Two gauges a row,
+  everything in one column, and **no sideways scroll** (`scrollWidth` 390).
+- **Screenshots kept** in the session's scratch directory (`m8-*.jpg|png`).
+- **Clean-up:** the session can't be deleted until it has been quiet for 5
+  minutes (the server's rule while uploading), so the deletion waited for it.
+
 ### M8.6 — Record it
 
 Decisions (the fixed layout, its slots and generic ranges; the Bad News Bears
