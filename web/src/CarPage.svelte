@@ -53,7 +53,6 @@
   const timing = $derived(timings(live.history, SHOWN))
   const current = (n: string) => freshnessOf(n, timing, live.latest[n], !!live.stopped[n], serverNow)
   const trail = $derived(gTrail(live.history, serverNow))
-  const hasG = $derived(live.history.some((p) => p.rec.signal === 'motion.acceleration.lateral' || p.rec.signal === 'motion.acceleration.longitudinal'))
   let peak: Peaks = $state(NO_PEAKS)
   // Peaks since the page opened; read untracked, or the effect would rerun itself (M8.2).
   $effect(() => { const next = trail; peak = peaks(untrack(() => peak), next) })
@@ -211,14 +210,11 @@
         {#each SLOTS.bars as n (n)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
-    {#if hasG || positions.length > 0}
-      <section class="dash where">
-        {#if hasG}<GMeter {trail} peaks={peak} stale={trail.length === 0} />{/if}
-        {#if positions.length > 0}
-          <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />
-        {/if}
-      </section>
-    {/if}
+    <!-- Always there (M10): empty, they say nothing has come, where hidden they'd say nothing. -->
+    <section class="dash where">
+      <GMeter {trail} peaks={peak} stale={trail.length === 0} />
+      <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />
+    </section>
     {#if laps.length > 0}<LapsPanel rows={laps} />{/if}
     <section class="dash statuses">
       {#each SLOTS.statuses as n (n)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}

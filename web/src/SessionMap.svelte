@@ -46,6 +46,9 @@
     }).addTo(map)
 
     trace = L.layerGroup().addTo(map)
+    // Following with no position yet (M10): the world, zoomed out, until the first fix. Set
+    // before the listener below, so it can't read as the viewer's move and stop the following.
+    if (follow && t.length === 0) map.setView([20, 0], 1, { animate: false })
     map.on('movestart', () => { if (!moving) viewerMoved = true })
     dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: color('text'), weight: 2, fillColor: color('bg'), fillOpacity: 1 })
 
@@ -63,7 +66,17 @@
     const m = map
     const layer = trace
     void t.length
-    if (!m || !layer || t.length === 0) return
+    if (!m || !layer) return
+    if (t.length === 0) {
+      // Following, positions can drain from the 5-minute history (M10): the old trail goes,
+      // the view stays where it was, and the next fix is drawn afresh.
+      if (follow && drawn !== '') {
+        layer.clearLayers()
+        dot?.remove()
+        drawn = ''
+      }
+      return
+    }
 
     // The view first: Leaflet can't place a line on a map that has none yet (found in M8.2).
     const car: L.LatLngTuple = [lat[t.length - 1]!, lon[t.length - 1]!]
@@ -140,12 +153,14 @@
 
 <div class="wrap">
   <div class="map" bind:this={box}></div>
-  {#if follow && viewerMoved}<button class="recentre" onclick={() => (viewerMoved = false)}>Follow the car</button>{/if}
+  {#if follow && t.length === 0}<p class="waiting">Waiting for GPS</p>{/if}
+  {#if follow && viewerMoved && t.length > 0}<button class="recentre" onclick={() => (viewerMoved = false)}>Follow the car</button>{/if}
 </div>
 
 <style>
   .wrap { position: relative; }
   .recentre { position: absolute; right: 10px; bottom: 24px; z-index: 1000; background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+  .waiting { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1000; margin: 0; pointer-events: none; background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
   .map { width: 100%; height: 360px; border-radius: 10px; overflow: hidden; background: var(--panel); }
   .map :global(.leaflet-control-attribution) { font-size: 0.7rem; }
 </style>

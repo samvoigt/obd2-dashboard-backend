@@ -184,7 +184,7 @@
         <section class="panel">
           <h2>Where it went</h2>
           <SessionMap t={positions} lat={view.positions.lat} lon={view.positions.lon} {speeds} {cursor} />
-          <p class="muted small">Coloured by speed, blue slow to red fast. The dot follows the chart's cursor.</p>
+          <p class="muted small">Coloured by speed, blue slow to pink fast. The dot follows the chart's cursor.</p>
         </section>
       {/if}
 

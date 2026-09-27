@@ -57,6 +57,21 @@ This **amends decision 28**, which hid a section until its data came.
   (set as the page's own move) and "Waiting for GPS" over it.
 - `WidgetsPreview.svelte` (dev only): the same, so the preview matches.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The layout holds two boxes already**: the section is a grid of
+>   `minmax(280px, 1fr)` columns, so the G-meter and map sit side by side, and
+>   stack on a phone.
+> - **The map's effect returns early with no positions**, before any view: the
+>   default view goes in `onMount`, when following, **before** the
+>   `movestart` listener is attached, so it can't read as the viewer's (no
+>   flag needed at all there).
+> - **Positions can drain away**: the history is 5 minutes, so a stream
+>   stopped longer than that leaves none, while the old trail stays drawn under
+>   the new label. With none, following clears the trail and the dot, and
+>   forgets what it drew; the view stays where it was (not back to the world).
+>   When positions return, it pans to the car, as after any gap.
+> - **The preview** already shows its G-meter always; only its map changes.
+
 **Done when:** type check and tests; looked at in Chrome against the dev
 server:
 - a car with no stream: G-meter "No readings", the world map "Waiting for
@@ -68,6 +83,26 @@ server:
 - the race stopped: the G-meter back to "No readings", faded;
 - a past session's page: its map opens on the route, not the world;
 - 390 px wide.
+
+> **✅ Done, 2026-09-27.** The page always draws the G-meter and the map;
+> `SessionMap` opens on the world when following with no position, under
+> "Waiting for GPS", and clears its trail if positions drain away; the
+> preview matches. 99 tests still pass; no new logic to unit-test.
+> - **Looked at in Chrome**, every case above: nothing streaming (both
+>   empty, no "Follow the car"); the Outback's evening drive (live gauges, both
+>   empty); the race arriving on the open page (to the car at street zoom,
+>   following; drag, then "Follow the car", still following); the race stopped
+>   (the G-meter back to "No readings", faded; the map keeping its 5 minutes);
+>   the race followed by the evening drive (the trail and dot cleared, the
+>   label back, the view where it was); a past session (on its route); 390 px
+>   (stacked, no sideways scroll).
+> - **Mutation, by looking:** the first view set *after* the move listener
+>   left the map on the world with "Follow the car" when the race arrived.
+>   Caught. The one the plan named (the default view without the "following"
+>   condition) is equivalent in practice: the session page mounts its map only
+>   with positions.
+> - **Found by looking:** the session page's map caption said "blue slow to
+>   red fast", left from before M8's look; the fast end is pink. Fixed.
 
 ### M10.2 — Deploy
 

@@ -66,9 +66,7 @@
   </section>
   <section class="row two">
     <GMeter {trail} peaks={peak} stale={trail.length === 0} />
-    {#if positions.length > 0}
-      <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={positions.map(() => null)} follow />
-    {/if}
+    <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={positions.map(() => null)} follow />
   </section>
   {#if laps.length > 0}<LapsPanel rows={laps} />{/if}
   <section class="row statuses">
