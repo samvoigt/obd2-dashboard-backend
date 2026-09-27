@@ -270,6 +270,14 @@ of the car and tablet sessions, the test-data one apart and marked, the
 charging gauge filled when the next drive comes). A decision for session
 sources and slot lists; `COMPLETED.md`, `PLAN.md`; this plan deleted.
 
+> **Validated, 2026-09-27, before deploying.** Serving: `00019` (M10). The
+> Outback is offline; its seven sessions hold version-1 summaries, so the
+> first look at its list after the deploy rebuilds each (the largest log 427
+> KB) and they gain `source`. The drive across the deploy is as M8.5's: a
+> `smoke-m11` car, its token in a `chmod 600` file, never printed; the
+> synthetic race live and uploading under `caffeinate -s`; cleaned up after,
+> the Outback untouched. Every test passes with the site built.
+
 ---
 
 ## Not in M11
