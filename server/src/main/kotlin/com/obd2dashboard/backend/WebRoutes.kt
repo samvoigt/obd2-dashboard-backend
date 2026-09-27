@@ -40,7 +40,7 @@ fun Route.webRoutes() {
         get(path) { call.page() }
     }
     // The admin page (M6.5) can replace every token, so no other site may frame it.
-    for (path in listOf("/admin", "/admin/")) {
+    for (path in listOf("/admin", "/admin/", "/admin/courses", "/admin/courses/", "/admin/courses/{id}")) {
         get(path) {
             call.response.header("X-Frame-Options", "DENY")
             call.response.header("Content-Security-Policy", "frame-ancestors 'none'")

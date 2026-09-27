@@ -273,6 +273,7 @@
       </form>
     {:else}
       <button class="primary add" onclick={() => { adding = true; error = null }}>Add a car</button>
+      <a class="courses" href="/admin/courses">Courses →</a>
     {/if}
 
     {#if cars.length === 0}
@@ -432,4 +433,5 @@
   .sessions li:first-child { border-top: none; padding-top: 0; }
   .srow { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
   .small-btn { padding: 4px 10px; font-size: 0.85rem; }
+  .courses { margin-left: 12px; }
 </style>

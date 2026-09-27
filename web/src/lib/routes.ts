@@ -5,15 +5,23 @@ export type Route =
   | { page: 'sessions'; slug: string }
   | { page: 'session'; slug: string; id: string }
   | { page: 'admin' }
+  | { page: 'admin-courses' }
+  | { page: 'admin-course'; id: string }
   | { page: 'preview'; slug: string }
 
 const CAR = /^\/cars\/([a-z][a-z0-9-]{1,31})\/?$/
 const SESSIONS = /^\/cars\/([a-z][a-z0-9-]{1,31})\/sessions\/?$/
 const SESSION = /^\/cars\/([a-z][a-z0-9-]{1,31})\/sessions\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\/?$/
 const ADMIN = /^\/admin\/?$/
+const ADMIN_COURSES = /^\/admin\/courses\/?$/
+const ADMIN_COURSE = /^\/admin\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
 
 export function route(path: string): Route {
   if (ADMIN.test(path)) return { page: 'admin' }
+  // The course editor (M12.4): a list, and each course (`new` for one not yet saved).
+  if (ADMIN_COURSES.test(path)) return { page: 'admin-courses' }
+  const course = ADMIN_COURSE.exec(path)
+  if (course?.[1]) return { page: 'admin-course', id: course[1] }
   // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.
   const preview = import.meta.env.DEV ? /^\/dev\/widgets\/([a-z][a-z0-9-]{1,31})\/?$/.exec(path) : null
   if (preview?.[1]) return { page: 'preview', slug: preview[1] }

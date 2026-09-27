@@ -41,3 +41,14 @@ describe('fetchCars', () => {
     await expect(fetchCars(fake)).rejects.toThrow('500')
   })
 })
+
+describe('the course editor (M12.4)', () => {
+  it('has a list and a page per course, "new" for one not yet saved', () => {
+    expect(route('/admin/courses')).toEqual({ page: 'admin-courses' })
+    expect(route('/admin/courses/')).toEqual({ page: 'admin-courses' })
+    expect(route('/admin/courses/nhms')).toEqual({ page: 'admin-course', id: 'nhms' })
+    expect(route('/admin/courses/new')).toEqual({ page: 'admin-course', id: 'new' })
+    expect(route('/admin/courses/NHMS')).toEqual({ page: 'landing' }) // not an id
+    expect(route('/admin')).toEqual({ page: 'admin' })
+  })
+})

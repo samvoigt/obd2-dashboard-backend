@@ -166,3 +166,29 @@ export class AdminError extends Error {
     super(message)
   }
 }
+
+/** A course in the admin list (M12.3). */
+export interface CourseSummary {
+  id: string
+  name: string
+  version: number
+  /** Epoch milliseconds. */
+  saved: number
+  layouts: { id: string; name: string; default: boolean; sectors: number }[]
+}
+
+/** One version of a course, whole. */
+export interface CourseView {
+  id: string
+  name: string
+  version: number
+  saved: number
+  geojson: Record<string, unknown>
+}
+
+export interface CourseVersion {
+  version: number
+  name: string
+  saved: number
+}
+

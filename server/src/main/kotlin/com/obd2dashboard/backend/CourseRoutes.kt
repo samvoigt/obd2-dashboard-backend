@@ -11,6 +11,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import java.time.Clock
 import kotlinx.serialization.Serializable
@@ -41,6 +42,14 @@ data class CourseVersion(val version: Int, val name: String, val saved: Long)
 /** A save (M12.3): the version it replaces (0 for a new course), so two editors can't both win. */
 @Serializable
 data class SaveCourse(val expected: Int, val name: String, val geojson: JsonObject)
+
+/** A drawing to check (M12.4): the same rules a save applies, asked as the editor draws. */
+@Serializable
+data class CheckCourse(val name: String, val geojson: JsonObject, val id: String? = null)
+
+/** What [CheckCourse] found: nothing is saved. */
+@Serializable
+data class CourseProblems(val problems: List<String>)
 
 /** Why a course was refused: every problem, for the editor to show beside what's wrong. */
 @Serializable
@@ -80,6 +89,13 @@ fun Route.adminCourseRoutes(
         call.respond(courses.current().map { it.summary() })
     }
 
+    // The rules as the editor draws, with no second copy of them in the page (M12.4). Changes nothing.
+    post("/api/admin/courses/check") {
+        call.admin(auth, config, change = false) ?: return@post
+        val request = call.receive<CheckCourse>()
+        call.respond(CourseProblems(problemsOf(request.id, request.name, request.geojson)))
+    }
+
     get("/api/admin/courses/{id}") {
         call.admin(auth, config, change = false) ?: return@get
         val id = call.pathId() ?: return@get
@@ -98,8 +114,7 @@ fun Route.adminCourseRoutes(
         val email = call.admin(auth, config, change = true) ?: return@put
         val id = call.parameters["id"].orEmpty()
         val request = call.receive<SaveCourse>()
-        val problems = listOfNotNull(CourseRules.idProblem(id), CourseRules.nameProblem(request.name)) +
-            ((CourseRules.check(request.geojson) as? CourseCheck.Refused)?.problems.orEmpty())
+        val problems = problemsOf(id, request.name, request.geojson)
         if (problems.isNotEmpty()) {
             return@put call.respond(HttpStatusCode.BadRequest, CourseRefused("invalid", "The course can't be saved as it is.", problems))
         }
@@ -129,3 +144,9 @@ fun Route.adminCourseRoutes(
         call.respond(HttpStatusCode.NoContent)
     }
 }
+
+/** Every problem with a course: its id (if it has one yet), its name, its drawing. */
+private fun problemsOf(id: String?, name: String, geojson: JsonObject): List<String> =
+    listOfNotNull(id?.let(CourseRules::idProblem), CourseRules.nameProblem(name)) +
+        ((CourseRules.check(geojson) as? CourseCheck.Refused)?.problems.orEmpty())
+

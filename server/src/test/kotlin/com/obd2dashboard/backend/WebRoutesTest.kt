@@ -33,7 +33,8 @@ class WebRoutesTest {
     @Test
     fun `the admin page is the site, and can't be framed by anyone`() = testApplication {
         application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
-        for (path in listOf("/admin", "/admin/")) {
+        // The course editor's pages too (M12.4): they can move every timing line.
+        for (path in listOf("/admin", "/admin/", "/admin/courses", "/admin/courses/", "/admin/courses/nhms")) {
             val response = client.get(path)
             response.status shouldBe HttpStatusCode.OK
             response.bodyAsText() shouldContain "SITE-STUB"

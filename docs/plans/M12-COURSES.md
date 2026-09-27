@@ -249,10 +249,59 @@ start/finish, sectors (numbered in order), `pit_in`, `pit_out`, `pit_line`,
 and the pit lane; the rules checked as you go; **Save** makes a new version;
 earlier versions viewable. "Show a session's route" draws one faintly.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Pages:** `/admin/courses` (the list, and a new course) and
+>   `/admin/courses/{id}` (the editor), served like `/admin` (`index.html`, and
+>   never framed); `routes.ts` gains them. They check `/api/admin/me` and send
+>   anyone signed out to `/admin` to sign in (the cookie is the same, path
+>   `/api/admin`), rather than a second sign-in.
+> - **The rules as you draw, with no second copy:** `POST
+>   /api/admin/courses/check` runs `CourseRules` on the drawing and returns
+>   its problems; the editor asks after each change (debounced), and the save
+>   refuses anything the check would.
+> - **Pure logic in `lib/courseEdit.ts`**, tested: GeoJSON to an editing model
+>   and back (keeping what it doesn't edit: the attribution, a line's note,
+>   a layout's `osm`), adding and removing sectors with the numbering kept
+>   1…n, a layout's id from its name, a line's length, and arrows along a
+>   layout for its direction.
+> - **Drawing:** Leaflet-Geoman (free, MIT) for the many-point lines (a
+>   layout, the pit lane: click points, finish, then drag, add or remove
+>   vertices); **the timing lines are two clicks**, which is exact and needs no
+>   plugin, their ends then draggable. Colours from `theme.ts`, as the maps'.
+> - **Imagery:** OpenStreetMap or USGS (`maxNativeZoom` 16, enlarged to 20),
+>   with each one's attribution.
+> - **A session's route**, faintly under the drawing: the admin API lists a
+>   car's sessions, and the public series gives its positions.
+
 **Done when:** looked at in Chrome against the dev server: drawing a course
 from nothing around a replayed route, NHMS opened and a sector added, a line
 dragged and saved as version 2, an invalid course refused with its reason,
 phone width for viewing (drawing is for a desktop).
+
+> **✅ Done, 2026-09-27.** `/admin/courses` (the list) and
+> `/admin/courses/{id}` (`CourseEditor.svelte`), linked from the admin page;
+> `lib/courseEdit.ts`; `POST /api/admin/courses/check`; Leaflet-Geoman 2.20.2
+> (MIT), pinned.
+> - **Tests:** Vitest 9 new (114 in all): NHMS read and written back
+>   unchanged, sectors numbered through adds, removes and moves, a layout
+>   removed with its lines and a default kept, ids, distances, arrows; routes
+>   for the new pages. Kotlin: the check endpoint (same rules, saves nothing),
+>   the pages served and never framed.
+> - **Mutations: 8, all killed** (one only once made real: moving an arrow's
+>   tip moved the whole arrow, still pointing the right way, so it was
+>   equivalent; flipping its sides is what matters, and the test catches it).
+> - **Looked at in Chrome** (dev sign-in): NHMS opened, its layouts, lengths,
+>   arrows and pit line; a sector added (68 m) and saved as version 2; a
+>   295 m sector refused as you draw ("is 295 m long; a line is 1–200 m"),
+>   Save disabled until it was removed; a sector's end dragged (105 m) and saved
+>   as version 3; version 1 opened read-only; **a new course, "Test Loop",
+>   drawn around a replayed session's route** (its id from its name), refused
+>   until it had a start/finish, then saved and moved to its own page; the
+>   USGS imagery; 390 px, stacked, no sideways scroll.
+> - **Found by looking:** every point of the chosen layout and the pit lane
+>   had a drag handle (over a hundred on NHMS's), burying the course: moving
+>   points is now a switch per line, off by default. And a "Saved" message
+>   lingered over an older version when one was opened.
 
 ### M12.5 — Courses on the public site
 

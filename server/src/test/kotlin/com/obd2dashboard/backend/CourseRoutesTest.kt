@@ -171,4 +171,20 @@ class CourseRoutesTest {
         call(HttpMethod.Delete, "/api/admin/courses/home-loop", cookie).status shouldBe HttpStatusCode.NotFound
         log.list.map { it.formattedMessage } shouldContain "course removed: home-loop by sam@example.com"
     }
+
+    @Test
+    fun `the editor's check runs the same rules and saves nothing`() = testApplication {
+        app()
+        call(HttpMethod.Post, "/api/admin/courses/check", null, """{"name":"x","geojson":{}}""").status shouldBe HttpStatusCode.Unauthorized
+        val cookie = signIn()
+        fun check(body: String) = json(runBlocking { call(HttpMethod.Post, "/api/admin/courses/check", cookie, body) })
+            .getValue("problems").jsonArray.map { it.jsonPrimitive.content }
+        check(buildJsonObject { put("name", "NHMS"); put("geojson", nhms) }.toString()) shouldBe emptyList()
+        check(buildJsonObject { put("name", "NHMS"); put("id", "Bad"); put("geojson", nhms) }.toString()) shouldContain
+            "an id is 2–32 lower-case letters, digits and hyphens, starting with a letter"
+        check("""{"name":"","geojson":{"type":"FeatureCollection","features":[]}}""") shouldBe
+            listOf("a name cannot be blank", "a course needs at least one layout")
+        courses.current() shouldBe emptyList()
+    }
 }
+
