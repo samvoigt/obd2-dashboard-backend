@@ -53,6 +53,23 @@ class WebRoutesTest {
     }
 
     @Test
+    fun `the home-screen icon and the favicon are served at the root, cached for a day (M11)`() = testApplication {
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
+        for ((path, body, type) in listOf(
+            Triple("/apple-touch-icon.png", "stub-png", "image/png"),
+            Triple("/apple-touch-icon-precomposed.png", "stub-png", "image/png"),
+            Triple("/favicon.ico", "stub-ico", "image/x-icon"),
+        )) {
+            val response = client.get(path)
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldBe body
+            response.headers[HttpHeaders.ContentType]!! shouldContain type
+            response.headers[HttpHeaders.CacheControl]!! shouldContain "max-age=86400"
+        }
+        client.get("/apple-touch-icon-120x120.png").status shouldBe HttpStatusCode.NotFound // named, never a fallback
+    }
+
+    @Test
     fun `the site never shadows the API or the tablet's paths`() = testApplication {
         application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey()) }
         client.get("/api/cars").let {

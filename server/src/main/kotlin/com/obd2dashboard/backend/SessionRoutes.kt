@@ -118,9 +118,9 @@ fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: Liv
     }
 
     get("/api/sessions/{id}/series") {
-        val record = call.sessionRecord(archive) ?: return@get
-        val key = archive.prepare(record.id)
-            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "That session has no lines yet."))
+        // A live session with nothing uploaded yet (a tablet's uploads at its end): nothing to send, not a 404 (M11).
+        val record = call.sessionRecord(archive, allowLive = hub) ?: return@get
+        val key = archive.prepare(record.id) ?: return@get call.respond(HttpStatusCode.NoContent)
         // The key names the version and, while uploading, how far it goes: it is the content's identity.
         val tag = "\"${key.substringAfterLast('/')}\""
         call.response.header(HttpHeaders.ETag, tag)

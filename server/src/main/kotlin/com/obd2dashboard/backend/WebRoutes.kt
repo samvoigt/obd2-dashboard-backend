@@ -7,6 +7,7 @@ import io.ktor.server.http.content.staticResources
 import io.ktor.server.response.cacheControl
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.RoutingCall
@@ -46,7 +47,24 @@ fun Route.webRoutes() {
             call.page()
         }
     }
+    // At the root because that's where they're asked for (M11): an iPhone's home-screen
+    // icon, under both its names, and a classic favicon. Named, never a fallback.
+    for ((path, file, type) in ROOT_ICONS) {
+        val bytes = Thread.currentThread().contextClassLoader.getResource("web/$file")?.readBytes()
+        get(path) {
+            if (bytes == null) return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such file."))
+            call.response.cacheControl(CacheControl.MaxAge(maxAgeSeconds = 86_400, visibility = CacheControl.Visibility.Public))
+            call.respondBytes(bytes, type)
+        }
+    }
     staticResources("/assets", "web/assets") {
         cacheControl { listOf(CacheControl.MaxAge(maxAgeSeconds = 31_536_000, visibility = CacheControl.Visibility.Public)) }
     }
 }
+
+/** The icons served at the root: path, file in the jar's `web/`, type. */
+private val ROOT_ICONS = listOf(
+    Triple("/apple-touch-icon.png", "apple-touch-icon.png", ContentType.Image.PNG),
+    Triple("/apple-touch-icon-precomposed.png", "apple-touch-icon.png", ContentType.Image.PNG),
+    Triple("/favicon.ico", "favicon.ico", ContentType.parse("image/x-icon")),
+)

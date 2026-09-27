@@ -206,6 +206,7 @@ class SessionRoutesTest {
         fun listed() = runBlocking { client.get("/api/cars/yaris/sessions").bodyAsText() }
         listed() shouldNotContain A
         client.get("/api/sessions/$A").status shouldBe HttpStatusCode.NotFound // not live: nothing to show
+        client.get("/api/sessions/$A/series").status shouldBe HttpStatusCode.NotFound
         runBlocking {
             val tablet = hub.attach("yaris", object : com.obd2dashboard.backend.live.TabletHandle {
                 override fun superseded() {}
@@ -221,7 +222,8 @@ class SessionRoutesTest {
         listed() shouldContain "\"state\":\"live\""
         listed() shouldContain "\"ended\":${clock.millis()}" // still going: it ends now
         client.get("/api/sessions/$A").status shouldBe HttpStatusCode.OK // its page, from the live stream alone
-        client.get("/api/sessions/$A/series").status shouldBe HttpStatusCode.NotFound // nothing archived yet
+        // Live with nothing uploaded, as a tablet session is until its end: no series, and no 404 (M11).
+        client.get("/api/sessions/$A/series").status shouldBe HttpStatusCode.NoContent
     }
 
     @Test

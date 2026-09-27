@@ -1,6 +1,7 @@
 #!/bin/sh
 # The site's images from the team's logo (M8.1): the whole logo for the landing
-# page, and the centre bear for the browser tab.
+# page, and the centre bear for the browser tab; since M11 also the bear for a
+# phone's home screen and a classic favicon.ico, served at the site's root.
 #
 #   web/scripts/make_images.sh [path/to/bnb-logo.pdf]
 #
@@ -37,4 +38,17 @@ magick "$work/logo.png" -crop "${d}x${d}+${x}+${y}" +repage \
     \( -size "${d}x${d}" xc:none -fill white -draw "circle $half,$half $half,0" \) \
     -compose DstIn -composite -resize 64x64 -strip "PNG32:$out/bear.png"
 
-echo "Wrote $out/logo.webp and $out/bear.png"
+# At the site's root (M11): Vite copies public/ there. A phone's home-screen icon,
+# 180 px, the bear on the site's own background (read from app.css, not written
+# twice), and a favicon.ico for anything that asks for one by that name.
+root="$web/public"
+mkdir -p "$root"
+bg=$(sed -n 's/.*--bg: *\(#[0-9a-fA-F]\{6\}\).*/\1/p' "$web/src/app.css" | head -1)
+[ -n "$bg" ] || { echo "no --bg in app.css" >&2; exit 1; }
+magick "$work/logo.png" -crop "${d}x${d}+${x}+${y}" +repage \
+    \( -size "${d}x${d}" xc:none -fill white -draw "circle $half,$half $half,0" \) \
+    -compose DstIn -composite -resize 150x150 -compose Over \
+    -background "$bg" -gravity center -extent 180x180 -flatten -strip "PNG24:$root/apple-touch-icon.png"
+magick "$out/bear.png" -define icon:auto-resize=48,32,16 "$root/favicon.ico"
+
+echo "Wrote $out/logo.webp, $out/bear.png, $root/apple-touch-icon.png and $root/favicon.ico"

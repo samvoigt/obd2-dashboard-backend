@@ -174,7 +174,8 @@ export function mix(a: string, b: string, f: number): string {
 
 export async function fetchSeries(id: string, fetcher: typeof fetch = fetch): Promise<Series | null> {
   const response = await fetcher(`/api/sessions/${id}/series`)
-  if (response.status === 404) return null
+  // None yet: 204 for a live session with nothing uploaded (M11), 404 before M11 or for no session.
+  if (response.status === 404 || response.status === 204) return null
   if (!response.ok) throw new Error(`The server answered ${response.status}.`)
   return (await response.json()) as Series
 }

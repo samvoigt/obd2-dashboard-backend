@@ -177,8 +177,43 @@ synthetic) seen in Chrome: labelled, and the fake one alone in the list.
   `fetchSeries` treats it as none.
 - The icons at the root.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Why 404 now:** the series route finds a session only once it has lines
+>   (`sessionRecord` without the live allowance). A session the live lane
+>   created has a record from its first frame (M4), so with the allowance
+>   (as `/api/sessions/{id}` has) it's found, `prepare` has nothing, and that
+>   is the `204`. An unknown or malformed id stays `404`.
+> - **Icons:** Vite copies `web/public/` to the site's root, in the dev server
+>   and into the jar's `web/`. The server has explicit routes and no
+>   fallback (on purpose: an unknown `/api/...` must stay `404`), so three
+>   explicit routes serve `web/apple-touch-icon.png` (also as
+>   `-precomposed`) and `web/favicon.ico`, cached for a day. They're made by
+>   `make_images.sh` from the bear it already cuts: 180 px on the site's
+>   background (read from `app.css`'s `--bg`, not written twice), and a
+>   16/32/48 px `.ico`. The test resources' stub site gains stub icons.
+
 **Done when:** a route test for the 204; the icons served (`curl`) and an
 iPhone-sized "Add to Home Screen" looked at if Sam can.
+
+> **✅ Done, 2026-09-27.** The series route finds a live session and answers
+> `204` with nothing uploaded; `fetchSeries` reads `204` as none.
+> `make_images.sh` makes `public/apple-touch-icon.png` (the bear on `--bg`,
+> 180 px) and `public/favicon.ico` (16/32/48); three named routes serve them,
+> cached for a day.
+> - **Tests:** Kotlin: the `204` while live (and `404` before, and for no
+>   session); the icons at the root, typed and cached, and an unnamed size
+>   still `404`. An older assertion pinned the old `404` while live and was
+>   replaced. Vitest 1 new (104 in all).
+> - **Mutations: 4, all killed**: the series without the live allowance, the
+>   precomposed name dropped, cached a year, `204` not understood.
+> - **Checked for real:** the dev server serves both icons byte for byte as
+>   made, and Vite serves them too; a live tablet session with nothing
+>   uploaded answers `204`, an unknown one `404`.
+> - **Found by looking at the icon:** the first cut was black and white. The
+>   bear's transparent pixels kept whatever colour they held when the alpha
+>   went, because ImageMagick's earlier `DstIn` still applied to the flatten;
+>   `-compose Over` first, and it's the bear in colour on the dark ground.
+> - **Left for Sam:** "Add to Home Screen" on the iPhone, after the deploy.
 
 ### M11.4 — The tablet's clock, flagged
 

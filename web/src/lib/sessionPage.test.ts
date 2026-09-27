@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultSignals, events, joined, lapRows, nearest, speedColor, speedsAtPositions, speedSignal, type Series } from './sessionPage'
+import { defaultSignals, events, fetchSeries, joined, lapRows, nearest, speedColor, speedsAtPositions, speedSignal, type Series } from './sessionPage'
 
 const t0 = 1_790_000_000_000
 
@@ -107,5 +107,14 @@ describe('the map', () => {
     expect(speedColor(null, 0, 100, stops)).toBeNull()
     expect(speedColor(10, 0, 100, [])).toBeNull()
     expect(speedColor(10, 0, 100, ['#ABCDEF'])).toBe('#abcdef')
+  })
+})
+
+describe('fetching the series', () => {
+  const answering = (status: number) => (async () => new Response(status === 204 ? null : '{}', { status })) as unknown as typeof fetch
+  it('is none while there is nothing, 204 (M11) or 404, and an error otherwise', async () => {
+    expect(await fetchSeries('s', answering(204))).toBeNull()
+    expect(await fetchSeries('s', answering(404))).toBeNull()
+    await expect(fetchSeries('s', answering(500))).rejects.toThrow('500')
   })
 })
