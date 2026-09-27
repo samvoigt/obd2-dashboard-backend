@@ -151,8 +151,38 @@ here (it reads the app's file, writes only here): `id`s added,
 the `pit_line` placed, the attribution kept. `admin.sh import-course <file>`
 validates it and stores it as a new version.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The app's pit line** (read in its `core/laps`, `Venues.kt`, `pitGate`):
+>   the point on the pit lane nearest the middle of the start/finish, and a
+>   line square to the lane there, 8 m each side (16 m, "a pit lane's width
+>   and a GPS error, short of a track beside it"), in a local flat frame. The
+>   seed script does the same, so NHMS times as the tablet does today.
+> - **The app's file:** layouts named but without `id`s ("Road Course" is the
+>   default), one `start_finish` for every layout (24 m, marked a guess, with
+>   a note: kept, since unknown properties are kept), the `pit_lane`; the
+>   attribution at the top. `id`s from the names: `road`, `road-option`,
+>   `road-option-2`.
+> - **Order:** storing it needs the Firestore store, so `admin.sh
+>   import-course` moves to M12.3; this step makes the file, and a test that it
+>   passes the rules.
+
 **Done when:** the seed passes `:courses`' rules; the script is repeatable;
 the `pit_line` is looked at on a map against the imagery.
+
+> **✅ Done, 2026-09-27.** `courses/seed/make_nhms.py` reads the app's file
+> and writes `courses/seed/nhms.geojson`: layouts `road` (the default),
+> `road-option`, `road-option-2`; the start/finish and its "guess" note kept;
+> a `pit_line` of 16 m, 22 m from the start/finish's middle.
+> - **Tests: 2**: the seed passes the rules, its start/finish crosses every
+>   layout, its pit line crosses the pit lane and no layout.
+> - **Repeatable:** run twice, the same file.
+> - **Looked at** over the USGS imagery: the start/finish across the front
+>   straight by the grandstand, the pit line beside it across the pit lane,
+>   short of the track.
+> - **Mutations: 3, all killed** (a 40 m pit line, one along the lane, ids
+>   not shortened), **but only after a fix**: Gradle didn't know the test
+>   reads the seed, so a changed seed left the test "up to date" and every
+>   mutant survived. The seed directory is now the test task's input.
 
 ### M12.3 — Stored, and the admin API
 
@@ -160,6 +190,9 @@ the `pit_line` is looked at on a map against the imagery.
 beside it); wired in `main()`; admin routes: list, get (any version), save (a
 new version), rename, delete (refused while a lap names the course), all with
 the same sign-in, origin check and change log as cars.
+
+Also `admin.sh import-course <file>` (from M12.2): validates a GeoJSON file
+and stores it as the next version.
 
 **Done when:** route tests (signed out, wrong origin, invalid course, a save
 making version N+1, delete refused when named); a Firestore smoke test with a
