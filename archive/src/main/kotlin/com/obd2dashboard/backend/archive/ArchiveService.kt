@@ -228,6 +228,9 @@ public class ArchiveService(
         return key
     }
 
+    /** An object as stored, gzip and all (M7.3). */
+    public suspend fun <T> readRaw(key: String, body: suspend (InputStream) -> T): T = store.readRaw(key, body)
+
     /** One session's record, or null (the admin page, M6). */
     public suspend fun session(id: String): SessionRecord? = index.get(id)
 

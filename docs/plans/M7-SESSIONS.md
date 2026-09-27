@@ -245,6 +245,41 @@ session still uploading); the VIN appears in no public response (a raw-bytes
 test, as decision 19's); the download is byte for byte the log and `401`
 without a sign-in; mutations are checked.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **Stores only return unzipped bytes**, and the series is gzip at rest.
+>   `SegmentStore` gains `readRaw(key) { InputStream -> … }`: the object as
+>   stored. `series` sends it with `Content-Encoding: gzip`, never unzipping
+>   and re-zipping, and the admin download sends a completed log the same way
+>   (as `application/gzip`, a file to save). A session still uploading is
+>   downloaded as its segments, zipped as they stream.
+> - **The session states** (live, uploading, complete, incomplete) are worked
+>   out in `AdminRoutes` today; the public list needs the same rule, so it moves
+>   to one function both use.
+> - **The prepared file's key is its version**, so it's the `ETag`: a repeat
+>   visit gets `304` rather than megabytes.
+> - **Ids are checked as UUIDs** (`SessionIds`, which the archive lane uses),
+>   so a bad one is a `404` before any store is asked.
+> - **An old complete session with no summary** gets one built on first view
+>   (M7.1's rule). The list does this for any that lack one; there are few, and
+>   each is built once.
+> - **Drives are grouped by a pure function**, tested on its own, with the
+>   10-minute rule.
+
+> **✅ Done, 2026-09-26.**
+> - **New:** `SessionRoutes` (the list as drives, one session, the series), the
+>   admin download (`downloadSession`), `SegmentStore.readRaw`, and
+>   `SessionStates` (the state rule, now shared with the admin page).
+> - **Tests:** 9 for the API, including raw-bytes checks for the VIN and the
+>   drive rule. The live smoke's `readRaw` check passes against the real bucket.
+> - **Found by the tests:** on first view, the list built a missing summary but
+>   took the start from the record read before it, so every session fell back
+>   to its header's date. It now uses the summary it just built.
+> - **Found by a mutation:** a session the live lane announced has no archived
+>   lines for its first minutes, and was hidden then. It's now listed while
+>   live. Its page before any lines are stored is M7.6's.
+> - **Mutations:** 17 killed. One is equivalent: downloading a completed
+>   session through its segments' path gives the same bytes, only re-zipped.
+
 ### M7.4 — The sessions list
 
 `/cars/{slug}/sessions`: drives newest first, each with its sessions: when,

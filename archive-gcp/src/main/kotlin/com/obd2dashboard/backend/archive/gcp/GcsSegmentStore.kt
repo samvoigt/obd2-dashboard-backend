@@ -40,6 +40,10 @@ public class GcsSegmentStore(private val storage: Storage, private val bucket: S
         }
     }
 
+    override suspend fun <T> readRaw(key: String, body: suspend (InputStream) -> T): T = withContext(Dispatchers.IO) {
+        storage.reader(BlobId.of(bucket, key)).use { channel -> Channels.newInputStream(channel).use { body(it) } }
+    }
+
     /**
      * Streams into a resumable upload. **The object exists only once the channel
      * closes**, so if [body] throws, the channel is abandoned unclosed and no

@@ -4,6 +4,7 @@ import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.admin.CarHasSessions
 import com.obd2dashboard.backend.admin.NoSuchSession
 import com.obd2dashboard.backend.admin.SessionBusy
+import com.obd2dashboard.backend.archive.SessionIds
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.live.CarStatus
 import com.obd2dashboard.backend.archive.ArchiveService
@@ -190,17 +191,12 @@ fun Route.adminCarRoutes(
     /** Whether [id] is being streamed by its car's tablet right now. */
     suspend fun isLive(car: String, id: String) = hub.status(car).liveSession() == id
 
-    fun sessionView(record: SessionRecord, live: String?): AdminSession {
-        val started = record.header?.started?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: record.created
-        val quiet = Duration.between(record.updated, clock.instant()) >= CarAdmin.UPLOAD_QUIET
-        val state = when {
-            record.id == live -> "live"
-            record.complete -> "complete"
-            quiet -> "incomplete"
-            else -> "uploading"
-        }
-        return AdminSession(record.id, started.toEpochMilli(), record.ackedThrough + 1, state)
-    }
+    fun sessionView(record: SessionRecord, live: String?): AdminSession = AdminSession(
+        record.id,
+        sessionStarted(record).toEpochMilli(),
+        record.ackedThrough + 1,
+        sessionState(record, live, clock.instant()),
+    )
 
     suspend fun ApplicationCall.pathSlug(): Slug? =
         (Slug.check(parameters["slug"].orEmpty()) as? SlugCheck.Ok)?.slug
@@ -273,6 +269,15 @@ fun Route.adminCarRoutes(
         call.respond(archive.sessionsOf(slug.value).map { sessionView(it, live) }.sortedByDescending { it.started })
     }
 
+    get("/api/admin/sessions/{id}/download") {
+        val email = call.admin(auth, config, change = false) ?: return@get
+        val raw = call.parameters["id"].orEmpty()
+        val record = (if (SessionIds.isValid(raw)) archive.session(SessionIds.normalise(raw)) else null)?.takeIf { it.ackedThrough >= 0 }
+            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        adminLog.info("session downloaded: {} of {} by {}", record.id, record.car, email)
+        call.downloadSession(archive, record)
+    }
+
     delete("/api/admin/sessions/{id}") {
         val email = call.admin(auth, config, change = true) ?: return@delete
         val id = call.parameters["id"].orEmpty().lowercase()
@@ -305,9 +310,6 @@ fun Route.adminCarRoutes(
         }
     }
 }
-
-/** The live session's id while the tablet is connected and in one. */
-private fun CarStatus.liveSession(): String? = sessionId.takeIf { connected && inSession }
 
 /** The registry's refusals as statuses, keeping its plain words: bad input 400, unknown 404, a conflict 409. */
 private suspend fun ApplicationCall.refusals(action: suspend () -> Unit) {

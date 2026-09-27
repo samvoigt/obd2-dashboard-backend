@@ -67,6 +67,7 @@ class MeasureSeries {
                 (if (key.endsWith("session.jsonl.gz")) logFile else file(key)).inputStream().buffered(1 shl 16).use { body(it) }
             override suspend fun write(key: String, body: suspend (java.io.OutputStream) -> Unit) =
                 GZIPOutputStream(file(key).outputStream().buffered(1 shl 16)).use { body(it) }
+            override suspend fun <T> readRaw(key: String, body: suspend (java.io.InputStream) -> T): T = file(key).inputStream().use { body(it) }
             override suspend fun deletePrefix(prefix: String): Int = 0
             override suspend fun delete(key: String) { file(key).delete() }
             override suspend fun list(prefix: String): List<String> = emptyList()

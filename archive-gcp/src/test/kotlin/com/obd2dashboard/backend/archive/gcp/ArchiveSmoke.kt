@@ -76,6 +76,9 @@ fun main(args: Array<String>) {
             check("stored as application/gzip, no content-encoding", blob.contentType == "application/gzip" && blob.contentEncoding == null)
             val downloaded = GZIPInputStream(ByteArrayInputStream(blob.getContent())).use { it.readBytes() }
             check("the download is the fixture, byte for byte", downloaded.contentEquals(fixture))
+            val rawRead = store.readRaw(ArchiveService.sessionKey(id)) { it.readBytes() }
+            check("readRaw is the object as stored, gzip (M7.3)", rawRead.contentEquals(storage.readAllBytes(blob.blobId)) &&
+                java.util.zip.GZIPInputStream(rawRead.inputStream()).readBytes().contentEquals(fixture))
 
             // SegmentStore.write's rule: a body that throws creates no object.
             val failedKey = "sessions/$id/should-not-exist.jsonl.gz"

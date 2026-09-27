@@ -90,6 +90,9 @@ public interface SegmentStore {
     /** Reads an object's plain line bytes as a stream, so a long session is never held whole (M7.1). */
     public suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T
 
+    /** Reads an object **as stored**, gzip and all, to send on without unzipping (M7.3). */
+    public suspend fun <T> readRaw(key: String, body: suspend (InputStream) -> T): T
+
     /**
      * Writes an object from a stream, so a long session is never held whole.
      * **If [body] throws, no object is created**: a refused assembly must not
@@ -193,6 +196,13 @@ public class InMemorySegmentStore : SegmentStore {
 
     override suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T =
         body(ByteArrayInputStream(objects[key] ?: error("no object $key")))
+
+    /** This store keeps plain bytes, so "as stored" is gzipped here, as Cloud Storage keeps them. */
+    override suspend fun <T> readRaw(key: String, body: suspend (InputStream) -> T): T {
+        val plain = objects[key] ?: error("no object $key")
+        val gz = ByteArrayOutputStream().also { out -> java.util.zip.GZIPOutputStream(out).use { it.write(plain) } }
+        return body(ByteArrayInputStream(gz.toByteArray()))
+    }
 
     override suspend fun write(key: String, body: suspend (OutputStream) -> Unit) {
         val out = ByteArrayOutputStream()
