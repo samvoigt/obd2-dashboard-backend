@@ -433,6 +433,22 @@ in Chrome.
 
 ### M12.8 — Deploy, and prove it
 
+> **Validated, 2026-09-27, before deploying.**
+> - **The contract settled first**, as this plan said: the tablet side
+>   rewrote §22 as agreed with Sam, and this side confirmed it
+>   (`docs/proposals/…`, its last section). Four differences were folded in:
+>   layouts must be closed; NHMS's `pit_line` from the tablet's coordinates; an
+>   in-lap's last sector and an out-lap's first never count toward a best, the
+>   rest do; `startAt`/`endAt` on laps (already kept whole in the series).
+> - **Serving:** `00020`; the Outback offline. **Firestore:** the `courses`
+>   collection needs no index (every read is a whole collection or a
+>   document); the service's account can use any collection.
+> - **The drive across the deploy** as M8.5 and M11.5: a `smoke-m12` car, its
+>   token in a `chmod 600` file, the synthetic race live and uploading, now
+>   with `--courses`, so the new endpoint and frame are used across the deploy
+>   too; cleaned up after, the Outback untouched.
+> - **NHMS** imported with `admin.sh import-course` (version 1).
+
 Deployed with a drive streaming; NHMS imported; Sam draws the loop near home
 on the website (his sign-in) over the first drive's route; `/v1/courses`
 fetched with a throwaway car's token (compared, never printed); the courses

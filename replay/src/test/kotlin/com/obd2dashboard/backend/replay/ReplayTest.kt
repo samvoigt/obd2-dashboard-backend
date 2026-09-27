@@ -43,6 +43,7 @@ class ReplayTest {
     @get:Rule
     val timeout: Timeout = Timeout.seconds(30)
 
+    private val courses = com.obd2dashboard.backend.courses.InMemoryCourseStore()
     private val registry = CarRegistry(InMemoryCarStore())
     private val yaris = runBlocking { registry.addCar(Slug.parse("yaris"), "Yaris") }.token
     private val outback = runBlocking { registry.addCar(Slug.parse("outback"), "Outback") }.token
@@ -53,7 +54,7 @@ class ReplayTest {
     private val device = "00000000-0000-4000-8000-00000000d0e5"
 
     private fun start(segments: SegmentStore = store): URI {
-        val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32)) }.start()
+        val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32), courses = courses) }.start()
         server = s
         val port = runBlocking { s.engine.resolvedConnectors().first().port }
         return URI.create("http://127.0.0.1:$port")

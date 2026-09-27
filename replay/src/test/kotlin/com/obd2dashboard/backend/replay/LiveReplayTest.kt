@@ -50,6 +50,7 @@ class LiveReplayTest {
     @get:Rule
     val timeout: Timeout = Timeout.seconds(60)
 
+    private val courses = com.obd2dashboard.backend.courses.InMemoryCourseStore()
     private val registry = CarRegistry(InMemoryCarStore())
     private val yaris = runBlocking { registry.addCar(Slug.parse("yaris"), "Yaris") }.token
     private val hub = InMemoryLiveHub()
@@ -60,7 +61,7 @@ class LiveReplayTest {
 
     private fun start(config: LiveConfig = LiveConfig(), liveHub: LiveHub = hub): URI {
         val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
-            module(registry, ArchiveService(index, InMemorySegmentStore()), liveHub, config, Clock.systemUTC(), messages = messages, crewKey = ByteArray(32))
+            module(registry, ArchiveService(index, InMemorySegmentStore()), liveHub, config, Clock.systemUTC(), messages = messages, crewKey = ByteArray(32), courses = courses)
         }.start()
         server = s
         return URI.create("http://127.0.0.1:${runBlocking { s.engine.resolvedConnectors().first().port }}")
@@ -99,6 +100,15 @@ class LiveReplayTest {
         snap.status.inSession shouldBe false // `end` was sent
         (snap.history.isNotEmpty()) shouldBe true
         index.get(file.id)!!.car shouldBe "yaris" // the live session announced it to the archive
+    }
+
+    @Test
+    fun `with --courses it plays a tablet that takes courses, fetching them on each courses frame`() = runBlocking<Unit> {
+        courses.save("nhms", 0, "NHMS", Json.parseToJsonElement(java.io.File("../courses/seed/nhms.geojson").readText()).jsonObject, java.time.Instant.now())
+        val uri = start()
+        replayer(uri, LiveOptions(speed = 0.0, waitScale = 0.0, courses = true)).replay(load("synthetic-v2.jsonl.gz")).shouldBeInstanceOf<LiveResult.Ended>()
+        delay(300)
+        synchronized(logs) { logs.toList() }.filter { it.startsWith("courses") } shouldBe listOf("courses: nhms v1")
     }
 
     @Test

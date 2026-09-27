@@ -42,6 +42,7 @@ class ReplayMessagesTest {
     @get:Rule
     val timeout: Timeout = Timeout.seconds(60)
 
+    private val courses = com.obd2dashboard.backend.courses.InMemoryCourseStore()
     private val registry = CarRegistry(InMemoryCarStore(), passcodeIterations = 1_000)
     private val token = runBlocking {
         registry.addCar(Slug.parse("yaris"), "Yaris").also { registry.setPasscode(Slug.parse("yaris"), "pit-lane".toCharArray()) }.token
@@ -55,7 +56,7 @@ class ReplayMessagesTest {
     private fun start(config: LiveConfig = LiveConfig()): String {
         val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
             module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), config, Clock.systemUTC(),
-                messages = messages, crewKey = ByteArray(32))
+                messages = messages, crewKey = ByteArray(32), courses = courses)
         }.start()
         server = s
         return "http://127.0.0.1:${runBlocking { s.engine.resolvedConnectors().first().port }}"
