@@ -24,6 +24,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M7** | Past sessions on the site, and a session being driven, whole | ✅ (`plans/COMPLETED.md`) |
 | **M8** | The car's page as a dashboard: one fixed layout, updating live | ✅ (`plans/COMPLETED.md`) |
 | **M9** | Tokens and passcodes readable on the admin page | **tabled** (Sam): [`plans/M9-READABLE-SECRETS.md`](plans/M9-READABLE-SECRETS.md) |
+| **M10** | The G-meter and map shown before their data | **planned**: [`plans/M10-EMPTY-SECTIONS.md`](plans/M10-EMPTY-SECTIONS.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
