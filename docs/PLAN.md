@@ -26,6 +26,11 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M9** | Tokens and passcodes readable on the admin page | **tabled** (Sam): [`plans/M9-READABLE-SECRETS.md`](plans/M9-READABLE-SECRETS.md) |
 | **M10** | The G-meter and map shown before their data | ✅ (`plans/COMPLETED.md`) |
 | **M11** | What the first drive found: the charging gauge, tablet and test-data sessions, icons, the tablet's clock | ✅ (`plans/COMPLETED.md`) |
+| **M12** | Courses drawn on a map, and the server timing laps and splits from GPS | planned in outline: [`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md) |
+| **M13** | Drivers, and events with practice and a race | outline |
+| **M14** | The race: sessions stitched into one, stints by driver | outline |
+| **M15** | Results worth reading: lap chart, theoretical best, comparisons | outline |
+| **M16** | Live timing on the car page | outline |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -137,11 +142,13 @@ gauges, numbers, bars, the G-meter, the map, laps, status. Not configurable,
 and not a mirror of the tablet, so neither storage nor a contract change.
 Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
-### Next: race logging, in review
+### Next: race logging (M12–M16)
 
-Drivers, races, tracks with start/finish and sectors, and lap and split
-timing: the high-level plan, for Sam's review, is
-[`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md).
+Courses drawn on a map with start/finish and sectors, the server timing laps
+and splits from GPS, drivers, practice and an endurance race tied together
+from many sessions, and live timing. The overall plan, with Sam's answers, is
+[`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md); each milestone is planned in
+detail before it's built.
 
 ### Other candidates
 
