@@ -31,6 +31,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M14** | The race: sessions stitched into one, stints by driver | outline |
 | **M15** | Results worth reading: lap chart, theoretical best, comparisons | outline |
 | **M16** | Live timing on the car page | outline |
+| **M17** | The tablet as the timing screen: courses and timing sent down to it (a contract change, proposed) | outline; proposal in [`proposals/`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -142,11 +143,12 @@ gauges, numbers, bars, the G-meter, the map, laps, status. Not configurable,
 and not a mirror of the tablet, so neither storage nor a contract change.
 Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
-### Next: race logging (M12–M16)
+### Next: race logging (M12–M17)
 
 Courses drawn on a map with start/finish and sectors, the server timing laps
 and splits from GPS, drivers, practice and an endurance race tied together
-from many sessions, and live timing. The overall plan, with Sam's answers, is
+from many sessions, live timing, and the tablet showing it all (M17, which
+needs a contract change, proposed for the tablet side). The overall plan, with Sam's answers, is
 [`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md); each milestone is planned in
 detail before it's built.
 

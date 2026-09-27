@@ -46,3 +46,13 @@ None of these is in the contract's body, and each has to be true of the server:
 | §6 archive lane | M3 |
 | §5.1–5.3 live lane | M4 |
 | §5.4 crew messages | M5 ✅ |
+
+## Proposed, not agreed
+
+- **Courses and timing to the tablet** (for M17):
+  [`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md).
+  A backend proposal for the tablet side to review: `GET /v1/courses`, and
+  `courses`, `timing` and `crossing` frames opted into by `hello.features`.
+  Not part of the contract until the tablet side answers and Sam agrees; the
+  tablet side writes it into the contract, never this side.
+

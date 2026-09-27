@@ -6,7 +6,7 @@ start/stop, and maybe segments too, so that we could track lap times and
 segment splits."
 
 The overall plan, agreed in outline before any code. It becomes milestones
-M12–M16, and each is planned in detail and **each step validated against the
+M12–M17, and each is planned in detail and **each step validated against the
 code before it's built**, as always. Nothing here is built yet.
 
 ---
@@ -28,6 +28,12 @@ code before it's built**, as always. Nothing here is built yet.
    sessions **tied together** into one.
 7. **Public**, like the rest of the site. Editing stays behind sign-in.
 8. **Only our cars** (the ones with tablets). No hand-entered lap times.
+9. **The tablet becomes the display** (Sam, later the same day): courses,
+   with their sectors, and the server's lap and sector timing are sent **down
+   to the tablet**, which shows them and times nothing itself. That needs a
+   contract change, proposed in
+   [`docs/proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](../proposals/COURSES-AND-TIMING-TO-THE-TABLET.md)
+   for the tablet side to review.
 
 ---
 
@@ -136,6 +142,9 @@ the event.
   and consistency.
 - **A session's page** gains its course, laps and splits (the server's, with
   the tablet's beside them), its driver(s) and its event.
+- **The tablet, live** (M17): the course and its sectors on its map, the
+  running lap, splits against the best, the driver, and the race's lap count,
+  all from the server.
 - **The car page, live** (M16): the running lap time, the last lap and its
   splits as they happen, the current driver, and during a race the lap count,
   the stint's time, and the time since the last stop.
@@ -158,8 +167,9 @@ the event.
   page) become the server's, with the tablet's as the check. Decision 26's
   summary keeps the tablet's; timing is its own file.
 - **The session list** can show which event each session belongs to.
-- **Contract: no change needed.** Everything is timed from `gps.position`,
-  which the tablet sends. **Worth asking for in a future v2** (through Sam,
+- **Contract: no change for M12–M16.** Everything is timed from
+  `gps.position`, which the tablet sends. **M17 needs one**, proposed for the
+  tablet side: `docs/proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`. **Worth asking for in a future v2** (through Sam,
   never edited from here): the **receiver's own fix time** on each
   `gps.position` (the receiver knows it to the millisecond), which would make
   timing independent of the tablet's clock and of `at` restarting.
@@ -193,6 +203,18 @@ consistency; every lap linked to its moment in the session.
 **M16 — Live timing.**
 The running lap and splits on the car page as the car drives; during a race,
 the lap count, the stint and the time since the stop.
+
+**M17 — The tablet as the timing screen.**
+Courses and timing sent down to the tablet (the proposal, once the tablet side
+and Sam agree it): `GET /v1/courses` and a `courses` frame, so the tablet's
+map draws the course and its sectors, offline too; `timing` (the whole
+current state, after every `hello` and on every change) and `crossing` (a
+line just crossed) on the live socket, with every time on the tablet's own
+`at`, so the tablet runs the lap clock itself and shows splits, deltas, the
+driver and the race's lap count. Only to a tablet that asks (`hello.features`).
+*Built on:* M12's courses and M16's live timing. *Needs:* the app's half, built
+by the tablet side against the agreed contract; proven with a replay first,
+then on the car.
 
 Each is deployed and proven live on its own, as every milestone has been.
 
