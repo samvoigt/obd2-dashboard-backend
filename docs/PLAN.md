@@ -136,6 +136,9 @@ Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
 ### Next: not planned yet
 
+**First, a real drive** (Sam, 2026-09-27): [`plans/ROAD-TEST.md`](plans/ROAD-TEST.md),
+the website with the tablet streaming from the Outback.
+
 Candidates, for Sam to choose from: a per-car form on the admin page for the
 dashboard's slots and ranges (decision 28's way on); comparing laps; naming
 sessions; crew messages shown beside a session.
