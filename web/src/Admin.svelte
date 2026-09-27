@@ -292,13 +292,12 @@
           <dl>
             <dt>Token</dt><dd>…{car.tokenHint} <span class="muted">since {day(car.tokenIssued)}</span></dd>
             <dt>Crew passcode</dt><dd>{car.passcodeSet ? 'Set' : 'Not set'}</dd>
-            <dt>Sessions</dt><dd>{car.sessions}</dd>
           </dl>
           {#if car.liveSession}
             <p class="live-now"><span class="dot live"></span>Streaming a session now. <a href={`/cars/${car.slug}`}>Watch live →</a></p>
           {/if}
           <div class="row actions">
-            <button onclick={() => begin(car, 'sessions')}>Sessions</button>
+            <button onclick={() => begin(car, 'sessions')}>Sessions ({car.sessions})</button>
             <button onclick={() => begin(car, 'rename')}>Rename</button>
             <button onclick={() => begin(car, 'token')}>Replace token</button>
             <button onclick={() => begin(car, 'passcode')}>{car.passcodeSet ? 'Change passcode' : 'Set passcode'}</button>
