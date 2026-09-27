@@ -20,7 +20,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M3** | Archive lane (contract §6), and the replay tool | ✅ (`plans/COMPLETED.md`) |
 | **M4** | Live lane (contract §5.1–5.3), fan-out, first website | ✅ (`plans/COMPLETED.md`) |
 | **M5** | Crew messages (contract §5.4) and the crew panel | ✅ (`plans/COMPLETED.md`) |
-| **M6** | The admin page: cars and tokens, behind Google sign-in | **planned**: [`plans/M6-ADMIN.md`](plans/M6-ADMIN.md) |
+| **M6** | The admin page: cars, tokens and sessions, behind Google sign-in | ✅ (`plans/COMPLETED.md`) |
 | **M7** | Past sessions on the site | |
 | **M8** | Dashboards: crew views and mirrored tablet layouts | |
 
@@ -96,11 +96,12 @@ Deployed: https://badnewsbears.live for people, https://obd2-backend-qeppiy7nzq-
 | `GET /api/cars/{slug}/live` | SSE: snapshot, then session, records and status; crew streams also messages | ✅ M4, M5 |
 | `POST`, `DELETE /api/cars/{slug}/login`; `GET …/crew` | Crew passcode → signed cookie for that car; log out; am I crew | ✅ M5 |
 | `POST`, `GET /api/cars/{slug}/messages`, `DELETE …/{id}` | Send, list recent, and clear (crew only) | ✅ M5 |
+| `/admin`, `/api/admin/*` | The admin page and its API (Google sign-in, allowlist) | ✅ M6 |
 | `/cars/{slug}/sessions`, `…/{id}` | Past sessions | M7 |
 
 ---
 
-## Milestones after M5
+## Milestones after M6
 
 What M4 builds on:
 - M2's `CarRegistry.principalFor`, which the socket uses after the upgrade;

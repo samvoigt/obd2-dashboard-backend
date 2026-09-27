@@ -257,3 +257,41 @@ from the replay or a test.
 **Left for Sam:** logging in to the crew panel on the deployed site, and a real
 car registered with a passcode, for the app's M34.5.
 
+## M6 — The admin page  ✅ 2026-09-26
+
+`/admin`: cars, tokens, passcodes and sessions, behind Google sign-in limited to
+an allowlist. Decision 25 (and decision 10 amended).
+
+- **`:admin`**, a new pure module: `CarAdmin`, the rules both `admin.sh` and the
+  page use (adding a car with a chosen token, removing a car, and when a session
+  may be deleted).
+- **`:server`:**
+  - `GoogleIdentity` (Google's `TokenVerifier`, then our own checks, each
+    refusal with its reason) and `Allowlist`;
+  - `AdminAuth` (a 30-day signed cookie, re-checked against the allowlist on
+    every request) and `isSameOrigin`;
+  - `AdminConfig`: off by default, from the environment in production, and a
+    dev sign-in only in the dev server;
+  - the admin API: `config`, `login`, `me`, the cars routes, and the sessions
+    routes, every change logged without secrets;
+  - `/admin` served unframeable.
+- **`:live`:** `CarStatus.sessionId`, the live session, for the page only.
+- **`web/`:** `Admin.svelte` and `admin.ts`. Vite's proxy now keeps the page's
+  `Host`, as production does.
+- **`:tools`:** `delete-session` refuses an upload still going; `add-car
+  --choose-token` and `remove-car` go through `CarAdmin`.
+- **Setup:** the OAuth client ID in `env.sh` (public by nature); the allowlist
+  in Secret Manager (`admin-emails`), since the repo is public.
+- **Tests:** 304 Kotlin (44 new) and 38 Vitest (15 new). **79 mutations
+  killed**, 4 found equivalent. Google's verification is tested offline against
+  a key set of our own, served locally, so the real key-fetching code runs.
+- **Verified live, 2026-09-26** (revisions `00013`–`00015`): the admin API
+  closed without a sign-in and to a forged cookie, the dev sign-in refused,
+  `/admin` unframeable, and Google's button shown. **Sam signed in** and added,
+  re-tokened (with a chosen token), set a passcode on, and removed a throwaway
+  car. The logs name him on each action and hold no secret. His one note (the
+  session count read as the list) changed the page.
+- **Found by looking, locally:** Vite's proxy rewrote `Host`, so every change
+  was refused; a failed sign-in showed no error; a live session was refused as
+  "uploading"; labels split into rows.
+

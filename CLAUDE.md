@@ -39,8 +39,8 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
-Modules: `:registry`, `:archive` and `:live` (pure, where the rules and most
-tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
+Modules: `:registry`, `:archive`, `:live` and `:admin` (pure, where the rules
+and most tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
 `:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot;
 Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 
@@ -49,7 +49,8 @@ Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 ./gradlew :server:buildFatJar   # server/build/libs/server.jar
 GCP_PROJECT=obd2-dashboard-backend SESSIONS_BUCKET=obd2-dashboard-backend-sessions \
   CREW_COOKIE_KEY=… ./gradlew :server:run   # real Firestore and bucket; any 32+ byte base64url key
-scripts/admin.sh list           # the admin tool (cars, tokens, passcodes, sessions)
+scripts/admin.sh list           # the admin tool (cars, tokens, passcodes, sessions);
+                                #   also the admin page, /admin (decision 25)
 scripts/replay.sh --help        # the tablet's lanes (--live), faults included
 ./gradlew :server:devServer     # the real module in memory + the real site, car dev-car
                                 #   (token and crew passcode in server/build/dev-token,
@@ -87,3 +88,7 @@ file that is deleted, never into output, and remove the car afterwards.
 `chmod 600` file (`set-passcode --passcode-file`), keep the cookie in a
 `chmod 600` jar, and delete both. Typing a passcode into a page is only for the
 dev server's generated one, on localhost.
+**The admin page on the deployed site is Sam's to sign in to**, with his Google
+account; never enter a Google password. Locally, the dev server's dev sign-in
+covers everything. The allowlist (`admin-emails`) holds Sam's address and stays
+out of this public repo.

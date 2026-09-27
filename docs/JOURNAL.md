@@ -136,3 +136,23 @@ not catch, and lessons about process. Short on purpose.
   57 minutes after the mapping. Nothing needed changing.
 - Domain mappings need the `gcloud` beta component, installed for this.
 
+## 2026-09-26 — M6, the admin page
+
+- **Vite's shorthand proxy (`'/api': url`) sets `changeOrigin`**, which rewrites
+  `Host` to the target. Any same-origin check then fails locally although it
+  works in production. `/api` keeps the page's `Host` now.
+- **Ktor's test client sends no `Host` header**, which every browser does.
+  Tests of anything that reads it must set it.
+- **Google's `TokenVerifier` throws one exception for every failure**, and
+  refuses a token from the second it expires, with no leeway. Checking the
+  audience, issuer and email ourselves gives each refusal its reason.
+- **A test id with no letters hid a `lowercase()`**, which a mutation found.
+  Test ids should have letters in them.
+- **Deleting a session mid-upload doesn't stick**: the tablet re-sends it from
+  line 0 after `not_open`. Found while validating M6.7, before building it.
+- **Two things with one name confuse**: a "Sessions: 0" line beside a
+  "Sessions" button, and Sam read the line as the list. The count is on the
+  button now.
+- **The browser automation hides fields named like secrets** ("token",
+  "sessions") in script results; name them otherwise when checking a page.
+

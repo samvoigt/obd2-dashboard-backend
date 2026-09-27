@@ -385,6 +385,15 @@ Then `deploy.sh` sets `GOOGLE_CLIENT_ID` and `ADMIN_EMAILS`, and it's deployed.
 >   asks only for `openid` and `email`, and in Testing, Google lets only listed
 >   test users sign in at all, which is a second allowlist for free.
 
+> **✅ Done, 2026-09-26.** `admin-emails` created (Sam's address) and granted;
+> `00013` deployed with admin off (page says so; sign-in `503`; API `401`, a
+> forged cookie too; `/admin` unframeable). Sam made the OAuth client (Testing,
+> himself as test user, the two domain origins); its ID went into `env.sh`, and
+> `00014` showed Google's button. **Sam signed in** and added, re-tokened,
+> passcoded and removed `smoke-admin`; the logs name him on each change and
+> hold no secret. He read "Sessions: 0" as the list, so `00015` puts the count
+> on the button instead.
+
 **Done when:**
 - the deployed `/admin` shows Google's button;
 - `/api/admin/*` is `401` without a sign-in, and a forged cookie is refused;

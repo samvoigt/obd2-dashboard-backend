@@ -202,6 +202,9 @@ sessions.
 > tablet's business; to the server, the token is still the whole identity.
 >
 > **Amended by 24:** the owner may choose a car's token instead of a 256-bit one.
+>
+> **Amended by 25:** "no admin endpoint" no longer holds. The admin page at
+> `/admin` does what the CLI does, behind Google sign-in and an allowlist.
 
 **Decision.**
 - A car is a Firestore document: slug, name, key hash, passcode hash.
@@ -567,4 +570,48 @@ leaves the format open: a token is "issued by the backend's owner" (§8).
 
 **Revisit if.** The site or its data become worth protecting more: then
 rate-limit failed tablet logins, or go back to generated tokens only.
+
+## 25. The admin page, behind Google sign-in and an allowlist
+
+**Decision.**
+- `/admin` manages cars (add, rename, replace a token, set the crew passcode,
+  remove) and their sessions (list, which is live, delete). `admin.sh` keeps
+  working, and **both call the same rules** in `:admin` (`CarAdmin`).
+- **Sign-in is "Sign in with Google"**: the page gets an ID token, and the
+  server checks it with Google's `TokenVerifier` (signature, expiry), then the
+  audience (our client ID), the issuer, `email_verified`, and the allowlist.
+  There's no client secret and no redirect; we ask only for `openid` and
+  `email`. The OAuth consent screen stays in Testing with Sam as its test user,
+  so Google itself refuses anyone else.
+- **The allowlist is `ADMIN_EMAILS`**, from the Secret Manager secret
+  `admin-emails` (kept out of the public repo, not secret in itself). Empty
+  means nobody. Changing it: add a version, then deploy. It can't be changed
+  from the page, so a stolen sign-in can't add itself.
+- **The sign-in is a cookie**, `adm1.<email>.<expiry>.<hmac>`, with the crew
+  key under its own tag: `HttpOnly`, `Secure`, `SameSite=Strict`,
+  `Path=/api/admin`, 30 days (Sam). **The allowlist is checked on every
+  request**, so removing an email ends that sign-in at once.
+- **Every change must come from our own page** (its `Origin` must name the
+  host), on top of `SameSite=Strict` and JSON-only bodies. `/admin` can't be
+  framed (`X-Frame-Options: DENY`, `frame-ancestors 'none'`).
+- **Every change is logged** with who made it, and never a token or passcode.
+- **Generated tokens are shown once**; chosen ones are typed twice. Replacing a
+  token asks for "Replace" to be typed, removing a car its slug, and deleting a
+  session the first 8 characters of its id.
+- **A session can't be deleted while its tablet is live on it, or while its
+  upload is incomplete and was active in the last 5 minutes**: deleting it then
+  wouldn't stick, since the next chunk gets `not_open` and the tablet re-sends
+  the session from line 0. `admin.sh delete-session` shares the upload rule.
+- **No rate limit on sign-in:** a Google ID token can't be guessed, and one
+  shared limit would let anyone lock Sam out.
+- **Off unless configured:** without `GOOGLE_CLIENT_ID` the page says it isn't
+  set up. Locally, only the dev server offers a dev sign-in, which production
+  refuses (tested).
+
+**Why.** Sam wanted to manage cars and tokens from a page, without a password
+of our own to build or keep (2026-09-26). Google sign-in brings his account's
+own protections, and the allowlist keeps it to him.
+
+**Revisit if.** More people need access with less than everything (roles), or
+the page ever needs to act without a Google account.
 
