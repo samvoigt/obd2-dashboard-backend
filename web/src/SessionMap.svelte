@@ -11,6 +11,7 @@
     lon,
     speeds,
     cursor = null,
+    follow = false,
   }: {
     /** Epoch milliseconds, ascending. */
     t: number[]
@@ -19,6 +20,8 @@
     speeds: (number | null)[]
     /** The chart's cursor, epoch milliseconds: where the car was then. */
     cursor?: number | null
+    /** Live (M8): keep the car in view, with a dot on it, until the viewer moves the map. */
+    follow?: boolean
   } = $props()
 
   let box: HTMLDivElement
@@ -26,6 +29,9 @@
   let dot: L.CircleMarker | null = null
   let trace: L.LayerGroup | null = null
   let fitted = false
+  // Following (M8): the page's own moves are marked, so any other move is the viewer's.
+  let moving = false
+  let viewerMoved = $state(false)
 
   /** Speeds in 16 steps, so a long trace is a few hundred lines, not thousands. */
   const STEPS = 16
@@ -39,6 +45,8 @@
     }).addTo(map)
 
     trace = L.layerGroup().addTo(map)
+    map.on('movestart', () => { if (!moving) viewerMoved = true })
+    map.on('moveend', () => { moving = false })
     dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: color('text'), weight: 2, fillColor: color('bg'), fillOpacity: 1 })
 
     const resize = new ResizeObserver(() => map?.invalidateSize())
@@ -55,14 +63,32 @@
     const m = map
     const layer = trace
     void t.length
-    if (!m || !layer) return
+    if (!m || !layer || t.length === 0) return
+
+    // The view first: Leaflet can't place a line on a map that has none yet (found in M8.2).
+    const car: L.LatLngTuple = [lat[t.length - 1]!, lon[t.length - 1]!]
+    if (follow) {
+      // Following, the car stays in view until the viewer moves the map (M8).
+      if (!viewerMoved) {
+        moving = true
+        if (fitted) m.panTo(car, { animate: false })
+        else m.setView(car, 16, { animate: false })
+        fitted = true
+      }
+    } else if (!fitted) {
+      // The view is fitted once; after that it's the viewer's, as the trace grows (M7.6).
+      m.fitBounds(L.latLngBounds(t.map((_, i) => [lat[i]!, lon[i]!] as L.LatLngTuple)), { padding: [16, 16] })
+      fitted = true
+    }
+    if (!fitted) return // the viewer moved it before it was ever set: wait for one
+
     layer.clearLayers()
     const known = speeds.filter((s): s is number => s !== null)
     const min = known.length > 0 ? Math.min(...known) : 0
     const max = known.length > 0 ? Math.max(...known) : 0
     const step = (s: number | null) => (s === null || max === min ? -1 : Math.min(STEPS - 1, Math.floor(((s - min) / (max - min)) * STEPS)))
     const stops = speedStops()
-    const unknown = color('no-data')
+    const unknown = follow ? color('accent') : color('no-data')
     const colorOf = (k: number) => (k < 0 ? unknown : speedColor(min + ((k + 0.5) / STEPS) * (max - min), min, max, stops) ?? unknown)
 
     // Runs of one speed step, each run sharing its end point with the next so the trace is unbroken.
@@ -80,16 +106,15 @@
     }
     if (run.length > 1) L.polyline(run, { color: colorOf(current), weight: 4, opacity: 0.9 }).addTo(layer)
 
-    // The view is fitted once; after that it's the viewer's, as the trace grows (M7.6).
-    if (!fitted && t.length > 0) {
-      m.fitBounds(L.latLngBounds(t.map((_, i) => [lat[i]!, lon[i]!] as L.LatLngTuple)), { padding: [16, 16] })
-      fitted = true
+    if (follow && dot) {
+      dot.setLatLng(car)
+      if (!m.hasLayer(dot)) dot.addTo(m)
     }
   })
 
   $effect(() => {
     const at = cursor
-    if (!map || !dot) return
+    if (!map || !dot || follow) return // following, the dot is the car, not the cursor
     const i = at === null ? -1 : nearest(t, at)
     if (i < 0) {
       dot.remove()
@@ -100,9 +125,14 @@
   })
 </script>
 
-<div class="map" bind:this={box}></div>
+<div class="wrap">
+  <div class="map" bind:this={box}></div>
+  {#if follow && viewerMoved}<button class="recentre" onclick={() => (viewerMoved = false)}>Follow the car</button>{/if}
+</div>
 
 <style>
+  .wrap { position: relative; }
+  .recentre { position: absolute; right: 10px; bottom: 24px; z-index: 1000; background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
   .map { width: 100%; height: 360px; border-radius: 10px; overflow: hidden; background: var(--panel); }
   .map :global(.leaflet-control-attribution) { font-size: 0.7rem; }
 </style>

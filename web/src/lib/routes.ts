@@ -5,6 +5,7 @@ export type Route =
   | { page: 'sessions'; slug: string }
   | { page: 'session'; slug: string; id: string }
   | { page: 'admin' }
+  | { page: 'preview'; slug: string }
 
 const CAR = /^\/cars\/([a-z][a-z0-9-]{1,31})\/?$/
 const SESSIONS = /^\/cars\/([a-z][a-z0-9-]{1,31})\/sessions\/?$/
@@ -13,6 +14,9 @@ const ADMIN = /^\/admin\/?$/
 
 export function route(path: string): Route {
   if (ADMIN.test(path)) return { page: 'admin' }
+  // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.
+  const preview = import.meta.env.DEV ? /^\/dev\/widgets\/([a-z][a-z0-9-]{1,31})\/?$/.exec(path) : null
+  if (preview?.[1]) return { page: 'preview', slug: preview[1] }
   const list = SESSIONS.exec(path)
   if (list?.[1]) return { page: 'sessions', slug: list[1] }
   const one = SESSION.exec(path)

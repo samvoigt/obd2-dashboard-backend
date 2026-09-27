@@ -221,6 +221,73 @@ Vitest:
 **Done when:** Vitest and a type check, and every widget looked at in Chrome on
 a scratch page, with a replay streaming.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The contract's units** (§4.1): °C, kPa, km/h, km, g/s, L/h, m (GPS),
+>   m/s² (the G-meter), %, V, mA, s, rpm, °. US counterparts: °F, psi, mph,
+>   mi, gal/h, ft. **No litres or gallons**: the catalogue has no volume (fuel
+>   is a percentage), so that conversion is dropped. g/s stays as sent. The
+>   G-meter shows g whatever the switch says.
+> - **Warning zones are per signal, not per unit**: "over 105 °C" is right for
+>   coolant and wrong for outside air, which is also °C. They're generic
+>   engine knowledge (coolant, oil, voltage, engine speed), never one car's, so
+>   the app's decision 33 holds. **Ranges** default by unit, and a signal can
+>   have its own (outside air −20 to 50 °C, voltage 10 to 16 V).
+> - **Out of date:** each signal's usual interval comes from the page's 5
+>   minutes of history (its median gap), on the server's clock (`LiveState`'s
+>   offset), as the whole car's freshness is. Stale once the last reading is 5
+>   times that old (never under 2 s); "stopped" if the tablet said so; "—" if it
+>   never came.
+> - **The live map** reuses `SessionMap`'s drawing but follows the car (the
+>   latest position, a 5-minute trail) unless the viewer has dragged or zoomed
+>   it; so `SessionMap` gains a `follow` option rather than a second map.
+> - **Laps** come from M7's merge (the archive's series, then the live
+>   history), as "Whole session" does, re-checked each minute: the last lap is
+>   the highest-numbered, and the difference is last minus best.
+> - **The scratch page is dev-only**: a `preview` route in `routes.ts` that
+>   exists only when `import.meta.env.DEV`, so Vite drops it from the build,
+>   and the server never serves `/dev/…` anyway.
+
+> **✅ Done, 2026-09-27.**
+> - **New:** `units.ts`, `unitsState.svelte.ts`, `readout.ts`, `dashboard.ts`
+>   (slots, profiles, zones, `timings`, freshness, the G-meter, the lap
+>   summary); the widgets `Gauge`, `Readout`, `Bar`, `Status`, `Faults`,
+>   `GMeter`, `LapsPanel`, `UnitsSwitch`; `SessionMap`'s `follow`; the dev-only
+>   `/dev/widgets/{slug}`.
+> - **Tests:** 17 new (94 in all). Mutations: 17, 16 killed once a test for
+>   off-scale zones was added. The equivalent one is decimals by the sent unit
+>   rather than the shown one, which today are the same for every converted
+>   pair.
+> - **Looked at in Chrome**, with a synthetic race (both G axes, GPS, laps, a
+>   fault, the MIL) streaming and uploading:
+>   - gauges with their zones; coolant near caution;
+>   - numbers, the fuel bar;
+>   - the G-meter's dot, trail and peaks;
+>   - the map following the car;
+>   - laps (last, best never a pit lap, the difference in light pink);
+>   - the MIL on in hot pink, the fuel system's words, P0301;
+>   - US units (mph, °F, the dial's scale converted, the choice remembered);
+>   - the stream stopped: every reading stale within 4 s, "never" for signals
+>     it didn't send.
+> - **Found by looking**, all fixed:
+>   - **The page hung the browser.** First, the peaks effect wrote what it
+>     read, so it reran itself (now `untrack`ed). Then, even without that, 15
+>     widgets each scanned the 5 minutes of history (about 10,000 records)
+>     every 100 ms, through the deep proxies Svelte puts on `$state`: millions
+>     of proxied reads a second. Now **`timings()`** works out every signal's
+>     last reading and usual gap **in one pass per batch**, and the live state
+>     is **`$state.raw`** (every update replaces it whole, so it needs no
+>     proxies). **The car's page must do both** (M8.3).
+>   - **The map drew nothing** in follow mode: Leaflet can't place a line on a
+>     map without a view, so the view is now set before drawing.
+>   - **The preview reached the production bundle** through a static import;
+>     it's now loaded lazily behind `import.meta.env.DEV`, and the build is 18
+>     KB smaller without it.
+>   - The first synthetic race had no longitudinal G, so the G-meter (which
+>     needs both axes, as the tablet sends) said "No readings"; the race was
+>     regenerated with both.
+>
+>   A hung tab also stuck Chrome's automation until Sam closed the tabs.
+
 ### M8.3 — The page
 
 **Checkpoint first: Sam picks the slots' signals**, from the proposal and the

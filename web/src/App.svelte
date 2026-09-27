@@ -16,6 +16,9 @@
   <SessionsPage slug={current.slug} />
 {:else if current.page === 'session'}
   <SessionPage slug={current.slug} id={current.id} />
+{:else if import.meta.env.DEV && current.page === 'preview'}
+  <!-- Loaded only in the dev server: in the build this branch is false, and the preview is dropped. -->
+  {#await import('./WidgetsPreview.svelte') then m}<m.default slug={current.slug} />{/await}
 {:else if current.page === 'admin'}
   <Admin />
 {:else}
