@@ -401,6 +401,54 @@ merge.
 ahead, a reconnect); looked at in Chrome with a replay streaming live and
 uploading, through at least two chunk uploads.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **The live stream carries the raw records**, `seq` and `wall` included:
+>   the snapshot's `history` (`{atMs, record}`) and each `records` event, with
+>   the session's header (its `id`) in the snapshot and in `session` events.
+>   So the page can merge by `seq`, as §7 says.
+> - **The cut-off must come with the data it cuts.** A separate "archived up
+>   to" could be from a different moment than the file fetched. So the
+>   prepared file records the last `seq` it covers (`lastSeq`). That's a new
+>   field, so **`SeriesBuilder.VERSION` becomes 2**, and every stored file
+>   rebuilds itself on next view (the version is in its name, M7.2).
+> - **A live session with no archived lines yet** (the live lane announces it
+>   before the first chunk) gets its page from the live stream alone: the
+>   detail route answers while it's live, and the series is simply absent.
+> - **The merge is pure** (`merge.ts`, Vitest): the archive up to `lastSeq`,
+>   then live records with a higher `seq`, deduplicated, in `seq` order, turned
+>   into the same columns. **An explicit break** goes where the two don't meet
+>   (over 5 s apart), and within the live part the same way.
+> - **Cost:** re-merging and re-joining a 3-hour race on every 200 ms batch
+>   would be too much, so the chart takes the merge at most once a second, as
+>   the live chart does. The prepared file is re-checked every minute, which is
+>   usually a `304`.
+> - **Provisional rows are marked:** the chart shades the stretch the archive
+>   doesn't yet cover (a `bands` prop, drawn in the same hook as markers).
+> - **The live page's switch** fetches the live session's prepared file, and
+>   feeds the same merge with its own live history and updates.
+
+> **✅ Done, 2026-09-26.**
+> - **New:** `merge.ts` (7 Vitest tests; 60 in all); `lastSeq` in the
+>   prepared file (version 2); a live session's page before its first chunk;
+>   `Chart.svelte`'s `bands`; the session page following a live session; the
+>   live page's "Last 5 minutes | Whole session" switch.
+> - **Looked at in Chrome** with the synthetic race streamed live and uploaded
+>   at real speed, through two chunk uploads (4,001 lines archived):
+>   - before the first chunk, the page drew from the live stream alone, all of
+>     it shaded;
+>   - after it, the prepared file said `lastSeq` 2000, and only the part after
+>     that was shaded; the join was seamless;
+>   - the live page's "Whole session" showed everything from the start, the
+>     archive then the shaded live part.
+> - **Found by looking:** the map drew its trace once and never again, so it
+>   stopped growing while the chart went on. It now redraws as positions come,
+>   fitting the view only the first time, so a viewer's zoom stays put.
+> - **In the synthetic file, `started` and `wall` disagree by 2 hours**, which
+>   made the live page header read "14 h". Real logs have `started` equal to the
+>   first `wall`; noted, not a page bug.
+> - **Mutations:** 14 in the merge (a lap without a time survived until a test
+>   covered it) and 3 on the server, all killed.
+
 ### M7.7 — Deploy, and prove it live
 
 Deploy; replay the test logs into a throwaway car (archive, and one live); the

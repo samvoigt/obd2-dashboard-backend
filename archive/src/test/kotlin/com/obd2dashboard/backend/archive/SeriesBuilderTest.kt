@@ -43,7 +43,8 @@ class SeriesBuilderTest {
             rpm(100, 900.5), rpm(300, 1200.0),
             sample("diagnostics.mil", 150, "\"flag\":false"), sample("diagnostics.mil", 350, "\"flag\":true"),
         )
-        s.getValue("version").jsonPrimitive.content shouldBe "1"
+        s.getValue("version").jsonPrimitive.content shouldBe "2"
+        s.getValue("lastSeq").jsonPrimitive.content shouldBe "350"
         s.getValue("t0").jsonPrimitive.content shouldBe t0.toString()
         s.getValue("signals").jsonArray.single().jsonObject.getValue("unit").jsonPrimitive.content shouldBe "rpm"
         s.numbers("engine.rpm") shouldBe (listOf("100", "300") to listOf("900.5", "1200.0"))
@@ -145,6 +146,12 @@ class SeriesBuilderTest {
         val lap = e.getValue("lap").jsonArray.single().jsonArray
         lap[0].jsonPrimitive.content shouldBe "800"
         lap[1].jsonObject.getValue("pitIn").jsonPrimitive.content shouldBe "true" // the whole record, as it came
+    }
+
+    @Test
+    fun `lastSeq is the highest seq in the file, whatever its type, and null without any`() {
+        build(rpm(100), """{"type":"weather","seq":900,"at":1,"wall":$t0}""", rpm(50)).getValue("lastSeq").jsonPrimitive.content shouldBe "900"
+        build().getValue("lastSeq").toString() shouldBe "null"
     }
 
     @Test

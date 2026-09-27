@@ -11,6 +11,7 @@
     range = null,
     onCursor,
     markers = [],
+    bands = [],
   }: {
     data: [number[], ...(number | null | undefined)[][]]
     names: string[]
@@ -23,6 +24,8 @@
     onCursor?: (t: number | null) => void
     /** Thin lines across the plot, at seconds. */
     markers?: { t: number; color: string }[]
+    /** Shaded stretches, in seconds: live data the archive doesn't cover yet (M7.6). */
+    bands?: { from: number; to: number; color: string }[]
   } = $props()
 
   const COLORS = ['#3ddc84', '#5aa0ff', '#ffb020']
@@ -45,6 +48,13 @@
         draw: [(u) => {
           const { ctx, bbox } = u
           ctx.save()
+          for (const b of bands) {
+            const x0 = Math.max(bbox.left, u.valToPos(b.from, 'x', true))
+            const x1 = Math.min(bbox.left + bbox.width, u.valToPos(b.to, 'x', true))
+            if (x1 <= x0) continue
+            ctx.fillStyle = b.color
+            ctx.fillRect(x0, bbox.top, x1 - x0, bbox.height)
+          }
           ctx.lineWidth = 1
           for (const m of markers) {
             const x = Math.round(u.valToPos(m.t, 'x', true))

@@ -45,9 +45,12 @@ public class SeriesBuilder {
     private val gaps = mutableListOf<Pair<Long, Long>>()
     private val gapSeqs = LongList()
     private val laps = mutableListOf<Pair<Long, JsonObject>>()
+    private var lastSeq: Long? = null
 
     /** One parsed record; one without `wall` can't be placed in time and is skipped. */
     public fun record(record: JsonObject) {
+        // How far the file reaches, for merging with the live lane by seq (§7, M7.6).
+        record.long("seq")?.let { seq -> lastSeq = maxOf(lastSeq ?: seq, seq) }
         val wall = record.long("wall") ?: return
         when (record.string("type")) {
             "sample" -> sample(record, wall)
@@ -99,7 +102,7 @@ public class SeriesBuilder {
     public fun write(out: OutputStream, t0: Long, signals: List<SignalInfo>) {
         val w = out.bufferedWriter(Charsets.UTF_8)
         val gapSeqs = LongArray(gapSeqs.size) { gapSeqs[it] }.apply { sort() }
-        w.write("""{"version":$VERSION,"t0":$t0,"signals":[""")
+        w.write("""{"version":$VERSION,"t0":$t0,"lastSeq":${lastSeq ?: "null"},"signals":[""")
         signals.forEachIndexed { i, s ->
             if (i > 0) w.write(",")
             w.write("""{"name":${str(s.name)},"unit":${str(s.unit)},"kind":${str(s.kind)}}""")
@@ -199,7 +202,8 @@ public class SeriesBuilder {
     }
 
     public companion object {
-        public const val VERSION: Int = 1
+        /** 2: `lastSeq` added (M7.6). */
+        public const val VERSION: Int = 2
         public const val BREAK_FACTOR: Int = 5
         public const val MIN_BREAK_MS: Long = 1_000
 

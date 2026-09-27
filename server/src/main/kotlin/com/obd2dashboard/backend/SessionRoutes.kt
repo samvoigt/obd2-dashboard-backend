@@ -97,7 +97,8 @@ fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: Liv
     }
 
     get("/api/sessions/{id}") {
-        val record = call.sessionRecord(archive) ?: return@get
+        // A live session has a page before its first chunk arrives (M7.6): from the live stream alone.
+        val record = call.sessionRecord(archive, allowLive = hub) ?: return@get
         val car = registry.get(Slug.parse(record.car)) ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
         val summary = if (record.complete) archive.summary(record.id) else null
         call.respond(
@@ -129,11 +130,16 @@ fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: Liv
 }
 
 /** The session named in the path, or null having answered 404: a bad id never reaches a store. */
-private suspend fun io.ktor.server.application.ApplicationCall.sessionRecord(archive: ArchiveService): SessionRecord? {
+private suspend fun io.ktor.server.application.ApplicationCall.sessionRecord(
+    archive: ArchiveService,
+    /** With the hub, a session with no lines yet is found while it is live. */
+    allowLive: LiveHub? = null,
+): SessionRecord? {
     val raw = parameters["id"].orEmpty()
-    val record = if (SessionIds.isValid(raw)) archive.session(SessionIds.normalise(raw)) else null
-    if (record == null || record.ackedThrough < 0) respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
-    return record?.takeIf { it.ackedThrough >= 0 }
+    val record = (if (SessionIds.isValid(raw)) archive.session(SessionIds.normalise(raw)) else null)
+        ?.takeIf { it.ackedThrough >= 0 || (allowLive != null && allowLive.status(it.car).liveSession() == it.id) }
+    if (record == null) respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+    return record
 }
 
 /**

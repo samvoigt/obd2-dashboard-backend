@@ -8,6 +8,8 @@
     label, numericSignals, series, unitOf, type LiveState,
   } from './lib/live'
   import { stateLabel } from './lib/state'
+  import { merge } from './lib/merge'
+  import { fetchSeries, joined, type Series } from './lib/sessionPage'
 
   let { slug }: { slug: string } = $props()
 
@@ -31,14 +33,40 @@
   )
   const chartNames = $derived(chosen.length > 0 ? chosen : defaultChart(live))
   const chartUnits = $derived(chartNames.map((n) => unitOf(live, n)))
-  // The chart redraws at most every half second: the eye cannot use more, and a phone should not work harder.
-  let chartData: [number[], ...(number | null)[][]] = $state([[]])
+  // "Whole session" (M7.6): the archive's prepared file, merged with the live history after it.
+  let whole = $state(false)
+  let archived = $state<Series | null>(null)
+  const liveId = $derived(typeof live.session?.id === 'string' ? live.session.id : null)
+  $effect(() => {
+    const id = liveId
+    if (!whole || !id) {
+      archived = null
+      return
+    }
+    let stopped = false
+    const load = () => fetchSeries(id).then((s) => { if (!stopped) archived = s }).catch(() => {})
+    load()
+    const timer = setInterval(load, 60_000) // a new chunk every 2 minutes; usually a 304
+    return () => { stopped = true; clearInterval(timer) }
+  })
+
+  // The chart redraws at most every half second (a second for the whole session): the eye cannot use
+  // more, and a phone should not work harder.
+  let chartData: [number[], ...(number | null | undefined)[][]] = $state([[]])
+  let chartBands: { from: number; to: number; color: string }[] = $state([])
   let lastChart = 0
   $effect(() => {
     const t = now
-    if (t - lastChart >= 500) {
-      lastChart = t
+    if (t - lastChart < (whole ? 1000 : 500)) return
+    lastChart = t
+    if (whole) {
+      const m = merge(archived, live.history.map((p) => p.rec as Record<string, unknown>), live.signals as Series['signals'])
+      chartData = joined(m.series, chartNames)
+      const end = chartData[0][chartData[0].length - 1]
+      chartBands = m.provisionalFrom !== null && end !== undefined ? [{ from: m.provisionalFrom / 1000, to: end, color: 'rgba(255, 176, 32, 0.08)' }] : []
+    } else {
       chartData = series(live, chartNames)
+      chartBands = []
     }
   })
 
@@ -129,10 +157,16 @@
               {#each numericSignals(live) as n}<option value={n}>{label(n)}</option>{/each}
             </select>
           {/each}
-          <span class="muted small">last 5 minutes</span>
+          <span class="toggle">
+            <button class:on={!whole} onclick={() => (whole = false)}>Last 5 minutes</button>
+            <button class:on={whole} disabled={!liveId} onclick={() => (whole = true)}>Whole session</button>
+          </span>
         </div>
         {#if chartNames.length > 0}
-          <Chart data={chartData} names={chartNames} units={chartUnits} />
+          <Chart data={chartData} names={chartNames} units={chartUnits} zoom={whole} bands={chartBands} />
+        {/if}
+        {#if whole && chartBands.length > 0}
+          <p class="muted small">Shaded: live, not yet in the archive. It fills in as the tablet uploads, every 2 minutes.</p>
         {/if}
       </section>
 
@@ -169,6 +203,10 @@
   .fault { color: var(--danger); font-weight: 600; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 16px 0; }
   .pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .toggle button { background: var(--bg); color: var(--muted); border: none; padding: 6px 10px; font-size: 0.9rem; cursor: pointer; }
+  .toggle button.on { background: var(--panel); color: var(--text); font-weight: 600; }
+  .toggle button:disabled { opacity: 0.5; cursor: default; }
   select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 0.95rem; max-width: 100%; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
   .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }

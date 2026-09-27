@@ -365,7 +365,7 @@ class ArchiveServiceTest {
         completeFixture()
         val key = archive.prepare(id)
         key shouldBe ArchiveService.seriesKey(id, null)
-        key shouldBe "sessions/$id/series-v${SeriesBuilder.VERSION}.json.gz"
+        key shouldBe "sessions/$id/series-v2.json.gz"
         index.get(id)!!.summary!!.lines shouldBe Fixtures.SESSION_LINES.toLong()
         val first = store.objects.getValue(key!!)
         store.objects.remove(ArchiveService.sessionKey(id)) // a second call must not read the log again

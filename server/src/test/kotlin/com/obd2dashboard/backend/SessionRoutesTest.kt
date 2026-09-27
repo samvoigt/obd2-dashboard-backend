@@ -200,6 +200,7 @@ class SessionRoutesTest {
         runBlocking { archive.announce("yaris", A) } // what the live lane does first
         fun listed() = runBlocking { client.get("/api/cars/yaris/sessions").bodyAsText() }
         listed() shouldNotContain A
+        client.get("/api/sessions/$A").status shouldBe HttpStatusCode.NotFound // not live: nothing to show
         runBlocking {
             val tablet = hub.attach("yaris", object : com.obd2dashboard.backend.live.TabletHandle {
                 override fun superseded() {}
@@ -214,6 +215,8 @@ class SessionRoutesTest {
         listed() shouldContain A
         listed() shouldContain "\"state\":\"live\""
         listed() shouldContain "\"ended\":${clock.millis()}" // still going: it ends now
+        client.get("/api/sessions/$A").status shouldBe HttpStatusCode.OK // its page, from the live stream alone
+        client.get("/api/sessions/$A/series").status shouldBe HttpStatusCode.NotFound // nothing archived yet
     }
 
     @Test

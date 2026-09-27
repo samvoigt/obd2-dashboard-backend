@@ -22,6 +22,8 @@ export interface LapRecord {
 export interface Series {
   version: number
   t0: number
+  /** The last `seq` the file covers (M7.6), for merging with the live lane; null if none. */
+  lastSeq?: number | null
   signals: SeriesSignal[]
   numbers: Record<string, { t: number[]; v: (number | null)[] }>
   states: Record<string, [number, number | null, string | null][]>

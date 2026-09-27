@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
@@ -7,6 +7,7 @@
     type LapRow, type Series,
   } from './lib/sessionPage'
   import { badge, clockOf, dayOf, duration, lapTime, trackOf, type SessionItem } from './lib/sessions'
+  import { merge } from './lib/merge'
 
   let { slug, id }: { slug: string; id: string } = $props()
 
@@ -28,15 +29,34 @@
   let chosenLap = $state<number | null>(null)
   let cursor = $state<number | null>(null)
 
-  const names = $derived(series ? (chosen.length > 0 ? chosen : defaultSignals(series)) : [])
-  const data = $derived(series ? joined(series, names) : null)
-  const units = $derived(series ? names.map((n) => unitOf(series!, n)) : [])
-  const numbers = $derived(series ? Object.keys(series.numbers).sort() : [])
-  const laps: LapRow[] = $derived(series ? lapRows(series) : [])
-  const happened = $derived(series ? events(series) : [])
+  // A session being driven (M7.6): live records after the archive's end, merged once a second.
+  // Kept out of Svelte's state, since they arrive every 200 ms; `tick` says when to look again.
+  let liveRecords: Record<string, unknown>[] = []
+  let liveSignals: Series['signals'] = []
+  let tick = $state(0)
+  const merged = $derived.by(() => {
+    void tick
+    if (detail?.session.state !== 'live') return { series, provisionalFrom: null as number | null }
+    const m = merge(series, liveRecords, liveSignals)
+    // Nothing archived and nothing live yet: still loading.
+    return { series: series || liveRecords.length > 0 ? m.series : null, provisionalFrom: m.provisionalFrom }
+  })
+  const view = $derived(merged.series)
+
+  const names = $derived(view ? (chosen.length > 0 ? chosen : defaultSignals(view)) : [])
+  const data = $derived(view ? joined(view, names) : null)
+  const bands = $derived(
+    merged.provisionalFrom !== null && data && data[0].length > 0
+      ? [{ from: merged.provisionalFrom / 1000, to: data[0][data[0].length - 1]!, color: 'rgba(255, 176, 32, 0.08)' }]
+      : [],
+  )
+  const units = $derived(view ? names.map((n) => unitOf(view!, n)) : [])
+  const numbers = $derived(view ? Object.keys(view.numbers).sort() : [])
+  const laps: LapRow[] = $derived(view ? lapRows(view) : [])
+  const happened = $derived(view ? events(view) : [])
   const markers = $derived(happened.map((m) => ({ t: m.t, color: m.kind === 'fault' ? '#ff5c5c' : m.kind === 'gap' ? '#ffb020' : '#8b97a5' })))
-  const positions = $derived(series ? series.positions.t.map((t) => series!.t0 + t) : [])
-  const speeds = $derived(series ? speedsAtPositions(series) : [])
+  const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
+  const speeds = $derived(view ? speedsAtPositions(view) : [])
 
   onMount(async () => {
     try {
@@ -48,10 +68,44 @@
       if (!response.ok) throw new Error(`The server answered ${response.status}.`)
       detail = (await response.json()) as Detail
       series = await fetchSeries(id)
+      if (detail.session.state === 'live') follow()
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
   })
+
+  /** While the session is driven: the car's live stream, and the archive re-checked each minute. */
+  function follow() {
+    const source = new EventSource(`/api/cars/${slug}/live`)
+    let current: string | null = null
+    const ours = () => current === id
+    source.addEventListener('snapshot', (ev) => {
+      const e = JSON.parse((ev as MessageEvent).data) as { session?: { id?: string; signals?: Series['signals'] }; history?: { record: Record<string, unknown> }[] }
+      current = e.session?.id ?? null
+      if (!ours()) return
+      liveSignals = e.session?.signals ?? liveSignals
+      liveRecords = (e.history ?? []).map((h) => h.record) // a snapshot is the whole live truth (M4.4)
+    })
+    source.addEventListener('session', (ev) => {
+      current = (JSON.parse((ev as MessageEvent).data) as { session?: { id?: string } }).session?.id ?? null
+    })
+    source.addEventListener('records', (ev) => {
+      if (!ours()) return
+      liveRecords = liveRecords.concat((JSON.parse((ev as MessageEvent).data) as { records: Record<string, unknown>[] }).records)
+    })
+    const ticker = setInterval(() => tick++, 1000)
+    const refresh = setInterval(async () => {
+      const next = await fetchSeries(id).catch(() => null)
+      if (next) {
+        series = next
+        const cutoff = next.lastSeq ?? -Infinity
+        liveRecords = liveRecords.filter((r) => typeof r.seq === 'number' && r.seq > cutoff) // the archive has these now
+      }
+    }, 60_000)
+    stopFollowing = () => { source.close(); clearInterval(ticker); clearInterval(refresh) }
+  }
+  let stopFollowing = () => {}
+  onDestroy(() => stopFollowing())
 
   function pick(index: number, value: string) {
     const next = [...names]
@@ -90,11 +144,13 @@
       {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}
       {#if s.state === 'live'}<a href={`/cars/${slug}`}>Watch live →</a>{/if}
     </p>
-    {#if s.state === 'uploading' || s.state === 'live'}
+    {#if s.state === 'uploading'}
       <p class="muted small">Still being uploaded: this shows what has arrived so far. Reload for more.</p>
+    {:else if s.state === 'live'}
+      <p class="muted small">Being driven now: this follows it live. The shaded part is live data the archive doesn't cover yet; it fills in as the tablet uploads.</p>
     {/if}
 
-    {#if !series}
+    {#if !view}
       <p class="muted">Loading the session's data…</p>
     {:else}
       <section class="panel">
@@ -108,7 +164,7 @@
           <span class="muted small">Drag across the chart to zoom in; double-click to zoom out.</span>
         </div>
         {#if data && data[0].length > 0}
-          <Chart {data} {names} {units} zoom {range} {markers} onCursor={(t) => (cursor = t === null ? null : t * 1000)} />
+          <Chart {data} {names} {units} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} />
         {:else}
           <p class="muted">No readings to chart.</p>
         {/if}
@@ -117,7 +173,7 @@
       {#if positions.length > 0}
         <section class="panel">
           <h2>Where it went</h2>
-          <SessionMap t={positions} lat={series.positions.lat} lon={series.positions.lon} {speeds} {cursor} />
+          <SessionMap t={positions} lat={view.positions.lat} lon={view.positions.lon} {speeds} {cursor} />
           <p class="muted small">Coloured by speed, blue slow to red fast. The dot follows the chart's cursor.</p>
         </section>
       {/if}

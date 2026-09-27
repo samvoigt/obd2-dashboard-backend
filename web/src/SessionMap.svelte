@@ -21,8 +21,10 @@
   } = $props()
 
   let box: HTMLDivElement
-  let map: L.Map | null = null
+  let map = $state<L.Map | null>(null)
   let dot: L.CircleMarker | null = null
+  let trace: L.LayerGroup | null = null
+  let fitted = false
 
   /** Speeds in 16 steps, so a long trace is a few hundred lines, not thousands. */
   const STEPS = 16
@@ -35,6 +37,25 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map)
 
+    trace = L.layerGroup().addTo(map)
+    dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#111', fillOpacity: 1 })
+
+    const resize = new ResizeObserver(() => map?.invalidateSize())
+    resize.observe(box)
+    return () => {
+      resize.disconnect()
+      map?.remove()
+      map = null
+    }
+  })
+
+  // The trace, drawn again whenever positions come (a session being driven, M7.6).
+  $effect(() => {
+    const m = map
+    const layer = trace
+    void t.length
+    if (!m || !layer) return
+    layer.clearLayers()
     const known = speeds.filter((s): s is number => s !== null)
     const min = known.length > 0 ? Math.min(...known) : 0
     const max = known.length > 0 ? Math.max(...known) : 0
@@ -48,23 +69,18 @@
       const k = step(speeds[i] ?? null)
       if (k !== current && run.length > 0) {
         run.push([lat[i]!, lon[i]!])
-        L.polyline(run, { color: colorOf(current), weight: 4, opacity: 0.9 }).addTo(map)
+        L.polyline(run, { color: colorOf(current), weight: 4, opacity: 0.9 }).addTo(layer)
         run = []
         current = k
       }
       run.push([lat[i]!, lon[i]!])
     }
-    if (run.length > 1) L.polyline(run, { color: colorOf(current), weight: 4, opacity: 0.9 }).addTo(map)
+    if (run.length > 1) L.polyline(run, { color: colorOf(current), weight: 4, opacity: 0.9 }).addTo(layer)
 
-    if (t.length > 0) map.fitBounds(L.latLngBounds(t.map((_, i) => [lat[i]!, lon[i]!] as L.LatLngTuple)), { padding: [16, 16] })
-    dot = L.circleMarker([lat[0] ?? 0, lon[0] ?? 0], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#111', fillOpacity: 1 })
-
-    const resize = new ResizeObserver(() => map?.invalidateSize())
-    resize.observe(box)
-    return () => {
-      resize.disconnect()
-      map?.remove()
-      map = null
+    // The view is fitted once; after that it's the viewer's, as the trace grows (M7.6).
+    if (!fitted && t.length > 0) {
+      m.fitBounds(L.latLngBounds(t.map((_, i) => [lat[i]!, lon[i]!] as L.LatLngTuple)), { padding: [16, 16] })
+      fitted = true
     }
   })
 
