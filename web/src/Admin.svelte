@@ -262,8 +262,8 @@
         <label><span>Name</span> <input bind:value={newName} placeholder="Outback" /></label>
         <label class="check"><input type="checkbox" bind:checked={newChoose} /> Choose the token myself</label>
         {#if newChoose}
-          <label><span>Token</span> <input type="password" bind:value={newToken} autocomplete="new-password" /></label>
-          <label><span>Again</span> <input type="password" bind:value={newToken2} autocomplete="new-password" /></label>
+          <label><span>Token</span> <input class="secret" type="text" bind:value={newToken} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></label>
+          <label><span>Again</span> <input class="secret" type="text" bind:value={newToken2} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></label>
         {/if}
         {#if addProblem && (newSlug || newName)}<p class="hint">{addProblem}</p>{/if}
         <div class="row">
@@ -351,8 +351,8 @@
                 <p class="warn">The tablet stops sending until it's given the new token.</p>
                 <label class="check"><input type="checkbox" bind:checked={choose} /> Choose the token myself</label>
                 {#if choose}
-                  <label><span>Token</span> <input type="password" bind:value={token} autocomplete="new-password" /></label>
-                  <label><span>Again</span> <input type="password" bind:value={token2} autocomplete="new-password" /></label>
+                  <label><span>Token</span> <input class="secret" type="text" bind:value={token} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></label>
+                  <label><span>Again</span> <input class="secret" type="text" bind:value={token2} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></label>
                   {#if token}<p class="hint">{twiceProblem(token, token2, tokenProblem) ?? ''}</p>{/if}
                 {/if}
                 <label><span>Type <strong>Replace</strong> to confirm</span> <input bind:value={typed} autocomplete="off" /></label>
@@ -365,8 +365,8 @@
                 </div>
               {:else if open.action === 'passcode'}
                 {#if car.passcodeSet}<p class="warn">Every crew member is signed out and needs the new one.</p>{/if}
-                <label><span>Passcode</span> <input type="password" bind:value={passcode} autocomplete="new-password" /></label>
-                <label><span>Again</span> <input type="password" bind:value={passcode2} autocomplete="new-password" /></label>
+                <label><span>Passcode</span> <input class="secret" type="text" bind:value={passcode} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></label>
+                <label><span>Again</span> <input class="secret" type="text" bind:value={passcode2} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" /></label>
                 {#if passcode}<p class="hint">{twiceProblem(passcode, passcode2, passcodeProblem) ?? ''}</p>{/if}
                 <div class="row">
                   <button class="primary" disabled={busy || !!twiceProblem(passcode, passcode2, passcodeProblem)} onclick={() => setPasscode(car)}>Save passcode</button>
@@ -402,6 +402,8 @@
   label { display: grid; gap: 4px; font-size: 0.95rem; }
   label.check { display: flex; align-items: center; gap: 8px; }
   input:not([type='checkbox']) { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 1rem; min-width: 0; width: 100%; max-width: 420px; }
+  /* Tokens and passcodes are typed in the open (Sam), in a face where 0 and O, l and 1 differ. */
+  input.secret { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 0.95rem; cursor: pointer; }
   button:disabled { opacity: 0.5; cursor: default; }
   button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }

@@ -595,7 +595,10 @@ rate-limit failed tablet logins, or go back to generated tokens only.
   host), on top of `SameSite=Strict` and JSON-only bodies. `/admin` can't be
   framed (`X-Frame-Options: DENY`, `frame-ancestors 'none'`).
 - **Every change is logged** with who made it, and never a token or passcode.
-- **Generated tokens are shown once**; chosen ones are typed twice. Replacing a
+- **Generated tokens are shown once**; chosen ones are typed twice, and
+  chosen tokens and passcodes are **typed in the open**, not in password fields
+  (Sam, 2026-09-27): the owner types them to hand on, so seeing them beats
+  hiding them. The server still keeps only their hashes. Replacing a
   token asks for "Replace" to be typed, removing a car its slug, and deleting a
   session the first 8 characters of its id.
 - **A session can't be deleted while its tablet is live on it, or while its
