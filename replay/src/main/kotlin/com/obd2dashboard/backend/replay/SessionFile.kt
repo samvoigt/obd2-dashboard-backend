@@ -67,10 +67,25 @@ class SessionFile(val lines: List<ByteArray>, val id: String) {
             }
             // A stable id per (source, token), so a rerun resumes the same session.
             val id = UUID.nameUUIDFromBytes((idSeed + ":" + sha(raw)).toByteArray()).toString()
-            return SessionFile(listOf(upgrade(header, id, device, lines, units)) + lines.drop(1), id)
+            // v3 has `wall` on every record (§3.1); v1 has only `at`, the app's uptime. So each record's
+            // `wall` is the session's start plus its time since the first record's `at` (M7.4).
+            val started = header["started"]?.jsonPrimitive?.contentOrNull?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() }
+            val firstAt = lines.drop(1).firstNotNullOfOrNull { parse(it)?.get("at")?.jsonPrimitive?.longOrNull }
+            val body = lines.drop(1).map { line -> if (started != null && firstAt != null) withWall(line, started, firstAt) else line }
+            return SessionFile(listOf(upgrade(header, id, device, lines, units, started)) + body, id)
         }
 
-        private fun upgrade(header: JsonObject, id: String, device: String, lines: List<ByteArray>, units: Map<String, String>): ByteArray {
+        /** [line] with `,"wall":…` before its closing brace, if it has `at` and no `wall`; its other bytes untouched. */
+        private fun withWall(line: ByteArray, started: Long, firstAt: Long): ByteArray {
+            val obj = parse(line) ?: return line
+            if ("wall" in obj) return line
+            val at = obj["at"]?.jsonPrimitive?.longOrNull ?: return line
+            val end = line.indexOfLast { it == '}'.code.toByte() }
+            if (end < 0) return line
+            return line.copyOfRange(0, end) + ",\"wall\":${started + (at - firstAt)}".toByteArray() + line.copyOfRange(end, line.size)
+        }
+
+        private fun upgrade(header: JsonObject, id: String, device: String, lines: List<ByteArray>, units: Map<String, String>, started: Long?): ByteArray {
             val signals = signalsOf(lines, units)
             val v3 = buildJsonObject {
                 put("type", "session")
@@ -85,7 +100,7 @@ class SessionFile(val lines: List<ByteArray>, val id: String) {
                 put("signals", signals)
                 put("seq", 0)
                 header["at"]?.let { put("at", it) }
-                header["wall"]?.let { put("wall", it) }
+                (header["wall"] ?: started?.let { JsonPrimitive(it) })?.let { put("wall", it) }
             }
             return v3.toString().toByteArray()
         }

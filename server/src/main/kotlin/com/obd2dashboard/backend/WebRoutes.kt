@@ -16,8 +16,8 @@ import io.ktor.server.routing.get
  * The website (decision 13), from the jar's `web/`.
  *
  * **Explicit routes, not a single-page-app fallback**: a fallback would answer
- * an unknown `/api/...` with HTML instead of a `404`. Only `/`, a car's page and
- * `/admin` get `index.html`; `/assets` holds Vite's hashed files, cached for a year.
+ * an unknown `/api/...` with HTML instead of a `404`. Only `/`, a car's page, its
+ * sessions and each session's page, and `/admin` get `index.html`; `/assets` holds Vite's hashed files, cached for a year.
  */
 fun Route.webRoutes() {
     val index: String? = Thread.currentThread().contextClassLoader.getResource("web/index.html")?.readText()
@@ -34,6 +34,10 @@ fun Route.webRoutes() {
     get("/") { call.page() }
     get("/cars/{slug}") { call.page() }
     get("/cars/{slug}/") { call.page() }
+    // Past sessions (M7.4, M7.5).
+    for (path in listOf("/cars/{slug}/sessions", "/cars/{slug}/sessions/", "/cars/{slug}/sessions/{id}", "/cars/{slug}/sessions/{id}/")) {
+        get(path) { call.page() }
+    }
     // The admin page (M6.5) can replace every token, so no other site may frame it.
     for (path in listOf("/admin", "/admin/")) {
         get(path) {

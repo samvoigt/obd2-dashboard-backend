@@ -213,6 +213,7 @@ class SessionRoutesTest {
         }
         listed() shouldContain A
         listed() shouldContain "\"state\":\"live\""
+        listed() shouldContain "\"ended\":${clock.millis()}" // still going: it ends now
     }
 
     @Test

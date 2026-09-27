@@ -7,12 +7,19 @@ describe('route', () => {
     expect(route('/cars/yaris')).toEqual({ page: 'car', slug: 'yaris' })
     expect(route('/cars/car-42/')).toEqual({ page: 'car', slug: 'car-42' })
   })
+  it("reads a car's sessions, and one session, its id in lower case", () => {
+    expect(route('/cars/yaris/sessions')).toEqual({ page: 'sessions', slug: 'yaris' })
+    expect(route('/cars/yaris/sessions/')).toEqual({ page: 'sessions', slug: 'yaris' })
+    expect(route('/cars/yaris/sessions/7D4C9B1E-2F6A-4E8B-9C3D-5A1B2C3D4E5F')).toEqual({
+      page: 'session', slug: 'yaris', id: '7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f',
+    })
+  })
   it('reads the admin page', () => {
     expect(route('/admin')).toEqual({ page: 'admin' })
     expect(route('/admin/')).toEqual({ page: 'admin' })
   })
   it('sends anything else to the landing page', () => {
-    for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin/x', '/administrator']) {
+    for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin/x', '/administrator', '/cars/yaris/sessions/nope', '/cars/yaris/sessions/a/b']) {
       expect(route(path)).toEqual({ page: 'landing' })
     }
   })

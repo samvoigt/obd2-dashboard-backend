@@ -289,6 +289,45 @@ where true. Linked from the car page.
 **Done when:** Vitest for the grouping and wording; looked at in Chrome with
 several replayed sessions; phone width.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - `routes.ts` gains `sessions` (`/cars/{slug}/sessions`) and `session`
+>   (`/cars/{slug}/sessions/{id}`); `WebRoutes` serves both, explicitly, as
+>   every page is.
+> - **The drives come grouped from the server** (M7.3), so the page only words
+>   them: dates, durations, the best lap, faults, and badges for live and
+>   uploading. That wording is pure, in `sessions.ts`, with Vitest (the grouping
+>   is already tested on the server).
+> - **Links:** the car page gets "Past sessions", and each session row links to
+>   its page. The page itself is M7.5, so until then it's a placeholder.
+> - **To look at it**, the dev server gets sessions from `replay.sh`, which
+>   upgrades the app's v1 logs to v3 (with `wall`), several logs from different
+>   days making several drives.
+
+> **✅ Done, 2026-09-26.** `SessionsPage.svelte`, `sessions.ts` (7 Vitest
+> tests), the `sessions` and `session` routes on both sides (with a placeholder
+> session page), "Past sessions →" on the car page, and each admin session row
+> linked to its page. Looked at in Chrome with four real logs, a synthetic
+> 20-minute race (laps, a pit lap, a fault, a gap, GPS) and a live replay:
+> - drives by day, newest first; the two sessions on the morning of 23 Sept, 5
+>   minutes apart, as one drive;
+> - the race's track and best lap (1:34.000, lap 11 of 12: the quicker pit lap
+>   isn't counted), and its fault code in red;
+> - the live session badged "Live now";
+> - 390 px wide with no sideways scroll.
+>
+> **Found by looking:**
+> - **Every session lasted "0 s".** The validation note above was wrong: the
+>   replay's upgrade gave only line 0 a `wall`. Real v3 has `wall` on every
+>   record (§3.1), so the replay now adds it to each upgraded record (the start,
+>   plus the time since the first `at`), inserted before the closing brace so
+>   the rest of each line is untouched. Tested.
+> - **A live session ended at its start**, so "0 s". A live session now ends
+>   "now" (tested), and a line count of 0 isn't shown.
+>
+> Mutations: 11 in the page's logic and routes, all killed once two boundary
+> tests were added (exactly an hour; a span a stepped-back clock made
+> negative).
+
 ### M7.5 — The session page
 
 `/cars/{slug}/sessions/{id}`:

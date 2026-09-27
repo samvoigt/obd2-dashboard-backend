@@ -94,7 +94,7 @@
 </script>
 
 <main>
-  <p class="back"><a href="/">← Cars</a></p>
+  <p class="back"><a href="/">← Cars</a><a href={`/cars/${slug}/sessions`}>Past sessions →</a></p>
 
   {#if notFound}
     <h1>No car “{slug}”</h1>
@@ -154,7 +154,7 @@
 </main>
 
 <style>
-  .back { margin: 0 0 8px; }
+  .back { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 12px; }
   .back a { color: var(--muted); text-decoration: none; }
   .banner {
     display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 12px;

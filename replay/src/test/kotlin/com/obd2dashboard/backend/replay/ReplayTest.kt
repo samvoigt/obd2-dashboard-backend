@@ -246,7 +246,14 @@ class ReplayTest {
             "fuel.system_1_status" to "state",
             "vehicle.speed" to "number",
         )
-        file.lines.drop(1).map { it.decodeToString() } shouldBe source.drop(1)
+        // Every other line is the source's, with `wall` added: the start plus its time since the first `at`.
+        val started = java.time.Instant.parse("2026-09-09T10:50:59.876517Z").toEpochMilli()
+        header.getValue("wall").jsonPrimitive.content shouldBe started.toString()
+        val firstAt = 262107L
+        file.lines.drop(1).map { it.decodeToString() } shouldBe source.drop(1).map { line ->
+            val at = Json.parseToJsonElement(line).jsonObject.getValue("at").jsonPrimitive.content.toLong()
+            line.dropLast(1) + ",\"wall\":${started + (at - firstAt)}}"
+        }
     }
 
     @Test

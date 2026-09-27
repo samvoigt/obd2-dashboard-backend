@@ -71,12 +71,14 @@ fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: Liv
         val summary = if (record.complete) record.summary?.takeIf { it.version == SessionSummary.VERSION } ?: archive.summary(record.id) else null
         // The summary just built, if it was missing: the record was read before it existed.
         val started = summary?.started ?: sessionStarted(record).toEpochMilli()
+        val state = sessionState(record, live, clock.instant())
         return SessionItem(
             id = record.id,
             started = started,
-            ended = summary?.ended ?: maxOf(record.updated.toEpochMilli(), started),
+            // A live session is still going: it ends now, as far as anyone can say.
+            ended = if (state == "live") clock.millis() else summary?.ended ?: maxOf(record.updated.toEpochMilli(), started),
             lines = record.ackedThrough + 1,
-            state = sessionState(record, live, clock.instant()),
+            state = state,
             track = summary?.track,
             layout = summary?.layout,
             laps = summary?.laps ?: 0,
