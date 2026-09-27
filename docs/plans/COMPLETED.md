@@ -375,3 +375,23 @@ in the Bad News Bears look across the whole site. Decisions 28 and 29.
 
 **Left for later:** a per-car form for slots and ranges (decision 28's way
 on); bars, when Sam wants some; comparing laps.
+
+## M10 — The G-meter and map shown before their data  ✅ 2026-09-27
+
+A car's page always shows the G-meter ("No readings") and the map (the world,
+"Waiting for GPS") until their first reading; laps still wait for a lap.
+Decision 28 amended.
+
+- **`web/`:** `CarPage` draws both always; `SessionMap`, following with no
+  position, opens on the world (set before its move listener, so following
+  stays on) and clears its trail if positions drain from the 5-minute
+  history; the preview matches; the session map's caption says pink, not red.
+- **Tests:** 99 Vitest, unchanged: no new logic to unit-test. Looked at in
+  Chrome case by case (nothing streaming, a drive without GPS or G, the race
+  arriving on an open page, the race stopping, one session after another, a
+  past session, 390 px). **Mutation, by looking:** the first view set after
+  the listener left the map on the world when the race came; caught.
+- **Deployed**, revision `00019`; the Outback's page on badnewsbears.live
+  shows both, empty, while it's offline.
+
+**Left for later:** the map opening on the car's last known position.

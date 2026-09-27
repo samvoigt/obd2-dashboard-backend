@@ -696,6 +696,13 @@ session, and `seq` is the only key both lanes share exactly.
   `motion.acceleration.*` axes have come, the map once a `gps.position` has,
   laps once there's one. A car that sends none gets no empty boxes; a slot's
   signal a car doesn't send reads "—".
+
+  > **Amended by M10** (Sam, 2026-09-27): **the G-meter and the map are always
+  > shown**, the G-meter saying "No readings" and the map the whole world under
+  > "Waiting for GPS", until their first reading. An empty box says nothing
+  > has come, where a hidden one says nothing; found when the tablet's first
+  > real connections sent neither. **Laps still wait** for a lap: they mean
+  > something only at a track.
 - **Every reading shows when it's out of date**: stale once its last reading
   is 5 times its usual interval old (the history's median gap, never under
   2 s), "stopped" if the tablet said so. A signal read fewer than twice in the
