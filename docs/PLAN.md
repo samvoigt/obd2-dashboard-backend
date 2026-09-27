@@ -137,7 +137,13 @@ gauges, numbers, bars, the G-meter, the map, laps, status. Not configurable,
 and not a mirror of the tablet, so neither storage nor a contract change.
 Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
-### Next: not planned yet
+### Next: race logging, in review
+
+Drivers, races, tracks with start/finish and sectors, and lap and split
+timing: the high-level plan, for Sam's review, is
+[`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md).
+
+### Other candidates
 
 **The first real drive** was 2026-09-27 (`JOURNAL.md`); what it found for the
 site was M11.
