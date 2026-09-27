@@ -35,7 +35,8 @@ one and a trip to the tablet. After M9 the admin page shows both, in full.
   show "not recorded" until set again. **The Outback keeps working**: Sam
   chose its token, so **Replace token → Choose the token myself** with the
   *same* value records it, and the tablet never notices (`setToken` allows a
-  car its own token). Its passcode was never set, so setting it records it.
+  car its own token). Its passcode (set 2026-09-27) is recorded the same way: set
+  again to the same value.
 - **Public responses never serialise a `Car`**; they name their fields (M2.5).
   That rule is what keeps the new fields off the public site, and a test
   should pin it.
@@ -114,7 +115,8 @@ are compared, not printed.
 Deployed as usual. **Sam**, signed in on https://badnewsbears.live/admin:
 - Outback → **Replace token** → **Choose the token myself** → the tablet's
   current token, twice. The page then shows it; the tablet keeps streaming.
-- **Set passcode**, which the road test needs anyway (`plans/ROAD-TEST.md`).
+- **Change passcode**, typing the current one again (set for the first drive,
+  2026-09-27), so it's recorded.
 
 **Done when:** Sam sees both on the page, and the tablet still streams (a
 tablet session, as in the road test's dry run, shows Live).

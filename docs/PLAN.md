@@ -25,6 +25,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M8** | The car's page as a dashboard: one fixed layout, updating live | ✅ (`plans/COMPLETED.md`) |
 | **M9** | Tokens and passcodes readable on the admin page | **tabled** (Sam): [`plans/M9-READABLE-SECRETS.md`](plans/M9-READABLE-SECRETS.md) |
 | **M10** | The G-meter and map shown before their data | ✅ (`plans/COMPLETED.md`) |
+| **M11** | What the first drive found: the charging gauge, tablet and test-data sessions, icons, the tablet's clock | **planned**: [`plans/M11-AFTER-THE-FIRST-DRIVE.md`](plans/M11-AFTER-THE-FIRST-DRIVE.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -138,8 +139,8 @@ Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
 ### Next: not planned yet
 
-**First, a real drive** (Sam, 2026-09-27): [`plans/ROAD-TEST.md`](plans/ROAD-TEST.md),
-the website with the tablet streaming from the Outback.
+**The first real drive** was 2026-09-27 (`JOURNAL.md`); what it found for the
+site is M11.
 
 Candidates, for Sam to choose from: a per-car form on the admin page for the
 dashboard's slots and ranges (decision 28's way on); comparing laps; naming

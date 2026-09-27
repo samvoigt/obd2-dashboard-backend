@@ -206,3 +206,59 @@ not catch, and lessons about process. Short on purpose.
   host, where media queries follow the frame.
 - **Deployed with a drive streaming** (revision `00017`): the replay
   reconnected at once on the `1012`, and an open page stayed "Live".
+
+## 2026-09-27 — The first real drive (the road test)
+
+Sam's Outback around the neighbourhood, the tablet streaming over a phone
+hotspot, 11:49 AM–12:36 PM EDT. Read afterwards from the service's logs and
+the stored sessions (read in a private scratch folder, deleted after; the VIN
+never printed). The plan was `plans/ROAD-TEST.md`, closed with this entry.
+
+**What worked**
+- **Seven sessions, all complete**, every `complete` accepted, nothing
+  missing: one **car session** of 11 min (24,768 records), five **tablet
+  sessions** of 36–80 s (the app's M40, at the desk and in the driveway), and
+  one **fake-data session** of 41 s (§21).
+- **The car session is clean**: no `seq` missing, the tablet's clock never
+  stepping back, steady rates (rpm and speed every 177 ms, the G-meter every
+  102 ms, GPS every 1,000 ms, coolant and the diagnostics every 4 s, voltage
+  every 5 s).
+- **GPS speed agrees with the car's** to 0.1 km/h (median above 20 km/h,
+  n = 317); accuracy 3.8 m typical, 40 m at the first fix.
+- **Every session carried GPS and the G-meter** (the empty map and G-meter
+  seen before the drive were connections that sent nothing, 8 s and 50 s).
+- **Crew messages**: a login, a message sent and cleared, at 15:37–15:41.
+- **Nothing failed on the server**: every tablet request 200, 201 or 101.
+
+**What didn't, the tablet's (passed to the app in chat, not written there)**
+- **The tablet's clock is 10 h 58 min slow.** Every `wall` and `started` is,
+  so the site lists the drive at 1:27 AM. The fix is the tablet's automatic
+  date and time.
+- **The G-meter reads high.** At a steady cruise the longitudinal reading sat
+  at +0.1 to +0.3 g (30-second means) while the car's speed was flat; the
+  car's speed gives at most 0.19 g accelerating and 0.27 g braking; the two
+  correlate at r = 0.35 over 1-second means. Stopped, it averages near zero
+  but spikes to 1.25 g (the tablet being handled, likely). The app's A17.
+- **The live link:** a second socket opened at 16:27 while the first was
+  still open (closed by the server at 16:30); none after 16:35:16, about a
+  minute before the drive ended. Chunk uploads paused 16:31–16:35, then 79 at
+  once: a dead zone, most likely, to be matched against the tablet's strip.
+- **The fake session carries `protocol` and `pids`**, which §21 says it
+  doesn't.
+
+**What didn't, the site's (planned as M11)**
+- **The charging gauge was blank**: its slot is `control_module.voltage`, and
+  the tablet sent `vehicle.system_voltage`. **The tablet sends only what its
+  own dashboard shows plus ticked extras**, so the site's slots can name
+  signals a drive never carries; `fuel.system_1_status` wasn't sent either.
+- **Tablet and fake sessions look like drives**: the list grouped all six
+  afternoon sessions, fake data included, into one. §20 and §21 ask the site
+  to say so, and never to count fake data.
+- **Small:** no `apple-touch-icon.png` or `favicon.ico` (an iPhone asked);
+  the car page's minute check for the live session's series answers 404,
+  logged as a warning, for the whole of a tablet session, which uploads only
+  at its end.
+
+**Not reported, from the plan's checklist:** the hotspot switched off on
+purpose, "Whole session" while driving, the page on a phone through the
+whole drive, the admin page's Download.

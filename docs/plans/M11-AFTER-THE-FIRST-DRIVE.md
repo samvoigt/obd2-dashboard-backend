@@ -1,0 +1,138 @@
+# M11 — What the first drive found
+
+Fixes for the site from the first real drive (2026-09-27, `JOURNAL.md`). The
+tablet's own findings (its clock, the G-meter's offset, the live link, the
+fake session's `protocol`) are the app's, passed on in chat.
+
+---
+
+## What exists, and what it means for this (checked 2026-09-27)
+
+- **The charging gauge's slot is one signal**, `control_module.voltage`
+  (`SLOTS` in `web/src/lib/dashboard.ts`, with its own range and zones). The
+  drive sent `vehicle.system_voltage` instead, also in V and in the contract's
+  catalogue, which is the battery's voltage at the OBD port: while the engine
+  runs, the charging system's. A slot can only show what the tablet sends,
+  and **the tablet sends only its own dashboard's signals plus ticked
+  extras**, so a slot naming one signal is fragile across cars and tablets.
+- **`fuel.system_1_status` wasn't sent** for the same reason. That one is for
+  Sam to tick as an extra on the tablet, not for the site to replace: there
+  is no other signal that says it.
+- **`source` isn't read anywhere.** `SessionHeader.parse` keeps `id`, `v`,
+  `started`, `device`, `app`, `vin` and `protocol` from line 0, and the index
+  record holds that header (so the session list, built from records, can't
+  tell a tablet or fake session from a drive). The page's live stream sends
+  the session record (without the VIN), so **the car page already has
+  `source`**, and ignores it.
+- **Drives** are sessions less than 10 minutes apart (`drives()` in
+  `SessionRoutes.kt`), with no regard to what they are. §21 asks that fake data
+  never count in a car's drives, bests, peaks or laps. The site keeps no bests
+  or peaks across sessions; the G-meter's peaks are per page, and laps per
+  session. So "never count" is: **not in a drive**, and marked wherever it's
+  shown.
+- **Sessions stored before M11** hold a header without `source`. Their log's
+  line 0 has it; the summary (version 1) is built by reading the whole log
+  once, so a **summary version 2** that reads `source` too rebuilds them on
+  first view, as M7 did for sessions made before it.
+- **The series route answers 404** for a session with no lines stored
+  (`sessionRecord` without the live allowance), which a tablet session is for
+  its whole life (it uploads at its end), and the car page asks every minute.
+  `fetchSeries` treats 404 as "none" already.
+- **The server serves only the pages and `/assets`** (`WebRoutes.kt`); the
+  tab's icon is a hashed asset. An iPhone asks for `/apple-touch-icon.png`
+  (and `-precomposed`) and `/favicon.ico` at the root: all 404 now.
+- **The tablet's clock:** every live batch carries the tablet's `wall`, and the
+  server has its own time as it arrives. The live lane (`CarLive`) keeps when
+  data last came, not the difference.
+
+---
+
+## Decided here (say if any is wrong)
+
+- **A gauge slot lists signals, in order; the first one a session sends is
+  shown.** Charging: `control_module.voltage`, then `vehicle.system_voltage`,
+  with the same range and zones. Generic (any car may send either), so the
+  app's decision 33 holds.
+- **Sessions say what they are**, on the car page's session line, in the
+  session list and on a session's page: **"Tablet only"** (no car read) and
+  **"Test data"** (invented readings, in the caution colour). A car's drive
+  says nothing extra.
+- **Test-data sessions are listed, but never grouped into a drive**: each
+  stands alone, marked. Tablet sessions still group (they're the tablet's
+  real signals, often the minutes around a drive).
+- **The series route answers `204 No Content`** for a live session with no
+  lines yet, rather than 404.
+- **Icons at the root**: `/apple-touch-icon.png` (180 px, the bear, on the
+  dark background), `-precomposed` the same, and `/favicon.ico`, made by
+  `make_images.sh` from the logo like the others.
+- **A tablet clock off by more than 2 minutes is flagged on the admin page**
+  ("Tablet clock 10 h 58 min slow"), measured from live batches. Only
+  flagged: times are the tablet's, as the contract says, and never corrected.
+
+---
+
+## The steps
+
+Each validated against the code just before it's built, and the validation
+written here.
+
+### M11.1 — The charging gauge takes either voltage
+
+`SLOTS.gauges` holds a list per gauge; the page shows the first signal in the
+session's `signals` (or, before a session record, the first with a reading).
+The tiles below leave out every signal in a slot's list.
+
+**Done when:** tests for choosing a slot's signal (the first declared, the
+second when the first is absent, neither: "—"); looked at in Chrome with the
+drive's shape (a replay declaring `vehicle.system_voltage` only) and the
+synthetic race (`control_module.voltage`).
+
+### M11.2 — Tablet and test-data sessions, said
+
+- `:archive`: `SessionHeader` keeps `source`; the summary (version 2) records
+  it, so older sessions gain it on first view.
+- `:server`: the list and a session's detail carry `source`; `drives()` never
+  puts a test-data session in a drive.
+- `web/`: "Tablet only" and "Test data" on the car page's session line, the
+  list and a session's page.
+
+**Done when:** tests for the header and summary reading `source` (absent,
+`tablet`, `fake`, and an unknown value shown as sent); for `drives()` keeping
+test data apart; a session stored before M11 gaining `source` on rebuild.
+Replays of a tablet session and a fake one (the drive's own shape, made
+synthetic) seen in Chrome: labelled, and the fake one alone in the list.
+
+### M11.3 — The small ones
+
+- `GET /api/sessions/{id}/series`: `204` for a live session with no lines;
+  `fetchSeries` treats it as none.
+- The icons at the root.
+
+**Done when:** a route test for the 204; the icons served (`curl`) and an
+iPhone-sized "Add to Home Screen" looked at if Sam can.
+
+### M11.4 — The tablet's clock, flagged
+
+The live lane records each car's clock difference (the server's receipt time
+minus the batch's last `wall`, smoothed); the admin page shows it when it's
+over 2 minutes.
+
+**Done when:** tests for the difference (steady, one late batch not moving
+it, a fixed clock bringing it back under 2 min); the admin page with a replay
+whose clock is shifted by hours (the replay's times moved, never the log's).
+
+### M11.5 — Deploy, and record
+
+Deployed with a drive streaming; the Outback's page and past sessions looked
+at on badnewsbears.live (its seven sessions from the first drive: one drive
+of the car and tablet sessions, the test-data one apart and marked, the
+charging gauge filled when the next drive comes). A decision for session
+sources and slot lists; `COMPLETED.md`, `PLAN.md`; this plan deleted.
+
+---
+
+## Not in M11
+
+- Correcting the tablet's times (they're the tablet's; its clock is to be
+  fixed on the tablet).
+- The G-meter's offset, and the live link's reconnects: the tablet's.
