@@ -107,6 +107,24 @@ else
 fi
 
 
+# Who may use the admin page (M6): a secret only so that it stays out of this public
+# repo. Created by hand, with the admin's address, since this script can't know it:
+#   printf '%s' 'someone@example.com' | gcloud secrets create admin-emails \
+#     --project obd2-dashboard-backend --replication-policy automatic --data-file=-
+# Comma-separated for more than one. Changing it: add a version, then deploy.
+if gcloud secrets describe admin-emails --project "$PROJECT" >/dev/null 2>&1; then
+  for attempt in 1 2 3 4 5; do
+    if gcloud secrets add-iam-policy-binding admin-emails --project "$PROJECT" \
+        --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor >/dev/null 2>&1; then
+      break
+    fi
+    [[ $attempt == 5 ]] && { echo "could not grant access to admin-emails" >&2; exit 1; }
+    sleep $((attempt * 3))
+  done
+else
+  echo "note: the admin-emails secret doesn't exist yet; deploys will fail until it does (see gcp-setup.sh)." >&2
+fi
+
 # The website's domain (decision 23). Needs the gcloud beta component, the domain
 # verified by the user's Google account (gcloud domains verify), and the DNS records
 # this prints, at Namecheap. Google issues and renews the certificate.

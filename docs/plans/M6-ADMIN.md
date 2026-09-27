@@ -367,6 +367,24 @@ server** (dev sign-in):
 
 Then `deploy.sh` sets `GOOGLE_CLIENT_ID` and `ADMIN_EMAILS`, and it's deployed.
 
+> **Validated against the code, 2026-09-26, before building.**
+> - **The repo is public**, so `ADMIN_EMAILS` (Sam's address) must not be
+>   committed. It is a Secret Manager secret, **`admin-emails`**, mounted like
+>   `crew-cookie-key`: not secret in itself, but kept out of git, and changing
+>   admins is adding a version, then deploying. `gcp-setup.sh` grants the
+>   runtime account access, and says how to create it if it's missing.
+> - **`GOOGLE_CLIENT_ID` is public by nature** (every visitor's browser gets
+>   it), so it goes in `env.sh` and `deploy.sh`'s `--set-env-vars`. Until it
+>   exists, `deploy.sh` leaves it out, and the page says admin isn't set up
+>   (M6.3).
+> - **Authorized JavaScript origins:** `https://badnewsbears.live` and
+>   `https://www.badnewsbears.live` only. Local work uses the dev sign-in, so
+>   `localhost` isn't needed, and fewer origins is better. The `run.app` URL
+>   isn't listed either: the admin page is for the domain.
+> - **The consent screen stays in Testing, with Sam as its test user.** It
+>   asks only for `openid` and `email`, and in Testing, Google lets only listed
+>   test users sign in at all, which is a second allowlist for free.
+
 **Done when:**
 - the deployed `/admin` shows Google's button;
 - `/api/admin/*` is `401` without a sign-in, and a forged cookie is refused;

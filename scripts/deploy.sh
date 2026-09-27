@@ -20,14 +20,15 @@ gcloud builds submit --project "$PROJECT" --config cloudbuild.yaml \
 # --timeout 3600: a socket or stream would otherwise be cut at 5 minutes; the
 #   server closes its own at 55 (contract §5.3). --concurrency 1000: every open
 #   socket and browser stream is a request, and the default 80 would refuse the 81st.
-# --set-secrets replaces every secret the service mounts with exactly this one:
-# the crew-login signing key (M5.4). A deploy keeps any setting it does not
-# mention, so naming the whole set here is what keeps it exact.
+# --set-secrets replaces every secret the service mounts with exactly these: the
+# crew-login signing key (M5.4), and the admin allowlist (M6), kept out of this
+# public repo. A deploy keeps any setting it does not mention, so naming the
+# whole set here is what keeps it exact.
 gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" \
   --service-account "$RUNTIME_SA" \
-  --set-secrets "CREW_COOKIE_KEY=crew-cookie-key:latest" \
-  --set-env-vars "GCP_PROJECT=${PROJECT},SESSIONS_BUCKET=${BUCKET}" \
+  --set-secrets "CREW_COOKIE_KEY=crew-cookie-key:latest,ADMIN_EMAILS=admin-emails:latest" \
+  --set-env-vars "GCP_PROJECT=${PROJECT},SESSIONS_BUCKET=${BUCKET}${GOOGLE_CLIENT_ID:+,GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}}" \
   --allow-unauthenticated \
   --min-instances 0 \
   --max-instances 1 \
