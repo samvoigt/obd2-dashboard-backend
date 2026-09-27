@@ -9,16 +9,19 @@ Past sessions and dashboards move to M7 and M8.
 
 ---
 
-## Questions for Sam
+## Settled with Sam, 2026-09-26
 
-1. **Sessions on the page:** listing a car's sessions, and deleting one (you
-   type its id to confirm, as `admin.sh` asks), is step M6.7. Keep it, or leave
-   sessions to `admin.sh` for now?
-2. **How long a sign-in lasts:** proposed **12 hours**. That is short, because
-   this page can replace every token; signing in again is one click.
-3. **Who is on the allowlist:** just `sam.voigt@gmail.com` to start?
-4. **A link to it:** proposed **none**. You go to `badnewsbears.live/admin`
-   directly, and the public pages don't advertise it.
+1. **Sessions are on the page:** each car's sessions, deleting one by typing
+   its id, and a way straight to a car's **live** page when it is live (M6.7).
+   Past sessions have no page of their own until M7, which will link them from
+   here.
+2. **A sign-in lasts 30 days**, like the crew's. Traffic is low, and the
+   allowlist is still checked on every request, so removing an email still
+   cuts that person off at once.
+3. **`ADMIN_EMAILS` is `sam.voigt@gmail.com`.** Sam is the overall admin.
+   Everyone on the allowlist can do everything; lesser roles (someone who
+   manages only their own car, say) are a later milestone if wanted.
+4. **No link to it:** `badnewsbears.live/admin`, typed directly.
 
 ---
 
@@ -72,7 +75,7 @@ Past sessions and dashboards move to M7 and M8.
   - `admin`, holding `v1.admin.<email>.<expiry>.<hmac>`;
   - signed with the crew key, under its own `admin` label, so it can never be
     confused with a crew cookie, and there's no second secret to manage;
-  - `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/admin`, 12 hours;
+  - `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/admin`, 30 days;
   - **checked against the allowlist on every request**, so removing an email
     cuts that person off at once, like a rotated token.
 - **Admin requests also must come from our own pages:** every `POST`,
@@ -100,13 +103,13 @@ Past sessions and dashboards move to M7 and M8.
   | `GET config` | `{googleClientId}` |
   | `POST login` | `{credential}` → sets the cookie; `DELETE login` signs out |
   | `GET me` | `{email}`, or `401` |
-  | `GET cars` | every car: slug, name, token hint, token issued, passcode set, live state, session count |
+  | `GET cars` | every car: slug, name, token hint, token issued, passcode set, live state (with its session), session count |
   | `POST cars` | `{slug, name, token?}` → the generated token once, or the chosen one's hint |
   | `PATCH cars/{slug}` | `{name}` |
   | `POST cars/{slug}/token` | `{token?}`: generate a new one, or set yours |
   | `PUT cars/{slug}/passcode` | `{passcode}` (logs the crew out, as the command line does) |
   | `DELETE cars/{slug}` | refused while it has sessions; its messages go too |
-  | `GET cars/{slug}/sessions`, `DELETE sessions/{id}` | if question 1 keeps them |
+  | `GET cars/{slug}/sessions`, `DELETE sessions/{id}` | a car's sessions, which one is live, and deleting one |
 
 - **Local work needs no Google:** the dev server takes a **dev sign-in**, a
   button that appears only when the server says so, and signs in as
@@ -216,12 +219,19 @@ Then `deploy.sh` sets `GOOGLE_CLIENT_ID` and `ADMIN_EMAILS`, and it's deployed.
   logs;
 - everything is cleaned up.
 
-### M6.7 — Sessions (if question 1 keeps it)
+### M6.7 — Sessions
 
-A car's sessions on the admin page (started, lines, state), and deleting one by
-typing its id. The same rule as `admin.sh delete-session`.
+On the admin page:
+- each car's sessions: started, lines, state, and **which one is live now**;
+- a **"Watch live"** link to the car's page (`/cars/{slug}`) on a live car and
+  its live session;
+- deleting a session by typing its id, with the same rule as
+  `admin.sh delete-session`. **A live session can't be deleted** while its
+  tablet is still sending: the page says so, and the server refuses it.
 
-**Done when:** tested as M6.4; looked at in Chrome; mutations are checked.
+**Done when:** tested as M6.4; looked at in Chrome with a replay streaming live
+(the link, the live marker, a delete refused while live, a delete after it
+ends); mutations are checked.
 
 ### M6.8 — Record it
 
