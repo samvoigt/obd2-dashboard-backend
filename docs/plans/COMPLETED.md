@@ -395,3 +395,37 @@ Decision 28 amended.
   shows both, empty, while it's offline.
 
 **Left for later:** the map opening on the car's last known position.
+
+## M11 — What the first drive found  ✅ 2026-09-27
+
+Fixes from the first real drive (JOURNAL, 2026-09-27). Decisions 28 (amended)
+and 30.
+
+- **The charging gauge takes either voltage** (`control_module.voltage`, then
+  `vehicle.system_voltage`): slots are lists, `slotSignal` picks the first the
+  session declares.
+- **Sessions say what they are**: `source` read into the header and the
+  summary (version 2), listed, labelled "Tablet only" and "Test data"; test
+  data is a drive of its own. The list keys drives by a session, since two
+  can now start together (found by looking: the duplicate key blanked the
+  list).
+- **The small ones**: the series route answers `204` for a live session with
+  nothing uploaded; the bear as `apple-touch-icon.png` (on the site's
+  background) and `favicon.ico`, made by `make_images.sh`, served at the root.
+- **The tablet's clock** measured by the live lane and flagged on the admin
+  page past 2 minutes.
+- **Tests:** Vitest 106 (7 new); Kotlin 11 new across `:archive`,
+  `:archive-gcp`, `:live` and `:server`, including a session stored before
+  M11 gaining its source on rebuild. **Mutations: 24, all killed** (one only
+  after a test was added: snapshots counted toward the clock, harmless under
+  the minimum except before any batch).
+- **Verified live, 2026-09-27** (revision `00020`, deployed with a drive
+  streaming, which reconnected at once): the Outback's seven sessions rebuilt
+  in 2.5 s on first view, labelled, the test-data one alone; the icons served
+  at the root. The throwaway car and its session deleted.
+
+**Left for Sam:** "Add to Home Screen" on the iPhone; the tablet's clock
+(automatic date and time), then the admin page's clock note should go;
+ticking `fuel.system_1_status` as an extra on the tablet, for the fuel light.
+**Left for the app:** the G-meter's offset at a cruise (A17), the live link's
+second socket, the fake session's `protocol` (JOURNAL).

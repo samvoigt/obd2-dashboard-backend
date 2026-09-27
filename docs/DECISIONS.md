@@ -687,6 +687,12 @@ session, and `seq` is the only key both lanes share exactly.
   number `gps.speed`; no bars yet; status `diagnostics.mil`,
   `fuel.system_1_status`. A signal in a slot isn't repeated as a tile.
   Changing one is a line and a deploy.
+
+  > **Amended by M11:** **a slot is a list of signals, and shows the first
+  > the session declares** (else the first with a reading). A tablet sends
+  > only what its own dashboard shows plus chosen extras, so the first drive
+  > carried `vehicle.system_voltage` and not `control_module.voltage`, and the
+  > charging gauge was blank. Charging is now either, with the same zones.
 - **Ranges come from the unit, zones from the signal**, and both are generic
   engine knowledge, never one car's (the app's decision 33): coolant caution
   over 105 °C, critical over 115; voltage caution under 12.0 V, critical
@@ -745,3 +751,28 @@ redline, an EV's lack of coolant), or Sam wants a different layout per car.
 
 **Why.** Sam asked for the logo as the site's colour scheme. As roles, the
 look changes in one file, and a colour always means one thing.
+
+## 30. What a session is: a car's, the tablet's alone, or test data
+
+**Decision.**
+- **The session record's `source` is read and shown** (contract §20, §21):
+  absent for a car's session; `tablet` shown as **"Tablet only"**; `fake`
+  shown as **"Test data"** in the caution colour; any other value shown as
+  sent, never guessed at. On the car page's session line, the session list
+  and a session's page.
+- **Test data is never part of a drive**: each fake session is a drive of its
+  own and doesn't bridge the real sessions either side. The site keeps no
+  bests or peaks across sessions, so a drive is what "never count it" means
+  here. **Tablet sessions still group**: they are the tablet's real signals,
+  usually the minutes around a drive.
+- **Kept in the header and the summary** (version 2), so a session stored
+  before this gains it on its first view.
+- **The tablet's clock is measured, flagged, never corrected**: the live lane
+  keeps the smallest (arrival minus newest `wall`) over the last 50 batches,
+  and the admin page says "Tablet clock 10 h 58 min slow" past 2 minutes. The
+  times on the site stay the tablet's (contract §3); the fix is the tablet's
+  clock. Not on the public pages.
+
+**Why.** The first real drive (JOURNAL, 2026-09-27) listed six setup sessions,
+one of them invented readings, as part of the drive, and was dated 1:27 AM by
+a tablet 11 hours slow, with nothing on the site to say either.
