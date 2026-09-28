@@ -4,20 +4,29 @@
   import { fromLocalInput, toLocalInput } from './lib/events'
   import {
     marksOf, mergeWithPrevious, raceClock, racePath, sendRaceEdit, setDriver, splitAt, timeOfDay,
-    type CarRace, type RaceResults, type StintMark,
+    type CarRace, type RaceLap, type RaceResults, type StintMark,
   } from './lib/race'
   import { lapTime } from './lib/sessions'
   import { lapLink } from './lib/laps'
   import LapChart from './LapChart.svelte'
+  import type { LapPick } from './lib/comparePick'
+  import ComparePick from './ComparePick.svelte'
 
   // The race (M15.4): one timeline per car, and for the admin or a car's crew, its flags and stints.
-  let { race, eventId, revision, carName, onChanged }: {
+  let { race, eventId, revision, carName, onChanged, course, layout }: {
     race: RaceResults
     eventId: string
     revision: number
     carName: (slug: string) => string
     onChanged: () => void
+    /** The event's course and layout, for comparing laps (M16.4). */
+    course: string
+    layout: string
   } = $props()
+
+  /** A race lap as a compare pick (M16.4). */
+  const pickOfLap = (c: CarRace, l: RaceLap): LapPick =>
+    ({ ref: { car: c.car, session: l.session, start: l.start, end: l.end }, course, layout, label: `${carName(c.car)} lap ${l.number}, ${lapTime(l.time)}` })
 
   let drivers: Driver[] = $state.raw([])
   let setters: Record<string, DriverSetter> = $state({})
@@ -180,6 +189,7 @@
                   l.pitOut ? 'Out of the pits' : '',
                 ].filter(Boolean).join(' · ')}
               </td>
+              <td><ComparePick lap={pickOfLap(c, l)} best={c.best ? pickOfLap(c, c.best) : null} /></td>
             </tr>
           {/each}
         </tbody>

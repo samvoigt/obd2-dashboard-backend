@@ -4,6 +4,8 @@
   import { raceClock } from './lib/race'
   import { lapTime } from './lib/sessions'
   import { lapLink } from './lib/laps'
+  import type { LapPick } from './lib/comparePick'
+  import ComparePick from './ComparePick.svelte'
 
   let { id }: { id: string } = $props()
 
@@ -22,6 +24,16 @@
       error = e instanceof Error ? e.message : String(e)
     }
   })
+
+  /** A course best as a compare pick (M16.4), on the layout of the event it was set at. */
+  function pickOfCourse(r: DriverRecord, c: DriverRecord['courses'][number]): LapPick | null {
+    const event = r.events.find((e) => e.event.id === c.event)?.event
+    if (!event) return null
+    return {
+      ref: { car: c.best.car, session: c.best.session, start: c.best.lap.start, end: c.best.lap.end },
+      course: c.course, layout: event.layout, label: `${r.driver.name} ${lapTime(c.best.lap.time)}`,
+    }
+  }
 </script>
 
 <main>
@@ -40,7 +52,8 @@
           <tbody>
             {#each record.courses as c (c.course)}
               <tr><td>{c.courseName}</td><td class="time"><a href={lapLink(c.best.car, c.best.session, c.best.lap.start, c.best.lap.end)}>{lapTime(c.best.lap.time)}</a></td>
-                <td class="muted"><a href={`/events/${c.event}`}>the event</a></td></tr>
+                <td class="muted"><a href={`/events/${c.event}`}>the event</a></td>
+                <td>{#if pickOfCourse(record, c)}<ComparePick lap={pickOfCourse(record, c)!} best={null} />{/if}</td></tr>
             {/each}
           </tbody>
         </table>

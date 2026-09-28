@@ -31,6 +31,8 @@
   {#await import('./DriversPage.svelte') then m}<m.default />{/await}
 {:else if current.page === 'driver'}
   {#await import('./DriverPage.svelte') then m}<m.default id={current.id} />{/await}
+{:else if current.page === 'compare'}
+  {#await import('./ComparePage.svelte') then m}<m.default />{/await}
 {:else if current.page === 'admin-courses'}
   {#await import('./CoursesAdmin.svelte') then m}<m.default />{/await}
 {:else if current.page === 'admin-course'}

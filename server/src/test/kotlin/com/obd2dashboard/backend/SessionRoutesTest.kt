@@ -151,6 +151,15 @@ class SessionRoutesTest {
         val tag = raw.headers[HttpHeaders.ETag]!!
         tag shouldContain "series-v"
         client.get("/api/sessions/$A/series") { header(HttpHeaders.IfNoneMatch, tag) }.status shouldBe HttpStatusCode.NotModified
+
+        // Deleted, and its id used again for another drive: a new tag, so a browser's copy of the old one is never kept (M16.4).
+        runBlocking {
+            archive.delete(A)
+            upload(A, "yaris", t + 3_600_000)
+        }
+        val again = client.get("/api/sessions/$A/series") { header(HttpHeaders.IfNoneMatch, tag) }
+        again.status shouldBe HttpStatusCode.OK
+        (again.headers[HttpHeaders.ETag] != tag) shouldBe true
     }
 
     @Test

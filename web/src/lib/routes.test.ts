@@ -25,6 +25,9 @@ describe('route', () => {
     expect(route('/admin/events/new')).toEqual({ page: 'admin-event', id: 'new' })
     expect(route('/admin/events/Bad')).toEqual({ page: 'landing' })
   })
+  it('reads the compare page (M16.4)', () => {
+    expect(route('/compare')).toEqual({ page: 'compare' })
+  })
   it('reads the drivers, public (M15.5)', () => {
     expect(route('/drivers')).toEqual({ page: 'drivers' })
     expect(route('/drivers/d-0a1b2c3d')).toEqual({ page: 'driver', id: 'd-0a1b2c3d' })

@@ -11,6 +11,7 @@ export type Route =
   | { page: 'event'; id: string }
   | { page: 'drivers' }
   | { page: 'driver'; id: string }
+  | { page: 'compare' }
   | { page: 'admin-courses' }
   | { page: 'admin-course'; id: string }
   | { page: 'admin-drivers' }
@@ -27,6 +28,7 @@ const COURSE = /^\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
 const EVENTS = /^\/events\/?$/
 const EVENT = /^\/events\/([a-z][a-z0-9-]{1,31})\/?$/
 const DRIVERS = /^\/drivers\/?$/
+const COMPARE = /^\/compare\/?$/
 const DRIVER = /^\/drivers\/(d-[0-9a-f]{8})\/?$/
 const ADMIN_COURSES = /^\/admin\/courses\/?$/
 const ADMIN_COURSE = /^\/admin\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
@@ -55,6 +57,8 @@ export function route(path: string): Route {
   if (publicEvent?.[1]) return { page: 'event', id: publicEvent[1] }
   // Drivers, public (M15.5).
   if (DRIVERS.test(path)) return { page: 'drivers' }
+  // Two laps compared (M16.4), public; the laps are in the query.
+  if (COMPARE.test(path)) return { page: 'compare' }
   const driver = DRIVER.exec(path)
   if (driver?.[1]) return { page: 'driver', id: driver[1] }
   // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.

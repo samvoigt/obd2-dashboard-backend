@@ -6,6 +6,8 @@
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
   import { lapLink } from './lib/laps'
+  import type { LapPick } from './lib/comparePick'
+  import ComparePick from './ComparePick.svelte'
 
   let { id }: { id: string } = $props()
 
@@ -27,6 +29,11 @@
     }
   }
 
+  /** A driver's best as a compare pick (M16.4), on the event's course and layout. */
+  const pickOfBest = (b: DriverBest): LapPick => ({
+    ref: { car: b.car, session: b.session, start: b.lap.start, end: b.lap.end },
+    course: results!.event.course, layout: results!.event.layout, label: `${driverLabel(b.driver)} ${lapTime(b.lap.time)}`,
+  })
   const carName = (slug: string) => results?.event.cars.find((c) => c.slug === slug)?.name ?? slug
   const heard = (s: SessionResult) => new Date(s.heardFrom).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
 </script>
@@ -51,7 +58,7 @@
     {/if}
 
     {#if results.race}
-      <RaceSection race={results.race} eventId={e.id} revision={e.revision} {carName} onChanged={load} />
+      <RaceSection race={results.race} eventId={e.id} revision={e.revision} {carName} onChanged={load} course={e.course} layout={e.layout} />
     {/if}
 
     {#each results.parts as p (p.part.id)}
@@ -140,6 +147,7 @@
               <td class="sector" class:bestsector={t !== undefined && t === best}>{t === undefined ? '' : t.toFixed(3)}</td>
             {/each}
             <td class="muted">{carName(b.car)}</td>
+            <td><ComparePick lap={pickOfBest(b)} best={pickOfBest(list[0]!)} /></td>
           </tr>
         {/each}
       </tbody>

@@ -194,8 +194,10 @@ fun Route.sessionRoutes(
         // A live session with nothing uploaded yet (a tablet's uploads at its end): nothing to send, not a 404 (M11).
         val record = call.sessionRecord(archive, allowLive = hub) ?: return@get
         val key = archive.prepare(record.id) ?: return@get call.respond(HttpStatusCode.NoContent)
-        // The key names the version and, while uploading, how far it goes: it is the content's identity.
-        val tag = "\"${key.substringAfterLast('/')}\""
+        // The key names the version and, while uploading, how far it goes; the log's hash (the session
+        // record's, while uploading) says whose: a session deleted and its id used again never shares a tag (M16.4).
+        val whose = (record.sha256 ?: record.line0Sha256)?.take(16)
+        val tag = "\"${key.substringAfterLast('/')}${whose?.let { "-$it" } ?: ""}\""
         call.response.header(HttpHeaders.ETag, tag)
         call.response.header(HttpHeaders.CacheControl, "no-cache")
         if (call.request.header(HttpHeaders.IfNoneMatch) == tag) return@get call.respond(HttpStatusCode.NotModified)

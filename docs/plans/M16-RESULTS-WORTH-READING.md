@@ -210,6 +210,56 @@ its true distances; two laps at 40 and 38 m/s: the delta grows as it should
 and ends at the lap-time difference; a lap on another line projected to the
 same distances); looked at in Chrome: two drivers' laps compared.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The course** comes from `GET /api/courses/{id}` and `fromGeoJSON`
+>   (M12.5): each layout's path (`[lon, lat]`, closed, in the cars' direction)
+>   and its start/finish (its own, else the shared one). In a flat frame about
+>   the path's first point (as the lap rule's), a position is **projected onto
+>   the path**; distance round the lap is measured **from where the start/finish
+>   cuts the path**.
+> - **Projection tracks the car**: after the first fix, the nearest point is
+>   looked for only from 20 m behind the last to 250 m ahead (a car only goes
+>   forward; a course can pass near itself, NHMS's infield does; *built*: a
+>   window 250 m either way still jumped across the box's thin loop), and
+>   distances are unwrapped to run from 0 up to the lap's length.
+> - **Each lap** is its session's series (`fetchSeries`, M7.5) between its
+>   `start` and `end` on `wall`: positions give distance against time
+>   (*built*: the lap's ends are where its positions cross the line **on their
+>   own clock**, read 3 s past each end; a lap is timed on `fixAt`, positions
+>   are on `wall` of `at`, later by the delay, and pinning the ends there made
+>   speed spikes at both ends); every
+>   numeric signal is placed by its time and **resampled every metre**. **The
+>   delta** at each metre is the second lap's time there less the first's, from
+>   each lap's own start.
+> - **Picking two laps**: a "Compare" on every lap (practice bests, the race's
+>   laps, the session page's laps, a driver's bests); the first pick is held in
+>   the viewer's browser (`localStorage`, a per-viewer convenience, wrapped in
+>   `try`), the second opens `/compare` with both laps, the course and the
+>   layout in its address. A "vs the best" link beside each for one click.
+> - **The page**: a distance chart per signal both laps have (speed first; a
+>   small uPlot chart with distance on x, as `LapChart` is), the delta's
+>   chart, and the map with both lines and the cursor's metre on each.
+> - **Compare on the driver's course bests** too, on the layout of the event
+>   the best was set at.
+
+> **✅ Done, 2026-09-28.** `lib/compare.ts` (`trackOf`, `project`, `lapTrace`,
+> `resample`, `delta`, `speedFromTrace`, the lap refs), `lib/comparePick.ts`
+> and `ComparePick.svelte` (on practice bests, race laps, session laps and a
+> driver's course bests), `DistanceChart.svelte`, `ComparePage.svelte`, `/compare`.
+> - **Tests: Vitest** (a lap projected to its true distances; 40 against
+>   38 m/s, the delta `g/38 − g/40` ending at the lap-time difference, with
+>   the second lap driven 500 s later; another line, the same distances; the
+>   thin loop; the lap's ends on the positions' clock; resampling and gaps;
+>   the pick's actions and storage). **Mutations: 11, all killed**, the last
+>   (the delta not measured from each lap's start) after the late lap was added.
+> - **Found by looking:** cached series served stale when a dev session id was
+>   reused; the series ETag is now the key plus the log's sha256 prefix
+>   (`SessionRoutesTest`: a re-uploaded id gets a new tag).
+> - **Looked at in Chrome** (the generated race): the delta climbs straight to
+>   7.78 s; speed from the laps reads 144 against 129.6 km/h; both dots at the
+>   same place on the map; from a driver's page, "Compare…" then "Compare with
+>   Sam Voigt 1:10.000" on Alex's opens both.
+
 ### M16.5 — Deploy, and prove it
 
 Deployed with a stream across it (a second throwaway car's, under

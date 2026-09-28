@@ -10,6 +10,8 @@
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
   import { setSessionDriver, whoCanSet, type Driver, type DriverSetter } from './lib/events'
   import { indexesIn, readWindow, withWindow } from './lib/laps'
+  import type { LapPick } from './lib/comparePick'
+  import ComparePick from './ComparePick.svelte'
   import { merge } from './lib/merge'
   import { columnShown, shownUnit } from './lib/units'
   import { units } from './lib/unitsState.svelte'
@@ -200,6 +202,11 @@
     showWindow(null)
   }
 
+  /** A lap of this session as a compare pick (M16.4), on the course its laps were timed on. */
+  function pickOf(lap: LapRow, on: SessionLaps): LapPick {
+    return { ref: { car: slug, session: id, start: lap.start, end: lap.end }, course: on.course, layout: on.layout, label: `${detail?.carName ?? slug} lap ${lap.lap}, ${lapTime(lap.time)}` }
+  }
+
   /** The map to [w] (or everything), and the address with it, so what's shown can be shared (M16.1). */
   function showWindow(w: [number, number] | null) {
     focus = w
@@ -295,6 +302,13 @@
                     {lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}
                     {#if lapNote(lap)}<span class="note" class:flag={!!lap.flag}>{lapNote(lap)}</span>{/if}
                   </td>
+                  {#if standing}
+                    {@const on = standing}
+                    {@const fastest = laps.find((l) => l.best)}
+                    <td onclick={(e) => e.stopPropagation()}>
+                      <ComparePick lap={pickOf(lap, on)} best={fastest ? pickOf(fastest, on) : null} />
+                    </td>
+                  {/if}
                 </tr>
               {/each}
             </tbody>
