@@ -561,3 +561,41 @@ The third milestone of race logging. Decision 34.
 **Left for later:** the race as one timeline, stints, stops (M15); the
 theoretical best, comparisons (M16); a part's sessions changed while other
 edits are unsaved (the editor asks to save first).
+
+## M15 — The race: one timeline, stints and stops  ✅ 2026-09-28
+
+The fourth milestone of race logging. Decision 35.
+
+- **Stops from the fixes** (`:timing`'s `PitLane`, `PitCrossing`): the pit
+  lane's lines, drawn or made where the lane is clear of the track;
+  `RunTiming.pitCrossings`; the re-timing rule at version 2.
+- **The race, one timeline** (`:timing`'s `Race`): laps through driver
+  changes and restarts, stops on their in-laps, stints split at stops or as
+  edited, the flags placed, cars classified.
+- **Flags and stints** on the race part, in Firestore, kept through every other
+  save; set by the admin or the car's crew (`RaceRoutes`).
+- **Results:** the event page's race section (classification, stints, stops,
+  every lap marked), the flags and the stints editor for the admin or the crew;
+  public driver pages (`/drivers`, `/drivers/{id}`), names linked from results.
+- **Also:** the replay's live tests wait for what the server received instead
+  of a fixed 300 ms, ending the flaky test (JOURNAL: M13).
+- **Tests:** Kotlin 20 new (`:timing` 13, `:events` 2, `:server` 5) and several
+  extended; Vitest 146 (7 new). **Mutations: 55, 54 killed, 1 as good as
+  equivalent** (the order of two pit crossings within one move); tests were
+  added after eight survivors.
+- **Found while building:** a pit lane's ends lie on the track (so lines made
+  there would be crossed on track); a stop named after the lap before its
+  in-lap; a stint split at a lap taking the lap before; a flag entered with
+  seconds lost; a missing summary leaving the flags unplaced; a car named by
+  its slug; "as the crew set them" when the admin had.
+- **Proven:** the real Firestore (a race with flags and stints read back
+  exactly); Chrome against the dev server (a generated race: pits, a driver
+  change as a tablet-only session, an app restart); **deployed as `00026`**
+  with a stream across the cutover; **in production**, the same race as a
+  throwaway car, drivers, flags and a split stint set through the crew's
+  passcode: 10 laps, the stop 100.2 s on lap 3, the restart lap 8, the flags
+  on laps 2 and 7, the stints 1–3, 4–5, 6–10; the driver pages. All removed.
+
+**Left for later:** the lap chart, theoretical best, comparisons (M16); the
+race live on the car page and the tablet (M17); the live lane's measured clock
+offset stored per session, for flags placed to the millisecond.

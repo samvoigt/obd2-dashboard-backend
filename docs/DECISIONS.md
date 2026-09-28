@@ -885,3 +885,36 @@ records carry.
 **Why.** Endurance racing means many sessions, and a crew that knows who's in
 the car; the server's clock is the only one to trust, and a person can put
 right what it heard late. Results on view stay right when a line moves.
+
+## 35. The race: one timeline, stops, stints, flags as annotations
+
+**Decision.** (M15.)
+- **A car's race is its race sessions' runs, made one timeline**, laps
+  numbered from the first its race sessions timed. The tablet keeps running
+  through a power cut (its own battery), so a driver change is normally
+  inside one run and its timing carries on; **across a restart of the app**
+  the gap between the last crossing and the next is **one lap, marked**,
+  timed on `wall` (an out-lap after the pit line, an in-lap before it).
+- **Everything stays on the tablet's clock**, however far out: laps, stops,
+  stints and stored stint boundaries. A constant offset cancels in every
+  difference. The server's clock orders runs.
+- **The green flag and the chequered flag are annotations, never a cut-off**
+  (Sam): entered by the admin or the crew as real times, placed on laps with
+  the tablet's offset (the smallest `created − started` over the race's
+  sessions, good to seconds), and every lap counts either side of them.
+- **A stop is the time in the pit lane**, from drawn `pit_in` and `pit_out`,
+  **else lines made where the lane comes clear of every layout by 16 m**: a
+  pit lane begins and ends on the track (NHMS's does), where a line would be
+  crossed by cars that never pit. A stop is on its in-lap.
+- **Stints split at every stop by default**, each stint's driver the one set
+  on the session its first lap ended in; **the admin or the car's crew**
+  merges, splits at a lap, and names drivers; once edited, the car's stints
+  are stored whole and replace the default. A stint holds the laps that end
+  after it starts: a split where lap N begins holds lap N.
+- **Race results and driver pages are public and computed on view**, from
+  each run's stored re-timing (decision 33).
+
+**Why.** Endurance racing means the power off at every change, and the
+server must never lose count because the car did; the crew knows who drove,
+and must be able to say so without the admin's sign-in. Flags as annotations
+keep every lap the tablet timed, which is the tablet's to give (decision 31).

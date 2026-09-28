@@ -6,7 +6,11 @@ shows the car's data live.
 
 ## Status
 
-M14 done: drivers and events, public at https://badnewsbears.live/events:
+M15 done: the race as one timeline, through driver changes (the car's power
+off, the tablet's timing carrying on) and restarts of the app; stops timed in
+the pit lane; stints split at stops, edited by the admin or the crew; the green
+and chequered flags marked; race results and driver pages, public. M14:
+drivers and events, public at https://badnewsbears.live/events:
 practice sessions and a race, sessions placed by the server's clock (or by
 hand), who drove each set by the admin or the car's crew, and each driver's
 best lap and sectors. M13: the server re-times the tablet's own GPS fixes, by the tablet's

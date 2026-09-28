@@ -331,3 +331,26 @@ whole drive, the admin page's Download.
   buttons needed a second click every time; nothing in the site's console.
   The extension's element sits in every page. Filling fields with the form
   tool and checking by reading the page was reliable.
+
+## 2026-09-28 — M15, the race
+
+- **A pit lane starts and ends on the track.** NHMS's does to the metre, and
+  runs within 3 m of it 40 m from its end; a line made at an end would be
+  crossed by cars that never pit. Measure the geometry before choosing where
+  a made line goes: the lines went where the lane is 16 m clear (70 m in, 76 m
+  before the exit), and a stop misses some 8 s of lane, the same every time.
+- **The tablet's own battery shapes the race.** A driver change cuts the
+  car's power, not the tablet's, so the run of the app carries on and so does
+  the tablet's lap timing; only a restart needs bridging (the app's
+  `HARDWARE.md`).
+- **Two clocks, one answer:** flags Sam enters are real times, laps are on the
+  tablet's; the smallest `created − started` over the race's sessions is the
+  offset to within seconds, since a live-announced session is created as it
+  starts.
+- **The flaky replay test was a fixed sleep.** It waited 300 ms for the
+  server to handle the socket's last batch; a loaded machine sometimes took
+  longer. It now retries its assertion for up to 10 s. And a commit went in
+  before its test run's result was read: read the result first.
+- **Production proof by the crew's route only**: the live site's admin page in
+  this Chrome is Sam's session, so it was only looked at; every change went
+  through the crew's passcode, as the pit wall would make them.
