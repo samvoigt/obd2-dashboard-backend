@@ -216,8 +216,8 @@ a practice part whose window catches a replayed session, one added by hand.
 >   28th, at 21:52 in New York); now the viewer's.
 > - **The first click on each page was lost**, in every page, the sign-in
 >   too; an extension's element ("feedly Mini toolkit") sits in every page's
->   accessibility tree, and clicking through the page's own JavaScript always
->   worked. The browser's, not the site's.
+>   accessibility tree, and a second click always worked. The browser's, not
+>   the site's.
 
 ### M14.4 — Who drove
 
@@ -226,6 +226,41 @@ page's driver line and picker; logged.
 
 **Done when:** tests (admin, own crew, another car's crew refused, no sign-in
 refused, an unknown driver refused, fake data refused); looked at in Chrome.
+
+> **Validated against the code, 2026-09-27, before building.**
+> - **The cookies decide the paths.** The crew's cookie is scoped to
+>   `/api/cars/{slug}` (M5), the admin's to `/api/admin` (M6), so neither
+>   reaches `/api/sessions/…`. Two routes, one rule:
+>   - `PUT /api/admin/sessions/{id}/driver` for the admin (sign-in and
+>     origin, as every admin change);
+>   - `PUT /api/cars/{slug}/sessions/{id}/driver` for **that car's crew**
+>     (`isCrew`, as messages are; the cookie is `SameSite=Strict`), and only
+>     for that car's sessions.
+>   Both take `{"driver": id}` or `null` to clear; refuse an unknown driver
+>   and fake data (§21); log who (the admin's email, or "the crew of {car}").
+> - **Who drove is public**, as results are: `GET /api/drivers` (names and
+>   codes), and the session's detail (`GET /api/sessions/{id}`) gains its
+>   driver.
+> - **The session page** knows who's looking as the car page does: the admin
+>   by `GET /api/admin/me`, the crew by `GET /api/cars/{slug}/crew`; either
+>   sees a picker, everyone else the name.
+
+> **✅ Done, 2026-09-27.** `DriverRoutes` (`GET /api/drivers`, the admin's
+> and the crew's `PUT …/sessions/{id}/driver`); `SessionDetail.driver`; the
+> session page's driver line and picker (`setSessionDriver`, `whoCanSet`).
+> - **Tests: Kotlin 4** (the crew sets and clears their car's; the admin any
+>   car's, from our page only; nobody else, another car's crew included, no
+>   unknown driver, no test data; drivers public), **Vitest 2** (the path for
+>   each sign-in; who may set it).
+> - **Mutations: 11, 10 killed, one equivalent** (storing the id sent or the
+>   found driver's id, which are the same once it's found).
+> - **Looked at in Chrome** (the dev server): signed out, no picker and no
+>   driver; as the admin, "Driver: Nobody yet", Sam chosen, kept on reload;
+>   signed out again, "Driven by Sam Voigt (SAM)". The crew's picker is the
+>   same code on its own path, tested on the server; logging in as crew in the
+>   browser would mean reading the dev passcode into the transcript.
+> - **Checked too:** a new event's date now defaults to the local day (27th
+>   at 21:59 in New York).
 
 ### M14.5 — Practice results, public
 

@@ -125,8 +125,9 @@ fun Application.module(
         )
         adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin)
         publicCourseRoutes(courses)
-        sessionRoutes(registry, archive, hub, clock, laps = retiming::sessionLaps)
+        sessionRoutes(registry, archive, hub, clock, laps = retiming::sessionLaps, drivers = events.drivers)
         messageRoutes(registry, crewAuth, crew)
+        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.

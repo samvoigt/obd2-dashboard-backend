@@ -5,6 +5,7 @@ import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.SessionIds
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.archive.SessionSummary
+import com.obd2dashboard.backend.events.DriverStore
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.Slug
@@ -89,6 +90,8 @@ data class SessionDetail(
     val signals: List<SignalView> = emptyList(),
     val gaps: Int = 0,
     val missed: Long = 0,
+    /** Who drove it (M14.4); null until someone says. */
+    val driver: DriverView? = null,
 )
 
 /**
@@ -102,6 +105,8 @@ fun Route.sessionRoutes(
     clock: Clock,
     /** A complete session's laps as they stand (M13.5); null if it was at no course. */
     laps: suspend (car: String, id: String) -> SessionLaps? = { _, _ -> null },
+    /** For a session's driver's name (M14.4). */
+    drivers: DriverStore? = null,
 ) {
     suspend fun item(record: SessionRecord, live: String?): SessionItem {
         val summary = if (record.complete) record.summary?.takeIf { it.version == SessionSummary.VERSION } ?: archive.summary(record.id) else null
@@ -147,6 +152,7 @@ fun Route.sessionRoutes(
                 signals = summary?.signals.orEmpty().map { SignalView(it.name, it.unit, it.kind) },
                 gaps = summary?.gaps ?: 0,
                 missed = summary?.missed ?: 0,
+                driver = record.driver?.let { drivers?.get(it) }?.view(),
             ),
         )
     }

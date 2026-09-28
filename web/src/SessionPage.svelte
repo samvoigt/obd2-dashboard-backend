@@ -8,6 +8,7 @@
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
+  import { setSessionDriver, whoCanSet, type Driver, type DriverSetter } from './lib/events'
   import { merge } from './lib/merge'
   import { columnShown, shownUnit } from './lib/units'
   import { units } from './lib/unitsState.svelte'
@@ -22,9 +23,30 @@
     carName: string
     gaps: number
     missed: number
+    /** Who drove it (M14.4). */
+    driver?: Driver | null
   }
 
   let detail = $state<Detail | null>(null)
+  let drivers: Driver[] = $state.raw([])
+  let setter: DriverSetter = $state(null)
+  let settingDriver = $state(false)
+  let driverError: string | null = $state(null)
+
+  async function chooseDriver(id: string | null) {
+    const d = detail
+    if (!d || !setter) return
+    settingDriver = true
+    driverError = null
+    try {
+      await setSessionDriver(setter, slug, d.session.id, id)
+      detail = { ...d, driver: drivers.find((x) => x.id === id) ?? null }
+    } catch (e) {
+      driverError = e instanceof Error ? e.message : String(e)
+    } finally {
+      settingDriver = false
+    }
+  }
   let series = $state.raw<Series | null>(null)
   let missing = $state(false)
   let error = $state<string | null>(null)
@@ -98,6 +120,11 @@
       }
       if (!response.ok) throw new Error(`The server answered ${response.status}.`)
       detail = (await response.json()) as Detail
+      // Who drove (M14.4): everyone sees it; the admin or the car's crew can set it. Never on test data.
+      if (detail.session.source !== 'fake') {
+        void fetch('/api/drivers').then((r) => (r.ok ? r.json() : [])).then((d: Driver[]) => (drivers = d)).catch(() => {})
+        void whoCanSet(slug).then((w) => (setter = w))
+      }
       series = await fetchSeries(id)
       if (detail.session.state === 'live') follow()
       else if (detail.session.state === 'complete') standing = await fetchLaps(id).catch(() => null)
@@ -179,6 +206,19 @@
       {#if s.state === 'live'}<a href={`/cars/${slug}`}>Watch live →</a>{/if}
       <span class="spacer"></span><UnitsSwitch />
     </p>
+    {#if setter && drivers.length > 0}
+      <p class="driver">
+        <label>Driver
+          <select value={detail.driver?.id ?? ''} onchange={(e) => chooseDriver(e.currentTarget.value || null)} disabled={settingDriver}>
+            <option value="">Nobody yet</option>
+            {#each drivers as d (d.id)}<option value={d.id}>{d.name} ({d.code})</option>{/each}
+          </select>
+        </label>
+        {#if driverError}<span class="error">{driverError}</span>{/if}
+      </p>
+    {:else if detail.driver}
+      <p class="driver">Driven by <strong>{detail.driver.name}</strong> <span class="muted">({detail.driver.code})</span></p>
+    {/if}
     {#if s.state === 'uploading'}
       <p class="muted small">Still being uploaded: this shows what has arrived so far. Reload for more.</p>
     {:else if s.state === 'live'}
@@ -275,6 +315,8 @@
   .laps .sector { font-variant-numeric: tabular-nums; }
   .laps .bestsector { color: var(--in-range); font-weight: 700; }
   .laps tr.chosen td { background: var(--bg); }
+  .driver { margin: 0 0 8px; }
+  .driver label { display: inline-flex; gap: 8px; align-items: center; }
   .laps .note { display: block; font-size: 0.8rem; white-space: nowrap; }
   .laps .note.flag { color: var(--caution); }
   .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.95rem; }

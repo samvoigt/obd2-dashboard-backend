@@ -117,3 +117,28 @@ export function heardText(s: SessionBrief, locale = 'en-GB', timeZone?: string):
   const date = new Date(s.heardFrom).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone })
   return `${date}, ${time(s.heardFrom)}–${time(s.heardTo)}`
 }
+
+/** Who may say who drove a session: the admin, the car's crew, or nobody looking (M14.4). */
+export type DriverSetter = 'admin' | 'crew' | null
+
+/**
+ * Sets (or with null clears) who drove session [id] of car [slug]: through the
+ * admin's path or the crew's, since each sign-in's cookie reaches only its own.
+ */
+export async function setSessionDriver(who: 'admin' | 'crew', slug: string, id: string, driver: string | null, fetcher: typeof fetch = fetch): Promise<void> {
+  const path = who === 'admin' ? `/api/admin/sessions/${id}/driver` : `/api/cars/${slug}/sessions/${id}/driver`
+  const response = await fetcher(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ driver }) })
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { message?: string }
+    throw new Error(body.message || `The server answered ${response.status}.`)
+  }
+}
+
+/** Whether whoever is looking may set who drove: the admin first, else this car's crew. */
+export async function whoCanSet(slug: string, fetcher: typeof fetch = fetch): Promise<DriverSetter> {
+  const admin = await fetcher('/api/admin/me').catch(() => null)
+  if (admin?.ok) return 'admin'
+  const crew = await fetcher(`/api/cars/${slug}/crew`).catch(() => null)
+  const body = crew?.ok ? ((await crew.json().catch(() => ({}))) as { crew?: boolean }) : {}
+  return body.crew === true ? 'crew' : null
+}

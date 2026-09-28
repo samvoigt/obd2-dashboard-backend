@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, toLocalInput, type Part } from './events'
+import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, setSessionDriver, toLocalInput, whoCanSet, type Part } from './events'
 
 const part = (id: string, added: string[] = [], removed: string[] = []): Part =>
   ({ id, kind: 'practice', name: id, start: 0, end: 1, added, removed })
@@ -48,5 +48,33 @@ describe('an event in the editor (M14.3)', () => {
     expect(codeFrom('Él')).toBe('EL')
     const from = Date.UTC(2026, 9, 4, 13, 5)
     expect(heardText({ id: 's', car: 'c', heardFrom: from, heardTo: from + 35 * 60_000, laps: 0 }, 'en-GB', 'UTC')).toBe('4 Oct, 13:05–13:40')
+  })
+})
+
+describe('who drove (M14.4)', () => {
+  const seen: { url: string; init?: RequestInit }[] = []
+  const answering = (answers: Record<string, [number, unknown?]>) =>
+    (async (url: string, init?: RequestInit) => {
+      seen.push({ url, init })
+      const [status, body] = answers[url] ?? [404, { message: 'nope' }]
+      return new Response(body === undefined ? null : JSON.stringify(body), { status })
+    }) as unknown as typeof fetch
+
+  it('the admin through the admin\u2019s path, the crew through the car\u2019s', async () => {
+    seen.length = 0
+    const ok = answering({ '/api/admin/sessions/s1/driver': [200, {}], '/api/cars/outback/sessions/s1/driver': [200, {}] })
+    await setSessionDriver('admin', 'outback', 's1', 'd-sam', ok)
+    await setSessionDriver('crew', 'outback', 's1', null, ok)
+    expect(seen.map((s) => s.url)).toEqual(['/api/admin/sessions/s1/driver', '/api/cars/outback/sessions/s1/driver'])
+    expect(seen[0]!.init!.method).toBe('PUT')
+    expect(seen[0]!.init!.body).toBe('{"driver":"d-sam"}')
+    expect(seen[1]!.init!.body).toBe('{"driver":null}')
+    await expect(setSessionDriver('crew', 'yaris', 's1', 'd-sam', ok)).rejects.toThrow('nope')
+  })
+
+  it('who may set it: the admin first, else the car\u2019s crew, else nobody', async () => {
+    expect(await whoCanSet('outback', answering({ '/api/admin/me': [200, { email: 'a' }] }))).toBe('admin')
+    expect(await whoCanSet('outback', answering({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: true }] }))).toBe('crew')
+    expect(await whoCanSet('outback', answering({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: false }] }))).toBeNull()
   })
 })
