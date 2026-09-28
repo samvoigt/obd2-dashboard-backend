@@ -94,6 +94,32 @@ heard inside its window, one overlapping its edge, not one before or after,
 not another car's, never fake data, one added by hand though heard late, one
 removed by hand though inside; a session never in two parts.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Pure, like `:courses`**, and depending on nothing of ours: membership
+>   takes a small `SessionHeard` (id, car, the server's first and last heard,
+>   source), which the server maps from `SessionRecord` (`created`, `updated`,
+>   and `header.source`, else the summary's).
+> - **Ids:** an event's id is chosen like a course's (`CourseRules`' id rule,
+>   suggested from the name); a driver's is made by the server, so a code can
+>   change; a part's is `p1`, `p2`… in the order made, never reused.
+> - **Two cases the plan left open, decided:** a session **straddling two
+>   parts** joins the one it overlaps most (the earlier on a tie); **by hand
+>   wins**: a session added to a part is in that part only, and one removed
+>   from a part is in no part by the windows. Added to two parts is refused.
+> - **Windows** are half open, `[start, end)`; a session is heard in one if
+>   `created < end` and `updated ≥ start`.
+> - **Stores** as `CourseStore`: suspend functions, conditional saves
+>   (`expected` revision), in-memory versions for tests.
+
+> **✅ Done, 2026-09-27.** `:events`: `Driver`, `Event`, `Part`,
+> `SessionHeard`; `EventRules` (every problem said; `sessionsIn`);
+> `DriverStore`, `EventStore` and their in-memory versions.
+> - **Added while building:** a part is at most 30 hours (a day and a night;
+>   a mistyped year is refused, not a week-long window catching everything).
+> - **Tests: 7** (a valid event; every problem with an event; drivers and
+>   codes; a part's sessions by window, edges, cars, sources; by hand, and a
+>   tie; part ids; the in-memory stores). **Mutations: 19, all killed.**
+
 ### M14.2 — Storage
 
 `FirestoreDriverStore`, `FirestoreEventStore` (transactions, `expected`
