@@ -311,3 +311,23 @@ whole drive, the admin page's Download.
   tablet's records are.
 - **Flaky:** `:replay`'s coalescing test failed once in a loaded full run and
   passed three times alone.
+
+## 2026-09-27 — M14, drivers and events
+
+- **The server's clock places sessions, and it works:** the dev server's test
+  drives said 08:00 and 09:00 on the tablet's clock, the server heard them at
+  22:05, and each landed in the right practice.
+- **An in-memory store can hide a Firestore fault.** An empty driver id found
+  nothing in memory and made Firestore throw (a 500) in production. Ids from
+  a request are now checked before Firestore sees them. **zsh doesn't split
+  an unquoted variable into words** (`set -- $IDS` gave one argument), which
+  is how the empty id got there.
+- **The deploy's stream kept clear of the proof:** a stream is a session too,
+  and would have joined the test event's window; it came from a second
+  throwaway car. Both cutovers (`00024`, `00025`) drained with `1012` and
+  reconnected at once, under `caffeinate -i`: no Ping timeouts.
+- **Chrome here loses the first click on a page** (and sometimes the next,
+  after typing brings up an extension's overlay): the dev sign-in and form
+  buttons needed a second click every time; nothing in the site's console.
+  The extension's element sits in every page. Filling fields with the form
+  tool and checking by reading the page was reliable.

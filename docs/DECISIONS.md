@@ -856,3 +856,32 @@ is a check on both sides, and a line moved at the track re-times the past
 without anyone re-driving it. Per run, because the tablet's timing carries
 across its sessions; to the millisecond, because that's what the tablet's
 records carry.
+
+## 34. Events, parts and who drove
+
+**Decision.** (M14.)
+- **Drivers** are one list for every event and car: a name and a code of
+  2–4 capitals, unique; a driver who drove stays (rename instead).
+- **An event** is at one course and layout, with the cars entered, **any
+  number of practice parts and at most one race**, each a window of time,
+  never overlapping, none over 30 hours.
+- **A session is in a part by the server's time**: its car entered, the
+  server hearing it (`created` to `updated`) during the window; the part it
+  overlaps most if two; **plus by hand, minus by hand**, and by hand wins.
+  Never test data (§21). The tablet's own clock never places a session: it
+  was 11 hours out on the first drive.
+- **Who drove** is set per session on its page, by the admin or **the car's
+  crew** (the passcode they use for messages), each change logged with who;
+  public to read. Two routes, one rule, because each sign-in's cookie reaches
+  only its own paths.
+- **Practice results are public and computed on view**: the laps as they
+  stand on the event's course and layout (decision 33), each driver's best on
+  track (§18), the best of each sector (§22.6's in- and out-lap rule), per
+  part and over all practice. Laps on another layout are shown, never counted.
+- **`admin.sh`** can do what the admin page does for drivers and events
+  (`add-driver`, `remove-driver`, `import-event`, `remove-event`), so a race
+  weekend can be set up from a file, and a proof needs no Google sign-in.
+
+**Why.** Endurance racing means many sessions, and a crew that knows who's in
+the car; the server's clock is the only one to trust, and a person can put
+right what it heard late. Results on view stay right when a line moves.

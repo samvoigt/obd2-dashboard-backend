@@ -6,7 +6,10 @@ shows the car's data live.
 
 ## Status
 
-M13 done: the server re-times the tablet's own GPS fixes, by the tablet's
+M14 done: drivers and events, public at https://badnewsbears.live/events:
+practice sessions and a race, sessions placed by the server's clock (or by
+hand), who drove each set by the admin or the car's crew, and each driver's
+best lap and sectors. M13: the server re-times the tablet's own GPS fixes, by the tablet's
 own rule, wherever its laps aren't current (a line moved, or a drive with no
 laps), and checks the tablet's laps to 2 ms; a session's page shows the laps
 as they stand, marked. M12: courses are drawn on the website (layouts,

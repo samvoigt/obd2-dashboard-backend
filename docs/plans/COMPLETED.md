@@ -521,3 +521,43 @@ are the live ones); a course save's re-timing surviving a restart (the
 progress is in memory; a missing re-timing is built on view); `import-course`
 and `remove-course` starting the server's job (they write Firestore
 directly, so re-timing happens on view).
+
+## M14 — Drivers and events  ✅ 2026-09-27
+
+The third milestone of race logging. Decision 34.
+
+- **`:events`** (pure): `Driver`, `Event`, `Part`, `SessionHeard`;
+  `EventRules` (every problem said; which sessions each part holds);
+  `DriverStore`, `EventStore`, in memory.
+- **Storage:** `FirestoreDriverStore` (a code unique by a transaction),
+  `FirestoreEventStore` (a save a transaction on its revision), a session's
+  driver on its index record; `scripts/event-smoke.sh`.
+- **The admin page:** Drivers, Events and the event editor (course, layout,
+  cars, parts and their windows, a part's sessions taken out or added by
+  hand); a refused save shows every problem.
+- **Who drove:** set on a session's page by the admin or the car's crew,
+  public to read.
+- **Public:** `/events` and `/events/{id}` (each driver's best per practice
+  and over all practice, the best of each sector, every session, re-timed laps
+  marked); a session's page and its car's list name its event and part; the
+  landing page links Events and Courses.
+- **`admin.sh`:** `drivers`, `events`, `add-driver`, `remove-driver`,
+  `import-event`, `remove-event`.
+- **Batched in:** the course editor's rename fix (a new name alone can be
+  saved).
+- **Tests:** Kotlin 30 new (`:events` 7, `:archive` 1, `:archive-gcp` 4,
+  `:server` 15, `:tools` 3); Vitest 139 (14 new). **Mutations: 78, 76 killed,
+  2 shown equivalent**; tests were added or tightened after seven survivors.
+- **Found while building:** a new event's date defaulting to UTC's day; a
+  part's window heading-sized; the theoretical best creeping in (M16's).
+  **In production:** an empty driver id answered with a 500 (Firestore throws
+  on it; the in-memory store just finds nothing); fixed and redeployed.
+- **Proven:** the real Firestore (`scripts/event-smoke.sh`); Chrome against
+  the dev server (every page, the admin's and the public's); **deployed as
+  `00024` and `00025`**, each with a stream across the cutover; in
+  production, a test event ranking two drivers set through the crew's
+  passcode, then removed.
+
+**Left for later:** the race as one timeline, stints, stops (M15); the
+theoretical best, comparisons (M16); a part's sessions changed while other
+edits are unsaved (the editor asks to save first).

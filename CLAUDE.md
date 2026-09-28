@@ -43,9 +43,9 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
-Modules: `:registry`, `:archive`, `:live`, `:admin`, `:courses` and `:timing`
-(pure, where the rules and most tests live; `:timing` is the tablet's lap rule
-and re-timing, decision 33), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
+Modules: `:registry`, `:archive`, `:live`, `:admin`, `:courses`, `:timing` and
+`:events` (pure, where the rules and most tests live; `:timing` is the tablet's
+lap rule and re-timing, decision 33; `:events` drivers and events, decision 34), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
 `:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot, Leaflet;
 Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 Colours are roles in `web/src/app.css` only (decision 29; a test enforces
@@ -76,6 +76,8 @@ scripts/message-smoke.sh        # throwaway messages through the real Firestore
 scripts/course-smoke.sh         # a throwaway course through the real Firestore
 scripts/admin.sh import-course courses/seed/nhms.geojson   # a course from a file, as its next version
 scripts/admin.sh remove-course <id>   # a course and its re-timings (refused if a tablet timed laps there)
+scripts/admin.sh import-event <file.json>   # an event from a file (see its help); remove-event, add-driver, remove-driver
+scripts/event-smoke.sh          # throwaway drivers and an event through the real Firestore
 python3 courses/seed/make_nhms.py   # remake NHMS's seed from the app's file (only read)
 ```
 
