@@ -31,10 +31,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M14** | Drivers and events: practice parts and a race, sessions joined by the server's time, who drove, practice results | ✅ (`plans/COMPLETED.md`) |
 | **M15** | The race: one timeline through driver changes and restarts, stops, stints, race results, driver pages | ✅ (`plans/COMPLETED.md`) |
 | **M16** | Results worth reading: every lap linked, theoretical best, sectors compared, consistency, the lap-time chart, two laps compared | ✅ (`plans/COMPLETED.md`) |
-| **M14** | Drivers, and events with practice and a race | outline |
-| **M15** | The race: sessions stitched into one, stints by driver | outline |
-| **M16** | Results worth reading: lap chart, theoretical best, comparisons | outline |
-| **M17** | Live: the car page's laps, and the `timing` frame to the tablet | outline |
+| **M17** | Live: the `timing` frame to the tablet, the car page's driver, stint and race, the event page counting the stint being driven | **planned**: [`plans/M17-LIVE.md`](plans/M17-LIVE.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.

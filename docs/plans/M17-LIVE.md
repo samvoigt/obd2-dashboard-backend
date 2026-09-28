@@ -1,0 +1,208 @@
+# M17 — Live: the car page, the event page and the tablet
+
+The last milestone of race logging (`RACE-LOGGING.md`): what the server
+knows about a car **while it is being driven**. The tablet gets the `timing`
+frame (contract §22.7): who's driving and for how long, the race's lap count,
+the time since the stop, the event's bests. The car page shows the same, with
+each lap's sectors as they arrive. The event page counts the stint being
+driven now.
+
+Nothing here changes the contract: `timing` is §22.7 as agreed, and the tablet
+already lists `timing.1` and shows it (the app's M44, `ServerTiming`).
+
+---
+
+## Settled with Sam, 2026-09-28
+
+- **The event page is live in M17**: during a part, the results count the
+  current stint's laps, marked as live, and the page refreshes itself.
+- **The crew sets who's driving from the car page too**: a driver picker for
+  the current session, behind the crew's passcode, as messages are.
+
+---
+
+## What exists, and what it means (checked 2026-09-28)
+
+- **The tablet is ready.** It sends `hello.features: ["courses.1", "timing.1"]`,
+  parses `timing` whole (`ServerFrame.Timing`), ignores one for another
+  session, counts ages on from arrival, and keeps the last one through a drop,
+  marked stale after 30 s. It uses the server's `best` as its delta's reference
+  only when it holds that lap's fixes.
+- **The live socket** (`LiveRoutes`) answers `hello` with `welcome`, the crew
+  messages and, to a `courses.1` tablet, the `courses` frame (`CourseDownlink`,
+  which also tells every listening tablet when a course changes). `timing`
+  goes the same way.
+- **The live lane has each lap as it's timed.** `lap` records come whole in the
+  next batch (§5.2 coalesces samples, never records). But `CarLive` keeps only
+  **5 minutes of history** and forgets it all on a restart. **The archive has
+  the rest**: chunks arrive every 2 minutes, and a session's prepared series
+  can be read before it's complete. The car page already joins the two: the
+  series' laps, then the live lane's after its `lastSeq` (`lapsFrom`).
+- **Results count only complete sessions.** `RetimingJobs.sessionsOf` keeps
+  complete ones, so a run, an event's practice and the race (`Race.car`) see
+  a session only once it's uploaded whole. **During a race the stint being
+  driven is invisible** until its session ends.
+- **`Race.car` takes runs** (`RunTiming`: laps on the tablet's `at` with
+  `wall` offsets, pit crossings). A **provisional run** built from the live
+  session's `lap` records would go through it unchanged. Its restart bridge
+  only adds a lap where there's a gap between runs, so a live session
+  continuing a run adds nothing false.
+- **Stops come from fixes** (`PitLane.offer(session, fix)`, which already takes
+  one fix at a time), and the live lane has the positions (every fix at 1 Hz;
+  at least one per 200 ms batch at 10 Hz, which is ample for a line).
+- **The tablet's clock against ours** is measured live (`CarLive.clockOffset`,
+  from batches), so "now" on the tablet's `wall`, where every lap, stop and
+  stint is, is the server's now less that.
+- **Drivers are set per session** (`PUT /api/cars/{slug}/sessions/{id}/driver`,
+  crew or admin), and in a race, stints as edited replace the default.
+- **The replay tool** plays a `courses.1` tablet (`--courses`) and has the
+  frames it receives; one playing `timing.1` is a small addition.
+
+---
+
+## Decided here (say if any is wrong)
+
+- **`timing` is sent** to a tablet listing `timing.1`: once a session is
+  running after every `hello` (at its `session` frame, which follows the
+  `hello`), and **whenever anything in it changes**: a lap arrives, the car
+  crosses a pit line, a session starts or completes, a driver is set, stints
+  or flags are edited, the event or the course is saved. It's compared
+  without its ages, so a frame goes only when something real changed.
+- **Its fields, per §22.7:**
+  - **`course`**: the event's course and layout if the car is in an event part
+    now, else the course and layout of the car's latest lap; always the
+    course's **current version**, so a tablet on an older one fetches.
+  - **`best` and `bestSectors`**: over **this car's** laps in the event (every
+    part, every driver, the live run included), never an in- or out-lap, and
+    sectors by §22.6's rule. With no event: this car on this layout, over its
+    complete sessions at the course and the live run. `best` names its
+    driver's code, session and lap number.
+  - **`driver`**: the live session's driver as set. In a race, the current
+    stint's, which edited stints can name. **The stint's age**: since the
+    current stint began. In a race that's the race's current stint. Outside
+    one, stints split at stops the same way: since the last pit exit in this
+    run, else the run's first lap.
+  - **`race`**, only while the car's session is in a race part: the lap count
+    through the race (complete sessions and the live run, restart laps
+    included), and **the time since the car left the pits**: since the last
+    stop's exit, or before the first stop, since the race's first lap began.
+  - **Ages** are the tablet's `wall` now (the server's now less the measured
+    offset) less the moment, measured when the frame is sent (§22.8).
+- **The live run is provisional and never stored**: the current session's `lap`
+  records (the partial series, then the live lane's), and its pit crossings
+  from live fixes. When the session completes, its re-timed run replaces it.
+  After a server restart it's rebuilt from the partial series.
+- **Its laps stand as the tablet sent them**: no re-timing until the session
+  completes (decision 33 re-times complete runs only).
+- **The car page gets it too**, on its public stream: a `timing` event with
+  the driver's name, the stint's time, the race's lap count, the time since
+  the stop, and the best and theoretical best. The public stream never
+  carries more than the page shows.
+- **The event page, live**: while a part is on, results include the live
+  run's laps, each marked live, and the page refreshes every 30 s. The server
+  holds an event's results for 10 s, so many viewers cost one computation.
+
+---
+
+## The steps
+
+Each validated against the code just before it's built, the validation
+written here.
+
+### M17.1 — Answer the tablet's §23
+
+§23 asks the backend two things: that a second `complete` for a complete
+session answers `200` with the same values and changes nothing (the code
+does: `ArchiveService.complete`, same end and hash), and when the session of
+2026-09-28 (started 17:22:27Z, car ending …394138) was first completed.
+
+**Done when:** a test pins the repeated `complete` (the same answer; nothing
+changed, the session not prepared twice); the first `complete`'s time is
+found in Cloud Run's logs; the answer is written for the tablet side, in chat
+(never in the contract), and noted in `PROTOCOL.md`.
+
+### M17.2 — The live run, held on the server
+
+`:timing`, pure: a `LiveRun` fed the current session's `lap` records (whole,
+once each by `seq`) and its fixes (`PitLane.offer`), giving a provisional
+`RunTiming`. `:server`: one per car, fed from the live lane, and rebuilt from
+the session's partial series when it's missing (a restart, a reconnect).
+Dropped when its session completes.
+
+**Done when:** tests: laps kept whole past five minutes; a lap sent twice
+counted once; pit crossings from a stream of fixes the same as from the whole
+log; rebuilt from a partial series, then carrying on from the live lane
+without a lap lost or doubled; `Race.car` with the live run continuing a run,
+and after a restart (the bridge lap).
+
+### M17.3 — Where the car stands
+
+Pure: from the event (if the car is in a part now), its results over complete
+sessions, and the live run: `course`, `best`, `bestSectors`, the driver and
+the stint's start, the race's lap count and the last pit exit. The same state
+for the tablet, the car page and the event page.
+
+**Done when:** tests: no event (the car's best on this layout); practice;
+the race before and after a stop; edited stints naming the driver; a best set
+in the live run; in- and out-laps never best; a car not entered in the event
+now.
+
+### M17.4 — `timing` down to the tablet
+
+A `TimingDownlink` beside `CourseDownlink`: to a tablet listing `timing.1`,
+after its `session`, and whenever the state changes (compared without ages).
+Ages from the tablet's `wall` now. `replay --timing` plays such a tablet and
+prints what it receives.
+
+**Done when:** tests: none to a tablet without `timing.1`; one after
+`session`; one on each change (a lap, a driver set, stints edited, a stop), and
+none when nothing changed; another car's never; ages from the measured offset;
+the JSON exactly §22.7's shape, as the tablet's parser reads it (the app's
+`ServerFrame.parse`, read, not run). A replay into the dev server shows the
+frames.
+
+### M17.5 — The car page, live
+
+The public stream's `timing` event; on the page, a panel for the driver, the
+stint's time and, in a race, the lap count and time since the stop, counted
+on in the page between events; each lap's sectors in the laps panel, the best
+of each marked; for the crew, the driver picker for the current session.
+
+**Done when:** tests for the panel's logic (ages counted on; nothing shown
+before an event; a sector's best); looked at in Chrome with a replay
+streaming: a driver set from the car page, reaching the tablet's frame and the
+panel within seconds.
+
+### M17.6 — The event page, live
+
+Results with the live run: its laps counted, marked live; the race's
+section and the lap chart with the stint being driven; the page refreshing
+every 30 s during a part; results held 10 s on the server.
+
+**Done when:** tests (the live run in practice results and in the race; a
+completed session replacing its live run without a lap lost or doubled; the
+10 s hold); looked at in Chrome: a race's lap count going up while a replay
+streams.
+
+### M17.7 — Deploy, and prove it
+
+Deployed with a stream across it (a second throwaway car's, under
+`caffeinate -i`). **Proof in production:** a throwaway car streaming live as
+a `timing.1` tablet into a test event's race (a test course, two test
+drivers): `timing` frames arriving with the lap count and a driver set
+through the crew's passcode, the car page's panel, the event page counting
+the live stint. All removed after.
+
+### M17.8 — Record it
+
+A decision for what the server says live; `COMPLETED`, `JOURNAL`, `PLAN`,
+`README`, `PROTOCOL.md` (`timing` built); race logging's plan closed; this
+plan deleted.
+
+---
+
+## Not in M17
+
+- Anything that changes the contract, or the tablet.
+- Re-timing a session before it completes.
+- Other teams' cars; positions between cars.
