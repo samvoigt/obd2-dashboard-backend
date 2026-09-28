@@ -152,6 +152,9 @@ class CourseRoutesTest {
         progress.getValue("version").jsonPrimitive.content shouldBe "1"
         progress.getValue("runs").jsonPrimitive.content shouldBe "0"
         call(HttpMethod.Get, "/api/admin/courses/nhms/retiming", null).status shouldBe HttpStatusCode.Unauthorized
+        // Removed: its re-timing goes with it (M13.6).
+        call(HttpMethod.Delete, "/api/admin/courses/nhms", cookie).status shouldBe HttpStatusCode.NoContent
+        call(HttpMethod.Get, "/api/admin/courses/nhms/retiming", cookie).status shouldBe HttpStatusCode.NoContent
     }
 
     @Test

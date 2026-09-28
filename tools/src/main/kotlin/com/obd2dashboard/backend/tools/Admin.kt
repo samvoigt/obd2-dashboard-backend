@@ -24,6 +24,7 @@ import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.courses.CourseCheck
 import com.obd2dashboard.backend.courses.CourseRules
+import com.obd2dashboard.backend.timing.removeTimings
 import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.live.MessageStore
 import com.obd2dashboard.backend.live.Messages
@@ -78,7 +79,7 @@ class Admin(
     init {
         subcommands(
             AddCar(io), RotateToken(io), SetToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
-            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(),
+            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(), RemoveCourse(io),
         )
     }
 
@@ -398,3 +399,27 @@ class ImportCourse : CliktCommand(name = "import-course") {
     }
 }
 
+
+/**
+ * Removes a course and every version of it (M13.6), with its stored
+ * re-timings, as the admin page does. A course whose laps a tablet timed is in
+ * use and stays. The server is told nothing: tablets see it gone at their
+ * next fetch of courses.
+ */
+class RemoveCourse(private val io: AdminIo) : CliktCommand(name = "remove-course") {
+    private val tools: Tools by requireObject<Tools>()
+    private val id by argument()
+
+    override fun help(context: Context) = "Remove a course, every version of it, and its re-timings. It cannot be undone."
+
+    override fun run() = runBlocking {
+        val course = tools.courses.get(id) ?: throw CliktError("No course $id.")
+        val all = tools.sessions.list()
+        if (all.any { it.summary?.track == course.id }) throw CliktError("Laps were timed at ${course.id}, so it stays. Draw a new version instead.")
+        val typed = io.readLine("Type the course id again to remove it (${course.name}, version ${course.version}): ")
+        if (typed?.trim() != course.id) throw CliktError("Not removed.")
+        tools.courses.delete(course.id)
+        val removed = tools.archive.removeTimings(all.map { it.id }, course.id)
+        echo("Removed ${course.id}, and $removed re-timing(s).")
+    }
+}

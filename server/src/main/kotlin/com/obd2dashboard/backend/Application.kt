@@ -115,7 +115,8 @@ fun Application.module(
         }
         adminCourseRoutes(
             courses, courseInUse, clock, adminAuth, admin,
-            onChange = downlink::changed, onSaved = { retiming.courseSaved(it) }, retiming = retiming::progress,
+            onChange = downlink::changed, onSaved = { retiming.courseSaved(it) },
+            onRemoved = { retiming.courseRemoved(it) }, retiming = retiming::progress,
         )
         publicCourseRoutes(courses)
         sessionRoutes(registry, archive, hub, clock, laps = retiming::sessionLaps)

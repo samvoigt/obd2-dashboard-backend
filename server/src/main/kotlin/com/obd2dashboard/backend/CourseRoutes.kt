@@ -85,6 +85,8 @@ fun Route.adminCourseRoutes(
     onChange: suspend () -> Unit = {},
     /** Told of every save, to re-time the sessions at the course (M13.4). */
     onSaved: (Course) -> Unit = {},
+    /** Told of every removal, to delete its re-timings (M13.6). */
+    onRemoved: (id: String) -> Unit = {},
     /** A save's re-timing, as it goes (M13.4). */
     retiming: (id: String) -> RetimingProgress? = { null },
 ) {
@@ -157,6 +159,7 @@ fun Route.adminCourseRoutes(
         courses.delete(id)
         adminLog.info("course removed: {} by {}", id, email)
         onChange()
+        onRemoved(id)
         call.respond(HttpStatusCode.NoContent)
     }
 }

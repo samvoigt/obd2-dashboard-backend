@@ -149,8 +149,7 @@ public class Retimer(
         archive.putDerived(first, name, json.encodeToString(RunTiming.serializer(), timing).encodeToByteArray())
         built(timing)
         // Only the newest of this course stays: older versions, and any older rule's.
-        val ofCourse = Regex("timing-v\\d+-${Regex.escape(course.id)}-\\d+\\.json\\.gz")
-        archive.derivedNames(first, "timing-").filter { it != name && ofCourse.matches(it) }.forEach { archive.deleteDerived(first, it) }
+        archive.derivedNames(first, "timing-").filter { it != name && ofCourse(course.id).matches(it) }.forEach { archive.deleteDerived(first, it) }
         return timing
     }
 
@@ -159,4 +158,20 @@ public class Retimer(
 
         public fun fileName(course: String, version: Int): String = "timing-v${Retiming.RULE_VERSION}-$course-$version.json.gz"
     }
+}
+
+/** The names of a course's stored re-timings, every rule and version; never another course's (`nhms` isn't `nhms-oval`). */
+private fun ofCourse(courseId: String) = Regex("timing-v\\d+-${Regex.escape(courseId)}-\\d+\\.json\\.gz")
+
+/** Deletes every stored re-timing on course [courseId] among sessions [ids] (the course removed, M13.6); how many. */
+public suspend fun ArchiveService.removeTimings(ids: Collection<String>, courseId: String): Int {
+    val ofCourse = ofCourse(courseId)
+    var removed = 0
+    for (id in ids) {
+        for (name in derivedNames(id, "timing-").filter { ofCourse.matches(it) }) {
+            deleteDerived(id, name)
+            removed++
+        }
+    }
+    return removed
 }

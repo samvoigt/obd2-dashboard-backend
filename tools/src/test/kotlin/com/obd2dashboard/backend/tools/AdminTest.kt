@@ -396,4 +396,29 @@ class AdminTest {
         result.output shouldContain "a course needs at least one layout"
         runBlocking { courses.current() } shouldBe emptyList()
     }
+
+    @Test
+    fun `remove-course removes a course and its re-timings, only if typed again, never one in use`() {
+        val seed = java.io.File("../courses/seed/nhms.geojson").absolutePath
+        run("import-course $seed")
+        run("import-course $seed --id nhms-oval --name Oval")
+        runBlocking {
+            archive.putDerived("s1", "timing-v1-nhms-2.json.gz", ByteArray(1))
+            archive.putDerived("s1", "timing-v1-nhms-oval-1.json.gz", ByteArray(1))
+            sessions.create(com.obd2dashboard.backend.archive.SessionRecord("s1", "yaris", null, null, 0, emptyList(), true, null, 0, Instant.EPOCH, Instant.EPOCH))
+        }
+        run("remove-course nhms", FakeIo(lines = listOf("nope"))).output shouldContain "Not removed."
+        run("remove-course nhms", FakeIo(lines = listOf("nhms"))).output shouldContain "Removed nhms, and 1 re-timing(s)."
+        runBlocking { courses.get("nhms") } shouldBe null
+        segments.objects.keys.filter { "timing-" in it } shouldBe listOf("sessions/s1/timing-v1-nhms-oval-1.json.gz")
+        run("remove-course nhms").statusCode shouldBe 1
+
+        // Laps a tablet timed there: it stays.
+        runBlocking { sessions.setSummary("s1", com.obd2dashboard.backend.archive.SessionReader().apply {
+            read("""{"type":"lap","course":"nhms-oval","lap":1,"time":90.0,"seq":1,"at":1}""".byteInputStream())
+        }.summary()) }
+        val io = FakeIo(lines = listOf("nhms-oval"))
+        run("remove-course nhms-oval", io).output shouldContain "so it stays"
+        io.prompts shouldBe emptyList()
+    }
 }

@@ -80,6 +80,20 @@ class RetimingJobsTest {
     }
 
     @Test
+    fun `a course removed takes its re-timings with it, and no other course's`(): Unit = runBlocking {
+        registry.addCar(Slug.parse("outback"), "Outback")
+        session("a", "outback", boxLog(0, 300))
+        val jobs = RetimingJobs(registry, archive, courses, this)
+        jobs.courseSaved(courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!!).join()
+        jobs.courseSaved(courses.save("box-2", 0, "Box 2", boxGeoJson(), Instant.EPOCH)!!).join()
+        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-1.json.gz", "sessions/a/timing-v1-box-2-1.json.gz")
+        courses.delete("box")
+        jobs.courseRemoved("box").join()
+        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-2-1.json.gz")
+        jobs.progress("box") shouldBe null
+    }
+
+    @Test
     fun `a prepared session's run is re-timed on each course it touches`(): Unit = runBlocking {
         registry.addCar(Slug.parse("outback"), "Outback")
         courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)

@@ -6,6 +6,7 @@ import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.timing.LapSource
 import com.obd2dashboard.backend.timing.Retimer
+import com.obd2dashboard.backend.timing.removeTimings
 import com.obd2dashboard.backend.timing.RunTiming
 import com.obd2dashboard.backend.timing.SessionAt
 import com.obd2dashboard.backend.timing.runOf
@@ -132,6 +133,17 @@ class RetimingJobs(
         jobs[course.id] = job
         job.invokeOnCompletion { jobs.remove(course.id, job) }
         return job
+    }
+
+    /** A course was removed: its re-timings go too, in the background. */
+    fun courseRemoved(id: String): Job {
+        jobs.remove(id)?.cancel()
+        progress.remove(id)
+        return scope.launch {
+            val sessions = registry.list().flatMap { car -> archive.sessionsOf(car.slug.value).map { it.id } }
+            val removed = lock.withLock { archive.removeTimings(sessions, id) }
+            log.info("course {} removed: {} re-timings deleted", id, removed)
+        }
     }
 
     private suspend fun retime(run: List<String>, course: String): RunTiming? = lock.withLock { retimer.timing(run, course) }
