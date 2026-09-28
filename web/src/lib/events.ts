@@ -67,9 +67,10 @@ export function toLocalInput(ms: number): string {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}T${two(d.getHours())}:${two(d.getMinutes())}`
 }
 
-/** A `datetime-local` value back to epoch milliseconds, in the viewer's time zone; null if it isn't one. */
+/** A `datetime-local` value back to epoch milliseconds, in the viewer's time zone, seconds and all; null if it isn't one. */
 export function fromLocalInput(value: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null
+  // Seconds when the input allows them (`step="1"`, the race's flags, M15.4): without them a flag lost its value.
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/.test(value)) return null
   const ms = new Date(value).getTime()
   return Number.isNaN(ms) ? null : ms
 }

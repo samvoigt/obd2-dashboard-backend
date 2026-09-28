@@ -9,6 +9,7 @@ describe('an event in the editor (M14.3)', () => {
     const ms = new Date(2026, 9, 4, 9, 5).getTime()
     expect(toLocalInput(ms)).toBe('2026-10-04T09:05')
     expect(fromLocalInput('2026-10-04T09:05')).toBe(ms)
+    expect(fromLocalInput('2026-10-04T09:05:30')).toBe(ms + 30_000) // with seconds, as the race's flags have them
     expect(fromLocalInput('')).toBeNull()
     expect(fromLocalInput('4 Oct')).toBeNull()
   })

@@ -174,5 +174,55 @@ class EventResultsTest {
         only.otherLayout shouldBe "short"
         only.best shouldBe null
         results.practiceBests shouldBe emptyList()
+        // A race over the same drive: timed on the other layout, so no car in it.
+        runBlocking {
+            stores.events.save(Event("box-race", "Box race", "2026-10-04", "box", "box", listOf("outback"),
+                listOf(Part("p1", PartKind.RACE, "Race", at(0), at(60)))), 0, t0)
+        }
+        json.decodeFromString<EventResults>(client.get("/api/events/box-race").bodyAsText()).race!!.cars shouldBe emptyList()
+    }
+
+    @Test
+    fun `the race is one timeline, through a dropped link and a restart, the flag placed from the tablet's offset`() = testApplication {
+        app()
+        val r1 = "5ace0000-1111-4111-8111-0000000a0154"
+        val r2 = "5ace0000-1111-4111-8111-0000000b0154"
+        val r3 = "5ace0000-1111-4111-8111-0000000c0154"
+        runBlocking {
+            registry.addCar(Slug.parse("outback"), "Outback")
+            courses.save("box", 0, "The box", boxGeoJson(), Instant.EPOCH)
+            stores.drivers.put(Driver("d-sam", "Sam Voigt", "SAM"))
+            stores.events.save(Event("race-day", "Race day", "2026-10-04", "box", "box", listOf("outback"), listOf(
+                Part("p1", PartKind.RACE, "Race", at(0), at(60), green = t0.plusMillis(100_000).plusSeconds(600)),
+            )), 0, t0)
+        }
+        // r1 and r2 one run (the link dropped for 10 s); r3 after the app restarted (at from 10 s again).
+        session(r1, 10, boxLog(0, 300, device = "tab-r"), "d-sam")
+        session(r2, 20, boxLog(310, 600, device = "tab-r"), null)
+        session(r3, 30, boxLog(700, 1000, device = "tab-r", atShift = -690_000), null)
+
+        val race = json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).race!!
+        val car = race.cars.single()
+        car.laps.size shouldBe 13
+        car.laps.map { it.source }.count { it == "restart" } shouldBe 1
+        car.laps[8].let { it.source shouldBe "restart"; it.time shouldBe (140.0 plusOrMinus 1e-3) }
+        car.laps.first().start shouldBe com.obd2dashboard.backend.timing.BOX_WALL0 + 12_500 // the first crossing (on fixAt), on the tablet's wall
+        car.stints.single().let { it.driver shouldBe "d-sam"; it.laps shouldBe 13 }
+        car.greenLap shouldBe 2
+        race.tabletOffset.keys shouldBe setOf("outback")
+        race.green shouldBe t0.plusMillis(100_000).plusSeconds(600).toEpochMilli()
+        json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).event.revision shouldBe 1
+
+        // Stints as edited replace the default.
+        runBlocking {
+            val e = stores.events.get("race-day")!!
+            stores.events.save(e.copy(parts = listOf(e.race!!.copy(stints = mapOf("outback" to listOf(
+                com.obd2dashboard.backend.events.Stint(car.laps.first().start, "d-sam"),
+                com.obd2dashboard.backend.events.Stint(car.laps[5].start, null),
+            ))))), 1, t0)
+        }
+        val edited = json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).race!!
+        edited.cars.single().stints.map { it.firstLap to it.lastLap } shouldBe listOf(1 to 5, 6 to 13)
+        edited.edited.keys shouldBe setOf("outback")
     }
 }

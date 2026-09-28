@@ -250,6 +250,51 @@ split at a lap).
 **Done when:** API tests; looked at in Chrome: a replayed race of three
 sessions and a restart, stints edited as the crew.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Each car's race:** its race sessions (M14's `sessionsIn`), and for each
+>   complete one the run it's in, re-timed on the event's course
+>   (`RetimingJobs.lapsOf(…, on)`), **each run once**, in the order the server
+>   first heard its race sessions; only runs timed on the event's layout.
+>   Drivers from the sessions, stints as edited, and the flags placed on the
+>   tablet's clock with `Race.tabletOffset` over the race's sessions
+>   (`created`, the summary's `started`).
+> - **`GET /api/events/{id}` gains `race`**: the cars classified (`CarRace`),
+>   the flags as entered, and the tablet offset (so the page can show a lap's
+>   time of day); `PublicEvent` gains the event's `revision`, which an edit
+>   sends.
+> - **The page:** the race section of `EventPage` (classification; per car
+>   stints, stops, and its laps, the flags marked); for the admin or that car's
+>   crew (`whoCanSet`, M14.4, per car), the flags (a time, or "now") and the
+>   stints editor, in `lib/race.ts` (merge, split at a lap, a driver each),
+>   pure and tested.
+
+> **✅ Done, 2026-09-27.** `RaceResults` in `GET /api/events/{id}`
+> (`PublicEvent.revision`); `RaceSection.svelte` on the event page;
+> `lib/race.ts`.
+> - **Tests: Kotlin 1 new and 1 extended** (a race of three sessions, a dropped
+>   link and a restart: 13 laps, one across the restart, one stint, the green
+>   flag placed through the tablet's offset, edited stints; a race timed on
+>   another layout has no car), **Vitest 7** (formats, merge, split, a driver,
+>   the paths, an edit's answer; seconds in a date-time).
+> - **Mutations: 11, all killed**, one after a test (a race on another layout).
+> - **Looked at in Chrome** (the dev server, a generated race: three laps and
+>   into the pits, 60 s in the box as a tablet-only session, out and four laps,
+>   an app restart, three more): 10 laps, the in-lap and out-lap marked, the
+>   stop on lap 3 (100.2 s in the pit lane), stints split at it with each
+>   session's driver, lap 8 "Across a restart of the app"; as the admin, a
+>   split at lap 6 given to Sam, a merge back to one, the flags on laps 2 and 7.
+> - **Found by looking:**
+>   - **A flag entered with seconds was lost:** the date-time reader took
+>     only minutes, so `23:23:30` went as nothing. It takes seconds now, and the
+>     flags are shown and set to the second.
+>   - **A summary missing** (never built in the tests' sessions) left the
+>     tablet's offset unknown and the flags unplaced; the route asks the archive,
+>     which builds one, as the sessions list does.
+>   - **"Stints as the crew set them"** said so when the admin had: "as set by
+>     hand".
+>   - **A stint split exactly at a lap** took the lap before it too (a lap was
+>     the stint's if it started at or before the lap's end): now strictly before.
+
 ### M15.5 — Driver pages
 
 `GET /api/drivers/{id}` and `/drivers`, `/drivers/{id}`: events, stints,

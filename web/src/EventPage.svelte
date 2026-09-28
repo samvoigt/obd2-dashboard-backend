@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte'
   import { driverLabel, gap, windowText, type DriverBest, type EventResults, type SessionResult } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
+  import RaceSection from './RaceSection.svelte'
 
   let { id }: { id: string } = $props()
 
@@ -10,7 +11,9 @@
   let missing = $state(false)
   let error: string | null = $state(null)
 
-  onMount(async () => {
+  onMount(load)
+
+  async function load() {
     try {
       const r = await fetch(`/api/events/${untrack(() => id)}`)
       if (r.status === 404) { missing = true; return }
@@ -19,7 +22,7 @@
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
-  })
+  }
 
   const carName = (slug: string) => results?.event.cars.find((c) => c.slug === slug)?.name ?? slug
   const heard = (s: SessionResult) => new Date(s.heardFrom).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -43,11 +46,15 @@
       </section>
     {/if}
 
+    {#if results.race}
+      <RaceSection race={results.race} eventId={e.id} revision={e.revision} {carName} onChanged={load} />
+    {/if}
+
     {#each results.parts as p (p.part.id)}
       <section class="panel">
         <h2>{p.part.name} <span class="muted small">{windowText(p.part)}</span></h2>
         {#if p.part.kind === 'race'}
-          <p class="muted">The race's results, laps through the race and stints, are still to come; its sessions are below.</p>
+          <p class="muted small">The race as one timeline is above; its sessions are here.</p>
         {:else}
           {@render bests(p.bests, p.bestSectors)}
         {/if}

@@ -4,6 +4,7 @@
  */
 import type { Driver } from './events'
 import type { SessionLaps } from './sessionPage'
+import type { RaceResults } from './race'
 
 export type StandingLap = SessionLaps['laps'][number]
 
@@ -25,6 +26,8 @@ export interface PublicEvent {
   layoutName: string
   cars: { slug: string; name: string }[]
   parts: PublicPart[]
+  /** What an edit to the race names (M15.4). */
+  revision: number
 }
 
 export interface SessionResult {
@@ -57,6 +60,8 @@ export interface EventResults {
   parts: PartResults[]
   practiceBests: DriverBest[]
   practiceBestSectors: (number | null)[]
+  /** The race as one timeline (M15.4). */
+  race?: RaceResults | null
 }
 
 /** "+0.900" behind the fastest; blank for the fastest itself. */

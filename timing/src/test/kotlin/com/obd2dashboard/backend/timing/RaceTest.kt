@@ -100,6 +100,9 @@ class RaceTest {
         race.stintsEdited shouldBe true
         val split = listOf(StintMark(W, "d-sam"), StintMark(W + 100_000, "d-alex")) // a change on track, in lap 2
         Race.car("outback", listOf(oneRun), raceSessions, edited = split)!!.stints.map { it.firstLap to it.laps } shouldBe listOf(1 to 1, 2 to 8)
+        // Split exactly where lap 3 starts (lap 2's end): lap 3 is the new stint's, lap 2 the old one's.
+        val atLap = listOf(StintMark(W, "d-sam"), StintMark(W + 140_000, "d-alex"))
+        Race.car("outback", listOf(oneRun), raceSessions, edited = atLap)!!.stints.map { it.firstLap to it.lastLap } shouldBe listOf(1 to 2, 3 to 9)
     }
 
     @Test

@@ -9,6 +9,9 @@ import com.obd2dashboard.backend.events.EventRules
 import com.obd2dashboard.backend.events.PartKind
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.Slug
+import com.obd2dashboard.backend.timing.CarRace
+import com.obd2dashboard.backend.timing.Race
+import com.obd2dashboard.backend.timing.StintMark
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -34,6 +37,8 @@ data class PublicEvent(
     val layoutName: String,
     val cars: List<CarRef>,
     val parts: List<PublicPart>,
+    /** The event's revision: what an edit to its race names (M15.4). */
+    val revision: Int = 0,
 )
 
 /** A session in an event's results: its laps as they stand on the event's course. */
@@ -58,8 +63,32 @@ data class DriverBest(val driver: DriverView? = null, val car: String, val sessi
 @Serializable
 data class PartResults(val part: PublicPart, val sessions: List<SessionResult>, val bests: List<DriverBest>, val bestSectors: List<Double?>)
 
+/**
+ * The race as one timeline (M15.4): each car's, classified. Laps, stops and
+ * stints are on each tablet's clock; [tabletOffset] (by car) turns one into
+ * the time of day.
+ */
 @Serializable
-data class EventResults(val event: PublicEvent, val parts: List<PartResults>, val practiceBests: List<DriverBest>, val practiceBestSectors: List<Double?>)
+data class RaceResults(
+    val part: PublicPart,
+    val cars: List<CarRace>,
+    /** As entered, epoch milliseconds, real time. */
+    val green: Long? = null,
+    val flag: Long? = null,
+    /** How far each car's tablet clock is behind the server's, milliseconds. */
+    val tabletOffset: Map<String, Long> = emptyMap(),
+    /** Each car's stints as edited; absent for the default. */
+    val edited: Map<String, List<StintView>> = emptyMap(),
+)
+
+@Serializable
+data class EventResults(
+    val event: PublicEvent,
+    val parts: List<PartResults>,
+    val practiceBests: List<DriverBest>,
+    val practiceBestSectors: List<Double?>,
+    val race: RaceResults? = null,
+)
 
 /**
  * **Practice results** (M14.5), pure: each driver's best lap on track, never
@@ -104,6 +133,7 @@ fun Route.publicEventRoutes(
             event.id, event.name, event.date, event.course, course?.name ?: event.course, event.layout, layoutName ?: event.layout,
             event.cars.map { slug -> CarRef(slug, runCatching { registry.get(Slug.parse(slug))?.name }.getOrNull() ?: slug) },
             event.parts.map { PublicPart(it.id, it.kind.name.lowercase(), it.name, it.start.toEpochMilli(), it.end.toEpochMilli()) },
+            event.revision,
         )
     }
 
@@ -130,6 +160,34 @@ fun Route.publicEventRoutes(
             PartResults(publicPart, results, Results.driverBests(results), Results.bestSectors(results))
         }
         val practice = parts.filter { it.part.kind == PartKind.PRACTICE.name.lowercase() }.flatMap { it.sessions }
-        call.respond(EventResults(pub, parts, Results.driverBests(practice), Results.bestSectors(practice)))
+        val race = event.race?.let { racePart ->
+            val raceIds = inParts[racePart.id].orEmpty()
+            val raceRecords = raceIds.mapNotNull { records[it] }
+            val byCar = raceRecords.groupBy { it.car }
+            val cars = byCar.mapNotNull { (car, sessions) ->
+                // Each run once, in the order the server first heard its race sessions.
+                val runs = sessions.sortedBy { it.created }.filter { it.complete }
+                    .mapNotNull { retiming.lapsOf(car, it.id, event.course)?.second }
+                    .distinctBy { it.sessions }
+                    .filter { it.layout == event.layout }
+                // The summary as the sessions list gets it: stored, else built now (M7.1).
+                val offset = Race.tabletOffset(sessions.filter { it.complete }.mapNotNull { r -> archive.summary(r.id)?.let { r.created to it.started } })
+                Race.car(
+                    car, runs, raceIds.toSet(),
+                    drivers = sessions.associate { it.id to it.driver },
+                    edited = racePart.stints[car]?.map { StintMark(it.start, it.driver) },
+                    green = racePart.green?.let { g -> offset?.let { g.toEpochMilli() - it } },
+                    flag = racePart.flag?.let { f -> offset?.let { f.toEpochMilli() - it } },
+                )?.let { it to offset }
+            }
+            val publicRace = pub.parts.first { it.id == racePart.id }
+            RaceResults(
+                publicRace, Race.classify(cars.map { it.first }),
+                racePart.green?.toEpochMilli(), racePart.flag?.toEpochMilli(),
+                cars.mapNotNull { (c, o) -> o?.let { c.car to it } }.toMap(),
+                racePart.stints.mapValues { (_, list) -> list.map { StintView(it.start, it.driver) } },
+            )
+        }
+        call.respond(EventResults(pub, parts, Results.driverBests(practice), Results.bestSectors(practice), race))
     }
 }

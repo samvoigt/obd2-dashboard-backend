@@ -106,7 +106,8 @@ public object Race {
         val numbered = raw.mapIndexed { i, lap -> lap.copy(number = i + 1) }
         val stops = stopsOf(parts.flatMap { it.second }.sortedBy { it.second }, numbered)
         val marks = (edited?.takeIf { it.isNotEmpty() } ?: defaultStints(numbered, stops, drivers)).sortedBy { it.start }
-        val laps = numbered.map { lap -> lap.copy(stint = marks.indexOfLast { it.start <= lap.end }.coerceAtLeast(0) + 1) }
+        // A lap is the stint's that began before it ended: a stint split where lap N starts holds lap N, not N − 1.
+        val laps = numbered.map { lap -> lap.copy(stint = marks.indexOfLast { it.start < lap.end }.coerceAtLeast(0) + 1) }
         val stints = marks.mapIndexed { i, m ->
             val mine = laps.filter { it.stint == i + 1 }
             RaceStint(i + 1, m.driver, m.start, mine.firstOrNull()?.number, mine.lastOrNull()?.number, mine.size,
