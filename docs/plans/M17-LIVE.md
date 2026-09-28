@@ -291,6 +291,49 @@ the JSON exactly §22.7's shape, as the tablet's parser reads it (the app's
 `ServerFrame.parse`, read, not run). A replay into the dev server shows the
 frames.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The socket** reads `hello.features` (`CourseDownlink.FEATURE` is how
+>   `courses.1` is heard); `timing.1` the same way. `timing` follows the
+>   session frame (§22.7, "once a session is running"), which comes after
+>   every `hello`, reconnects included. So it's **always sent on a `session`
+>   frame**, compared or not, and otherwise **only when it differs** from the
+>   last one sent (the standing's moments, not its ages).
+> - **What changes it**: `LiveTimings` says when a session, a lap, a refill or
+>   a completion changed what's timed; the routes that set a driver, edit a
+>   race, save an event or save a course nudge every listening tablet. **And a
+>   tick every 10 s**: a pit crossing shows only when re-timed, and anything
+>   else missed is caught there. Each car is worked out one at a time.
+> - **Ages** from the tablet's `wall` now: the server's now less
+>   `CarStatus.clockOffset`, measured from its batches (M11). Before any batch
+>   the offset isn't known, and the ages are left out (every field is optional).
+> - **The shape** is §22.7's, as the tablet's parser reads it
+>   (`ServerFrame.parse`: `course.id` required, `best.time` required,
+>   `bestSectors` with nulls allowed, the rest optional); nulls are left out.
+> - **The replay** plays a `courses.1` tablet by a flag; `--timing` adds
+>   `timing.1` to its `hello` and logs each `timing` it gets.
+
+> **✅ Done, 2026-09-28.** `TimingDownlink` (every tablet socket registered,
+> frames to those listing `timing.1`; always on a `session` frame, else only
+> when the standing differs; a 10 s tick; ages from `clockOffset`), wired into
+> the socket, `LiveTimings`' changes, and the routes that set a driver, edit a
+> race, save or remove an event, or save a course. `replay --timing`.
+> - **Tests:** `TimingDownlinkTest` 4 (the frame exactly §22.7's, nulls and
+>   unknown ages left out; through the real socket: after the session frame,
+>   again on a lap and a driver set, none when only fixes came, again on a
+>   reconnect's session frame; none to a tablet that didn't ask or to another
+>   car's; in a race, a completed session counted once).
+> - **Mutations: 10, 9 killed, 1 covered twice over**: dropping the `complete`
+>   hook changes nothing seen, since `CarTimings` also leaves out provisional
+>   sessions that are complete; the hook frees their memory at once rather than
+>   in 12 h. (A loose assertion on the stint's age was tightened first, so a
+>   server-clock age couldn't pass.)
+> - **Looked at with a replay** into the dev server (the generated race's
+>   first session at 5x, `--timing`, a race part covering now): a frame on the
+>   session, then one per lap: `race lap 1, 84 s since the stop; … best 70.0
+>   (?, lap re-timed); sectors 17.5/17.5/17.5/17.5`, then lap 2.
+> - **Noted:** with no event, the course is the one the tablet's own laps
+>   name; a drive the tablet timed nothing in has none until it's in an event.
+
 ### M17.5 — The car page, live
 
 The public stream's `timing` event; on the page, a panel for the driver, the

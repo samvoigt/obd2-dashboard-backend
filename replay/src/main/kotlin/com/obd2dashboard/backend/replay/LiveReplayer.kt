@@ -42,6 +42,8 @@ data class LiveOptions(
      * `GET /v1/courses` with its last `ETag`.
      */
     val courses: Boolean = false,
+    /** Plays a tablet that shows `timing` (M17.4, §22.7): lists `timing.1` in `hello`, and logs each frame. */
+    val timing: Boolean = false,
 )
 
 sealed interface LiveResult {
@@ -228,7 +230,9 @@ class LiveReplayer(
             socket.send(
                 buildJsonObject {
                     put("t", "hello"); put("v", 3); put("device", "replay"); put("app", "replay"); put("wall", System.currentTimeMillis())
-                    if (options.courses) put("features", buildJsonArray { add("courses.1") })
+                    if (options.courses || options.timing) {
+                        put("features", buildJsonArray { if (options.courses) add("courses.1"); if (options.timing) add("timing.1") })
+                    }
                 }.toString(),
             )
             socket.send(buildJsonObject { put("t", "session"); put("record", header) }.toString())
@@ -346,6 +350,7 @@ class LiveReplayer(
                     }
                     "clear" -> frame.string("id")?.let(screen::clear)
                     "courses" -> if (options.courses) scope.launch { fetchCourses() }
+                    "timing" -> if (options.timing) log("timing: " + timingLine(frame))
                 }
             }
             webSocket.request(1)
@@ -397,3 +402,18 @@ class LiveReplayer(
         }
     }
 }
+
+/** A `timing` frame in a line (M17.4): the race's lap, the driver and stint, the best. */
+internal fun timingLine(frame: JsonObject): String {
+    fun JsonObject.obj(k: String) = this[k] as? JsonObject
+    fun JsonObject.raw(k: String) = (this[k] as? JsonPrimitive)?.contentOrNull
+    val parts = listOfNotNull(
+        frame.obj("course")?.let { "course ${it.raw("id")} v${it.raw("version")} ${it.raw("layout")}" },
+        frame.obj("race")?.let { "race lap ${it.raw("lap")}" + (it.raw("sinceStopAgeMs")?.let { a -> ", ${a.toLong() / 1000} s since the stop" } ?: ", in the pits") },
+        frame.obj("driver")?.let { "driver ${it.raw("code") ?: "not set"}" + (it.raw("stintAgeMs")?.let { a -> ", stint ${a.toLong() / 1000} s" } ?: "") },
+        frame.obj("best")?.let { "best ${it.raw("time")} (${it.raw("driver") ?: "?"}, lap ${it.raw("lap") ?: "re-timed"})" },
+        (frame["bestSectors"] as? JsonArray)?.let { "sectors " + it.joinToString("/") { s -> (s as? JsonPrimitive)?.contentOrNull ?: "—" } },
+    )
+    return parts.joinToString("; ").ifEmpty { "nothing yet" }
+}
+

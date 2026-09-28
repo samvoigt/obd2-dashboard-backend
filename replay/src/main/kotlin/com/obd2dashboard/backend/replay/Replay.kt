@@ -52,6 +52,7 @@ class Replay(private val envToken: String?) : CliktCommand(name = "replay") {
     private val noArchive by option("--no-archive", help = "with --live, send the live lane only").flag()
     private val noWidget by option("--no-widget", help = "with --live, play a dashboard without a message widget: received, never displayed").flag()
     private val courses by option("--courses", help = "with --live, play a tablet that takes courses from the server (courses.1)").flag()
+    private val timing by option("--timing", help = "with --live, play a tablet that shows the server's timing (timing.1), logging each frame").flag()
     private val dropSocketEvery by option("--drop-socket-every", help = "with --live, drop the socket every N seconds").double()
     private val unitsFrom by option("--units-from", help = "the contract (TELEMETRY-CONTRACT.md), for signal units when upgrading old logs")
         .path(mustExist = true)
@@ -86,7 +87,7 @@ class Replay(private val envToken: String?) : CliktCommand(name = "replay") {
             if (live) {
                 val liveReplayer = LiveReplayer(
                     URI.create(server.trimEnd('/')), token,
-                    LiveOptions(speed = speed, dropEveryMillis = dropSocketEvery?.let { (it * 1000).toLong() }, widget = !noWidget, courses = courses),
+                    LiveOptions(speed = speed, dropEveryMillis = dropSocketEvery?.let { (it * 1000).toLong() }, widget = !noWidget, courses = courses, timing = timing),
                     log = { echo("  live: $it") },
                 )
                 // Both lanes at once, as the app sends them (contract §2).

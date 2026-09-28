@@ -38,44 +38,53 @@ data class RaceSaved(val revision: Int)
  * reaches only its own paths (M14.4); one rule. Every edit names the revision
  * it was made on, and is logged with who made it.
  */
-fun Route.raceRoutes(stores: EventStores, registry: CarRegistry, crewAuth: CrewAuth, adminAuth: AdminAuth, config: AdminConfig, clock: Clock) {
+fun Route.raceRoutes(
+    stores: EventStores,
+    registry: CarRegistry,
+    crewAuth: CrewAuth,
+    adminAuth: AdminAuth,
+    config: AdminConfig,
+    clock: Clock,
+    /** A race's flags or stints saved: what the tablets are told may change (M17.4). */
+    onChanged: () -> Unit = {},
+) {
     put("/api/admin/events/{id}/race") {
         val email = call.admin(adminAuth, config, change = true) ?: return@put
-        call.flags(stores, clock, call.parameters["id"].orEmpty(), null, email)
+        call.flags(stores, clock, onChanged, call.parameters["id"].orEmpty(), null, email)
     }
 
     put("/api/admin/events/{id}/race/stints/{car}") {
         val email = call.admin(adminAuth, config, change = true) ?: return@put
-        call.stints(stores, clock, call.parameters["id"].orEmpty(), call.parameters["car"].orEmpty(), email)
+        call.stints(stores, clock, onChanged, call.parameters["id"].orEmpty(), call.parameters["car"].orEmpty(), email)
     }
 
     put("/api/cars/{slug}/events/{id}/race") {
         val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
         if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
-        call.flags(stores, clock, call.parameters["id"].orEmpty(), car.slug.value, "the crew of ${car.slug.value}")
+        call.flags(stores, clock, onChanged, call.parameters["id"].orEmpty(), car.slug.value, "the crew of ${car.slug.value}")
     }
 
     put("/api/cars/{slug}/events/{id}/race/stints") {
         val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
         if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
-        call.stints(stores, clock, call.parameters["id"].orEmpty(), car.slug.value, "the crew of ${car.slug.value}")
+        call.stints(stores, clock, onChanged, call.parameters["id"].orEmpty(), car.slug.value, "the crew of ${car.slug.value}")
     }
 }
 
-private suspend fun ApplicationCall.flags(stores: EventStores, clock: Clock, id: String, crewOf: String?, who: String) {
+private suspend fun ApplicationCall.flags(stores: EventStores, clock: Clock, onChanged: () -> Unit, id: String, crewOf: String?, who: String) {
     val request = receive<SaveFlags>()
-    editRace(stores, clock, id, crewOf, request.expected, who, "flags ${request.green?.let(Instant::ofEpochMilli)} to ${request.flag?.let(Instant::ofEpochMilli)}") {
+    editRace(stores, clock, onChanged, id, crewOf, request.expected, who, "flags ${request.green?.let(Instant::ofEpochMilli)} to ${request.flag?.let(Instant::ofEpochMilli)}") {
         it.copy(green = request.green?.let(Instant::ofEpochMilli), flag = request.flag?.let(Instant::ofEpochMilli))
     }
 }
 
-private suspend fun ApplicationCall.stints(stores: EventStores, clock: Clock, id: String, car: String, who: String) {
+private suspend fun ApplicationCall.stints(stores: EventStores, clock: Clock, onChanged: () -> Unit, id: String, car: String, who: String) {
     val request = receive<SaveStints>()
     val stints = request.stints.orEmpty().map { Stint(it.start, it.driver) }
     val unknown = stints.mapNotNull { it.driver }.distinct().filter { stores.drivers.get(it) == null }
     if (unknown.isNotEmpty()) return respond(HttpStatusCode.BadRequest, EventRefused("invalid", "No such driver.", unknown.map { "there's no driver $it" }))
     val what = if (stints.isEmpty()) "stints of $car back to the default" else "${stints.size} stint(s) of $car"
-    editRace(stores, clock, id, car, request.expected, who, what) { race ->
+    editRace(stores, clock, onChanged, id, car, request.expected, who, what) { race ->
         race.copy(stints = if (stints.isEmpty()) race.stints - car else race.stints + (car to stints.sortedBy { it.start }))
     }
 }
@@ -84,6 +93,7 @@ private suspend fun ApplicationCall.stints(stores: EventStores, clock: Clock, id
 private suspend fun ApplicationCall.editRace(
     stores: EventStores,
     clock: Clock,
+    onChanged: () -> Unit,
     id: String,
     crewOf: String?,
     expected: Int,
@@ -100,5 +110,6 @@ private suspend fun ApplicationCall.editRace(
     val saved = stores.events.save(changed, expected, clock.instant())
         ?: return respond(HttpStatusCode.Conflict, ApiError("conflict", "Someone changed this event since you opened it. Reload it, and make your change again."))
     adminLog.info("race of {} set, {}, by {}", id, what, who)
+    onChanged()
     respond(RaceSaved(saved.revision))
 }

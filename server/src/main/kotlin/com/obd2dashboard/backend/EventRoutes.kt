@@ -131,6 +131,8 @@ fun Route.adminEventRoutes(
     clock: Clock,
     auth: AdminAuth,
     config: AdminConfig,
+    /** An event saved or removed: what the tablets are told may change (M17.4). */
+    onChanged: () -> Unit = {},
 ) {
     val drivers = stores.drivers
     val events = stores.events
@@ -206,6 +208,7 @@ fun Route.adminEventRoutes(
                 ApiError("conflict", if (request.expected == 0) "An event already has that id." else "Someone saved this event since you opened it. Reload it, and make your change again."),
             )
         adminLog.info("event saved: {} r{} by {}", id, saved.revision, email)
+        onChanged()
         call.respond(if (saved.revision == 1) HttpStatusCode.Created else HttpStatusCode.OK, saved.view())
     }
 
@@ -214,6 +217,7 @@ fun Route.adminEventRoutes(
         val id = call.parameters["id"].orEmpty()
         if (!events.delete(id)) return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
         adminLog.info("event removed: {} by {}", id, email)
+        onChanged()
         call.respond(HttpStatusCode.NoContent)
     }
 }

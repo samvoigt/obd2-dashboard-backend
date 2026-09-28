@@ -29,6 +29,8 @@ fun Route.driverRoutes(
     crewAuth: CrewAuth,
     adminAuth: AdminAuth,
     config: AdminConfig,
+    /** A session's driver set: what the tablets are told may change (M17.4). */
+    onChanged: () -> Unit = {},
 ) {
     get("/api/drivers") {
         call.respond(drivers.list().map { it.view() })
@@ -38,7 +40,7 @@ fun Route.driverRoutes(
         val email = call.admin(adminAuth, config, change = true) ?: return@put
         val record = archive.session(call.parameters["id"].orEmpty().lowercase())
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
-        call.setDriver(record, drivers, archive, email)
+        call.setDriver(record, drivers, archive, email, onChanged)
     }
 
     put("/api/cars/{slug}/sessions/{id}/driver") {
@@ -47,11 +49,11 @@ fun Route.driverRoutes(
         val record = archive.session(call.parameters["id"].orEmpty().lowercase())
             ?.takeIf { it.car == car.slug.value }
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
-        call.setDriver(record, drivers, archive, "the crew of ${car.slug.value}")
+        call.setDriver(record, drivers, archive, "the crew of ${car.slug.value}", onChanged)
     }
 }
 
-private suspend fun ApplicationCall.setDriver(record: SessionRecord, drivers: DriverStore, archive: ArchiveService, who: String) {
+private suspend fun ApplicationCall.setDriver(record: SessionRecord, drivers: DriverStore, archive: ArchiveService, who: String, onChanged: () -> Unit) {
     if (record.heard().source == "fake") {
         return respond(HttpStatusCode.Conflict, ApiError("fake", "This session is test data; nobody drove it."))
     }
@@ -59,5 +61,6 @@ private suspend fun ApplicationCall.setDriver(record: SessionRecord, drivers: Dr
     val driver = id?.let { drivers.get(it) ?: return respond(HttpStatusCode.BadRequest, ApiError("no_driver", "No such driver.")) }
     if (!archive.setDriver(record.id, driver?.id)) return respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
     adminLog.info("driver set: session {} of {} to {} by {}", record.id, record.car, driver?.code ?: "nobody", who)
+    onChanged()
     respond(SetDriver(driver?.id))
 }

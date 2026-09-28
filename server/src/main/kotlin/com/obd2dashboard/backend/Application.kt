@@ -96,7 +96,11 @@ fun Application.module(
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
     val retiming = RetimingJobs(registry, archive, courses, this)
-    val liveTimings = LiveTimings(archive, this, clock)
+    // The live run (M17.2) tells `timing` (M17.4) what changed; `timing` needs it to work out where a car stands.
+    var timingDownlink: TimingDownlink? = null
+    val liveTimings = LiveTimings(archive, this, clock) { car -> timingDownlink?.changed(car) }
+    val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this)
+    timingDownlink = timing
     val crewAuth = CrewAuth(crewKey, clock)
     val loginLimiter = LoginLimiter(clock)
     install(CallLogging)
@@ -121,20 +125,20 @@ fun Application.module(
         }
         adminCourseRoutes(
             courses, courseInUse, clock, adminAuth, admin,
-            onChange = downlink::changed, onSaved = { retiming.courseSaved(it) },
+            onChange = { downlink.changed(); timing.nudge() }, onSaved = { retiming.courseSaved(it) },
             onRemoved = { retiming.courseRemoved(it) }, retiming = retiming::progress,
         )
-        adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin)
+        adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin, onChanged = timing::nudge)
         publicCourseRoutes(courses)
         publicEventRoutes(events, courses, registry, archive, retiming)
         sessionRoutes(registry, archive, hub, clock, laps = { car, id, on -> retiming.sessionLaps(car, id, on) }, drivers = events.drivers, events = events.events)
         messageRoutes(registry, crewAuth, crew)
-        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin)
-        raceRoutes(events, registry, crewAuth, adminAuth, admin, clock)
+        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = timing::nudge)
+        raceRoutes(events, registry, crewAuth, adminAuth, admin, clock, onChanged = timing::nudge)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
-        liveRoutes(registry, archive, hub, crew, live, clock, downlink, liveTimings)
+        liveRoutes(registry, archive, hub, crew, live, clock, downlink, liveTimings, timing)
 
         authenticate(CAR_AUTH) {
             // Which car a token belongs to. A backend diagnostic, not in the contract.

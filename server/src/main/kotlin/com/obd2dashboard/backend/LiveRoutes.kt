@@ -79,9 +79,11 @@ fun Route.liveRoutes(
     downlink: CourseDownlink,
     /** The live run (M17.2): every frame `CarLive` takes. */
     timings: LiveTimings? = null,
+    /** `timing` to the tablet (M17.4). */
+    timing: TimingDownlink? = null,
 ) {
     webSocket("/v1/live", protocol = LIVE_PROTOCOL) {
-        TabletSocket(this, registry, archive, hub, crew, config, clock, downlink, timings).run()
+        TabletSocket(this, registry, archive, hub, crew, config, clock, downlink, timings, timing).run()
     }
     // Offered no (or another) subprotocol: the one refusal the server makes on version (§5.2).
     webSocket("/v1/live") {
@@ -101,6 +103,7 @@ private class TabletSocket(
     private val clock: Clock,
     private val downlink: CourseDownlink,
     private val timings: LiveTimings?,
+    private val timing: TimingDownlink?,
 ) : TabletHandle {
     private val log = session.call.application.log
 
@@ -147,6 +150,8 @@ private class TabletSocket(
                         downlink.listen(this)
                         session.send(Frame.Text(downlink.frame()))
                     }
+                    // `timing` (M17.4) follows the session frame, which comes after every hello.
+                    timing?.listen(car.slug, this, TimingDownlink.FEATURE in tabletFrame.features)
                     continue
                 }
                 val attached = attachment
@@ -166,12 +171,18 @@ private class TabletSocket(
                     else -> Unit
                 }
                 val applied = attached.apply(tabletFrame)
-                if (applied is CarLive.Applied.Refused) badMessage(applied.reason) else timings?.offer(car.slug, tabletFrame)
+                if (applied is CarLive.Applied.Refused) {
+                    badMessage(applied.reason)
+                } else {
+                    timings?.offer(car.slug, tabletFrame)
+                    if (tabletFrame is TabletFrame.Session) timing?.sessionStarted(car.slug)
+                }
             }
         } finally {
             watchdog.cancel()
             attachment?.detach()
             downlink.leave(this)
+            timing?.leave(car.slug, this)
         }
     }
 
