@@ -274,6 +274,8 @@
     {:else}
       <button class="primary add" onclick={() => { adding = true; error = null }}>Add a car</button>
       <a class="courses" href="/admin/courses">Courses →</a>
+      <a class="courses" href="/admin/events">Events →</a>
+      <a class="courses" href="/admin/drivers">Drivers →</a>
     {/if}
 
     {#if cars.length === 0}

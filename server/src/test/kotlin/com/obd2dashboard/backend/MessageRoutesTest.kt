@@ -59,7 +59,7 @@ class MessageRoutesTest {
     private val messages = Messages(InMemoryMessageStore())
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = messages, courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = messages, courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
     }
 
     private suspend fun ApplicationTestBuilder.cookie(car: String = "yaris", passcode: String = "pit-lane"): String =
@@ -148,7 +148,7 @@ class MessageRoutesTest {
         val hub = InMemoryLiveHub()
         val server = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
             module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), hub, LiveConfig(), Clock.systemUTC(),
-                messages = messages, courses = testCourses(), crewKey = testCrewKey())
+                messages = messages, courses = testCourses(), events = testEvents(), crewKey = testCrewKey())
         }.start()
         try {
             val base = "http://127.0.0.1:${runBlocking { server.engine.resolvedConnectors().first().port }}"

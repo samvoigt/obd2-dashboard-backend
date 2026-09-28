@@ -19,6 +19,10 @@ import com.obd2dashboard.backend.admin.SessionBusy
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
+import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
+import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
+import com.obd2dashboard.backend.events.DriverStore
+import com.obd2dashboard.backend.events.EventStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
@@ -60,6 +64,8 @@ fun main(args: Array<String>) {
                 archive = ArchiveService(index, GcsSegmentStore.connect(project, bucket)),
                 messages = FirestoreMessageStore.connect(project),
                 courses = FirestoreCourseStore.connect(project),
+                drivers = FirestoreDriverStore.connect(project),
+                events = FirestoreEventStore.connect(project),
             )
         },
         io = ConsoleIo,
@@ -79,7 +85,7 @@ class Admin(
     init {
         subcommands(
             AddCar(io), RotateToken(io), SetToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
-            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(), RemoveCourse(io),
+            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(), RemoveCourse(io), ListDrivers(), ListEvents(),
         )
     }
 
@@ -97,6 +103,8 @@ class Tools(
     val archive: ArchiveService,
     val messages: MessageStore,
     val courses: CourseStore,
+    val drivers: DriverStore,
+    val events: EventStore,
 ) {
     /** The rules shared with the admin page (M6.1). */
     val admin: CarAdmin = CarAdmin(registry, archive, Messages(messages))
@@ -421,5 +429,33 @@ class RemoveCourse(private val io: AdminIo) : CliktCommand(name = "remove-course
         tools.courses.delete(course.id)
         val removed = tools.archive.removeTimings(all.map { it.id }, course.id)
         echo("Removed ${course.id}, and $removed re-timing(s).")
+    }
+}
+
+/** Drivers (M14.3): made and changed on the admin page. */
+class ListDrivers : CliktCommand(name = "drivers") {
+    private val tools: Tools by requireObject<Tools>()
+
+    override fun help(context: Context) = "List drivers."
+
+    override fun run() = runBlocking {
+        val drivers = tools.drivers.list()
+        if (drivers.isEmpty()) echo("No drivers.") else drivers.forEach { echo("${it.code.padEnd(4)}  ${it.name}") }
+    }
+}
+
+/** Events (M14.3): made and changed on the admin page. */
+class ListEvents : CliktCommand(name = "events") {
+    private val tools: Tools by requireObject<Tools>()
+
+    override fun help(context: Context) = "List events and their parts."
+
+    override fun run() = runBlocking {
+        val events = tools.events.list()
+        if (events.isEmpty()) return@runBlocking echo("No events.")
+        for (e in events) {
+            echo("${e.id}  ${e.name}, ${e.date}, ${e.course} (${e.layout}), cars ${e.cars.joinToString(", ")}")
+            for (p in e.parts) echo("  ${p.id}  ${p.kind.name.lowercase().padEnd(8)}  ${p.name}: ${p.start} to ${p.end}")
+        }
     }
 }

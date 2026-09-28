@@ -61,7 +61,7 @@ class CrewSocketTest {
 
     private fun ApplicationTestBuilder.app() {
         application {
-            module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), hub, LiveConfig(), Clock.systemUTC(), messages = messages, courses = testCourses(), crewKey = testCrewKey())
+            module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), hub, LiveConfig(), Clock.systemUTC(), messages = messages, courses = testCourses(), events = testEvents(), crewKey = testCrewKey())
         }
     }
 

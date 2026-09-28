@@ -62,7 +62,7 @@ class SessionRoutesTest {
     }
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, archive, InMemoryLiveHub(clock), clock = clock, messages = testMessages(), courses = testCourses(), crewKey = testCrewKey(), admin = config) }
+        application { module(registry, archive, InMemoryLiveHub(clock), clock = clock, messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), admin = config) }
     }
 
     private val fixture: List<String> =
@@ -201,7 +201,7 @@ class SessionRoutesTest {
     @Test
     fun `a session with no archived lines is listed only while live`() = testApplication {
         val hub = InMemoryLiveHub(clock)
-        application { module(registry, archive, hub, clock = clock, messages = testMessages(), courses = testCourses(), crewKey = testCrewKey(), admin = config) }
+        application { module(registry, archive, hub, clock = clock, messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), admin = config) }
         runBlocking { archive.announce("yaris", A) } // what the live lane does first
         fun listed() = runBlocking { client.get("/api/cars/yaris/sessions").bodyAsText() }
         listed() shouldNotContain A
@@ -287,7 +287,7 @@ class SessionRoutesTest {
             override suspend fun list() = index.list().map { it.old() }
         }
         application {
-            module(registry, ArchiveService(beforeM11, store, clock), InMemoryLiveHub(clock), clock = clock, messages = testMessages(), courses = testCourses(), crewKey = testCrewKey(), admin = config)
+            module(registry, ArchiveService(beforeM11, store, clock), InMemoryLiveHub(clock), clock = clock, messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), admin = config)
         }
         runBlocking {
             upload(A, "yaris", t, source = "tablet")

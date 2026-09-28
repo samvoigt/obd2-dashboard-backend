@@ -113,7 +113,7 @@ class RetimingJobsTest {
             courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)
             registry.addCar(Slug.parse("outback"), "Outback").token
         }
-        application { module(registry, archive, InMemoryLiveHub(), messages = testMessages(), courses = courses, crewKey = testCrewKey()) }
+        application { module(registry, archive, InMemoryLiveHub(), messages = testMessages(), courses = courses, events = testEvents(), crewKey = testCrewKey()) }
         val id = "5ace0000-1111-4111-8111-000000000013"
         val lines = boxLog(0, 300).mapIndexed { i, l -> if (i == 0) l.replace("\"id\":\"s\"", "\"id\":\"$id\"") else l }
         val body = lines.joinToString("") { "$it\n" }.toByteArray()

@@ -3,6 +3,8 @@ package com.obd2dashboard.backend
 import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
+import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
+import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
@@ -63,6 +65,7 @@ fun main() {
             messages = Messages(FirestoreMessageStore.connect(project)), crewKey = crewKey,
             admin = AdminConfig.fromEnvironment(System::getenv),
             courses = FirestoreCourseStore.connect(project),
+            events = EventStores(FirestoreDriverStore.connect(project), FirestoreEventStore.connect(project)),
         )
     }
     server.start(wait = true)
@@ -87,6 +90,8 @@ fun Application.module(
     admin: AdminConfig = AdminConfig.DISABLED,
     /** Courses (M12), on the store production names; no default, as for messages. */
     courses: CourseStore,
+    /** Drivers and events (M14); no default, as for courses. */
+    events: EventStores,
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
@@ -118,6 +123,7 @@ fun Application.module(
             onChange = downlink::changed, onSaved = { retiming.courseSaved(it) },
             onRemoved = { retiming.courseRemoved(it) }, retiming = retiming::progress,
         )
+        adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin)
         publicCourseRoutes(courses)
         sessionRoutes(registry, archive, hub, clock, laps = retiming::sessionLaps)
         messageRoutes(registry, crewAuth, crew)

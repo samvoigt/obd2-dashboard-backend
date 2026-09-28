@@ -27,6 +27,12 @@
   {#await import('./CoursesAdmin.svelte') then m}<m.default />{/await}
 {:else if current.page === 'admin-course'}
   {#await import('./CourseEditor.svelte') then m}<m.default id={current.id} />{/await}
+{:else if current.page === 'admin-drivers'}
+  {#await import('./DriversAdmin.svelte') then m}<m.default />{/await}
+{:else if current.page === 'admin-events'}
+  {#await import('./EventsAdmin.svelte') then m}<m.default />{/await}
+{:else if current.page === 'admin-event'}
+  {#await import('./EventEditor.svelte') then m}<m.default id={current.id} />{/await}
 {:else if current.page === 'admin'}
   <Admin />
 {:else}

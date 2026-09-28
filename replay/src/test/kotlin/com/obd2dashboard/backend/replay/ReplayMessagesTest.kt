@@ -56,7 +56,7 @@ class ReplayMessagesTest {
     private fun start(config: LiveConfig = LiveConfig()): String {
         val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
             module(registry, ArchiveService(InMemorySessionIndex(), InMemorySegmentStore()), InMemoryLiveHub(), config, Clock.systemUTC(),
-                messages = messages, crewKey = ByteArray(32), courses = courses)
+                messages = messages, crewKey = ByteArray(32), courses = courses, events = com.obd2dashboard.backend.EventStores(com.obd2dashboard.backend.events.InMemoryDriverStore(), com.obd2dashboard.backend.events.InMemoryEventStore()))
         }.start()
         server = s
         return "http://127.0.0.1:${runBlocking { s.engine.resolvedConnectors().first().port }}"

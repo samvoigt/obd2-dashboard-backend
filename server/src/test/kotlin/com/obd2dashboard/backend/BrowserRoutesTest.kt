@@ -63,7 +63,7 @@ class BrowserRoutesTest {
     private val http = HttpClient.newHttpClient()
     private val server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> =
         embeddedServer(Netty, port = 0, host = "127.0.0.1") {
-            module(registry, archive, hub, LiveConfig(), Clock.systemUTC(), messages = messages, courses = testCourses(), crewKey = testCrewKey())
+            module(registry, archive, hub, LiveConfig(), Clock.systemUTC(), messages = messages, courses = testCourses(), events = testEvents(), crewKey = testCrewKey())
         }.start()
     private val base = "http://127.0.0.1:${runBlocking { server.engine.resolvedConnectors().first().port }}"
 

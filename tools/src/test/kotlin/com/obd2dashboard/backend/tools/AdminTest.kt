@@ -34,7 +34,9 @@ class AdminTest {
     private val archive = ArchiveService(sessions, segments, java.time.Clock.offset(java.time.Clock.systemUTC(), java.time.Duration.ofMinutes(-10)))
     private val messages = InMemoryMessageStore()
     private val courses = com.obd2dashboard.backend.courses.InMemoryCourseStore()
-    private val tools = Tools(registry, sessions, archive, messages, courses)
+    private val drivers = com.obd2dashboard.backend.events.InMemoryDriverStore()
+    private val events = com.obd2dashboard.backend.events.InMemoryEventStore()
+    private val tools = Tools(registry, sessions, archive, messages, courses, drivers, events)
 
     private fun message(id: String, car: String) = runBlocking {
         messages.create(Message(id, car, "PIT NOW", "pit", Instant.EPOCH, Instant.EPOCH.plusSeconds(60), MessageState.Cleared))
@@ -420,5 +422,22 @@ class AdminTest {
         val io = FakeIo(lines = listOf("nhms-oval"))
         run("remove-course nhms-oval", io).output shouldContain "so it stays"
         io.prompts shouldBe emptyList()
+    }
+
+    @Test
+    fun `drivers and events are listed`() {
+        run("drivers").output shouldContain "No drivers."
+        run("events").output shouldContain "No events."
+        runBlocking {
+            drivers.put(com.obd2dashboard.backend.events.Driver("d1", "Sam Voigt", "SAM"))
+            val t = Instant.parse("2026-10-04T13:00:00Z")
+            events.save(com.obd2dashboard.backend.events.Event("nhms-october", "NHMS October", "2026-10-04", "nhms", "road", listOf("outback"),
+                listOf(com.obd2dashboard.backend.events.Part("p1", com.obd2dashboard.backend.events.PartKind.PRACTICE, "Practice 1", t, t.plusSeconds(3600)))), 0, t)
+        }
+        run("drivers").output shouldContain "SAM   Sam Voigt"
+        run("events").output.let {
+            it shouldContain "nhms-october  NHMS October, 2026-10-04, nhms (road), cars outback"
+            it shouldContain "p1  practice  Practice 1: 2026-10-04T13:00:00Z to 2026-10-04T14:00:00Z"
+        }
     }
 }

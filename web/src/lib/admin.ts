@@ -138,13 +138,18 @@ export function when(ms: number, locale = 'en-GB', timeZone?: string): string {
 
 /** The server's plain words from an error response, or its status. */
 export async function errorText(response: Response): Promise<string> {
+  return (await errorOf(response)).message
+}
+
+/** The server's words and, for a refused save, every problem it found (M14.3). */
+async function errorOf(response: Response): Promise<{ message: string; problems: string[] }> {
   try {
-    const body = (await response.json()) as { message?: string }
-    if (body.message) return body.message
+    const body = (await response.json()) as { message?: string; problems?: unknown }
+    const problems = Array.isArray(body.problems) ? body.problems.filter((p): p is string => typeof p === 'string') : []
+    return { message: body.message || `The server answered ${response.status}.`, problems }
   } catch {
-    // not JSON
+    return { message: `The server answered ${response.status}.`, problems: [] }
   }
-  return `The server answered ${response.status}.`
 }
 
 /** A call to the admin API; the cookie goes along by itself. Errors throw the server's words. */
@@ -154,7 +159,10 @@ export async function api<T>(method: string, path: string, body?: unknown, fetch
     headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  if (!response.ok) throw new AdminError(response.status, await errorText(response))
+  if (!response.ok) {
+    const { message, problems } = await errorOf(response)
+    throw new AdminError(response.status, message, problems)
+  }
   return (response.status === 204 ? undefined : await response.json()) as T
 }
 
@@ -162,6 +170,8 @@ export class AdminError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Every problem the server found with a refused save; empty otherwise. */
+    readonly problems: string[] = [],
   ) {
     super(message)
   }

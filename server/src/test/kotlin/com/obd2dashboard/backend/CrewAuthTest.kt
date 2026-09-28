@@ -43,7 +43,7 @@ class CrewAuthTest {
     }
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
     }
 
     private suspend fun ApplicationTestBuilder.login(car: String, passcode: String): HttpResponse =

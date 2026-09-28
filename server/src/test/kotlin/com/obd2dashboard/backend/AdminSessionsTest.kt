@@ -53,7 +53,7 @@ class AdminSessionsTest {
     private fun ApplicationTestBuilder.app() {
         application {
             module(registry, ArchiveService(sessions, InMemorySegmentStore(), clock), hub, clock = clock,
-                messages = testMessages(), courses = testCourses(), crewKey = testCrewKey(), admin = config)
+                messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), admin = config)
         }
     }
 

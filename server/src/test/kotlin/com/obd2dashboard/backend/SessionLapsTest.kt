@@ -50,7 +50,7 @@ class SessionLapsTest {
         lines.map { Regex("\"(lat|lon)\":(-?[0-9.]+)").replace(it) { m -> "\"${m.groupValues[1]}\":${"%.7f".format(m.groupValues[2].toDouble())}" } }
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, archive, InMemoryLiveHub(), messages = testMessages(), courses = courses, crewKey = testCrewKey()) }
+        application { module(registry, archive, InMemoryLiveHub(), messages = testMessages(), courses = courses, events = testEvents(), crewKey = testCrewKey()) }
     }
 
     private suspend fun ApplicationTestBuilder.laps(id: String): SessionLaps? {

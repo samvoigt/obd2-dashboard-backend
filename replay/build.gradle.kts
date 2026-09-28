@@ -25,6 +25,7 @@ dependencies {
     testImplementation(project(":live"))
     testImplementation(project(":registry"))
     testImplementation(project(":courses"))
+    testImplementation(project(":events"))
     testImplementation(libs.ktor.server.netty)
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions)

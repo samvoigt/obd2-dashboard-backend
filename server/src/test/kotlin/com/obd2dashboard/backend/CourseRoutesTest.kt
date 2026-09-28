@@ -69,7 +69,7 @@ class CourseRoutesTest {
     private fun ApplicationTestBuilder.app() {
         application {
             module(registry, ArchiveService(sessions, InMemorySegmentStore()), InMemoryLiveHub(),
-                messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses)
+                messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = testEvents())
         }
     }
 

@@ -170,6 +170,55 @@ only).
 use not deleted); looked at in Chrome against the dev server: an event made,
 a practice part whose window catches a replayed session, one added by hand.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Wiring:** `module()` takes every store without a default, so none is
+>   left in memory by mistake (as messages and courses); drivers and events go
+>   in as one `EventStores`, and the 29 callers (tests, the dev server,
+>   `main`) gain it, with a `testEvents()` helper beside `testCourses()`.
+> - **The admin API** as the courses': `call.admin(auth, config, change)`
+>   (sign-in, and the origin for a change), `adminLog` with who, `ApiError`s.
+>   - Drivers: list, `POST` (the server makes the id), `PUT`, `DELETE`
+>     (**refused if any session names the driver**, found through every car's
+>     sessions).
+>   - Events: list; one, **with each part's sessions** and the entered cars'
+>     other sessions from the day before to the day after (to add by hand);
+>     `PUT` with `expected` (every problem said, and the course, layout and
+>     cars checked to exist; a new part without an id is given the next);
+>     `DELETE`. Adding or removing a session is a `PUT` of the part's lists.
+> - **A session, heard:** `SessionRecord.created`, `updated`, and its source
+>   from the header, else the summary.
+> - **Pages:** `/admin/drivers` and `/admin/events`, `/admin/events/{id}`
+>   (`new` for a new one), routed as `/admin/courses` is (`WebRoutes`,
+>   `routes.ts`, `App.svelte`), linked from the admin page beside Courses.
+> - **`admin.sh`** gains `drivers` and `events` (lists); `Tools` gains the two
+>   stores.
+
+> **✅ Done, 2026-09-27.** `EventRoutes` (`EventStores`, the drivers and
+> events API, a session `heard()` and `brief()`); `module()` and its callers
+> (41, the replay tool's tests among them); pages `/admin/drivers`,
+> `/admin/events`, `/admin/events/{id}` (`DriversAdmin`, `EventsAdmin`,
+> `EventEditor`, `lib/events.ts`); `AdminError.problems` (a refusal's every
+> problem, shown beside the form); `admin.sh drivers` and `events`.
+> - **Tests: Kotlin 6** (sign-in and origin; drivers, codes, one who drove
+>   staying; an event saved, new parts given ids, every problem, stale and
+>   taken; a part's sessions and the others around the day, added by hand,
+>   duplicates stored once, a headerless fake never offered; removed, its
+>   sessions untouched; the tool's lists); **Vitest 10** (the editor's times,
+>   parts, adding and taking out, the save's body, codes, when heard; routes;
+>   a refusal's problems).
+> - **Mutations: 19, all killed**, three after tests were added (duplicates,
+>   a headerless session's source, adding to one part taking it from
+>   another).
+> - **Looked at in Chrome** (the dev server): two drivers added, their codes
+>   from their names; an event at NHMS with a practice 21:00–21:50; a drive
+>   replayed at 21:48 in it, one at 21:52 offered and added by hand.
+> - **Found by looking:** a new event's date defaulted to **UTC's** day (the
+>   28th, at 21:52 in New York); now the viewer's.
+> - **The first click on each page was lost**, in every page, the sign-in
+>   too; an extension's element ("feedly Mini toolkit") sits in every page's
+>   accessibility tree, and clicking through the page's own JavaScript always
+>   worked. The browser's, not the site's.
+
 ### M14.4 — Who drove
 
 `PUT /api/sessions/{id}/driver` for the admin or the car's crew; the session

@@ -20,7 +20,7 @@ class WebRoutesTest {
 
     @Test
     fun `the landing page and a car's page are the site`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
         for (path in listOf("/", "/cars/yaris", "/cars/yaris/", "/cars/yaris/sessions", "/cars/yaris/sessions/", "/cars/yaris/sessions/7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f", "/courses", "/courses/nhms")) {
             val response = client.get(path)
             response.status shouldBe HttpStatusCode.OK
@@ -32,7 +32,7 @@ class WebRoutesTest {
 
     @Test
     fun `the admin page is the site, and can't be framed by anyone`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
         // The course editor's pages too (M12.4): they can move every timing line.
         for (path in listOf("/admin", "/admin/", "/admin/courses", "/admin/courses/", "/admin/courses/nhms")) {
             val response = client.get(path)
@@ -46,7 +46,7 @@ class WebRoutesTest {
 
     @Test
     fun `assets are served and cached for a year`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
         val response = client.get("/assets/app-test.js")
         response.status shouldBe HttpStatusCode.OK
         response.bodyAsText() shouldContain "stub"
@@ -55,7 +55,7 @@ class WebRoutesTest {
 
     @Test
     fun `the home-screen icon and the favicon are served at the root, cached for a day (M11)`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
         for ((path, body, type) in listOf(
             Triple("/apple-touch-icon.png", "stub-png", "image/png"),
             Triple("/apple-touch-icon-precomposed.png", "stub-png", "image/png"),
@@ -72,7 +72,7 @@ class WebRoutesTest {
 
     @Test
     fun `the site never shadows the API or the tablet's paths`() = testApplication {
-        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), crewKey = testCrewKey()) }
+        application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
         client.get("/api/cars").let {
             it.status shouldBe HttpStatusCode.OK
             it.headers[HttpHeaders.ContentType]!! shouldStartWith "application/json"

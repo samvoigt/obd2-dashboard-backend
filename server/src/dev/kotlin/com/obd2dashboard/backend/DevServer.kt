@@ -4,6 +4,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.Json
 import java.time.Instant
 import com.obd2dashboard.backend.courses.InMemoryCourseStore
+import com.obd2dashboard.backend.events.InMemoryDriverStore
+import com.obd2dashboard.backend.events.InMemoryEventStore
 import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
@@ -48,6 +50,7 @@ fun main() {
             messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) },
             admin = devAdmin(),
             courses = devCourses(),
+            events = EventStores(InMemoryDriverStore(), InMemoryEventStore()),
         )
     }.start(wait = true)
 }

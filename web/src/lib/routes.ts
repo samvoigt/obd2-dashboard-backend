@@ -9,6 +9,9 @@ export type Route =
   | { page: 'course'; id: string }
   | { page: 'admin-courses' }
   | { page: 'admin-course'; id: string }
+  | { page: 'admin-drivers' }
+  | { page: 'admin-events' }
+  | { page: 'admin-event'; id: string }
   | { page: 'preview'; slug: string }
 
 const CAR = /^\/cars\/([a-z][a-z0-9-]{1,31})\/?$/
@@ -19,6 +22,9 @@ const COURSES = /^\/courses\/?$/
 const COURSE = /^\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
 const ADMIN_COURSES = /^\/admin\/courses\/?$/
 const ADMIN_COURSE = /^\/admin\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
+const ADMIN_DRIVERS = /^\/admin\/drivers\/?$/
+const ADMIN_EVENTS = /^\/admin\/events\/?$/
+const ADMIN_EVENT = /^\/admin\/events\/([a-z][a-z0-9-]{1,31})\/?$/
 
 export function route(path: string): Route {
   if (ADMIN.test(path)) return { page: 'admin' }
@@ -26,6 +32,11 @@ export function route(path: string): Route {
   if (ADMIN_COURSES.test(path)) return { page: 'admin-courses' }
   const course = ADMIN_COURSE.exec(path)
   if (course?.[1]) return { page: 'admin-course', id: course[1] }
+  // Drivers and events (M14.3): signed in, as courses are (`new` for an event not yet saved).
+  if (ADMIN_DRIVERS.test(path)) return { page: 'admin-drivers' }
+  if (ADMIN_EVENTS.test(path)) return { page: 'admin-events' }
+  const event = ADMIN_EVENT.exec(path)
+  if (event?.[1]) return { page: 'admin-event', id: event[1] }
   // Courses, public (M12.5).
   if (COURSES.test(path)) return { page: 'courses' }
   const publicCourse = COURSE.exec(path)

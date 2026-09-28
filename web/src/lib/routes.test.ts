@@ -18,6 +18,13 @@ describe('route', () => {
     expect(route('/admin')).toEqual({ page: 'admin' })
     expect(route('/admin/')).toEqual({ page: 'admin' })
   })
+  it('reads the admin page\u2019s drivers and events (M14.3)', () => {
+    expect(route('/admin/drivers')).toEqual({ page: 'admin-drivers' })
+    expect(route('/admin/events/')).toEqual({ page: 'admin-events' })
+    expect(route('/admin/events/nhms-october')).toEqual({ page: 'admin-event', id: 'nhms-october' })
+    expect(route('/admin/events/new')).toEqual({ page: 'admin-event', id: 'new' })
+    expect(route('/admin/events/Bad')).toEqual({ page: 'landing' })
+  })
   it('sends anything else to the landing page', () => {
     for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin/x', '/administrator', '/cars/yaris/sessions/nope', '/cars/yaris/sessions/a/b']) {
       expect(route(path)).toEqual({ page: 'landing' })

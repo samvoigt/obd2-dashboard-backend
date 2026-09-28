@@ -54,7 +54,7 @@ class ReplayTest {
     private val device = "00000000-0000-4000-8000-00000000d0e5"
 
     private fun start(segments: SegmentStore = store): URI {
-        val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32), courses = courses) }.start()
+        val s = embeddedServer(Netty, port = 0, host = "127.0.0.1") { module(registry, ArchiveService(index, segments), InMemoryLiveHub(), messages = Messages(InMemoryMessageStore()), crewKey = ByteArray(32), courses = courses, events = com.obd2dashboard.backend.EventStores(com.obd2dashboard.backend.events.InMemoryDriverStore(), com.obd2dashboard.backend.events.InMemoryEventStore())) }.start()
         server = s
         val port = runBlocking { s.engine.resolvedConnectors().first().port }
         return URI.create("http://127.0.0.1:$port")

@@ -83,6 +83,11 @@ describe('the API', () => {
     expect(error).toBeInstanceOf(AdminError)
     expect((error as AdminError).status).toBe(409)
     expect((error as AdminError).message).toBe('A car with slug "yaris" already exists')
+    expect((error as AdminError).problems).toEqual([])
+  })
+  it('keeps every problem a refused save names (M14.3)', async () => {
+    const error = await api('PUT', '/events/x', {}, answer(400, { error: 'invalid', message: 'No.', problems: ['one', 2, 'two'] })).catch((e: unknown) => e)
+    expect((error as AdminError).problems).toEqual(['one', 'two'])
   })
   it('sends JSON only when there is a body', async () => {
     const seen: RequestInit[] = []

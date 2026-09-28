@@ -2,6 +2,8 @@ package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.courses.InMemoryCourseStore
+import com.obd2dashboard.backend.events.InMemoryDriverStore
+import com.obd2dashboard.backend.events.InMemoryEventStore
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
@@ -16,3 +18,5 @@ fun testMessages(): Messages = Messages(InMemoryMessageStore())
 fun testCrewKey(): ByteArray = ByteArray(32) { it.toByte() }
 
 fun testCourses(): CourseStore = InMemoryCourseStore()
+
+fun testEvents(): EventStores = EventStores(InMemoryDriverStore(), InMemoryEventStore())
