@@ -21,7 +21,16 @@ import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
+import com.obd2dashboard.backend.events.Driver
 import com.obd2dashboard.backend.events.DriverStore
+import com.obd2dashboard.backend.events.Event
+import com.obd2dashboard.backend.events.EventRules
+import com.obd2dashboard.backend.events.Part
+import com.obd2dashboard.backend.events.PartKind
+import com.obd2dashboard.backend.registry.SlugCheck
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import java.security.SecureRandom
 import com.obd2dashboard.backend.events.EventStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
@@ -85,7 +94,7 @@ class Admin(
     init {
         subcommands(
             AddCar(io), RotateToken(io), SetToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
-            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(), RemoveCourse(io), ListDrivers(), ListEvents(),
+            ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(), RemoveCourse(io), ListDrivers(), ListEvents(), AddDriver(), RemoveDriver(io), ImportEvent(), RemoveEvent(io),
         )
     }
 
@@ -457,5 +466,110 @@ class ListEvents : CliktCommand(name = "events") {
             echo("${e.id}  ${e.name}, ${e.date}, ${e.course} (${e.layout}), cars ${e.cars.joinToString(", ")}")
             for (p in e.parts) echo("  ${p.id}  ${p.kind.name.lowercase().padEnd(8)}  ${p.name}: ${p.start} to ${p.end}")
         }
+    }
+}
+
+/** A driver (M14.6), as the admin page's Drivers makes one. */
+class AddDriver : CliktCommand(name = "add-driver") {
+    private val tools: Tools by requireObject<Tools>()
+    private val name by option("--name", help = "the driver's name").required()
+    private val code by option("--code", help = "2–4 capital letters, for tables").required()
+
+    override fun help(context: Context) = "Add a driver."
+
+    override fun run() = runBlocking {
+        val id = "d-" + ByteArray(4).also(SecureRandom()::nextBytes).joinToString("") { "%02x".format(it) }
+        val driver = Driver(id, name.trim(), code.trim())
+        val problems = EventRules.driverProblems(driver, tools.drivers.list())
+        if (problems.isNotEmpty()) throw CliktError("Not added:\n" + problems.joinToString("\n") { "  - $it" })
+        tools.drivers.put(driver) ?: throw CliktError("Another driver took the code ${driver.code} just now.")
+        echo("Added ${driver.name} (${driver.code}).")
+    }
+}
+
+/** Removes a driver by their code (M14.6): never one who drove, as the admin page. */
+class RemoveDriver(private val io: AdminIo) : CliktCommand(name = "remove-driver") {
+    private val tools: Tools by requireObject<Tools>()
+    private val code by argument(help = "the driver's code")
+
+    override fun help(context: Context) = "Remove a driver who drove no session."
+
+    override fun run() = runBlocking {
+        val driver = tools.drivers.list().firstOrNull { it.code == code.uppercase() } ?: throw CliktError("No driver with the code $code.")
+        if (tools.sessions.list().any { it.driver == driver.id }) throw CliktError("${driver.name} drove sessions, so stays.")
+        val typed = io.readLine("Type the code again to remove ${driver.name}: ")
+        if (typed?.trim()?.uppercase() != driver.code) throw CliktError("Not removed.")
+        tools.drivers.delete(driver.id)
+        echo("Removed ${driver.name} (${driver.code}).")
+    }
+}
+
+/**
+ * An event from a JSON file (M14.6), as its next revision: `id`, `name`,
+ * `date`, `course`, `layout`, `cars`, and `parts`, each a `kind` (`practice` or
+ * `race`), `name`, and `start` and `end` as ISO times with their offset
+ * (`2026-10-04T09:00:00-04:00`). Every rule the admin page applies.
+ */
+class ImportEvent : CliktCommand(name = "import-event") {
+    private val tools: Tools by requireObject<Tools>()
+    private val file by argument(help = "an event's JSON").path(mustExist = true, canBeDir = false, mustBeReadable = true)
+
+    override fun help(context: Context) = "Save an event from a JSON file, as its next revision."
+
+    override fun run() = runBlocking {
+        val json = runCatching { Json.parseToJsonElement(Files.readString(file)).jsonObject }
+            .getOrElse { throw CliktError("${file.fileName} is not a JSON object: ${it.message}") }
+        fun str(o: JsonObject, key: String) = (o[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull.orEmpty()
+        val id = str(json, "id")
+        val current = if (EventRules.idProblem(id) == null) tools.events.get(id) else null
+        var draft = Event(id, str(json, "name").trim(), str(json, "date"), str(json, "course"), str(json, "layout"),
+            (json["cars"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }, current?.parts.orEmpty())
+        val problems = mutableListOf<String>()
+        val parts = (json["parts"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }.map { p ->
+            fun time(key: String) = runCatching { Instant.from(DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(str(p, key))) }
+                .getOrElse { problems += "${str(p, "name")}: $key is an ISO time with its offset, 2026-10-04T09:00:00-04:00"; Instant.EPOCH }
+            val part = Part(
+                str(p, "id").ifBlank { draft.nextPartId() },
+                if (str(p, "kind") == "race") PartKind.RACE else PartKind.PRACTICE,
+                str(p, "name").trim(), time("start"), time("end"),
+            )
+            draft = draft.copy(parts = draft.parts + part)
+            // The admin page's hand-made changes stay as they are.
+            current?.parts?.firstOrNull { it.id == part.id }?.let { part.copy(added = it.added, removed = it.removed) } ?: part
+        }
+        val event = draft.copy(parts = parts)
+        problems += EventRules.eventProblems(event) + existenceProblems(event)
+        if (problems.isNotEmpty()) throw CliktError("Not saved:\n" + problems.joinToString("\n") { "  - $it" })
+        val saved = tools.events.save(event, current?.revision ?: 0, Instant.now())
+            ?: throw CliktError("Someone saved ${event.id} while this ran; run it again.")
+        echo("Saved ${saved.id} (${saved.name}) as revision ${saved.revision}: ${saved.parts.joinToString(", ") { "${it.id} ${it.name}" }}.")
+    }
+
+    /** The same checks as the admin page's: the course and its layout, and every car, exist. */
+    private suspend fun existenceProblems(event: Event): List<String> = buildList {
+        val course = tools.courses.get(event.course)
+        if (course == null) add("there's no course ${event.course}")
+        val shape = course?.let { (CourseRules.check(it.geojson) as? CourseCheck.Ok)?.shape }
+        if (shape != null && shape.layouts.none { it.id == event.layout }) add("${course.name} has no layout ${event.layout}")
+        for (car in event.cars) {
+            val slug = (Slug.check(car) as? SlugCheck.Ok)?.slug
+            if (slug == null || tools.registry.get(slug) == null) add("there's no car $car")
+        }
+    }
+}
+
+/** Removes an event (M14.6); its sessions are untouched. */
+class RemoveEvent(private val io: AdminIo) : CliktCommand(name = "remove-event") {
+    private val tools: Tools by requireObject<Tools>()
+    private val id by argument()
+
+    override fun help(context: Context) = "Remove an event. Its sessions stay."
+
+    override fun run() = runBlocking {
+        val event = tools.events.get(id) ?: throw CliktError("No event $id.")
+        val typed = io.readLine("Type the event id again to remove it (${event.name}): ")
+        if (typed?.trim() != event.id) throw CliktError("Not removed.")
+        tools.events.delete(event.id)
+        echo("Removed ${event.id}.")
     }
 }

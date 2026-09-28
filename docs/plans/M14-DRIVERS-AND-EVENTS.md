@@ -330,6 +330,24 @@ whose window catches two replayed drives, two test drivers set through the
 crew's passcode; the event's public page shows each driver's best. All of it
 removed after.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Drivers and events can only be made on the admin page**, whose deployed
+>   sign-in is Sam's; `admin.sh` only lists them. So, as `remove-course` was in
+>   M13.6, `admin.sh` gains **`add-driver`**, **`remove-driver`** (refused if a
+>   session names the driver), **`import-event`** (an event from a JSON file,
+>   as `import-course` takes a course; every rule, and the course, layout and
+>   cars checked) and **`remove-event`** (asked twice). Useful beyond the proof:
+>   a race weekend can be set up from a file.
+> - **The proof, in production:** a throwaway `smoke-m14` car with a passcode
+>   (a `chmod 600` file), the box course near NHMS imported as `m14-box`, two
+>   test drivers, a test event whose two practice windows each catch one of two
+>   replayed drives (different devices, so different runs), each drive's driver
+>   set **through the crew's passcode** (a `chmod 600` cookie jar); then
+>   `/events/m14-test` in Chrome. Removed after, in order: event, sessions
+>   (their drivers go with them), drivers, car, course (with its re-timings).
+> - **The deploy** with a stream longer than the build, under `caffeinate -i`
+>   (JOURNAL: M13), a throwaway car's.
+
 ### M14.7 — Record it
 
 A decision for events, parts and who drove; `COMPLETED`, `JOURNAL`, `PLAN`,

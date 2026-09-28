@@ -440,4 +440,55 @@ class AdminTest {
             it shouldContain "p1  practice  Practice 1: 2026-10-04T13:00:00Z to 2026-10-04T14:00:00Z"
         }
     }
+
+    @Test
+    fun `add-driver and remove-driver, codes unique, one who drove kept`() {
+        run("add-driver --name \"Sam Voigt\" --code SAM").output shouldContain "Added Sam Voigt (SAM)."
+        run("add-driver --name Samantha --code SAM").let { it.statusCode shouldBe 1; it.output shouldContain "Sam Voigt already has the code SAM" }
+        run("add-driver --name Alex --code al").output shouldContain "a driver's code is 2–4 capital letters"
+        run("add-driver --name Alex --code ALE").statusCode shouldBe 0
+        val alex = runBlocking { drivers.list().first { it.code == "ALE" } }
+        runBlocking { sessions.create(com.obd2dashboard.backend.archive.SessionRecord("s1", "yaris", null, null, 0, emptyList(), true, null, 0, Instant.EPOCH, Instant.EPOCH, driver = alex.id)) }
+        run("remove-driver ALE", FakeIo(lines = listOf("ALE"))).output shouldContain "Alex drove sessions, so stays."
+        run("remove-driver sam", FakeIo(lines = listOf("nope"))).output shouldContain "Not removed."
+        run("remove-driver sam", FakeIo(lines = listOf("SAM"))).output shouldContain "Removed Sam Voigt (SAM)."
+        runBlocking { drivers.list().map { it.code } } shouldBe listOf("ALE")
+    }
+
+    @Test
+    fun `import-event saves an event from its file, every problem said, the admin's hand-made changes kept`() {
+        val seed = java.io.File("../courses/seed/nhms.geojson").absolutePath
+        run("import-course $seed")
+        runBlocking { registry.addCar(yaris, "Yaris") }
+        fun file(json: String) = kotlin.io.path.createTempFile("event", ".json").toFile().apply { writeText(json); deleteOnExit() }.absolutePath
+        val good = file("""{"id":"nhms-october","name":"NHMS October","date":"2026-10-04","course":"nhms","layout":"road","cars":["yaris"],
+            "parts":[{"kind":"practice","name":"Practice 1","start":"2026-10-04T09:00:00-04:00","end":"2026-10-04T10:00:00-04:00"},
+                     {"kind":"race","name":"Race","start":"2026-10-04T12:00:00-04:00","end":"2026-10-04T18:00:00-04:00"}]}""")
+        run("import-event $good").output shouldContain "Saved nhms-october (NHMS October) as revision 1: p1 Practice 1, p2 Race."
+        val saved = runBlocking { events.get("nhms-october")!! }
+        saved.parts.first().start shouldBe Instant.parse("2026-10-04T13:00:00Z")
+        // The admin adds a session by hand; a re-import keeps it.
+        runBlocking { events.save(saved.copy(parts = saved.parts.map { if (it.id == "p1") it.copy(added = listOf("s-late")) else it }), 1, Instant.EPOCH) }
+        val again = file("""{"id":"nhms-october","name":"NHMS October","date":"2026-10-04","course":"nhms","layout":"road","cars":["yaris"],
+            "parts":[{"id":"p1","kind":"practice","name":"Practice 1","start":"2026-10-04T09:00:00-04:00","end":"2026-10-04T10:30:00-04:00"}]}""")
+        run("import-event $again").output shouldContain "as revision 3"
+        runBlocking { events.get("nhms-october")!!.parts.single().added } shouldBe listOf("s-late")
+
+        val bad = file("""{"id":"Bad","name":"x","date":"4 Oct","course":"nowhere","layout":"road","cars":["nope"],
+            "parts":[{"kind":"practice","name":"P","start":"9am","end":"2026-10-04T10:00:00-04:00"}]}""")
+        run("import-event $bad").output.let {
+            it shouldContain "an id is 2–32 lower-case letters"
+            it shouldContain "a date is written 2026-10-04"
+            it shouldContain "there's no course nowhere"
+            it shouldContain "there's no car nope"
+            it shouldContain "P: start is an ISO time with its offset"
+        }
+        val oval = file("""{"id":"oval","name":"Oval","date":"2026-10-04","course":"nhms","layout":"oval","cars":["yaris"],"parts":[]}""")
+        run("import-event $oval").output shouldContain "New Hampshire Motor Speedway has no layout oval"
+
+        run("remove-event nhms-october", FakeIo(lines = listOf("no"))).output shouldContain "Not removed."
+        run("remove-event nhms-october", FakeIo(lines = listOf("nhms-october"))).output shouldContain "Removed nhms-october."
+        runBlocking { events.list() } shouldBe emptyList()
+        run("remove-event nhms-october").statusCode shouldBe 1
+    }
 }
