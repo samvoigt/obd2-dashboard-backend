@@ -599,3 +599,40 @@ The fourth milestone of race logging. Decision 35.
 **Left for later:** the lap chart, theoretical best, comparisons (M16); the
 race live on the car page and the tablet (M17); the live lane's measured clock
 offset stored per session, for flags placed to the millisecond.
+
+## M16 — Results worth reading  ✅ 2026-09-28
+
+The fifth milestone of race logging. Decision 36.
+
+- **Every lap linked** (`lib/laps.ts`): the session page reads and writes its
+  `?from&to`, the map fitted to that stretch; links from practice bests, the
+  race's laps, a driver's course bests. A session in an event is timed on the
+  event's course.
+- **What the laps add up to**: `:timing`'s `Consistency` and
+  `theoreticalBest`; `Race`'s best sectors, a car's theoretical best, a
+  stint's consistency; `Results`' sector rows and consistency per driver; the
+  event page's sectors and consistency tables, the race's median and spread.
+- **The lap-time chart** (`lib/lapChart.ts`, `LapChart.svelte`) in the race's
+  section.
+- **Two laps compared** (`lib/compare.ts`, `/compare`): the delta, speed and
+  every shared signal by distance, the map with both dots; "Compare…", "vs
+  best" on practice bests, race laps, session laps and a driver's bests.
+- **Also:** the series ETag is the key and the log's hash.
+- **Tests:** Kotlin 5 new and one extended (`:timing` 3, `:server` 2);
+  Vitest 169 (23 new). **Mutations: 33, all killed**; tests were added after
+  three survivors.
+- **Found while building:** a session reached from a race had no laps (timed
+  on NHMS, whose area the test box sits in); a linked lap had no way back to
+  the whole session; speed spikes at a compared lap's ends (the `fixAt` and
+  `at` clocks); projection jumping across a thin loop; stale series from the
+  browser's cache when a session id was reused.
+- **Proven:** Chrome against the dev server (practice for two drivers and the
+  generated race); **deployed as `00027`** with a stream across the cutover;
+  **in production**, a throwaway car, a test box, two test drivers set through
+  the crew's passcode: practice bests 1:10.000 and 1:17.778, sector gaps
+  1.944 s, the theoretical bests, consistency, the race's lap chart; "vs best"
+  compared the two drivers, the delta 7.719 s at 2779 m (2779/36 − 2779/40);
+  a lap's link opened its session on its lap. All removed.
+
+**Left for later:** the race live on the car page and the tablet (M17);
+positions per lap; comparing more than two laps.

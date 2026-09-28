@@ -6,7 +6,11 @@ shows the car's data live.
 
 ## Status
 
-M15 done: the race as one timeline, through driver changes (the car's power
+M16 done: results worth reading. Every lap links to its moment in its
+session; practice and the race show the theoretical best, sectors driver by
+driver and how consistent each driver was; the race has a lap-time chart; and
+any two laps can be compared by distance round the course, the time gained or
+lost metre by metre. M15: the race as one timeline, through driver changes (the car's power
 off, the tablet's timing carrying on) and restarts of the app; stops timed in
 the pit lane; stints split at stops, edited by the admin or the crew; the green
 and chequered flags marked; race results and driver pages, public. M14:

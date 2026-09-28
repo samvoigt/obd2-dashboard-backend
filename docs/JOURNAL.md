@@ -354,3 +354,20 @@ whole drive, the admin page's Download.
 - **Production proof by the crew's route only**: the live site's admin page in
   this Chrome is Sam's session, so it was only looked at; every change went
   through the crew's passcode, as the pit wall would make them.
+
+## 2026-09-28 — M16, results worth reading
+
+- **Two clocks inside one log, again.** A lap is timed on `fixAt`; its
+  positions are placed on `wall` of `at`, later by the tablet's delay in
+  hearing a fix. Pinning a lap's ends on the positions squeezed its first and
+  last stretch into spikes of speed; each lap's ends are now found where its
+  own positions cross the line.
+- **Nearest isn't where the car is.** Projecting a fix onto the nearest part
+  of a course jumped across a thin loop; a car only goes forward, so the next
+  fix is looked for just ahead of the last.
+- **A cache keyed on a name outlives the file.** The series ETag was the
+  stored file's name, which the dev server reuses when a session id is
+  replayed; it's the log's hash now. First put down as "not a fault" in
+  M16.1, it came back in M16.4.
+- **A mutant survived because both test laps started at zero.** Test data
+  that makes two things equal hides a bug in telling them apart.

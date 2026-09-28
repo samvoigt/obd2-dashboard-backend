@@ -30,7 +30,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M13** | Re-timing the tablet's own fixes when a line moves | ✅ (`plans/COMPLETED.md`) |
 | **M14** | Drivers and events: practice parts and a race, sessions joined by the server's time, who drove, practice results | ✅ (`plans/COMPLETED.md`) |
 | **M15** | The race: one timeline through driver changes and restarts, stops, stints, race results, driver pages | ✅ (`plans/COMPLETED.md`) |
-| **M16** | Results worth reading: every lap linked, theoretical best, sectors compared, consistency, the lap-time chart, two laps compared | **planned**: [`plans/M16-RESULTS-WORTH-READING.md`](plans/M16-RESULTS-WORTH-READING.md) |
+| **M16** | Results worth reading: every lap linked, theoretical best, sectors compared, consistency, the lap-time chart, two laps compared | ✅ (`plans/COMPLETED.md`) |
 | **M14** | Drivers, and events with practice and a race | outline |
 | **M15** | The race: sessions stitched into one, stints by driver | outline |
 | **M16** | Results worth reading: lap chart, theoretical best, comparisons | outline |

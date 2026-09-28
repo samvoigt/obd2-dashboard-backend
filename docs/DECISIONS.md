@@ -918,3 +918,38 @@ right what it heard late. Results on view stay right when a line moves.
 server must never lose count because the car did; the crew knows who drove,
 and must be able to say so without the admin's sign-in. Flags as annotations
 keep every lap the tablet timed, which is the tablet's to give (decision 31).
+
+## 36. Results worth reading: laps linked, what they add up to, two compared
+
+**Decision.** (M16.)
+- **Every lap links to its moment**: its session's page with the lap's
+  `?from=&to=` on `wall`, the chart zoomed and the map drawing only that
+  stretch; choosing a lap on the page writes it back, so a view can be shared.
+  **A session in an event is timed on the event's course** first, not the
+  first course its fixes touch.
+- **What the laps add up to**, over laps on track only (no in- or out-laps, no
+  lap across a restart; another layout's never): the **theoretical best** (the
+  best of each sector added up, by §22.6's rule, only when every sector has
+  one); **sectors driver by driver** with the gap to the best of all; and
+  **consistency** (`:timing`'s `Consistency`: the laps, best, median, the
+  standard deviation, and how many within 1% of the best). Practice has them
+  per driver, the race per car and per stint.
+- **The race's lap chart is lap times by lap number** (Sam), a line per car,
+  stints shaded, stops and flags marked; a lap slower than 130% of the car's
+  best on track is drawn at the top edge, so racing laps keep the scale.
+- **Two laps compared by distance along the course's own line**, at
+  `/compare` (public, both laps in the address), in the browser from the two
+  sessions' series: positions projected onto the layout (looked for from 20 m
+  behind the last fix to 250 m ahead, since a course passes near itself); a
+  lap's ends where its positions cross the line **on their own clock**
+  (`wall` of `at`, later than the lap's `fixAt` crossings by the tablet's
+  delay); signals resampled every metre; the running delta from each lap's own
+  start; speed from the laps where a drive has no speed signal. The first pick
+  is held in the viewer's browser only.
+- **A session's series ETag is its key and the log's hash**, so a replaced
+  file is never served from a cache.
+
+**Why.** A lap time alone says little: the crew wants where the time went, who
+is quick where, and who is steady, and to go straight to the moment in the
+data. Distance is the only axis two laps share whatever line each took, and
+it's the course's own line that makes it the same for every car.
