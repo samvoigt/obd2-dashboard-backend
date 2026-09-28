@@ -39,6 +39,13 @@ class EventMappingTest {
     }
 
     @Test
+    fun `an id Firestore can't hold is never asked for`() {
+        isDocumentId("d-7f3a") shouldBe true
+        isDocumentId("nhms-october") shouldBe true
+        for (bad in listOf("", ".", "..", "a/b")) isDocumentId(bad) shouldBe false
+    }
+
+    @Test
     fun `a driver round-trips through its fields`() {
         val sam = Driver("d-7f3a", "Sam", "SAM")
         driverFrom("d-7f3a", sam.toFields()) shouldBe sam

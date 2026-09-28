@@ -32,7 +32,7 @@ public class FirestoreDriverStore(private val db: Firestore) : DriverStore {
         drivers.get().await().documents.map { driverFrom(it.id, it.data.orEmpty()) }.sortedBy { it.name }
 
     override suspend fun get(id: String): Driver? =
-        drivers.document(id).get().await().takeIf { it.exists() }?.let { driverFrom(it.id, it.data.orEmpty()) }
+        if (!isDocumentId(id)) null else drivers.document(id).get().await().takeIf { it.exists() }?.let { driverFrom(it.id, it.data.orEmpty()) }
 
     override suspend fun put(driver: Driver): Driver? = db.runTransaction { tx: Transaction ->
         val taken = tx.get(drivers).get().documents.any { it.id != driver.id && it.getString(CODE) == driver.code }
@@ -42,6 +42,7 @@ public class FirestoreDriverStore(private val db: Firestore) : DriverStore {
     }.await()
 
     override suspend fun delete(id: String): Boolean {
+        if (!isDocumentId(id)) return false
         val ref = drivers.document(id)
         return db.runTransaction { tx: Transaction ->
             if (tx.get(ref).get().exists()) { tx.delete(ref); true } else false
@@ -78,7 +79,7 @@ public class FirestoreEventStore(private val db: Firestore) : EventStore {
             .sortedWith(compareByDescending<Event> { it.date }.thenBy { it.name })
 
     override suspend fun get(id: String): Event? =
-        events.document(id).get().await().takeIf { it.exists() }?.let { eventFrom(it.id, it.data.orEmpty()) }
+        if (!isDocumentId(id)) null else events.document(id).get().await().takeIf { it.exists() }?.let { eventFrom(it.id, it.data.orEmpty()) }
 
     override suspend fun save(event: Event, expected: Int, now: Instant): Event? {
         val ref = events.document(event.id)
@@ -93,6 +94,7 @@ public class FirestoreEventStore(private val db: Firestore) : EventStore {
     }
 
     override suspend fun delete(id: String): Boolean {
+        if (!isDocumentId(id)) return false
         val ref = events.document(id)
         return db.runTransaction { tx: Transaction ->
             if (tx.get(ref).get().exists()) { tx.delete(ref); true } else false
@@ -155,6 +157,13 @@ public class FirestoreEventStore(private val db: Firestore) : EventStore {
         private fun strings(value: Any?): List<String> = (value as? List<*>).orEmpty().filterIsInstance<String>()
     }
 }
+
+/**
+ * Whether Firestore can hold [id] as a document's name: not empty, not `.` or
+ * `..`, no `/`. Anything else, from a request, is simply not found (M14.6: an
+ * empty driver id reached Firestore, which threw, and the server answered 500).
+ */
+internal fun isDocumentId(id: String): Boolean = id.isNotEmpty() && id != "." && id != ".." && '/' !in id
 
 private fun firestore(projectId: String): Firestore {
     require(projectId.isNotBlank()) { "a Google Cloud project ID is required" }

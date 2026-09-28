@@ -44,6 +44,7 @@ fun main(args: Array<String>) {
             check("a stale save refused", events.save(event.copy(name = "Stale"), 0, now) == null)
             check("revision 2", events.save(event.copy(name = "Renamed"), 1, now)?.revision == 2 && events.get(event.id)?.name == "Renamed")
             check("listed", events.list().any { it.id == event.id })
+            check("ids Firestore can't hold are simply not found", listOf("", ".", "..", "a/b").all { drivers.get(it) == null && events.get(it) == null && !drivers.delete(it) })
         } catch (e: Exception) {
             println("  FAIL  ${e.javaClass.simpleName}: ${e.message}")
             failures++
