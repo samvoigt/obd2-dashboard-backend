@@ -545,8 +545,8 @@ The third milestone of race logging. Decision 34.
   `import-event`, `remove-event`.
 - **Batched in:** the course editor's rename fix (a new name alone can be
   saved).
-- **Tests:** Kotlin 30 new (`:events` 7, `:archive` 1, `:archive-gcp` 4,
-  `:server` 15, `:tools` 3); Vitest 139 (14 new). **Mutations: 78, 76 killed,
+- **Tests:** Kotlin 29 new (`:events` 7, `:archive` 1, `:archive-gcp` 4,
+  `:server` 14, `:tools` 3); Vitest 139 (14 new). **Mutations: 78, 76 killed,
   2 shown equivalent**; tests were added or tightened after seven survivors.
 - **Found while building:** a new event's date defaulting to UTC's day; a
   part's window heading-sized; the theoretical best creeping in (M16's).
