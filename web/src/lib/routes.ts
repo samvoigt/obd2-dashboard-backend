@@ -7,6 +7,8 @@ export type Route =
   | { page: 'admin' }
   | { page: 'courses' }
   | { page: 'course'; id: string }
+  | { page: 'events' }
+  | { page: 'event'; id: string }
   | { page: 'admin-courses' }
   | { page: 'admin-course'; id: string }
   | { page: 'admin-drivers' }
@@ -20,6 +22,8 @@ const SESSION = /^\/cars\/([a-z][a-z0-9-]{1,31})\/sessions\/([0-9a-fA-F]{8}-[0-9
 const ADMIN = /^\/admin\/?$/
 const COURSES = /^\/courses\/?$/
 const COURSE = /^\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
+const EVENTS = /^\/events\/?$/
+const EVENT = /^\/events\/([a-z][a-z0-9-]{1,31})\/?$/
 const ADMIN_COURSES = /^\/admin\/courses\/?$/
 const ADMIN_COURSE = /^\/admin\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
 const ADMIN_DRIVERS = /^\/admin\/drivers\/?$/
@@ -41,6 +45,10 @@ export function route(path: string): Route {
   if (COURSES.test(path)) return { page: 'courses' }
   const publicCourse = COURSE.exec(path)
   if (publicCourse?.[1]) return { page: 'course', id: publicCourse[1] }
+  // Events and their results, public (M14.5).
+  if (EVENTS.test(path)) return { page: 'events' }
+  const publicEvent = EVENT.exec(path)
+  if (publicEvent?.[1]) return { page: 'event', id: publicEvent[1] }
   // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.
   const preview = import.meta.env.DEV ? /^\/dev\/widgets\/([a-z][a-z0-9-]{1,31})\/?$/.exec(path) : null
   if (preview?.[1]) return { page: 'preview', slug: preview[1] }

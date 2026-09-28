@@ -23,6 +23,10 @@
   {#await import('./CoursesPage.svelte') then m}<m.default />{/await}
 {:else if current.page === 'course'}
   {#await import('./CoursePage.svelte') then m}<m.default id={current.id} />{/await}
+{:else if current.page === 'events'}
+  {#await import('./EventsPage.svelte') then m}<m.default />{/await}
+{:else if current.page === 'event'}
+  {#await import('./EventPage.svelte') then m}<m.default id={current.id} />{/await}
 {:else if current.page === 'admin-courses'}
   {#await import('./CoursesAdmin.svelte') then m}<m.default />{/await}
 {:else if current.page === 'admin-course'}

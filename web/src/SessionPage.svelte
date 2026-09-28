@@ -200,6 +200,7 @@
       <span>{duration(s.ended - s.started)}</span>
       {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
       {#if whereLabel(s)}<a href={`/courses/${s.track}`}>{whereLabel(s)}</a>{/if}
+      {#if s.event}<a href={`/events/${s.event.id}`}>{s.event.name}, {s.event.part}</a>{/if}
       {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap})</span></span>{/if}
       {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
       {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}

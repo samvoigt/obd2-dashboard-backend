@@ -273,6 +273,54 @@ session page's event and part; the car's sessions list says which event.
 course only, a re-timed lap marked, a session with no driver shown as such);
 looked at in Chrome with two drivers' sessions in two practice parts.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Laps on the event's course:** `RetimingJobs.sessionLaps` picks the
+>   course a session's laps name, else the first its fixes touch; it gains an
+>   optional course, used by the event's results, and gives nothing for a
+>   session that never touched that course (no log read for nothing).
+>   Re-timing picks the layout the tablet's laps name, else the default; a
+>   session timed on another layout than the event's shows its laps as **on
+>   another layout**, not counted.
+> - **Results are computed on view** (few events, a handful of sessions each;
+>   every run's re-timing is stored after its first build), by a pure function
+>   over the sessions' standing laps, tested without a server: each driver's
+>   best lap on track (§18), the best of each sector with §22.6's in- and
+>   out-lap rule (as the page's `bestSectors`), per practice part and over all
+>   practice. A session with no driver counts under "driver not set".
+> - **Public API:** `GET /api/events` (newest first; parts without the
+>   hand-made lists, which are the admin's) and `GET /api/events/{id}`; pages
+>   `/events` and `/events/{id}` routed as `/courses` is; the landing page
+>   links to both.
+> - **A session's event:** `SessionDetail` gains its event and part (the
+>   events whose cars include the session's, their `sessionsIn`), and the
+>   car's sessions list its event's name per session.
+
+> **✅ Done, 2026-09-27.** `EventResults.kt` (`Results`: bests and sectors;
+> `publicEventRoutes`); `sessionLaps(…, on)`; `SessionItem.event`
+> (`EventRef`); pages `/events`, `/events/{id}` (`EventsPage`, `EventPage`,
+> `lib/eventResults.ts`); the landing page's Events and Courses links; a
+> session's page and its car's list name its event and part.
+> - **Tests: Kotlin 5** (bests on track, one per driver, none set counted,
+>   another layout never; sectors, in- and out-laps; the whole path on the box
+>   course: two practices, a race, re-timed and tablet laps, the session's
+>   event on its page and in its list, the list without the hand-made lists;
+>   the event's course not another at the same place, and a course never
+>   reached never timed; another layout shown, not counted), **Vitest 4**.
+> - **Mutations: 15, 14 killed, one equivalent** (filtering events by car
+>   before `sessionsIn`, which leaves out other cars anyway); two after a test
+>   was added (the event's course against another at the same place, and no
+>   re-timing stored for a course never reached).
+> - **Looked at in Chrome** (the dev server, set up through the API): the
+>   landing page's links; the event's page, every practice together and each
+>   part, sessions with their drivers and "re-timed"; the race saying its
+>   results are to come; a session's page linking "Box day, Practice 2" and
+>   "Driven by Alex Rider (ALE)"; the car's list naming each session's part.
+>   The drives' tablet clock said 08:00 and 09:00, the server heard them at
+>   22:05, and each landed in the right part.
+> - **Found by looking:** a part's window was heading-sized (a style missing).
+> - **Left out on purpose:** the theoretical best, which is M16's; it had
+>   crept in and came out.
+
 ### M14.6 — Deploy, and prove it
 
 Deployed with a drive streaming (a stream longer than the build, the Mac kept

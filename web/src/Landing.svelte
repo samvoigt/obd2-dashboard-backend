@@ -44,6 +44,7 @@
       </li>
     {/each}
   </ul>
+  <p class="more"><a href="/events">Events</a> · <a href="/courses">Courses</a></p>
 </main>
 
 <style>
@@ -58,4 +59,5 @@
   .name { font-weight: 600; }
   .state { color: var(--muted); font-size: 0.95rem; white-space: nowrap; }
   .error { color: var(--critical); }
+  .more { text-align: center; margin-top: 16px; }
 </style>

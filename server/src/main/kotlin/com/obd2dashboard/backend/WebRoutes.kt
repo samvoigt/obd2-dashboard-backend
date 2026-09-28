@@ -35,6 +35,8 @@ fun Route.webRoutes() {
     get("/") { call.page() }
     // Courses (M12.5), public.
     for (path in listOf("/courses", "/courses/", "/courses/{id}", "/courses/{id}/")) get(path) { call.page() }
+    // Events and their results (M14.5), public.
+    for (path in listOf("/events", "/events/", "/events/{id}", "/events/{id}/")) get(path) { call.page() }
     get("/cars/{slug}") { call.page() }
     get("/cars/{slug}/") { call.page() }
     // Past sessions (M7.4, M7.5).

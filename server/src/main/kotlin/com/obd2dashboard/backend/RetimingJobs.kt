@@ -71,23 +71,26 @@ class RetimingJobs(
 
     /**
      * Session [id]'s laps as they stand (M13.5): its run re-timed (stored, or
-     * built now) on the course its laps name, else the first its fixes touch.
-     * Null for a session that isn't complete, or was at no course.
+     * built now) on course [on] if given (an event's, M14.5), else the course
+     * its laps name, else the first its fixes touch. Null for a session that
+     * isn't complete, or was at no such course.
      */
-    suspend fun lapsOf(car: String, id: String): Pair<Course, RunTiming>? {
+    suspend fun lapsOf(car: String, id: String, on: String? = null): Pair<Course, RunTiming>? {
         val current = courses.current()
         if (current.isEmpty()) return null
         val sessions = sessionsOf(car)
         val session = sessions.firstOrNull { it.id == id } ?: return null
         val (run, at) = runOf(sessions, id, current) ?: return null
-        val courseId = at.firstOrNull { it == session.summary.track } ?: at.firstOrNull() ?: return null
+        // An event's course (M14.5), if the run touched it; else the one the laps name, else the first touched.
+        val courseId = if (on != null) at.firstOrNull { it == on } ?: return null
+        else at.firstOrNull { it == session.summary.track } ?: at.firstOrNull() ?: return null
         val timing = retime(run, courseId) ?: return null
         return (courses.get(courseId, timing.courseVersion) ?: return null) to timing
     }
 
     /** [lapsOf] as the session page has it: only the laps that ended in session [id], placed on its `wall`. */
-    suspend fun sessionLaps(car: String, id: String): SessionLaps? {
-        val (course, timing) = lapsOf(car, id) ?: return null
+    suspend fun sessionLaps(car: String, id: String, on: String? = null): SessionLaps? {
+        val (course, timing) = lapsOf(car, id, on) ?: return null
         val offset = timing.wallOffsets[id] ?: return null
         val laps = timing.laps.mapIndexedNotNull { i, lap ->
             if (lap.session != id) return@mapIndexedNotNull null

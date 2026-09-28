@@ -60,6 +60,8 @@
               </span>
               <span class="facts">
                 {#if trackOf(s)}<span>{trackOf(s)}</span>{/if}
+                <!-- The row is a link to the session, so the event is named, not linked. -->
+                {#if s.event}<span>{s.event.name}, {s.event.part}</span>{/if}
                 {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap} of {s.laps})</span></span>{/if}
                 {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
                 {#if s.lines > 0}<span class="muted">{s.lines.toLocaleString()} lines</span>{/if}

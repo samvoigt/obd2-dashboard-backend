@@ -24,6 +24,8 @@ export interface SessionItem {
   faults: string[]
   /** `tablet` (no car read), `fake` (test data), or absent for a car's session (M11). */
   source?: string | null
+  /** The event and part it's in (M14.5). */
+  event?: { id: string; name: string; part: string } | null
 }
 
 /**

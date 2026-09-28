@@ -6,6 +6,8 @@ import com.obd2dashboard.backend.archive.SessionIds
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.archive.SessionSummary
 import com.obd2dashboard.backend.events.DriverStore
+import com.obd2dashboard.backend.events.EventRules
+import com.obd2dashboard.backend.events.EventStore
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.Slug
@@ -72,7 +74,13 @@ data class SessionItem(
     val faults: List<String> = emptyList(),
     /** `tablet` (no car read, §20), `fake` (test data, §21), or null for a car's session (M11). */
     val source: String? = null,
+    /** The event and part it's in (M14.5), if any. */
+    val event: EventRef? = null,
 )
+
+/** Which event and part a session is in (M14.5). */
+@Serializable
+data class EventRef(val id: String, val name: String, val part: String)
 
 /** Sessions close enough together to be one drive: an adapter reconnect starts a new session (§3.2). */
 @Serializable
@@ -107,8 +115,21 @@ fun Route.sessionRoutes(
     laps: suspend (car: String, id: String) -> SessionLaps? = { _, _ -> null },
     /** For a session's driver's name (M14.4). */
     drivers: DriverStore? = null,
+    /** For the event each session is in (M14.5). */
+    events: EventStore? = null,
 ) {
-    suspend fun item(record: SessionRecord, live: String?): SessionItem {
+    /** The events and parts [car]'s sessions are in, by session id. */
+    suspend fun eventsOf(car: String, records: List<SessionRecord>): Map<String, EventRef> {
+        val heard = records.map { it.heard() }
+        return events?.list().orEmpty().filter { car in it.cars }.flatMap { e ->
+            EventRules.sessionsIn(e, heard).flatMap { (partId, ids) ->
+                val part = e.parts.first { it.id == partId }
+                ids.map { it to EventRef(e.id, e.name, part.name) }
+            }
+        }.toMap()
+    }
+
+    suspend fun item(record: SessionRecord, live: String?, event: EventRef? = null): SessionItem {
         val summary = if (record.complete) record.summary?.takeIf { it.version == SessionSummary.VERSION } ?: archive.summary(record.id) else null
         // The summary just built, if it was missing: the record was read before it existed.
         val started = summary?.started ?: sessionStarted(record).toEpochMilli()
@@ -127,6 +148,7 @@ fun Route.sessionRoutes(
             faults = summary?.faults.orEmpty(),
             // The summary's, or while uploading the header's.
             source = summary?.source ?: record.header?.source,
+            event = event,
         )
     }
 
@@ -135,7 +157,9 @@ fun Route.sessionRoutes(
         val car = slug?.let { registry.get(it) } ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
         val live = hub.status(car.slug.value).liveSession()
         // A session the live lane announced has no archived lines for its first minutes: listed while live.
-        val items = archive.sessionsOf(car.slug.value).filter { it.ackedThrough >= 0 || it.id == live }.map { item(it, live) }
+        val records = archive.sessionsOf(car.slug.value)
+        val inEvents = eventsOf(car.slug.value, records)
+        val items = records.filter { it.ackedThrough >= 0 || it.id == live }.map { item(it, live, inEvents[it.id]) }
         call.respond(drives(items))
     }
 
@@ -146,7 +170,7 @@ fun Route.sessionRoutes(
         val summary = if (record.complete) archive.summary(record.id) else null
         call.respond(
             SessionDetail(
-                session = item(record, hub.status(record.car).liveSession()),
+                session = item(record, hub.status(record.car).liveSession(), eventsOf(record.car, archive.sessionsOf(record.car))[record.id]),
                 car = car.slug.value,
                 carName = car.name,
                 signals = summary?.signals.orEmpty().map { SignalView(it.name, it.unit, it.kind) },

@@ -25,6 +25,10 @@ describe('route', () => {
     expect(route('/admin/events/new')).toEqual({ page: 'admin-event', id: 'new' })
     expect(route('/admin/events/Bad')).toEqual({ page: 'landing' })
   })
+  it('reads the events, public (M14.5)', () => {
+    expect(route('/events')).toEqual({ page: 'events' })
+    expect(route('/events/box-day/')).toEqual({ page: 'event', id: 'box-day' })
+  })
   it('sends anything else to the landing page', () => {
     for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin/x', '/administrator', '/cars/yaris/sessions/nope', '/cars/yaris/sessions/a/b']) {
       expect(route(path)).toEqual({ page: 'landing' })
