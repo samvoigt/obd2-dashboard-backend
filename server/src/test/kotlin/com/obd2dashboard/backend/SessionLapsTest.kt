@@ -34,6 +34,7 @@ class SessionLapsTest {
     private val store = InMemorySegmentStore()
     private val archive = ArchiveService(index, store)
     private val courses = InMemoryCourseStore()
+    private val events = testEvents()
     private val a = "5ace0000-1111-4111-8111-00000000000a"
     private val b = "5ace0000-1111-4111-8111-00000000000b"
 
@@ -50,7 +51,7 @@ class SessionLapsTest {
         lines.map { Regex("\"(lat|lon)\":(-?[0-9.]+)").replace(it) { m -> "\"${m.groupValues[1]}\":${"%.7f".format(m.groupValues[2].toDouble())}" } }
 
     private fun ApplicationTestBuilder.app() {
-        application { module(registry, archive, InMemoryLiveHub(), messages = testMessages(), courses = courses, events = testEvents(), crewKey = testCrewKey()) }
+        application { module(registry, archive, InMemoryLiveHub(), messages = testMessages(), courses = courses, events = events, crewKey = testCrewKey()) }
     }
 
     private suspend fun ApplicationTestBuilder.laps(id: String): SessionLaps? {
@@ -99,5 +100,23 @@ class SessionLapsTest {
         runBlocking { courses.save("far", 0, "Far", Json.parseToJsonElement(boxGeoJson().toString().replace("-71.4", "-72.4")).jsonObject, Instant.EPOCH) }
         laps(b) shouldBe null // a course, but not here
         client.get("/api/sessions/5ace0000-1111-4111-8111-0000000000ff/laps").status shouldBe HttpStatusCode.NotFound
+    }
+
+    @Test
+    fun `a session in an event is timed on the event's course, not the first it touches (M16_1)`() = testApplication {
+        app()
+        runBlocking {
+            // "abox" sorts first and is where the car went too; its line is 100 m on.
+            courses.save("abox", 0, "Another box", boxGeoJson(sfX = 600.0), Instant.EPOCH)
+            courses.save("box", 0, "The box", boxGeoJson(), Instant.EPOCH)
+        }
+        session(a, boxLog(0, 300))
+        laps(a)!!.course shouldBe "abox" // no event: the first course its fixes touch
+        runBlocking {
+            events.events.save(com.obd2dashboard.backend.events.Event("box-day", "Box day", "2026-10-04", "box", "box", listOf("outback"),
+                listOf(com.obd2dashboard.backend.events.Part("p1", com.obd2dashboard.backend.events.PartKind.PRACTICE, "Practice",
+                    Instant.EPOCH, Instant.EPOCH.plusSeconds(3600)))), 0, Instant.EPOCH)
+        }
+        laps(a)!!.let { it.course shouldBe "box"; it.laps.first().start shouldBe com.obd2dashboard.backend.timing.BOX_WALL0 + 12_500 }
     }
 }

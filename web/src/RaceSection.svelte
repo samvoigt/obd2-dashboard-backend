@@ -7,6 +7,7 @@
     type CarRace, type RaceResults, type StintMark,
   } from './lib/race'
   import { lapTime } from './lib/sessions'
+  import { lapLink } from './lib/laps'
 
   // The race (M15.4): one timeline per car, and for the admin or a car's crew, its flags and stints.
   let { race, eventId, revision, carName, onChanged }: {
@@ -163,7 +164,7 @@
         <tbody>
           {#each c.laps as l (l.number)}
             <tr class:best={c.best?.number === l.number}>
-              <td>{l.number}</td><td class="time">{lapTime(l.time)}</td>
+              <td><a href={lapLink(c.car, l.session, l.start, l.end)}>{l.number}</a></td><td class="time">{lapTime(l.time)}</td>
               <td>{driverName(c.stints[l.stint - 1]?.driver)}</td>
               <td class="muted">{timeOfDay(l.end, offset)}</td>
               <td class="muted">

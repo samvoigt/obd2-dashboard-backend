@@ -3,6 +3,7 @@
   import type { DriverRecord } from './lib/eventResults'
   import { raceClock } from './lib/race'
   import { lapTime } from './lib/sessions'
+  import { lapLink } from './lib/laps'
 
   let { id }: { id: string } = $props()
 
@@ -38,7 +39,7 @@
         <table>
           <tbody>
             {#each record.courses as c (c.course)}
-              <tr><td>{c.courseName}</td><td class="time"><a href={`/cars/${c.best.car}/sessions/${c.best.session}`}>{lapTime(c.best.lap.time)}</a></td>
+              <tr><td>{c.courseName}</td><td class="time"><a href={lapLink(c.best.car, c.best.session, c.best.lap.start, c.best.lap.end)}>{lapTime(c.best.lap.time)}</a></td>
                 <td class="muted"><a href={`/events/${c.event}`}>the event</a></td></tr>
             {/each}
           </tbody>

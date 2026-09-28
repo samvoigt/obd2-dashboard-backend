@@ -91,6 +91,40 @@ race's laps, stints' best laps, driver pages and the session's own lap table
 **Done when:** tests for the link and the address read back; looked at in
 Chrome: a race lap's link opening its session zoomed to it.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The session page** zooms its chart to a lap (`showLap`: the chart's range
+>   in seconds of `wall`); its map (`SessionMap`) draws every position it's
+>   given, fitted once. So a link's window sets the chart's range and hands
+>   the map **only that stretch**, which it fits whenever the stretch changes
+>   (a `focus` key). Choosing a lap in the page's own table writes the window
+>   into the address (`history.replaceState`), so what's on screen can be
+>   shared.
+> - **Every lap has its moment on `wall`**: practice's `StandingLap`
+>   (`start`, `end`), the race's `RaceLap` (the session it ended in; a lap
+>   across a restart opens in that session, from its start), a driver's
+>   bests. Links today: practice bests go to the session, not the lap; race
+>   laps and a driver's course bests aren't linked at all.
+> - **`lib/laps.ts`**, pure: the link, and reading the window back (numbers,
+>   `from` before `to`, anything else ignored).
+
+> **✅ Done, 2026-09-28.** `lib/laps.ts` (`lapLink`, `readWindow`,
+> `withWindow`, `indexesIn`); the session page reading and writing its window,
+> the map fitted to it (`SessionMap.focusKey`); links from practice bests, the
+> race's laps and a driver's course bests.
+> - **Found by looking, and fixed:** a session reached from a race showed **no
+>   laps of its own**: with no laps the tablet named, it was timed on the first
+>   course its fixes touched, and the test box sits inside NHMS's area. A
+>   session in an event is now timed on **the event's course** first
+>   (`/api/sessions/{id}/laps`). And a linked lap offered no way back to the
+>   whole session.
+> - **Not a fault:** a map drawing part of a lap came from the browser's cached
+>   series. Its ETag is the stored file's name, which the dev server repeats when
+>   the same session id is replayed after a restart; in production a session's
+>   content never changes under one name. Fresh ids showed the whole lap.
+> - **Tests:** Vitest 4 (the link, the window read back and written, the
+>   positions in it), Kotlin 1 (the event's course before the first touched).
+>   **Mutations: 5, all killed.**
+
 ### M16.2 — Theoretical best, sector comparisons, consistency
 
 Pure additions to `Results` (practice) and `Race` (stints, cars): the

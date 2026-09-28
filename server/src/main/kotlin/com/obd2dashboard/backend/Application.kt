@@ -126,7 +126,7 @@ fun Application.module(
         adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin)
         publicCourseRoutes(courses)
         publicEventRoutes(events, courses, registry, archive, retiming)
-        sessionRoutes(registry, archive, hub, clock, laps = { car, id -> retiming.sessionLaps(car, id) }, drivers = events.drivers, events = events.events)
+        sessionRoutes(registry, archive, hub, clock, laps = { car, id, on -> retiming.sessionLaps(car, id, on) }, drivers = events.drivers, events = events.events)
         messageRoutes(registry, crewAuth, crew)
         driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin)
         raceRoutes(events, registry, crewAuth, adminAuth, admin, clock)

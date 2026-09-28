@@ -12,6 +12,7 @@
     speeds,
     cursor = null,
     follow = false,
+    focusKey = '',
   }: {
     /** Epoch milliseconds, ascending. */
     t: number[]
@@ -22,6 +23,8 @@
     cursor?: number | null
     /** Live (M8): keep the car in view, with a dot on it, until the viewer moves the map. */
     follow?: boolean
+    /** The stretch shown (M16.1), as a key: when it changes, the view is fitted to it again. */
+    focusKey?: string
   } = $props()
 
   let box: HTMLDivElement
@@ -61,11 +64,19 @@
     }
   })
 
+  let fittedTo = ''
+
   // The trace, drawn again whenever positions come (a session being driven, M7.6).
   $effect(() => {
     const m = map
     const layer = trace
     void t.length
+    // A lap chosen or linked (M16.1): the view fitted to its stretch, and drawn again.
+    if (focusKey !== fittedTo) {
+      fittedTo = focusKey
+      fitted = false
+      drawn = ''
+    }
     if (!m || !layer) return
     if (t.length === 0) {
       // Following, positions can drain from the 5-minute history (M10): the old trail goes,

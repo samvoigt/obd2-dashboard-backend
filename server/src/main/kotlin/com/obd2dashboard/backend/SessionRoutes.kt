@@ -112,7 +112,7 @@ fun Route.sessionRoutes(
     hub: LiveHub,
     clock: Clock,
     /** A complete session's laps as they stand (M13.5); null if it was at no course. */
-    laps: suspend (car: String, id: String) -> SessionLaps? = { _, _ -> null },
+    laps: suspend (car: String, id: String, on: String?) -> SessionLaps? = { _, _, _ -> null },
     /** For a session's driver's name (M14.4). */
     drivers: DriverStore? = null,
     /** For the event each session is in (M14.5). */
@@ -184,7 +184,10 @@ fun Route.sessionRoutes(
     get("/api/sessions/{id}/laps") {
         val record = call.sessionRecord(archive) ?: return@get
         if (!record.complete) return@get call.respond(HttpStatusCode.NoContent)
-        call.respond(laps(record.car, record.id) ?: return@get call.respond(HttpStatusCode.NoContent))
+        // A session in an event is timed on the event's course (M16.1); else the course its laps name, else the first touched.
+        val event = eventsOf(record.car, archive.sessionsOf(record.car))[record.id]?.let { events?.get(it.id) }
+        val timed = event?.let { laps(record.car, record.id, it.course) } ?: laps(record.car, record.id, null)
+        call.respond(timed ?: return@get call.respond(HttpStatusCode.NoContent))
     }
 
     get("/api/sessions/{id}/series") {

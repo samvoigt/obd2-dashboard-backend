@@ -9,6 +9,7 @@
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
   import { setSessionDriver, whoCanSet, type Driver, type DriverSetter } from './lib/events'
+  import { indexesIn, readWindow, withWindow } from './lib/laps'
   import { merge } from './lib/merge'
   import { columnShown, shownUnit } from './lib/units'
   import { units } from './lib/unitsState.svelte'
@@ -53,6 +54,8 @@
 
   let chosen: string[] = $state([])
   let range = $state<[number, number] | null>(null)
+  /** The stretch the map shows, on `wall` (M16.1): a lap chosen or linked; null for the whole session. */
+  let focus = $state<[number, number] | null>(null)
   let chosenLap = $state<number | null>(null)
   let cursor = $state<number | null>(null)
 
@@ -110,6 +113,12 @@
   const markers = $derived(happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : 'muted') })))
   const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
   const speeds = $derived(view ? speedsAtPositions(view) : [])
+  // The map's stretch (M16.1): the positions inside the window, or all of them.
+  const shown = $derived(indexesIn(positions, focus))
+  const mapT = $derived(shown.map((i) => positions[i]!))
+  const mapLat = $derived(view ? shown.map((i) => view!.positions.lat[i]!) : [])
+  const mapLon = $derived(view ? shown.map((i) => view!.positions.lon[i]!) : [])
+  const mapSpeeds = $derived(shown.map((i) => speeds[i] ?? null))
 
   onMount(async () => {
     try {
@@ -126,6 +135,12 @@
         void whoCanSet(slug).then((w) => (setter = w))
       }
       series = await fetchSeries(id)
+      // A lap's link (M16.1): the chart zoomed to its window, the map showing that stretch.
+      const linked = readWindow(window.location.search)
+      if (linked) {
+        focus = linked
+        range = [linked[0] / 1000, linked[1] / 1000]
+      }
       if (detail.session.state === 'live') follow()
       else if (detail.session.state === 'complete') standing = await fetchLaps(id).catch(() => null)
     } catch (e) {
@@ -176,11 +191,19 @@
   function showLap(lap: LapRow) {
     chosenLap = lap.lap
     range = [lap.start / 1000, lap.end / 1000]
+    showWindow([lap.start, lap.end])
   }
 
   function showAll() {
     chosenLap = null
     if (data && data[0].length > 0) range = [data[0][0]!, data[0][data[0].length - 1]!]
+    showWindow(null)
+  }
+
+  /** The map to [w] (or everything), and the address with it, so what's shown can be shared (M16.1). */
+  function showWindow(w: [number, number] | null) {
+    focus = w
+    history.replaceState(null, '', window.location.pathname + withWindow(window.location.search, w))
   }
 </script>
 
@@ -249,7 +272,7 @@
       {#if positions.length > 0}
         <section class="panel">
           <h2>Where it went</h2>
-          <SessionMap t={positions} lat={view.positions.lat} lon={view.positions.lon} {speeds} {cursor} />
+          <SessionMap t={mapT} lat={mapLat} lon={mapLon} speeds={mapSpeeds} {cursor} focusKey={focus ? focus.join('-') : ''} />
           <p class="muted small">Coloured by speed, blue slow to pink fast. The dot follows the chart's cursor.</p>
         </section>
       {/if}
@@ -276,7 +299,7 @@
               {/each}
             </tbody>
           </table>
-          <p class="muted small">Choose a lap to zoom the chart to it. {#if chosenLap !== null}<button class="link" onclick={showAll}>Show the whole session</button>{/if}</p>
+          <p class="muted small">Choose a lap to zoom the chart to it. {#if chosenLap !== null || focus !== null}<button class="link" onclick={showAll}>Show the whole session</button>{/if}</p>
         </section>
       {/if}
 

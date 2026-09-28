@@ -3,6 +3,7 @@
   import { driverLabel, gap, windowText, type DriverBest, type EventResults, type SessionResult } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
+  import { lapLink } from './lib/laps'
 
   let { id }: { id: string } = $props()
 
@@ -95,7 +96,7 @@
           <tr>
             <td class="pos">{i + 1}</td>
             <td>{#if b.driver}<a href={`/drivers/${b.driver.id}`}>{driverLabel(b.driver)}</a>{:else}{driverLabel(b.driver)}{/if}</td>
-            <td class="time"><a href={`/cars/${b.car}/sessions/${b.session}`}>{lapTime(b.lap.time)}</a></td>
+            <td class="time"><a href={lapLink(b.car, b.session, b.lap.start, b.lap.end)}>{lapTime(b.lap.time)}</a></td>
             <td class="muted">{gap(b.lap.time, fastest)}</td>
             {#each sectors as best, j (j)}
               {@const t = b.lap.sectors[j]}
