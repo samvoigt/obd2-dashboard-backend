@@ -233,6 +233,50 @@ the race before and after a stop; edited stints naming the driver; a best set
 in the live run; in- and out-laps never best; a car not entered in the event
 now.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **Whether the car is in an event now** is the rule results use:
+>   `EventRules.sessionsIn` over the car's records. A streamed session has an
+>   index record from its announcement (`archive.announce`), so the current
+>   session joins a part as soon as it starts, and the tablet, the car page and
+>   the event page agree.
+> - **One set of runs for everything**: the car's complete runs on the course
+>   (`RetimingJobs.lapsOf`, stored re-timings) and its provisional ones
+>   (`Provisional.runs` over `LiveTimings`), on the event's layout. The best and
+>   best sectors come from their laps in the event's sessions (by §18 and
+>   §22.6's rules), the race from `Race.car` over them, as results do.
+> - **Everything on the tablet's `wall`** (a lap's `at` plus its session's
+>   `wallOffsets`, as `Race` does), turned into ages only when a frame is sent.
+> - **`best.lap`** is the tablet's own lap number (`RunLap.tabletLap`), so the
+>   tablet can tell whether it holds that lap; null for a re-timed lap. Its
+>   driver is the race stint's where the lap is in the race, else the session's.
+> - **In the pits** (a stop with no exit yet), `race.sinceStopAgeMs` is left
+>   out: the car hasn't left.
+> - **Pure** (`Standings.of`, tested with runs as `RaceTest` builds them); the
+>   gathering (`CarTimings`) holds the complete runs until the car's complete
+>   sessions, the event or a course change.
+
+> **✅ Done, 2026-09-28.** `Standings.of` (pure: `CourseAt`, `BestLap`,
+> `DriverNow`, `RaceNow`), `CarTimings` (the event by `sessionsIn`; the course,
+> the event's or the latest live lap's; complete runs held per car until the
+> course version or the sessions change; provisional runs from `LiveTimings`).
+> - **Found while building:** in a race with stints as they fall, a driver set
+>   from the car page wouldn't show until the next stop, since default stints
+>   split only at stops. So **stints the crew edited name the driver; else the
+>   session's driver as set; else the stint's**. And outside a race, the last
+>   pit exit is looked for **over all the car's runs**: a complete run and a
+>   live one can be one run of the app, split only by an upload.
+> - **Tests:** `StandingsTest` 6 (no event: best on the layout, its tablet lap
+>   and driver, the pit rule for sectors; a stint from the last pit exit, in any
+>   run; only the event's sessions; the race's count, time since the stop, in
+>   the pits, stints as they fall and as edited), `CarTimingsTest` 4 (through
+>   in-memory stores, a hub and `LiveTimings`: no event; a race through a
+>   complete session and a live one; a session outside the parts; not in a
+>   session).
+> - **Mutations: 17, 16 killed, 1 not showable with this data** (`counted`
+>   ignored inside an event: `a` is outside it, so its run is never gathered;
+>   the rule itself is `StandingsTest`'s). One survivor first: practice read as
+>   a race, killed once the test said there's no race.
+
 ### M17.4 — `timing` down to the tablet
 
 A `TimingDownlink` beside `CourseDownlink`: to a tablet listing `timing.1`,
