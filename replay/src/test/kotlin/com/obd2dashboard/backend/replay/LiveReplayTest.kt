@@ -77,6 +77,24 @@ class LiveReplayTest {
     private fun replayer(uri: URI, options: LiveOptions = LiveOptions(speed = 0.0, waitScale = 0.0)) =
         LiveReplayer(uri, yaris, options, log = { synchronized(logs) { logs += it } })
 
+    /**
+     * [check] until it holds, for up to 10 s. The server handles the socket's
+     * last batch in its own time; a fixed 300 ms wait failed now and then on a
+     * loaded machine (JOURNAL: M13, M15).
+     */
+    private suspend fun eventually(check: suspend () -> Unit) {
+        val end = System.currentTimeMillis() + 10_000
+        while (true) {
+            try {
+                check()
+                return
+            } catch (e: AssertionError) {
+                if (System.currentTimeMillis() > end) throw e
+                delay(25)
+            }
+        }
+    }
+
     private suspend fun snapshot() = (hub.subscribe("yaris").first() as BrowserEvent.Snapshot).snapshot
 
     /** The last sample of each signal in the log, as the replay's coalescing must leave it. */
@@ -93,12 +111,13 @@ class LiveReplayTest {
         val file = load("synthetic-v2.jsonl.gz")
         val result = replayer(uri).replay(file).shouldBeInstanceOf<LiveResult.Ended>()
         (result.batches > 100) shouldBe true
-        delay(300)
-        val snap = snapshot()
-        snap.latest.associate { it.str("signal")!! to it.toString() } shouldBe lastSamples(file)
-        snap.header!!.str("id") shouldBe file.id
-        snap.status.inSession shouldBe false // `end` was sent
-        (snap.history.isNotEmpty()) shouldBe true
+        eventually {
+            val snap = snapshot()
+            snap.latest.associate { it.str("signal")!! to it.toString() } shouldBe lastSamples(file)
+            snap.header!!.str("id") shouldBe file.id
+            snap.status.inSession shouldBe false // `end` was sent
+            (snap.history.isNotEmpty()) shouldBe true
+        }
         index.get(file.id)!!.car shouldBe "yaris" // the live session announced it to the archive
     }
 
@@ -107,8 +126,7 @@ class LiveReplayTest {
         courses.save("nhms", 0, "NHMS", Json.parseToJsonElement(java.io.File("../courses/seed/nhms.geojson").readText()).jsonObject, java.time.Instant.now())
         val uri = start()
         replayer(uri, LiveOptions(speed = 0.0, waitScale = 0.0, courses = true)).replay(load("synthetic-v2.jsonl.gz")).shouldBeInstanceOf<LiveResult.Ended>()
-        delay(300)
-        synchronized(logs) { logs.toList() }.filter { it.startsWith("courses") } shouldBe listOf("courses: nhms v1")
+        eventually { synchronized(logs) { logs.toList() }.filter { it.startsWith("courses") } shouldBe listOf("courses: nhms v1") }
     }
 
     @Test
@@ -119,8 +137,7 @@ class LiveReplayTest {
             .shouldBeInstanceOf<LiveResult.Ended>()
         (result.reconnects >= 1) shouldBe true
         logs.any { it.startsWith("dropping the socket") } shouldBe true
-        delay(300)
-        snapshot().latest.associate { it.str("signal")!! to it.toString() } shouldBe lastSamples(file)
+        eventually { snapshot().latest.associate { it.str("signal")!! to it.toString() } shouldBe lastSamples(file) }
     }
 
     @Test
@@ -160,10 +177,11 @@ class LiveReplayTest {
         ) + (1..40).map { """{"type":"sample","signal":"engine.rpm","value":$it,"seq":${it + 1},"at":${1000 + it * 50}}""" }
         val result = replayer(uri, LiveOptions(speed = 1.0, waitScale = 0.0)).replay(SessionFile(lines.map { it.toByteArray() }, id))
         (result.shouldBeInstanceOf<LiveResult.Ended>().reconnects >= 2) shouldBe true
-        delay(300)
         // The last server to hear from the tablet never saw early.only in a batch; only a snapshot carried it.
-        val latest = (restarting.current.subscribe("yaris").first() as BrowserEvent.Snapshot).snapshot.latest
-        latest.map { it.str("signal") }.toSet() shouldBe setOf("early.only", "engine.rpm")
+        eventually {
+            val latest = (restarting.current.subscribe("yaris").first() as BrowserEvent.Snapshot).snapshot.latest
+            latest.map { it.str("signal") }.toSet() shouldBe setOf("early.only", "engine.rpm")
+        }
     }
 
     @Test
@@ -201,11 +219,12 @@ class LiveReplayTest {
             """{"type":"sample","signal":"engine.rpm","value":4,"seq":5,"at":1300}""",
         ).map { it.toByteArray() }
         replayer(uri).replay(SessionFile(lines, id)).shouldBeInstanceOf<LiveResult.Ended>()
-        delay(300)
         // Window one (1000–1199): rpm 3 and the stopped record; window two: rpm 4.
-        snapshot().history.map { it.record.toString() }.map { r ->
-            Json.parseToJsonElement(r).jsonObject.let { it.str("type") + ":" + (it["value"]?.jsonPrimitive?.content ?: it.str("signal")) }
-        } shouldContainExactly listOf("stopped:engine.oil_temperature", "sample:3", "sample:4")
+        eventually {
+            snapshot().history.map { it.record.toString() }.map { r ->
+                Json.parseToJsonElement(r).jsonObject.let { it.str("type") + ":" + (it["value"]?.jsonPrimitive?.content ?: it.str("signal")) }
+            } shouldContainExactly listOf("stopped:engine.oil_temperature", "sample:3", "sample:4")
+        }
     }
 
     @Test
