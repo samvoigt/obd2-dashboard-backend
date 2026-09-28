@@ -387,6 +387,36 @@ file and imported, or drawn by Sam on the website), and the drive's session
 then shows laps it never had. A line moved, and its laps re-timed. The test
 course removed afterwards.
 
+> **Validated against the code and the drive, 2026-09-27, before building.**
+> - **The first drive** (`6a84b3f5…`, 11 min, read from its public series
+>   into a private scratch folder, deleted after) is **one loop of 3.3 km**,
+>   parked at both ends, and passes no place twice the same way: it leaves
+>   heading south and comes home heading south down another street. So no one
+>   line is crossed twice forwards, and **no start/finish alone can make a lap
+>   of it**.
+> - **The pit line ends a lap too** (as an in-lap, §22.5), so the test course
+>   is: the drive's own path as the layout (closed), a start/finish across
+>   the street it leaves by, a pit lane on the street it comes home by, and a
+>   pit line across that. Re-timing should give **one in-lap**, the loop,
+>   from the start/finish to the pit line; **version 2** moves the start/finish
+>   100 m on, and the lap should shorten by the time the series says the car
+>   took over those 100 m.
+> - **`admin.sh import-course` writes Firestore directly**, so it doesn't
+>   start the server's job; the session's laps are **re-timed on view**
+>   (M13.5), which is what this proves. The job was proven on the dev server
+>   (M13.4).
+> - **Removing the test course:** `admin.sh` had no way to (only the admin
+>   page, Sam's sign-in), and a removed course would have left its re-timings
+>   in every session it touched. Built first: `admin.sh remove-course` (in
+>   use, it refuses; it asks for the id again) and the server's removal, both
+>   deleting the course's re-timings (`removeTimings`), with tests and 8
+>   mutants, all killed.
+> - **The route is already public** on the session's page, so a test course
+>   drawn from it reveals nothing new; it's up for minutes, then removed.
+> - **The deploy** as every one: `deploy.sh`, a throwaway `smoke-*` car
+>   streaming a synthetic drive (`--live`, real time) through it, token in a
+>   `chmod 600` scratch file, car and session removed after.
+
 ### M13.7 — Record it
 
 A decision for re-timing (per run, what stands, the 2 ms check);
