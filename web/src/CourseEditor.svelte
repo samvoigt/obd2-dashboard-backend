@@ -7,7 +7,7 @@
   import { api, AdminError, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
   import {
     addSector, arrows, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector, removeLayout, removeSector,
-    sectorsOf, toGeoJSON, type EditCourse, type Pt,
+    sectorsOf, toGeoJSON, unsaved, type EditCourse, type Pt,
   } from './lib/courseEdit'
   import { fetchSeries } from './lib/sessionPage'
   import { color } from './lib/theme'
@@ -27,7 +27,9 @@
   let message: string | null = $state(null)
   let signedOut = $state(false)
   let saving = $state(false)
-  let dirty = $state(false)
+  let dirty = $state(false) // the drawing changed since it was loaded or saved
+  let savedName = $state('') // the name as loaded or saved; '' for a new course
+  const changed = $derived(unsaved(dirty, name, savedName))
   let retiming: RetimingProgress | null = $state(null) // the latest save's re-timing (M13.4)
 
   type Tool = 'layout' | 'pit_lane' | 'start_finish' | 'sector' | 'pit_in' | 'pit_out' | 'pit_line'
@@ -101,6 +103,7 @@
   function show(c: CourseView) {
     course = fromGeoJSON(c.geojson)
     name = c.name
+    savedName = c.name
     version = c.version
     selected = course.layouts.find((l) => l.default)?.id ?? course.layouts[0]?.id ?? null
     dirty = false
@@ -108,11 +111,12 @@
   }
 
   async function view(v: number) {
-    if (dirty && !confirm('Leave your unsaved changes?')) return
+    if (changed && !confirm('Leave your unsaved changes?')) return
     const c = await api<CourseView>('GET', `/courses/${pathId}?version=${v}`)
     const latest = versions[0]?.version
     course = fromGeoJSON(c.geojson)
     name = c.name
+    savedName = c.name
     viewing = v === latest ? null : v
     version = latest ?? c.version
     dirty = false
@@ -288,6 +292,7 @@
       const saved = await api<CourseView>('PUT', `/courses/${courseId}`, { expected: version, name, geojson: toGeoJSON(course) })
       version = saved.version
       dirty = false
+      savedName = saved.name
       message = `Saved as version ${saved.version}.`
       if (isNew) window.location.assign(`/admin/courses/${saved.id}`)
       versions = await api<CourseVersion[]>('GET', `/courses/${courseId}/versions`)
@@ -354,7 +359,7 @@
           <label><span>Id</span><input bind:value={newId} oninput={() => (idTouched = true)} /></label>
           <p class="muted small">Permanent: it's in every lap timed here.</p>
         {:else}
-          <p class="muted small">{pathId} · {viewing ? `viewing version ${viewing}` : `version ${version}`}{dirty ? ' · unsaved changes' : ''}</p>
+          <p class="muted small">{pathId} · {viewing ? `viewing version ${viewing}` : `version ${version}`}{changed ? ' · unsaved changes' : ''}</p>
         {/if}
         <label class="check"><input type="checkbox" bind:checked={imagery} /> Aerial imagery</label>
 
@@ -417,7 +422,7 @@
             <h2>To fix before saving</h2>
             <ul class="problems">{#each problems as p (p)}<li>{p}</li>{/each}</ul>
           {/if}
-          <p><button class="primary" onclick={save} disabled={saving || problems.length > 0 || !dirty}>Save as version {version + 1}</button></p>
+          <p><button class="primary" onclick={save} disabled={saving || problems.length > 0 || !changed}>Save as version {version + 1}</button></p>
         {/if}
         {#if message}<p class="message">{message}</p>{/if}
         {#if retiming}<p class="muted small">{retimingText(retiming)}</p>{/if}

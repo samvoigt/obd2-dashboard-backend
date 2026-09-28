@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import seedText from '../../../courses/seed/nhms.geojson?raw'
 import {
   addSector, arrows, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector, removeLayout, removeSector, sectorsOf,
-  toGeoJSON, type Pt,
+  toGeoJSON, unsaved, type Pt,
 } from './courseEdit'
 
 const seed = JSON.parse(seedText) as Record<string, unknown>
@@ -97,3 +97,14 @@ describe('layouts stay closed (contract §22.4)', () => {
   })
 })
 
+
+describe('unsaved changes', () => {
+  it('a rename alone is a change, as is a drawing change', () => {
+    expect(unsaved(false, 'NHMS', 'NHMS')).toBe(false)
+    expect(unsaved(false, 'New Hampshire', 'NHMS')).toBe(true)
+    expect(unsaved(true, 'NHMS', 'NHMS')).toBe(true)
+  })
+  it('spaces at the ends are not a change, since the save trims them', () => {
+    expect(unsaved(false, ' NHMS ', 'NHMS')).toBe(false)
+  })
+})

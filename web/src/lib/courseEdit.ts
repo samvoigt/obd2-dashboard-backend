@@ -242,3 +242,12 @@ export function keepClosed(before: readonly Pt[], after: readonly Pt[]): Pt[] {
   return [[anchor[0], anchor[1]], ...after.slice(1, -1), [anchor[0], anchor[1]]]
 }
 
+
+/**
+ * Whether the editor holds anything unsaved: the drawing changed, or the name
+ * did (spaces at its ends aside, as the save trims them). A course renamed and
+ * nothing else is still a new version.
+ */
+export function unsaved(drawn: boolean, name: string, savedName: string): boolean {
+  return drawn || name.trim() !== savedName.trim()
+}
