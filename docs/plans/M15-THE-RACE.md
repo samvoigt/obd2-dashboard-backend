@@ -37,14 +37,28 @@ Nothing here changes the contract or touches the tablet (that's M17).
 
 ---
 
+## Settled with Sam, 2026-09-27
+
+- **The race's start and finish are annotations, not a cut-off** (Sam: "we
+  will enter the start/stop ourselves, but once the session starts, we can
+  start counting laps, i.e. the race start/finish is an annotation not a data
+  cut off"). The race part gains an optional **start** (green flag) and
+  **finish** (chequered flag), entered by the admin or the car's crew, shown on
+  the race's timeline and results (which lap the green flag and the flag fell
+  in). **Laps are counted from the first lap of the race's sessions**, formation
+  laps and all, and none is dropped for falling before the start or after the
+  finish. The part's **window** still only decides which sessions are the
+  race's (the server's time, or by hand, M14), so it can be as broad as the
+  race day.
+- **Stints split at every pit stop** by default (below).
+- **Stops are timed in the pit lane, from its ends** where `pit_in` and
+  `pit_out` aren't drawn (below).
+
 ## Decided here (say if any is wrong)
 
-- **The race runs from the first start/finish crossing after its part's start
-  to the first crossing after its part's end** (the flag lap is counted). Lap 1
-  begins at that first crossing, whatever the start was (rolling or standing);
-  the admin sets the part's start just before the green flag.
-- **Laps are numbered through the race**, from 1, every car's own. Within a
-  run they're the laps as they stand (decision 33). **Across a restart of the
+- **Laps are numbered through the race**, from 1, every car's own, from the
+  first lap its race sessions timed. Within a run they're the laps as they
+  stand (decision 33). **Across a restart of the
   app** the gap between the last crossing before and the first after is **one
   lap, marked "across a restart"**, timed on `wall`; an out-lap if the last
   crossing was the pit line. Never a lap longer than the gap.
@@ -58,8 +72,9 @@ Nothing here changes the contract or touches the tablet (that's M17).
   car's crew** can set each stint's driver, **merge** two (a stop without a
   driver change, a fuel stop), or **split** one at any lap (a change without a
   stop). Once edited, a car's stints are stored whole and replace the default.
-- **Race results** (public): per car, laps completed, the race time (start to
-  flag), the best lap on track, **stints** (driver, laps from–to, time, best
+- **Race results** (public): per car, laps completed, the time from the first
+  lap's start to the last lap's end, where the green flag and the flag fell (if
+  entered), the best lap on track, **stints** (driver, laps from–to, time, best
   lap), **stops** (after which lap, time in the pit lane); every lap listed
   with its stint's driver and whether it's the tablet's, re-timed, or across a
   restart. Several of our cars are classified by laps, then by time.
@@ -89,21 +104,24 @@ across two sessions of one run.
 
 ### M15.2 — The race, one timeline (pure)
 
-From the race window, each run's timing (laps on `at`, `wall − at`, pit
-crossings) and the stint edits: the race's laps numbered from the start
-crossing to the flag, laps across a restart, stops, default stints, stints as
-edited, and each car's results.
+From each run's timing (laps on `at`, `wall − at`, pit crossings), the
+entered start and finish, and the stint edits: the race's laps numbered from
+the first, laps across a restart, stops, default stints, stints as edited, the
+laps the green flag and the flag fell in, and each car's results.
 
 **Done when:** tests: a race of one run across two driver changes (car sessions
-ending, tablet-only sessions between) numbered straight through; the start at
-the first crossing after the window opens, the flag lap counted; a restart
+ending, tablet-only sessions between) numbered straight through; laps before
+the entered start and after the finish counted, the start's and the flag's
+laps marked, and none marked with no times entered; a restart
 bridged by one lap, an out-lap after the pit line; stints split at each stop,
 drivers from their sessions; merged, split and named by hand; two cars
 classified.
 
-### M15.3 — Stints stored, and edited by the admin or the crew
+### M15.3 — Stints and the race's start and finish, stored and edited
 
-The race part gains each car's stints (boundaries and drivers) in Firestore;
+The race part gains its start and finish (optional instants) and each car's
+stints (boundaries and drivers) in Firestore, both set by the admin or the
+car's crew;
 `PUT /api/admin/events/{id}/stints/{car}` and
 `PUT /api/cars/{slug}/events/{id}/stints` (the crew's cookie path, as who
 drove is); logged; `import-event` keeps them.
@@ -115,8 +133,10 @@ the real Firestore.
 ### M15.4 — Race results, and the stint editor
 
 `GET /api/events/{id}` gains the race's results; the event page's race section
-(classification, each car's stints, stops and laps), and for the admin or the
-car's crew, the stints editor (driver per stint, merge, split at a lap).
+(classification, each car's stints, stops and laps, the green flag and the
+flag marked), and for the admin or the car's crew, the race's start and finish
+(a time, or "now" at the flag) and the stints editor (driver per stint, merge,
+split at a lap).
 
 **Done when:** API tests; looked at in Chrome: a replayed race of three
 sessions and a restart, stints edited as the crew.
