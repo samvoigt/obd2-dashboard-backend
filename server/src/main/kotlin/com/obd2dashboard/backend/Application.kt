@@ -96,6 +96,7 @@ fun Application.module(
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
     val retiming = RetimingJobs(registry, archive, courses, this)
+    val liveTimings = LiveTimings(archive, this, clock)
     val crewAuth = CrewAuth(crewKey, clock)
     val loginLimiter = LoginLimiter(clock)
     install(CallLogging)
@@ -133,7 +134,7 @@ fun Application.module(
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
-        liveRoutes(registry, archive, hub, crew, live, clock, downlink)
+        liveRoutes(registry, archive, hub, crew, live, clock, downlink, liveTimings)
 
         authenticate(CAR_AUTH) {
             // Which car a token belongs to. A backend diagnostic, not in the contract.
@@ -141,7 +142,7 @@ fun Application.module(
                 val car = call.principal<CarPrincipal>()!!
                 call.respond(PublicCar(car.slug, car.name))
             }
-            archiveRoutes(archive, prepared = retiming::sessionPrepared)
+            archiveRoutes(archive, prepared = retiming::sessionPrepared, completed = liveTimings::completed)
             tabletCourseRoutes(courses)
         }
     }

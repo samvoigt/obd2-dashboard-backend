@@ -51,6 +51,8 @@ fun Route.archiveRoutes(
     archive: ArchiveService,
     /** After a completed session is prepared: its re-timing (M13.4). */
     prepared: suspend (car: String, id: String) -> Unit = { _, _ -> },
+    /** The moment a session is complete: its live run is done with (M17.2). */
+    completed: (car: String, id: String) -> Unit = { _, _ -> },
 ) {
     put("/v1/sessions/{id}") {
         archiveCall(call) { car, id ->
@@ -112,6 +114,7 @@ fun Route.archiveRoutes(
             if (!SHA256.matches(request.sha256)) return@archiveCall call.badRecord("sha256 must be 64 hex digits")
             when (val result = archive.complete(car, id, request.lastIndex, request.recordCount, request.sha256)) {
                 ArchiveService.Complete.Done -> {
+                    completed(car, id)
                     call.respond(HttpStatusCode.OK, Completed())
                     // After the answer, so the tablet never waits on it (M7.1). A failure
                     // is only logged: the summary is built again on first view.

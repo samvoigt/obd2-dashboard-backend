@@ -168,6 +168,59 @@ log; rebuilt from a partial series, then carrying on from the live lane
 without a lap lost or doubled; `Race.car` with the live run continuing a run,
 and after a restart (the bridge lap).
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **Re-timing already takes a run as sessions with their traces**
+>   (`Retiming.retime(course, [(id, SessionTrace)])`): the tablet's laps on the
+>   current version stand as sent, re-timed ones fill in, pit crossings come
+>   from `PitLane.offer` fix by fix, and `wallOffsets` from the fixes. So **the
+>   live run is a `SessionTrace` fed record by record**, re-timed the same way
+>   when asked. `SessionTrace` parses lines; it gains `record(JsonObject)`, and
+>   the session record's `device` and the records' first and last `at`, to
+>   group sessions into runs as `runs()` does from summaries.
+> - **Not only the live session:** at a driver change the live session ends,
+>   and its upload completes minutes later (§23 shows how late). Until then
+>   it's in no run. So **every session the server streamed and that isn't
+>   complete yet is provisional**, grouped into runs of the app (one device,
+>   `at` rising), and dropped once complete (the archive's `prepared` hook) or
+>   12 h after it was last heard.
+> - **Feeding it:** batches' records after `CarLive` takes them, never a
+>   snapshot's (the latest of each signal, however old). The live lane's `seq`
+>   has gaps by design (coalescing), so gaps can't show a lost lap. So a session
+>   first seen mid-drive (a server restart, or a reconnect after one) is **read
+>   from its partial archive first**, then fed live records past its last `seq`;
+>   and **after any reconnect, the archive is read again for `lap` records** a
+>   few minutes later (they were sent while the link was down), each kept once
+>   by `seq`.
+> - **Off the socket:** a queue per car and one worker, so reading an archive
+>   never holds up a tablet's frames; readers take a lock and a copy.
+> - **`Race.car` with provisional runs:** a live session continuing a complete
+>   one in the same run of the app joins without a bridge when the tablet timed
+>   it (its first lap starts where the last ended, to the millisecond). Where
+>   only re-timing timed it, the lap across the two sessions shows as a restart
+>   lap until the session completes and its run is re-timed whole: marked, and
+>   temporary.
+
+> **✅ Done, 2026-09-28.** `:timing`: `SessionTrace.record` (a record at a
+> time; `device`, first and last `at` and `wall`, `lastSeq`; a `lap` kept once
+> by `seq`), `LiveSession`, `Provisional.runs` (grouped by `runs()`, each
+> re-timed by `Retiming.retime`). `:server`: `LiveTimings` (a queue and worker
+> per car; loaded from the partial archive; refilled with laps after a
+> reconnect; let go on `complete` or after 12 h), fed by the socket after
+> `CarLive` takes a frame.
+> - **Tests:** `:timing` 5 (fed a record at a time, the same as the whole log;
+>   a lap twice, once; runs joined and parted by a restart; nothing yet, left
+>   out; the race with a live session continuing a complete one, and after a
+>   restart), `:server` 4 (held whole, a lap twice once, a snapshot never;
+>   first seen mid-drive; laps after a reconnect from the archive; let go).
+>   The box fixture's `lap` records now have their own `seq`, as a real log's.
+> - **Mutations: 16, 15 killed, 1 as good as equivalent** (a refill feeding
+>   fixes as well as laps: the trace drops any older than the last, and the
+>   archive is always behind the lane; laps only is for cost). Two survivors
+>   first, killed after the tests fed a lap out of order and restarted `at`
+>   partway into the run before.
+> - **Not tested yet:** the `complete` route letting the live run go; tested end
+>   to end with `timing` (M17.4).
+
 ### M17.3 — Where the car stands
 
 Pure: from the event (if the car is in a part now), its results over complete

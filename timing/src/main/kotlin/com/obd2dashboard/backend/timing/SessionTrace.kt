@@ -38,6 +38,25 @@ public class SessionTrace {
     private val laps = mutableListOf<TabletLap>()
     private var last: Double? = null
     private val offsets = mutableListOf<Long>()
+    private val lapSeqs = HashSet<Long>()
+
+    /** The session record's `device`, for joining sessions into runs (§22.8). */
+    public var device: String? = null
+        private set
+
+    /** The smallest and largest `at`, and `wall`, over its records. */
+    public var firstAt: Long? = null
+        private set
+    public var lastAt: Long? = null
+        private set
+    public var firstWall: Long? = null
+        private set
+    public var lastWall: Long? = null
+        private set
+
+    /** The largest `seq` read: records at or below it are ones already held (M17.2). */
+    public var lastSeq: Long = -1
+        private set
 
     /** Fixes in order, each timed on its `fixAt`, else its `at`; any going back in time left out (§22.3). */
     public val allFixes: List<Fix> get() = fixes
@@ -51,8 +70,16 @@ public class SessionTrace {
     public val wallOffset: Long? get() = offsets.sorted().let { if (it.isEmpty()) null else it[it.size / 2] }
 
     public fun line(bytes: ByteArray) {
-        val record = Records.parseObject(bytes) ?: return
+        Records.parseObject(bytes)?.let(::record)
+    }
+
+    /** One record, as a line or as the live lane has it (M17.2); a `lap` whose `seq` was read before is left out. */
+    public fun record(record: JsonObject) {
+        record.lng("seq")?.let { lastSeq = maxOf(lastSeq, it) }
+        record.lng("at")?.let { at -> firstAt = minOf(firstAt ?: at, at); lastAt = maxOf(lastAt ?: at, at) }
+        record.lng("wall")?.let { w -> firstWall = minOf(firstWall ?: w, w); lastWall = maxOf(lastWall ?: w, w) }
         when (record.str("type")) {
+            "session" -> device = record.str("device") ?: device
             "sample" -> if (record.str("signal") == "gps.position") fix(record)
             "lap" -> lap(record)
         }
@@ -74,6 +101,7 @@ public class SessionTrace {
     private fun lap(record: JsonObject) {
         val lap = (record["lap"] as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull ?: return
         val time = record.num("time") ?: return
+        record.lng("seq")?.let { if (!lapSeqs.add(it)) return }
         laps += TabletLap(
             course = record.str("course") ?: record.str("track"),
             courseVersion = (record["courseVersion"] as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull,

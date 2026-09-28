@@ -77,9 +77,11 @@ fun Route.liveRoutes(
     config: LiveConfig,
     clock: Clock,
     downlink: CourseDownlink,
+    /** The live run (M17.2): every frame `CarLive` takes. */
+    timings: LiveTimings? = null,
 ) {
     webSocket("/v1/live", protocol = LIVE_PROTOCOL) {
-        TabletSocket(this, registry, archive, hub, crew, config, clock, downlink).run()
+        TabletSocket(this, registry, archive, hub, crew, config, clock, downlink, timings).run()
     }
     // Offered no (or another) subprotocol: the one refusal the server makes on version (§5.2).
     webSocket("/v1/live") {
@@ -98,6 +100,7 @@ private class TabletSocket(
     private val config: LiveConfig,
     private val clock: Clock,
     private val downlink: CourseDownlink,
+    private val timings: LiveTimings?,
 ) : TabletHandle {
     private val log = session.call.application.log
 
@@ -163,7 +166,7 @@ private class TabletSocket(
                     else -> Unit
                 }
                 val applied = attached.apply(tabletFrame)
-                if (applied is CarLive.Applied.Refused) badMessage(applied.reason)
+                if (applied is CarLive.Applied.Refused) badMessage(applied.reason) else timings?.offer(car.slug, tabletFrame)
             }
         } finally {
             watchdog.cancel()

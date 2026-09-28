@@ -65,7 +65,7 @@ public fun boxLap(n: Int, version: Int?, endOff: Long = 0, startOff: Long = 0): 
     val start = 12_500L + 70_000L * (n - 1) + startOff
     val end = 12_500L + 70_000L * n + endOff
     val v = version?.let { ""","course":"box","courseVersion":$it,"layout":"box"""" } ?: ""","track":"box","layout":"Box""""
-    return """{"type":"lap"$v,"lap":$n,"time":${(end - start) / 1000.0},"sectors":[17.5,17.5,17.5,17.5],"startAt":$start,"endAt":$end,"seq":1000,"at":${end + 150}}"""
+    return """{"type":"lap"$v,"lap":$n,"time":${(end - start) / 1000.0},"sectors":[17.5,17.5,17.5,17.5],"startAt":$start,"endAt":$end,"seq":${1000 + n},"at":${end + 150}}"""
 }
 
 public fun boxTrace(lines: List<String>) = SessionTrace().apply { lines.forEach { line(it.toByteArray()) } }
