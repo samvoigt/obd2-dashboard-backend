@@ -20,3 +20,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions)
 }
+
+// PitLaneTest reads the NHMS seed: a changed seed must re-run it (JOURNAL: M12).
+tasks.test {
+    inputs.dir("../courses/seed")
+}

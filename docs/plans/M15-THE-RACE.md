@@ -102,6 +102,39 @@ true length at 1 Hz; the made lines matching drawn ones; a crossing only in the
 lane's direction; a car passing the lane's end on track never stopping; a stop
 across two sessions of one run.
 
+> **Validated against the code and NHMS's course, 2026-09-27, before
+> building.**
+> - **The lane's very ends are on the track.** Measured on NHMS's seed: the
+>   pit lane starts and ends on the track's line (0 m), is 6 m from it 15 m in,
+>   and near the exit runs within 3 m of it 40 m from the end. A line made at
+>   either end would be crossed by cars that never pit. **So the made lines go
+>   where the lane first comes clear of every layout by 16 m** (8 m of line
+>   each side, and 8 m for the track's width and GPS error): on NHMS, **70 m
+>   in from the entry and 76 m before the exit** (the pit line is at 325 m,
+>   between). A stop is then the time in the pit lane **from where it leaves the
+>   track**, missing about 140 m of lane, some 8 s at a 60 km/h limit, the same
+>   every stop. Drawn `pit_in` and `pit_out` win wherever they're drawn.
+> - **The lap rule stays the tablet's, line for line** (M13.1); stops are a
+>   second, separate reader of the same fixes (`PitLane`), sharing its frame,
+>   `crossing` and the pit lane's direction (`forwardSign`, made `internal`).
+> - **`RunTiming` gains the run's pit crossings** (session, in or out, the
+>   moment on `at`), and `RULE_VERSION` goes to 2: every stored re-timing is
+>   rebuilt on its next use, as decision 33 says.
+
+> **✅ Done, 2026-09-27.** `:timing`'s `PitLane` and `PitCrossing`;
+> `RunTiming.pitCrossings`; `RULE_VERSION` 2 (stored files are now
+> `timing-v2-…`); `LapRule.forwardSign` and `at` shared (`internal`).
+> - **Tests: 6** (a stop timed to its true length, 5.6 s in and 125.3 s out
+>   on the box's lane; drawn lines winning; only the lane's direction, never a
+>   car on track, nothing without a lane or with one line; a stop across two
+>   sessions; NHMS timing stops as it is; a re-timing keeping the crossings).
+> - **Mutations: 10, 9 killed**, one after a test (a single line can't time a
+>   stop); **one as good as equivalent**: sorting the crossings within one move,
+>   which only matters if a move crosses both lines, and on a sane lane the
+>   entry comes first.
+> - The timing tests now read the NHMS seed, so `:timing`'s test task declares
+>   it as an input (JOURNAL: M12).
+
 ### M15.2 — The race, one timeline (pure)
 
 From each run's timing (laps on `at`, `wall − at`, pit crossings), the

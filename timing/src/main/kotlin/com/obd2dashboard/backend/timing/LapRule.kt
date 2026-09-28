@@ -146,7 +146,7 @@ public class LapRule(shape: CourseShape, layoutId: String) {
         }
 
         /** The sign a forward crossing of [a]–[b] has, from the segment of [points] that crosses it; null if none does. */
-        private fun forwardSign(points: List<Xy>, a: Xy, b: Xy): Double? {
+        internal fun forwardSign(points: List<Xy>, a: Xy, b: Xy): Double? {
             val across = (0 until points.size - 1).firstOrNull { crossing(points[it], points[it + 1], a, b) != null } ?: return null
             return ((points[across + 1] - points[across]) crossZ (b - a)).sign
         }
@@ -189,7 +189,7 @@ public class LapRule(shape: CourseShape, layoutId: String) {
         }
 
         /** The point [distance] metres along an open line, clamped to its ends (the tablet's `Polyline.at`, open). */
-        private fun at(points: List<Xy>, distance: Double): Xy {
+        internal fun at(points: List<Xy>, distance: Double): Xy {
             val length = points.zipWithNext().sumOf { (a, b) -> (b - a).length }
             var d = distance.coerceIn(0.0, length)
             for (i in 0 until points.size - 1) {

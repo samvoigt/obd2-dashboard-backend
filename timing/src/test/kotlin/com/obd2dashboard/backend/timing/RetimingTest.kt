@@ -123,7 +123,7 @@ class RetimerTest {
         session("b", boxLog(41, 300))
         courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)
         val first = retimer.timing(listOf("a", "b"), "box")!!
-        store.objects.keys.filter { "timing-" in it } shouldBe listOf("sessions/a/timing-v1-box-1.json.gz")
+        store.objects.keys.filter { "timing-" in it } shouldBe listOf("sessions/a/timing-v2-box-1.json.gz")
 
         // Read back: the logs aren't read again.
         val logs = listOf("a", "b").associateWith { store.objects.remove(ArchiveService.sessionKey(it))!! }
@@ -136,7 +136,7 @@ class RetimerTest {
         val second = retimer.timing(listOf("a", "b"), "box")!!
         second.courseVersion shouldBe 2
         second.laps.first().startAt shouldBe (15_000.0 plusOrMinus 1e-6)
-        store.objects.keys.filter { "timing-" in it } shouldBe listOf("sessions/a/timing-v1-box-2.json.gz")
+        store.objects.keys.filter { "timing-" in it } shouldBe listOf("sessions/a/timing-v2-box-2.json.gz")
 
         // The run is found shorter (b removed): rebuilt for a alone.
         retimer.timing(listOf("a"), "box")!!.sessions shouldBe listOf("a")

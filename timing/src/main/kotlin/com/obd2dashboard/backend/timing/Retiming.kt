@@ -54,6 +54,8 @@ public data class RunTiming(
     val retimed: List<RunLap>,
     /** Each session's `wall` less `at` ([SessionTrace.wallOffset]): where its laps go on its page. */
     val wallOffsets: Map<String, Long> = emptyMap(),
+    /** Every time the run crossed the pit lane's entry or exit (M15.1), in order: its stops. */
+    val pitCrossings: List<PitCrossing> = emptyList(),
 ) {
     val flagged: List<RunLap> get() = laps.filter { it.flag != null }
 }
@@ -66,7 +68,7 @@ public data class RunTiming(
  */
 public object Retiming {
     /** Bumped when the rule changes, so every stored re-timing is rebuilt. */
-    public const val RULE_VERSION: Int = 1
+    public const val RULE_VERSION: Int = 2
 
     /** The two sides time the same fixes; the tablet on nanoseconds, the log in milliseconds (§22.3). */
     public const val AGREE_MS: Double = 2.0
@@ -78,15 +80,20 @@ public object Retiming {
         val layout = layoutOf(shape, ours.map { it.second })
         val rule = LapRule(shape, layout)
         if (!rule.canTime) return null
+        val pits = PitLane(shape)
+        val pitCrossings = mutableListOf<PitCrossing>()
         val retimed = run.flatMap { (id, trace) ->
-            trace.allFixes.mapNotNull { fix -> rule.offer(fix)?.let { lap -> retimedLap(id, lap) } }
+            trace.allFixes.mapNotNull { fix ->
+                pitCrossings += pits.offer(id, fix)
+                rule.offer(fix)?.let { lap -> retimedLap(id, lap) }
+            }
         }
         val current = ours
             .filter { (_, lap) -> lap.courseVersion == course.version && layoutMatches(shape, layout, lap.layout) }
             .mapNotNull { (id, lap) -> tabletLap(id, lap, retimed) }
         val standing = (current + retimed.filter { r -> current.none { it.covers(r) } }).sortedBy { it.endAt }
         val offsets = run.mapNotNull { (id, trace) -> trace.wallOffset?.let { id to it } }.toMap()
-        return RunTiming(RULE_VERSION, course.id, course.version, layout, run.map { it.first }, standing, retimed, offsets)
+        return RunTiming(RULE_VERSION, course.id, course.version, layout, run.map { it.first }, standing, retimed, offsets, pitCrossings)
     }
 
     /** The layout the tablet's laps name, by `id` or (before courses came from the website) by name; else the default. */

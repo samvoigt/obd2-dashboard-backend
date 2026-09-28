@@ -60,7 +60,7 @@ class RetimingJobsTest {
         jobs.courseSaved(course).join()
 
         jobs.progress("box") shouldBe RetimingProgress(version = 1, runs = 3, sessions = 4, done = 3, failed = 1, finished = true)
-        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-1.json.gz", "sessions/y/timing-v1-box-1.json.gz")
+        timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz", "sessions/y/timing-v2-box-1.json.gz")
         jobs.progress("elsewhere") shouldBe null
     }
 
@@ -76,7 +76,7 @@ class RetimingJobsTest {
         second.join()
         first.isCancelled shouldBe true
         jobs.progress("box")!!.version shouldBe 2
-        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-2.json.gz")
+        timingFiles() shouldBe listOf("sessions/a/timing-v2-box-2.json.gz")
     }
 
     @Test
@@ -86,10 +86,10 @@ class RetimingJobsTest {
         val jobs = RetimingJobs(registry, archive, courses, this)
         jobs.courseSaved(courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!!).join()
         jobs.courseSaved(courses.save("box-2", 0, "Box 2", boxGeoJson(), Instant.EPOCH)!!).join()
-        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-1.json.gz", "sessions/a/timing-v1-box-2-1.json.gz")
+        timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz", "sessions/a/timing-v2-box-2-1.json.gz")
         courses.delete("box")
         jobs.courseRemoved("box").join()
-        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-2-1.json.gz")
+        timingFiles() shouldBe listOf("sessions/a/timing-v2-box-2-1.json.gz")
         jobs.progress("box") shouldBe null
     }
 
@@ -102,7 +102,7 @@ class RetimingJobsTest {
         session("b", "outback", boxLog(41, 300))
         val jobs = RetimingJobs(registry, archive, courses, this)
         jobs.sessionPrepared("outback", "b")
-        timingFiles() shouldBe listOf("sessions/a/timing-v1-box-1.json.gz")
+        timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz")
         // No courses, nothing to do.
         RetimingJobs(registry, archive, InMemoryCourseStore(), this).sessionPrepared("outback", "b")
     }
@@ -137,6 +137,6 @@ class RetimingJobsTest {
             check(System.currentTimeMillis() < until) { "not re-timed within 10 s" }
             Thread.sleep(20)
         }
-        timingFiles() shouldBe listOf("sessions/$id/timing-v1-box-1.json.gz")
+        timingFiles() shouldBe listOf("sessions/$id/timing-v2-box-1.json.gz")
     }
 }
