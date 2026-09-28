@@ -14,6 +14,7 @@ import com.obd2dashboard.backend.events.Event
 import com.obd2dashboard.backend.events.EventStore
 import com.obd2dashboard.backend.events.Part
 import com.obd2dashboard.backend.events.PartKind
+import com.obd2dashboard.backend.events.Stint
 import java.time.Instant
 import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
@@ -115,15 +116,21 @@ public class FirestoreEventStore(private val db: Firestore) : EventStore {
             "layout" to layout,
             "cars" to cars,
             "parts" to parts.map { p ->
-                mapOf(
-                    "id" to p.id,
-                    "kind" to p.kind.name.lowercase(),
-                    "name" to p.name,
-                    "start" to p.start.toTimestamp(),
-                    "end" to p.end.toTimestamp(),
-                    "added" to p.added,
-                    "removed" to p.removed,
-                )
+                buildMap {
+                    put("id", p.id)
+                    put("kind", p.kind.name.lowercase())
+                    put("name", p.name)
+                    put("start", p.start.toTimestamp())
+                    put("end", p.end.toTimestamp())
+                    put("added", p.added)
+                    put("removed", p.removed)
+                    p.green?.let { put("green", it.toTimestamp()) }
+                    p.flag?.let { put("flag", it.toTimestamp()) }
+                    // A map of lists of maps: never a list inside a list.
+                    if (p.stints.isNotEmpty()) {
+                        put("stints", p.stints.mapValues { (_, list) -> list.map { s -> buildMap { put("start", s.start); s.driver?.let { put("driver", it) } } } })
+                    }
+                }
             },
             REVISION to revision.toLong(),
             "updated" to updated.toTimestamp(),
@@ -147,6 +154,13 @@ public class FirestoreEventStore(private val db: Firestore) : EventStore {
                         end = (p["end"] as? Timestamp)?.toInstant() ?: error("event $id has a part with no end"),
                         added = strings(p["added"]),
                         removed = strings(p["removed"]),
+                        green = (p["green"] as? Timestamp)?.toInstant(),
+                        flag = (p["flag"] as? Timestamp)?.toInstant(),
+                        stints = (p["stints"] as? Map<*, *>).orEmpty().entries.associate { (car, list) ->
+                            car.toString() to (list as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }.mapNotNull { s ->
+                                (s["start"] as? Number)?.toLong()?.let { Stint(it, s["driver"] as? String) }
+                            }
+                        },
                     )
                 },
                 revision = (data[REVISION] as? Number)?.toInt() ?: 0,

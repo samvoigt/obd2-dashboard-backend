@@ -25,7 +25,15 @@ public data class Part(
     val end: Instant,
     val added: List<String> = emptyList(),
     val removed: List<String> = emptyList(),
+    /** The race only (M15.3): when the green flag and the chequered flag fell, as entered; annotations, cutting nothing. */
+    val green: Instant? = null,
+    val flag: Instant? = null,
+    /** The race only (M15.3): each car's stints as edited, by car; none means the default (split at every stop). */
+    val stints: Map<String, List<Stint>> = emptyMap(),
 )
+
+/** A stint as edited (M15.3): from [start], on **the tablet's clock** (milliseconds), driven by [driver]. */
+public data class Stint(val start: Long, val driver: String?)
 
 /**
  * An event (M14): where (a course and layout), which of our cars, and its
@@ -45,6 +53,11 @@ public data class Event(
     val updated: Instant = Instant.EPOCH,
 ) {
     public val race: Part? get() = parts.firstOrNull { it.kind == PartKind.RACE }
+
+    /** [parts] as drawn, with what only the race routes set kept from the stored parts of the same ids (M15.3). */
+    public fun keepingRaceEdits(stored: Event?): Event = copy(parts = parts.map { p ->
+        stored?.parts?.firstOrNull { it.id == p.id }?.let { old -> p.copy(green = old.green, flag = old.flag, stints = old.stints) } ?: p
+    })
 
     /** The next part's id: one past the highest ever used here. */
     public fun nextPartId(): String = "p${(parts.mapNotNull { it.id.removePrefix("p").toIntOrNull() }.maxOrNull() ?: 0) + 1}"

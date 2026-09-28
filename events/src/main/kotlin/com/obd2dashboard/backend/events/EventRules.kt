@@ -49,6 +49,14 @@ public object EventRules {
             if (!part.end.isAfter(part.start)) add("${part.name}: it ends after it starts")
             else if (Duration.between(part.start, part.end) > MAX_PART) add("${part.name}: a part is at most ${MAX_PART.toHours()} hours")
             if (part.added.any { it in part.removed }) add("${part.name}: a session is added or removed, not both")
+            if (part.kind != PartKind.RACE && (part.green != null || part.flag != null || part.stints.isNotEmpty())) {
+                add("${part.name}: only the race has flags and stints")
+            }
+            if (part.green != null && part.flag != null && !part.flag.isAfter(part.green)) add("${part.name}: the flag falls after the green flag")
+            for ((car, stints) in part.stints) {
+                if (car !in event.cars) add("${part.name}: stints for $car, which isn't entered")
+                if (stints.map { it.start }.toSet().size != stints.size) add("${part.name}: two of $car's stints start at once")
+            }
         }
         val sorted = event.parts.sortedBy { it.start }
         sorted.zipWithNext().filter { (a, b) -> b.start.isBefore(a.end) }.forEach { (a, b) -> add("${a.name} and ${b.name} overlap") }

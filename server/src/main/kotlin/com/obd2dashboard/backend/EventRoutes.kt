@@ -194,7 +194,8 @@ fun Route.adminEventRoutes(
         val id = call.parameters["id"].orEmpty()
         val request = call.receive<SaveEvent>()
         val current = events.get(id)
-        val event = request.toEvent(id, current)
+        // The race's flags and stints are set by their own routes (M15.3): kept, never sent from here.
+        val event = request.toEvent(id, current).keepingRaceEdits(current)
         val problems = EventRules.eventProblems(event) + existenceProblems(event, courses, registry)
         if (problems.isNotEmpty()) {
             return@put call.respond(HttpStatusCode.BadRequest, EventRefused("invalid", "The event can't be saved as it is.", problems))

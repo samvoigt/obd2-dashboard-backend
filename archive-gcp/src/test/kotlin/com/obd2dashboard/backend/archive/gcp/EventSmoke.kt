@@ -24,7 +24,12 @@ fun main(args: Array<String>) {
     val now = Instant.now().truncatedTo(ChronoUnit.MILLIS)
     val event = Event(
         "smoke-event-$tag", "Smoke event", "2026-10-04", "nhms", "road", listOf("smoke-car"),
-        listOf(Part("p1", PartKind.PRACTICE, "Practice 1", now, now.plusSeconds(3600), added = listOf("a"), removed = listOf("b"))),
+        listOf(
+            Part("p1", PartKind.PRACTICE, "Practice 1", now, now.plusSeconds(3600), added = listOf("a"), removed = listOf("b")),
+            // The race's flags and stints (M15.3): a map of lists of maps in Firestore.
+            Part("p2", PartKind.RACE, "Race", now.plusSeconds(3600), now.plusSeconds(7200), green = now.plusSeconds(3700), flag = now.plusSeconds(7100),
+                stints = mapOf("smoke-car" to listOf(com.obd2dashboard.backend.events.Stint(1_790_000_000_000, one.id), com.obd2dashboard.backend.events.Stint(1_790_003_600_000, null)))),
+        ),
     )
     var failures = 0
     fun check(what: String, ok: Boolean) { println((if (ok) "  ok    " else "  FAIL  ") + what); if (!ok) failures++ }

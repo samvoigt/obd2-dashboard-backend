@@ -86,6 +86,28 @@ class EventRulesTest {
     }
 
     @Test
+    fun `only the race has flags and stints, the flag after the green, stints for cars entered, starts apart`() {
+        val race = part("p2", 60, 480, PartKind.RACE)
+        EventRules.eventProblems(event(part("p1", 0, 60), race.copy(green = at(61), flag = at(470), stints = mapOf("outback" to listOf(Stint(1, "d1"), Stint(2, null)))))) shouldBe emptyList()
+        EventRules.eventProblems(event(part("p1", 0, 60, added = emptyList()).copy(green = at(1)))) shouldContain "Part p1: only the race has flags and stints"
+        EventRules.eventProblems(event(race.copy(green = at(100), flag = at(100)))) shouldContain "Part p2: the flag falls after the green flag"
+        EventRules.eventProblems(event(race.copy(stints = mapOf("yaris" to listOf(Stint(1, null)))))) shouldContain "Part p2: stints for yaris, which isn't entered"
+        EventRules.eventProblems(event(race.copy(stints = mapOf("outback" to listOf(Stint(5, "a"), Stint(5, "b")))))) shouldContain "Part p2: two of outback's stints start at once"
+    }
+
+    @Test
+    fun `a save keeps the race's flags and stints, which only their own routes set`() {
+        val stored = event(part("p1", 0, 60), part("p2", 60, 480, PartKind.RACE).copy(green = at(61), stints = mapOf("outback" to listOf(Stint(1, "d1")))))
+        val drawn = event(part("p1", 0, 50), part("p2", 60, 500, PartKind.RACE), part("p3", 500, 510))
+        val kept = drawn.keepingRaceEdits(stored)
+        kept.parts[1].green shouldBe at(61)
+        kept.parts[1].stints shouldBe mapOf("outback" to listOf(Stint(1, "d1")))
+        kept.parts[1].end shouldBe at(500) // what was drawn stays drawn
+        kept.parts[2] shouldBe drawn.parts[2]
+        drawn.keepingRaceEdits(null) shouldBe drawn
+    }
+
+    @Test
     fun `part ids go on from the highest ever used`() {
         event().nextPartId() shouldBe "p1"
         event(part("p1", 0, 1), part("p3", 2, 3)).nextPartId() shouldBe "p4"

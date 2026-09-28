@@ -473,6 +473,22 @@ class AdminTest {
             "parts":[{"id":"p1","kind":"practice","name":"Practice 1","start":"2026-10-04T09:00:00-04:00","end":"2026-10-04T10:30:00-04:00"}]}""")
         run("import-event $again").output shouldContain "as revision 3"
         runBlocking { events.get("nhms-october")!!.parts.single().added } shouldBe listOf("s-late")
+        // The race's flags and stints, set on the website, stay through a re-import (M15.3).
+        runBlocking {
+            val e = events.get("nhms-october")!!
+            events.save(e.copy(parts = listOf(e.parts.single(), com.obd2dashboard.backend.events.Part("p2", com.obd2dashboard.backend.events.PartKind.RACE, "Race",
+                Instant.parse("2026-10-04T16:00:00Z"), Instant.parse("2026-10-04T22:00:00Z"), green = Instant.parse("2026-10-04T16:05:00Z"),
+                stints = mapOf("yaris" to listOf(com.obd2dashboard.backend.events.Stint(7, null)))))), e.revision, Instant.EPOCH)
+        }
+        val withRace = file("""{"id":"nhms-october","name":"NHMS October","date":"2026-10-04","course":"nhms","layout":"road","cars":["yaris"],
+            "parts":[{"id":"p1","kind":"practice","name":"Practice 1","start":"2026-10-04T09:00:00-04:00","end":"2026-10-04T10:30:00-04:00"},
+                     {"id":"p2","kind":"race","name":"Race","start":"2026-10-04T12:00:00-04:00","end":"2026-10-04T18:30:00-04:00"}]}""")
+        run("import-event $withRace").statusCode shouldBe 0
+        runBlocking { events.get("nhms-october")!!.race!! }.let {
+            it.green shouldBe Instant.parse("2026-10-04T16:05:00Z")
+            it.stints.keys shouldBe setOf("yaris")
+            it.end shouldBe Instant.parse("2026-10-04T22:30:00Z")
+        }
 
         val bad = file("""{"id":"Bad","name":"x","date":"4 Oct","course":"nowhere","layout":"road","cars":["nope"],
             "parts":[{"kind":"practice","name":"P","start":"9am","end":"2026-10-04T10:00:00-04:00"}]}""")

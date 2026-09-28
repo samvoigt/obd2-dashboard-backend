@@ -537,7 +537,8 @@ class ImportEvent : CliktCommand(name = "import-event") {
             // The admin page's hand-made changes stay as they are.
             current?.parts?.firstOrNull { it.id == part.id }?.let { part.copy(added = it.added, removed = it.removed) } ?: part
         }
-        val event = draft.copy(parts = parts)
+        // The race's flags and stints, set on the website, stay as they are (M15.3).
+        val event = draft.copy(parts = parts).keepingRaceEdits(current)
         problems += EventRules.eventProblems(event) + existenceProblems(event)
         if (problems.isNotEmpty()) throw CliktError("Not saved:\n" + problems.joinToString("\n") { "  - $it" })
         val saved = tools.events.save(event, current?.revision ?: 0, Instant.now())

@@ -19,7 +19,9 @@ class EventMappingTest {
         "nhms-october", "NHMS October", "2026-10-04", "nhms", "road", listOf("outback-2018", "yaris"),
         listOf(
             Part("p1", PartKind.PRACTICE, "Practice 1", t, t.plusSeconds(3600), added = listOf("s-late"), removed = listOf("s-bad")),
-            Part("p3", PartKind.RACE, "The race", t.plusSeconds(7200), t.plusSeconds(7200 + 6 * 3600)),
+            Part("p3", PartKind.RACE, "The race", t.plusSeconds(7200), t.plusSeconds(7200 + 6 * 3600),
+                green = t.plusSeconds(7300), flag = t.plusSeconds(7300 + 6 * 3600),
+                stints = mapOf("outback-2018" to listOf(com.obd2dashboard.backend.events.Stint(1_790_000_000_000, "d-sam"), com.obd2dashboard.backend.events.Stint(1_790_003_600_000, null)))),
         ),
         revision = 4, updated = t,
     )
@@ -36,6 +38,8 @@ class EventMappingTest {
         val parts = event.toFields()["parts"] as List<Map<String, Any>>
         parts.map { it["kind"] } shouldBe listOf("practice", "race")
         parts.all { part -> part.values.none { v -> v is List<*> && v.any { it is List<*> } } } shouldBe true
+        (parts[1]["stints"] as Map<*, *>).values.all { list -> (list as List<*>).none { it is List<*> } } shouldBe true
+        parts[0].containsKey("stints") shouldBe false
     }
 
     @Test

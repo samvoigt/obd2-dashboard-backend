@@ -203,8 +203,41 @@ car's crew;
 drove is); logged; `import-event` keeps them.
 
 **Done when:** tests (the admin, the car's crew, another car's crew refused,
-boundaries outside the race refused, a stale save refused); the mapping and
-the real Firestore.
+a stale save refused); the mapping and the real Firestore.
+
+> **Validated against the code, 2026-09-27, before building.**
+> - **The race part gains** `green` and `flag` (real instants, entered) and
+>   `stints` (by car: each stint's start **on the tablet's clock** and its
+>   driver) in `:events`, and in Firestore as a map of lists of maps (no list
+>   inside a list).
+> - **Every other save keeps them.** The event editor and `import-event` both
+>   rebuild the parts from what they're sent, which never carries these; so
+>   they're kept from the stored part of the same id, as the hand-made session
+>   lists are (M14).
+> - **What can be checked:** a car's stints have distinct starts, and name
+>   drivers who exist; the car is entered; the event has a race; the flag
+>   comes after the green flag. **Not** whether a boundary falls inside the
+>   race: boundaries are on the tablet's clock, the window on the server's.
+> - **Routes**, one rule each, as who drove (M14.4): the admin's
+>   `PUT /api/admin/events/{id}/race` (the flags) and
+>   `…/race/stints/{car}`; the crew's `PUT /api/cars/{slug}/events/{id}/race`
+>   and `…/race/stints`, for a car entered in the event. Both take the
+>   event's `expected` revision, so an edit on a stale page is refused, and log
+>   who. Stints `null` (or empty) goes back to the default.
+
+> **✅ Done, 2026-09-27.** `Part.green`, `flag`, `stints` (`Stint`),
+> `Event.keepingRaceEdits`; their rules; Firestore; `RaceRoutes`
+> (`SaveFlags`, `SaveStints`, `RaceSaved`); the editor's save and
+> `import-event` keeping them.
+> - **Tests: 6** (the rules; a save keeping them; the admin's flags, stale and
+>   backwards refused; a crew's stints and back to the default, nobody else's,
+>   not a car outside the event; the admin's stints and the editor keeping
+>   everything) and the mapping, the tool and the real Firestore extended (a
+>   race with flags and stints read back exactly).
+> - **Mutations: 13, all killed.**
+> - **Changed while building:** a car not entered is refused before the rules
+>   see it (404, as for a crew), so the rule's own wording only shows for stored
+>   data.
 
 ### M15.4 — Race results, and the stint editor
 

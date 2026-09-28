@@ -129,6 +129,7 @@ fun Application.module(
         sessionRoutes(registry, archive, hub, clock, laps = { car, id -> retiming.sessionLaps(car, id) }, drivers = events.drivers, events = events.events)
         messageRoutes(registry, crewAuth, crew)
         driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin)
+        raceRoutes(events, registry, crewAuth, adminAuth, admin, clock)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.
