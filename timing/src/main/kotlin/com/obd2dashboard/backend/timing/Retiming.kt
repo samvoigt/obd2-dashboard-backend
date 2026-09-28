@@ -52,6 +52,8 @@ public data class RunTiming(
     val laps: List<RunLap>,
     /** Every lap re-timing found, whether it stands or not. */
     val retimed: List<RunLap>,
+    /** Each session's `wall` less `at` ([SessionTrace.wallOffset]): where its laps go on its page. */
+    val wallOffsets: Map<String, Long> = emptyMap(),
 ) {
     val flagged: List<RunLap> get() = laps.filter { it.flag != null }
 }
@@ -83,7 +85,8 @@ public object Retiming {
             .filter { (_, lap) -> lap.courseVersion == course.version && layoutMatches(shape, layout, lap.layout) }
             .mapNotNull { (id, lap) -> tabletLap(id, lap, retimed) }
         val standing = (current + retimed.filter { r -> current.none { it.covers(r) } }).sortedBy { it.endAt }
-        return RunTiming(RULE_VERSION, course.id, course.version, layout, run.map { it.first }, standing, retimed)
+        val offsets = run.mapNotNull { (id, trace) -> trace.wallOffset?.let { id to it } }.toMap()
+        return RunTiming(RULE_VERSION, course.id, course.version, layout, run.map { it.first }, standing, retimed, offsets)
     }
 
     /** The layout the tablet's laps name, by `id` or (before courses came from the website) by name; else the default. */
@@ -123,7 +126,12 @@ public object Retiming {
  * `timing-v{rule}-{course}-{version}.json.gz`, read back while the run and
  * the course's version are unchanged (M13.3).
  */
-public class Retimer(private val archive: ArchiveService, private val courses: CourseStore) {
+public class Retimer(
+    private val archive: ArchiveService,
+    private val courses: CourseStore,
+    /** Told of each re-timing built, not of one read back: where a disagreement is reported, once. */
+    private val built: (RunTiming) -> Unit = {},
+) {
     /** [run]'s timing on course [courseId]'s current version, stored or built; null if it can't be timed. */
     public suspend fun timing(run: List<String>, courseId: String): RunTiming? {
         val first = run.firstOrNull() ?: return null
@@ -139,6 +147,7 @@ public class Retimer(private val archive: ArchiveService, private val courses: C
         }
         val timing = Retiming.retime(course, traces) ?: return null
         archive.putDerived(first, name, json.encodeToString(RunTiming.serializer(), timing).encodeToByteArray())
+        built(timing)
         // Only the newest of this course stays: older versions, and any older rule's.
         val ofCourse = Regex("timing-v\\d+-${Regex.escape(course.id)}-\\d+\\.json\\.gz")
         archive.derivedNames(first, "timing-").filter { it != name && ofCourse.matches(it) }.forEach { archive.deleteDerived(first, it) }

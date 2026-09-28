@@ -27,6 +27,33 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LapView(val lap: Int, val time: Double)
 
+/** A lap as it stands on a session's page (M13.5): the tablet's, or re-timed. Times on `wall`, epoch milliseconds. */
+@Serializable
+data class StandingLap(
+    /** Through the run of the app, as the tablet numbers them. */
+    val lap: Int,
+    val time: Double,
+    val sectors: List<Double>,
+    val pitIn: Boolean,
+    val pitOut: Boolean,
+    val start: Long,
+    val end: Long,
+    /** `tablet` or `retimed`. */
+    val source: String,
+    /** False for a tablet lap that couldn't be checked (no crossings sent). */
+    val checked: Boolean = true,
+    /** What re-timing found where it disagrees with the tablet's lap by more than 2 ms. */
+    val flag: LapFlag? = null,
+)
+
+/** Re-timing's lap where the tablet's is flagged; all null if it found none there. */
+@Serializable
+data class LapFlag(val time: Double? = null, val start: Long? = null, val end: Long? = null)
+
+/** `GET /api/sessions/{id}/laps` (M13.5). */
+@Serializable
+data class SessionLaps(val course: String, val courseName: String, val courseVersion: Int, val layout: String, val laps: List<StandingLap>)
+
 /** A session in a car's list (M7.3). Never the VIN: nothing here can hold it. */
 @Serializable
 data class SessionItem(
@@ -68,7 +95,14 @@ data class SessionDetail(
  * Past sessions (M7.3): public, like the live pages (decision 11), and never
  * the VIN. The prepared series is sent as stored, gzipped.
  */
-fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: LiveHub, clock: Clock) {
+fun Route.sessionRoutes(
+    registry: CarRegistry,
+    archive: ArchiveService,
+    hub: LiveHub,
+    clock: Clock,
+    /** A complete session's laps as they stand (M13.5); null if it was at no course. */
+    laps: suspend (car: String, id: String) -> SessionLaps? = { _, _ -> null },
+) {
     suspend fun item(record: SessionRecord, live: String?): SessionItem {
         val summary = if (record.complete) record.summary?.takeIf { it.version == SessionSummary.VERSION } ?: archive.summary(record.id) else null
         // The summary just built, if it was missing: the record was read before it existed.
@@ -115,6 +149,12 @@ fun Route.sessionRoutes(registry: CarRegistry, archive: ArchiveService, hub: Liv
                 missed = summary?.missed ?: 0,
             ),
         )
+    }
+
+    get("/api/sessions/{id}/laps") {
+        val record = call.sessionRecord(archive) ?: return@get
+        if (!record.complete) return@get call.respond(HttpStatusCode.NoContent)
+        call.respond(laps(record.car, record.id) ?: return@get call.respond(HttpStatusCode.NoContent))
     }
 
     get("/api/sessions/{id}/series") {

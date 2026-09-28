@@ -332,6 +332,53 @@ a flag's detail.
 were re-timed after a line moved, a session timed with no laps of its own,
 and a flagged lap.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **The page is on `wall`**: the series places everything, laps included,
+>   by `wall` (a lap row ends at its record's `wall` and starts its time
+>   before). Re-timed laps are on `at`'s clock, so **the stored re-timing
+>   gains each session's `wall − at`** (the median over its fixes, since
+>   the wall clock can be corrected mid-session, M11), and the API gives each
+>   lap's start and end on `wall` from the session it ended in.
+> - **`GET /api/sessions/{id}/laps`**, public as `/series` is: for a
+>   complete session, its run re-timed (stored, or built now under the same
+>   lock as the jobs) on **the course its laps name**, else the first course
+>   its fixes touch; **204** for a session still uploading, or at no course,
+>   and the page keeps the series' laps, as today.
+> - **Each lap:** numbered through the run (as the tablet numbers them, a run
+>   being one run of its app), its time, sectors, in/out, start and end,
+>   `tablet` or `retimed`, the version, and a flag's detail. Only the laps
+>   that **ended in this session**.
+> - **The page** (`SessionPage.svelte`, `lapRows`): rows from the API when
+>   it answers, else from the series; the best and the sector bests by the
+>   same rules (§18, §22.6); a re-timed lap says "re-timed on version N"; a
+>   flagged lap says what re-timing found.
+
+> **✅ Done, 2026-09-27.** `GET /api/sessions/{id}/laps` (`SessionLaps`,
+> `StandingLap`, `LapFlag`), from `RetimingJobs.sessionLaps`; `SessionTrace`'s
+> `wallOffset` and `RunTiming.wallOffsets`; the page's `standingRows`,
+> `lapNote`, `fetchLaps`.
+> - **Found by looking** (the dev server, a box course at NHMS, two drives
+>   replayed in; version 1, then version 2 with the line 100 m on):
+>   - **A disagreement was logged on every page view**, the stored re-timing
+>     being reported each time it was read back. The `Retimer` now reports a
+>     re-timing only when it's built; a test says it's told once.
+>   - **The best-sector highlight was patchy**: re-timed sectors differ in
+>     the 7th decimal (a receiver's centimetres), so equal-looking sectors
+>     weren't equal. The API gives times to the millisecond, as a `lap`
+>     record has them; the test drive now has centimetre positions.
+>   - **The note wrapped** a word a line in the table; it's kept on one line,
+>     the table a little wider.
+> - **Seen:** a drive with no laps of its own showing four laps re-timed on
+>   version 1; the tablet's laps standing with lap 2 flagged "Re-timing found
+>   1:10.000"; after version 2, every lap re-timed, S1 2.5 s shorter and the
+>   last sector 2.5 s longer, as the line moved.
+> - **Tests: 5 Kotlin, 2 Vitest.** **Mutations: 12**, 11 killed, four only
+>   after the test was tightened (rounding needs noisy positions; the run's
+>   numbering needs a tablet number that differs; the course the laps name
+>   needs a second course there). **One equivalent:** without the route's
+>   "still uploading" guard, an uploading session is still left out of runs,
+>   so it still gets 204; the guard only saves the work.
+
 ### M13.6 — Deploy, and prove it
 
 Deployed with a drive streaming. **The first drive, re-timed:** a course

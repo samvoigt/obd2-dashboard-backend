@@ -118,7 +118,7 @@ fun Application.module(
             onChange = downlink::changed, onSaved = { retiming.courseSaved(it) }, retiming = retiming::progress,
         )
         publicCourseRoutes(courses)
-        sessionRoutes(registry, archive, hub, clock)
+        sessionRoutes(registry, archive, hub, clock, laps = retiming::sessionLaps)
         messageRoutes(registry, crewAuth, crew)
         webRoutes()
 

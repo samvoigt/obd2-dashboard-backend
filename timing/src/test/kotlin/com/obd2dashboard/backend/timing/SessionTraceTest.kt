@@ -22,6 +22,17 @@ class SessionTraceTest {
     }
 
     @Test
+    fun `wall less at is the median over the fixes, so one corrected clock doesn't move it`() {
+        val t = trace(
+            """{"type":"sample","signal":"gps.position","lat":43.1,"lon":-71.1,"fixAt":1000,"seq":1,"at":1100,"wall":5001100}""",
+            """{"type":"sample","signal":"gps.position","lat":43.1,"lon":-71.1,"fixAt":2000,"seq":2,"at":2100,"wall":5002100}""",
+            """{"type":"sample","signal":"gps.position","lat":43.1,"lon":-71.1,"fixAt":3000,"seq":3,"at":3100,"wall":9003100}""",
+        )
+        t.wallOffset shouldBe 5_000_000
+        trace("""{"type":"sample","signal":"gps.position","lat":43.1,"lon":-71.1,"seq":1,"at":1100}""").wallOffset shouldBe null
+    }
+
+    @Test
     fun `laps are read as the tablet sent them, old and new side by side`() {
         val t = trace(
             """{"type":"lap","track":"nhms","layout":"Road Course","lap":1,"time":96.0,"seq":10,"at":1,"wall":1}""",

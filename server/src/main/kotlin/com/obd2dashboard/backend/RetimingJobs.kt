@@ -4,12 +4,14 @@ import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.courses.Course
 import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.registry.CarRegistry
+import com.obd2dashboard.backend.timing.LapSource
 import com.obd2dashboard.backend.timing.Retimer
 import com.obd2dashboard.backend.timing.RunTiming
 import com.obd2dashboard.backend.timing.SessionAt
 import com.obd2dashboard.backend.timing.runOf
 import com.obd2dashboard.backend.timing.runsAt
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.roundToLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -42,7 +44,15 @@ class RetimingJobs(
     private val courses: CourseStore,
     private val scope: CoroutineScope,
 ) {
-    private val retimer = Retimer(archive, courses)
+    private val retimer = Retimer(archive, courses) { timing ->
+        for (lap in timing.flagged) {
+            log.warn(
+                "lap disagrees: {} lap {} in session {} on {} v{}: tablet {}–{}, re-timed {}–{}",
+                timing.layout, lap.tabletLap, lap.session, timing.course, timing.courseVersion,
+                lap.startAt, lap.endAt, lap.flag?.startAt, lap.flag?.endAt,
+            )
+        }
+    }
     private val lock = Mutex()
     private val jobs = ConcurrentHashMap<String, Job>()
     private val progress = ConcurrentHashMap<String, RetimingProgress>()
@@ -56,6 +66,45 @@ class RetimingJobs(
         if (current.isEmpty()) return
         val (run, at) = runOf(sessionsOf(car), id, current) ?: return
         for (course in at) retime(run, course)
+    }
+
+    /**
+     * Session [id]'s laps as they stand (M13.5): its run re-timed (stored, or
+     * built now) on the course its laps name, else the first its fixes touch.
+     * Null for a session that isn't complete, or was at no course.
+     */
+    suspend fun lapsOf(car: String, id: String): Pair<Course, RunTiming>? {
+        val current = courses.current()
+        if (current.isEmpty()) return null
+        val sessions = sessionsOf(car)
+        val session = sessions.firstOrNull { it.id == id } ?: return null
+        val (run, at) = runOf(sessions, id, current) ?: return null
+        val courseId = at.firstOrNull { it == session.summary.track } ?: at.firstOrNull() ?: return null
+        val timing = retime(run, courseId) ?: return null
+        return (courses.get(courseId, timing.courseVersion) ?: return null) to timing
+    }
+
+    /** [lapsOf] as the session page has it: only the laps that ended in session [id], placed on its `wall`. */
+    suspend fun sessionLaps(car: String, id: String): SessionLaps? {
+        val (course, timing) = lapsOf(car, id) ?: return null
+        val offset = timing.wallOffsets[id] ?: return null
+        val laps = timing.laps.mapIndexedNotNull { i, lap ->
+            if (lap.session != id) return@mapIndexedNotNull null
+            StandingLap(
+                lap = i + 1,
+                // To the millisecond, as a `lap` record has them: re-timing's doubles differ in the 7th place.
+                time = lap.time.toMillisecond(),
+                sectors = lap.sectors.map { it.toMillisecond() },
+                pitIn = lap.pitIn,
+                pitOut = lap.pitOut,
+                start = (lap.startAt + offset).roundToLong(),
+                end = (lap.endAt + offset).roundToLong(),
+                source = if (lap.source == LapSource.TABLET) "tablet" else "retimed",
+                checked = lap.checked,
+                flag = lap.flag?.let { f -> LapFlag(f.time?.toMillisecond(), f.startAt?.let { (it + offset).roundToLong() }, f.endAt?.let { (it + offset).roundToLong() }) },
+            )
+        }
+        return SessionLaps(course.id, course.name, timing.courseVersion, timing.layout, laps)
     }
 
     /** A course was saved: re-time every run it touches, in the background, in place of any earlier save's job. */
@@ -85,20 +134,13 @@ class RetimingJobs(
         return job
     }
 
-    private suspend fun retime(run: List<String>, course: String): RunTiming? =
-        lock.withLock { retimer.timing(run, course) }?.also { timing ->
-            for (lap in timing.flagged) {
-                log.warn(
-                    "lap disagrees: {} lap {} in session {} on {} v{}: tablet {}–{}, re-timed {}–{}",
-                    timing.layout, lap.tabletLap, lap.session, timing.course, timing.courseVersion,
-                    lap.startAt, lap.endAt, lap.flag?.startAt, lap.flag?.endAt,
-                )
-            }
-        }
+    private suspend fun retime(run: List<String>, course: String): RunTiming? = lock.withLock { retimer.timing(run, course) }
 
     /** A car's complete sessions with their summaries (an older summary rebuilt on the way, once). */
     private suspend fun sessionsOf(car: String): List<SessionAt> =
         archive.sessionsOf(car).filter { it.complete }.mapNotNull { r -> archive.summary(r.id)?.let { SessionAt(r.id, car, it) } }
+
+    private fun Double.toMillisecond(): Double = (this * 1000).roundToLong() / 1000.0
 
     private companion object {
         val log = LoggerFactory.getLogger("retiming")

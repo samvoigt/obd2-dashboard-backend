@@ -37,10 +37,18 @@ public class SessionTrace {
     private val fixes = mutableListOf<Fix>()
     private val laps = mutableListOf<TabletLap>()
     private var last: Double? = null
+    private val offsets = mutableListOf<Long>()
 
     /** Fixes in order, each timed on its `fixAt`, else its `at`; any going back in time left out (§22.3). */
     public val allFixes: List<Fix> get() = fixes
     public val tabletLaps: List<TabletLap> get() = laps
+
+    /**
+     * `wall` less `at` over the session's fixes, the median (the tablet's wall
+     * clock can be corrected mid-session, M11): how a moment on `at`'s clock
+     * is placed on the session's page. Null without a fix carrying both.
+     */
+    public val wallOffset: Long? get() = offsets.sorted().let { if (it.isEmpty()) null else it[it.size / 2] }
 
     public fun line(bytes: ByteArray) {
         val record = Records.parseObject(bytes) ?: return
@@ -56,6 +64,7 @@ public class SessionTrace {
         val lon = record.num("lon") ?: return
         val lat = record.num("lat") ?: return
         val at = (record.lng("fixAt") ?: record.lng("at"))?.toDouble() ?: return
+        record.lng("wall")?.let { wall -> record.lng("at")?.let { offsets += wall - it } }
         // The tablet never sends a fix older than the last (§22.3); one that did would be timed backwards.
         if (last?.let { at < it } == true) return
         last = at

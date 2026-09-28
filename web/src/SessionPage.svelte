@@ -3,8 +3,8 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    bestSectors, countsForBest, defaultSignals, events, fetchSeries, joined, lapRows, speedsAtPositions, unitOf,
-    type LapRow, type Series,
+    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, speedsAtPositions, standingRows, unitOf,
+    type LapRow, type Series, type SessionLaps,
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
@@ -62,7 +62,9 @@
   )
   const chartUnits = $derived(view ? names.map((n) => shownUnit(unitOf(view!, n), units.system)) : [])
   const numbers = $derived(view ? Object.keys(view.numbers).sort() : [])
-  const laps: LapRow[] = $derived(view ? lapRows(view) : [])
+  // The laps as they stand (M13.5): the server's, where it has them (the tablet's, re-timed where a line moved); else the series'.
+  let standing: SessionLaps | null = $state.raw(null)
+  const laps: LapRow[] = $derived(standing ? standingRows(standing) : view ? lapRows(view) : [])
   // Each sector's best on track (M12.7): its column's highlight.
   const sectorBests = $derived(bestSectors(laps))
 
@@ -98,6 +100,7 @@
       detail = (await response.json()) as Detail
       series = await fetchSeries(id)
       if (detail.session.state === 'live') follow()
+      else if (detail.session.state === 'complete') standing = await fetchLaps(id).catch(() => null)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
@@ -224,7 +227,10 @@
                     {@const t = lap.sectors?.[i]}
                     <td class="sector" class:bestsector={t !== undefined && t === bestOf && countsForBest(lap, i)}>{t === undefined ? '' : t.toFixed(3)}</td>
                   {/each}
-                  <td class="muted">{lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}</td>
+                  <td class="muted">
+                    {lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}
+                    {#if lapNote(lap)}<span class="note" class:flag={!!lap.flag}>{lapNote(lap)}</span>{/if}
+                  </td>
                 </tr>
               {/each}
             </tbody>
@@ -259,7 +265,7 @@
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 16px 0; }
   .pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
   select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 0.95rem; max-width: 100%; }
-  .laps { border-collapse: collapse; width: 100%; max-width: 420px; }
+  .laps { border-collapse: collapse; width: 100%; max-width: 560px; }
   .laps th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.85rem; padding: 4px 8px; }
   .laps td { padding: 6px 8px; border-top: 1px solid var(--line); }
   .laps tbody tr { cursor: pointer; }
@@ -269,6 +275,8 @@
   .laps .sector { font-variant-numeric: tabular-nums; }
   .laps .bestsector { color: var(--in-range); font-weight: 700; }
   .laps tr.chosen td { background: var(--bg); }
+  .laps .note { display: block; font-size: 0.8rem; white-space: nowrap; }
+  .laps .note.flag { color: var(--caution); }
   .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.95rem; }
   .events li.fault { color: var(--critical); }
   .events li.gap { color: var(--caution); }

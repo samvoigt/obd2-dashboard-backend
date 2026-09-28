@@ -62,6 +62,7 @@ class RetimingTest {
         t.laps.first().startAt shouldBe (12_500.0 plusOrMinus 1e-6)
         t.laps.first().session shouldBe "b"
         t.sessions shouldBe listOf("a", "b")
+        t.wallOffsets shouldBe mapOf("a" to BOX_WALL0, "b" to BOX_WALL0)
         // Two runs (an app restart between) start afresh: lap 1 is lost to both.
         val second = Retiming.retime(boxCourse(1), listOf("b" to boxTrace(boxLog(41, 300))))!!
         second.laps.size shouldBe 3
@@ -104,7 +105,8 @@ class RetimerTest {
     private val store = InMemorySegmentStore()
     private val archive = ArchiveService(index, store)
     private val courses = InMemoryCourseStore()
-    private val retimer = Retimer(archive, courses)
+    private val built = mutableListOf<Int>()
+    private val retimer = Retimer(archive, courses) { built += it.courseVersion }
 
     private suspend fun session(id: String, lines: List<String>) {
         index.create(SessionRecord(id, "outback", null, null, lines.size - 1L, emptyList(), true, null, 0, Instant.EPOCH, Instant.EPOCH))
@@ -126,6 +128,7 @@ class RetimerTest {
         // Read back: the logs aren't read again.
         val logs = listOf("a", "b").associateWith { store.objects.remove(ArchiveService.sessionKey(it))!! }
         retimer.timing(listOf("a", "b"), "box") shouldBe first
+        built shouldBe listOf(1) // told once, when it was built
         logs.forEach { (id, bytes) -> store.objects[ArchiveService.sessionKey(id)] = bytes }
 
         // The course moves on: rebuilt on version 2, version 1's file gone.

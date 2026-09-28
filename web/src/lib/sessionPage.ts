@@ -4,6 +4,8 @@
  * Times in the file are milliseconds after `t0`; here they become absolute.
  */
 
+import { lapTime } from './sessions'
+
 export interface SeriesSignal {
   name: string
   unit: string
@@ -55,6 +57,63 @@ export interface LapRow {
   best: boolean
   /** Its sector times, seconds; null when the lap has none (older records, or a course without sectors). */
   sectors?: number[] | null
+  /** Re-timed by the server on this course version (M13.5); absent for the tablet's own. */
+  retimedOn?: number
+  /** Where re-timing disagrees with the tablet's lap (M13.5): what it found there, or `{}` for no lap. */
+  flag?: { time?: number | null; start?: number | null; end?: number | null }
+}
+
+/** `GET /api/sessions/{id}/laps` (M13.5): the laps as they stand, on the wall clock. */
+export interface SessionLaps {
+  course: string
+  courseName: string
+  courseVersion: number
+  layout: string
+  laps: {
+    lap: number
+    time: number
+    sectors: number[]
+    pitIn: boolean
+    pitOut: boolean
+    start: number
+    end: number
+    source: 'tablet' | 'retimed'
+    checked?: boolean
+    flag?: { time?: number | null; start?: number | null; end?: number | null } | null
+  }[]
+}
+
+/** The rows of [laps], the best by the same rule as [lapRows]. */
+export function standingRows(laps: SessionLaps): LapRow[] {
+  const rows: LapRow[] = laps.laps.map((l) => ({
+    lap: l.lap,
+    time: l.time,
+    pitIn: l.pitIn,
+    pitOut: l.pitOut,
+    start: l.start,
+    end: l.end,
+    best: false,
+    sectors: l.sectors.length > 0 ? l.sectors : null,
+    ...(l.source === 'retimed' ? { retimedOn: laps.courseVersion } : {}),
+    ...(l.flag ? { flag: l.flag } : {}),
+  }))
+  markBest(rows)
+  return rows
+}
+
+/** What a lap's last column says of where its time came from (M13.5). */
+export function lapNote(row: LapRow): string | null {
+  if (row.flag) return row.flag.time != null ? `Re-timing found ${lapTime(row.flag.time)}` : 'Re-timing found no such lap'
+  if (row.retimedOn !== undefined) return `Re-timed on version ${row.retimedOn}`
+  return null
+}
+
+/** `GET /api/sessions/{id}/laps`, or null where the series' laps stand (still uploading, or at no course). */
+export async function fetchLaps(id: string, fetcher: typeof fetch = fetch): Promise<SessionLaps | null> {
+  const response = await fetcher(`/api/sessions/${id}/laps`)
+  if (response.status === 204 || response.status === 404) return null
+  if (!response.ok) throw new Error(`The server answered ${response.status}.`)
+  return (await response.json()) as SessionLaps
 }
 
 /** Laps in order; the best is the fastest on track, never a pit lap (§18). */
@@ -66,12 +125,17 @@ export function lapRows(series: Series): LapRow[] {
       return { lap: r.lap, time: r.time, pitIn: r.pitIn === true, pitOut: r.pitOut === true, start: end - r.time * 1000, end, best: false, sectors }
     })
     .sort((a, b) => a.lap - b.lap)
+  markBest(rows)
+  return rows
+}
+
+/** The fastest lap on track is the best, never a pit lap (§18). */
+function markBest(rows: LapRow[]) {
   const onTrack = rows.filter((r) => !r.pitIn && !r.pitOut)
   if (onTrack.length > 0) {
     const fastest = onTrack.reduce((a, b) => (b.time < a.time ? b : a))
     fastest.best = true
   }
-  return rows
 }
 
 /**

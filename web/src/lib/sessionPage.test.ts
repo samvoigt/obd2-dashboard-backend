@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { bestSectors, defaultSignals, events, fetchSeries, joined, lapRows, nearest, speedColor, speedsAtPositions, speedSignal, type Series } from './sessionPage'
+import {
+  bestSectors, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, nearest, speedColor, speedsAtPositions, speedSignal, standingRows,
+  type Series, type SessionLaps,
+} from './sessionPage'
 
 const t0 = 1_790_000_000_000
 
@@ -140,5 +143,35 @@ describe('fetching the series', () => {
     expect(await fetchSeries('s', answering(204))).toBeNull()
     expect(await fetchSeries('s', answering(404))).toBeNull()
     await expect(fetchSeries('s', answering(500))).rejects.toThrow('500')
+  })
+})
+
+describe('laps as they stand (M13.5)', () => {
+  const lap = (n: number, time: number, more: Partial<SessionLaps['laps'][number]> = {}): SessionLaps['laps'][number] =>
+    ({ lap: n, time, sectors: [], pitIn: false, pitOut: false, start: n * 100_000, end: n * 100_000 + time * 1000, source: 'tablet', ...more })
+  const laps = (list: SessionLaps['laps']): SessionLaps => ({ course: 'box', courseName: 'Box', courseVersion: 2, layout: 'box', laps: list })
+
+  it('rows from the server, the best on track, re-timed and flagged laps marked', () => {
+    const rows = standingRows(laps([
+      lap(1, 70, { source: 'retimed', sectors: [35, 35] }),
+      lap(2, 69, { pitIn: true }),
+      lap(3, 70.003, { flag: { time: 70, start: 1, end: 2 } }),
+      lap(4, 71, { flag: {} }),
+    ]))
+    expect(rows.map((r) => r.best)).toEqual([true, false, false, false])
+    expect(rows[0]!.sectors).toEqual([35, 35])
+    expect(rows[1]!.sectors).toBeNull()
+    expect(rows.map(lapNote)).toEqual(['Re-timed on version 2', null, 'Re-timing found 1:10.000', 'Re-timing found no such lap'])
+    expect(rows[0]!.start).toBe(100_000)
+    expect(rows[0]!.end).toBe(170_000)
+  })
+
+  it('none where the series stands: still uploading, or at no course', async () => {
+    const answer = (status: number, body?: unknown) =>
+      (async () => new Response(body === undefined ? null : JSON.stringify(body), { status })) as unknown as typeof fetch
+    expect(await fetchLaps('s', answer(204))).toBeNull()
+    expect(await fetchLaps('s', answer(404))).toBeNull()
+    expect((await fetchLaps('s', answer(200, laps([lap(1, 70)]))))!.laps.length).toBe(1)
+    await expect(fetchLaps('s', answer(500))).rejects.toThrow('500')
   })
 })
