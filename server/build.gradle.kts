@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":archive-gcp"))
     implementation(project(":live"))
     implementation(project(":admin"))
+    implementation(project(":timing"))
     implementation(platform(libs.google.cloud.bom))
     implementation(libs.google.auth)
     implementation(libs.google.http.gson)
@@ -39,6 +40,7 @@ dependencies {
     implementation(libs.logback.classic)
 
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(testFixtures(project(":timing")))
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions)

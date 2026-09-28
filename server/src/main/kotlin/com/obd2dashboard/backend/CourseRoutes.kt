@@ -83,6 +83,10 @@ fun Route.adminCourseRoutes(
     config: AdminConfig,
     /** Told of every save or removal, so tablets can be sent the new set (M12.6). */
     onChange: suspend () -> Unit = {},
+    /** Told of every save, to re-time the sessions at the course (M13.4). */
+    onSaved: (Course) -> Unit = {},
+    /** A save's re-timing, as it goes (M13.4). */
+    retiming: (id: String) -> RetimingProgress? = { null },
 ) {
     suspend fun ApplicationCall.pathId(): String? =
         parameters["id"]?.takeIf { CourseRules.idProblem(it) == null }
@@ -129,7 +133,15 @@ fun Route.adminCourseRoutes(
             )
         adminLog.info("course saved: {} v{} by {}", id, saved.version, email)
         onChange()
+        onSaved(saved)
         call.respond(if (saved.version == 1) HttpStatusCode.Created else HttpStatusCode.OK, saved.view())
+    }
+
+    get("/api/admin/courses/{id}/retiming") {
+        call.admin(auth, config, change = false) ?: return@get
+        val id = call.pathId() ?: return@get
+        val progress = retiming(id) ?: return@get call.respond(HttpStatusCode.NoContent)
+        call.respond(progress)
     }
 
     delete("/api/admin/courses/{id}") {

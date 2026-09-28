@@ -192,3 +192,22 @@ export interface CourseVersion {
   saved: number
 }
 
+
+/** A course save's re-timing (M13.4), as `GET /courses/{id}/retiming` has it. */
+export interface RetimingProgress {
+  version: number
+  runs: number
+  sessions: number
+  done: number
+  failed: number
+  finished: boolean
+}
+
+/** What the editor says of a save's re-timing. */
+export function retimingText(p: RetimingProgress): string {
+  const sessions = `${p.sessions} session${p.sessions === 1 ? '' : 's'}`
+  if (p.sessions === 0) return `Version ${p.version}: no sessions were driven here, so nothing to re-time.`
+  const failed = p.failed > 0 ? `; ${p.failed} of ${p.runs} runs failed, and will be re-timed when viewed` : ''
+  if (p.finished) return `Version ${p.version}: re-timed ${sessions}${failed}.`
+  return `Version ${p.version}: re-timing ${sessions}, ${p.done} of ${p.runs} runs done${failed}…`
+}

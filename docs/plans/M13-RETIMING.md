@@ -268,6 +268,59 @@ they're done.
 job (one at a time, a failure logged and the rest carried on); looked at on
 the admin page against the dev server.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **After a session completes**, `ArchiveRoutes` already launches
+>   `archive.prepare(id)` after answering, failures only logged; re-timing
+>   follows it in the same coroutine. It finds the car's sessions' summaries
+>   (`archive.summary`, which rebuilds an older version on the way, once), the
+>   **run** the session is in, and every **course that run touches**, and
+>   re-times each.
+> - **Touches:** a session's summary names the course as its `track` (the
+>   tablet's laps), or its fix `bounds` overlap the course's (every layout's
+>   path and the pit lane, with 50 m round them). Picking is pure, in
+>   `:timing`, and tested there.
+> - **A course save** (`PUT /api/admin/courses/{id}`, which already calls
+>   `onChange` for the tablets) also starts a **background job**: every car's
+>   complete sessions, grouped into runs, those touching the course re-timed
+>   **one run at a time** (one lock for all re-timing, the instance being one,
+>   decision 20), a failure logged and the rest carried on. A newer save of the
+>   same course cancels an older one's job. A flagged lap is logged as a
+>   warning.
+> - **The admin page:** the job's progress, in memory,
+>   `GET /api/admin/courses/{id}/retiming` (the version, runs and sessions
+>   picked, done, failed, finished); the editor shows it after a save and
+>   while a job runs. In memory is enough: a restart loses only the progress
+>   display, and a session's re-timing is rebuilt on view if it's missing
+>   (M13.5).
+
+> **✅ Done, 2026-09-27.** `:timing`'s `courseBounds`, `touches`, `runsAt`,
+> `runOf`; the server's `RetimingJobs` (after prepare, on a save, one lock),
+> `GET /api/admin/courses/{id}/retiming`, and the editor following it
+> (`retimingText`).
+> - **Found while building:** the summary's `track` read only a lap's
+>   `track`, but a §22.6 lap names its `course` (`track` is for older
+>   readers); it now reads `course`, else `track`, as `SessionTrace` does.
+> - **The box course and its logs** moved to `:timing`'s test fixtures,
+>   shared with the server's tests (with `wall` and a device, so runs order
+>   as real ones do).
+> - **Tests: 11 Kotlin** (bounds with the margin and the pit lane; touching
+>   by laps or by fixes; a save picking whole runs, other cars' too; a
+>   session's run and its courses; the job re-timing three runs with one
+>   failing and counted; a newer save cancelling the older job; a prepared
+>   session re-timed on the course it touches and not a far one; a session
+>   uploaded and completed over HTTP, then re-timed; the progress route, 204
+>   before, admin only) and **2 Vitest** (the wording).
+> - **Mutations: 14, all killed**, one only after a test was added (the pit
+>   lane in a course's bounds: the box had none).
+> - **Looked at on the admin page** against the dev server: a synthetic drive
+>   round a box at NHMS replayed in; NHMS saved as version 2; the page said
+>   "Version 2: re-timed 1 session.", and the log "re-timed 1 runs at nhms
+>   v2, 0 failed".
+> - **Noticed, not changed:** the editor's Save stays disabled after changing
+>   only the course's name (M12's `dirty` is set by drawing only).
+> - **Flaky:** `:replay`'s coalescing test failed once in a loaded full run,
+>   and passed three times alone. For the JOURNAL.
+
 ### M13.5 — On the session page
 
 `GET /api/sessions/{id}/laps`: the laps as they stand, each saying whether

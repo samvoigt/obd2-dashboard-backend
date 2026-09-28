@@ -137,6 +137,24 @@ class CourseRoutesTest {
     }
 
     @Test
+    fun `a save's re-timing is shown as it goes, to the admin only`() = testApplication {
+        app()
+        val cookie = signIn()
+        call(HttpMethod.Get, "/api/admin/courses/nhms/retiming", cookie).status shouldBe HttpStatusCode.NoContent
+        call(HttpMethod.Put, "/api/admin/courses/nhms", cookie, save(0, "NHMS")).status shouldBe HttpStatusCode.Created
+        val until = System.currentTimeMillis() + 10_000
+        var progress: JsonObject
+        do {
+            check(System.currentTimeMillis() < until) { "re-timing didn't finish within 10 s" }
+            progress = json(call(HttpMethod.Get, "/api/admin/courses/nhms/retiming", cookie))
+        } while (progress.getValue("finished").jsonPrimitive.content != "true")
+        // No cars, no sessions: nothing to re-time, and done.
+        progress.getValue("version").jsonPrimitive.content shouldBe "1"
+        progress.getValue("runs").jsonPrimitive.content shouldBe "0"
+        call(HttpMethod.Get, "/api/admin/courses/nhms/retiming", null).status shouldBe HttpStatusCode.Unauthorized
+    }
+
+    @Test
     fun `an invalid course is refused with every problem, and nothing is stored`() = testApplication {
         app()
         val cookie = signIn()

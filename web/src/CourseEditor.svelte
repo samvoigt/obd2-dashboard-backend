@@ -4,7 +4,7 @@
   import '@geoman-io/leaflet-geoman-free'
   import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
   import { onMount, untrack } from 'svelte'
-  import { api, AdminError, day, type CourseVersion, type CourseView } from './lib/admin'
+  import { api, AdminError, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
   import {
     addSector, arrows, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector, removeLayout, removeSector,
     sectorsOf, toGeoJSON, type EditCourse, type Pt,
@@ -28,6 +28,7 @@
   let signedOut = $state(false)
   let saving = $state(false)
   let dirty = $state(false)
+  let retiming: RetimingProgress | null = $state(null) // the latest save's re-timing (M13.4)
 
   type Tool = 'layout' | 'pit_lane' | 'start_finish' | 'sector' | 'pit_in' | 'pit_out' | 'pit_line'
   let tool: Tool | null = $state(null)
@@ -90,6 +91,7 @@
       const c = await api<CourseView>('GET', `/courses/${pathId}`)
       show(c)
       versions = await api<CourseVersion[]>('GET', `/courses/${pathId}/versions`)
+      void followRetiming()
     } catch (e) {
       if (e instanceof AdminError && e.status === 401) signedOut = true
       else message = e instanceof Error ? e.message : String(e)
@@ -289,10 +291,29 @@
       message = `Saved as version ${saved.version}.`
       if (isNew) window.location.assign(`/admin/courses/${saved.id}`)
       versions = await api<CourseVersion[]>('GET', `/courses/${courseId}/versions`)
+      void followRetiming()
     } catch (e) {
       message = e instanceof Error ? e.message : String(e)
     } finally {
       saving = false
+    }
+  }
+
+  // A save re-times every session driven at the course, in the background (M13.4): followed until done.
+  let following = false
+  async function followRetiming() {
+    if (following || isNew) return
+    following = true
+    try {
+      for (;;) {
+        retiming = (await api<RetimingProgress | undefined>('GET', `/courses/${pathId}/retiming`)) ?? null
+        if (!retiming || retiming.finished) return
+        await new Promise((r) => setTimeout(r, 2000))
+      }
+    } catch {
+      /* only a display: the page's own calls say if the sign-in lapsed */
+    } finally {
+      following = false
     }
   }
 
@@ -399,6 +420,7 @@
           <p><button class="primary" onclick={save} disabled={saving || problems.length > 0 || !dirty}>Save as version {version + 1}</button></p>
         {/if}
         {#if message}<p class="message">{message}</p>{/if}
+        {#if retiming}<p class="muted small">{retimingText(retiming)}</p>{/if}
 
         <h2>A session's route</h2>
         <p class="muted small">Drawn faintly under the course, to trace a real drive.</p>

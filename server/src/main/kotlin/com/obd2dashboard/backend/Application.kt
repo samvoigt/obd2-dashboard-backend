@@ -90,6 +90,7 @@ fun Application.module(
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
+    val retiming = RetimingJobs(registry, archive, courses, this)
     val crewAuth = CrewAuth(crewKey, clock)
     val loginLimiter = LoginLimiter(clock)
     install(CallLogging)
@@ -112,7 +113,10 @@ fun Application.module(
         val courseInUse: suspend (String) -> Boolean = { id ->
             registry.list().any { car -> archive.sessionsOf(car.slug.value).any { it.summary?.track == id } }
         }
-        adminCourseRoutes(courses, courseInUse, clock, adminAuth, admin, onChange = downlink::changed)
+        adminCourseRoutes(
+            courses, courseInUse, clock, adminAuth, admin,
+            onChange = downlink::changed, onSaved = { retiming.courseSaved(it) }, retiming = retiming::progress,
+        )
         publicCourseRoutes(courses)
         sessionRoutes(registry, archive, hub, clock)
         messageRoutes(registry, crewAuth, crew)
@@ -127,7 +131,7 @@ fun Application.module(
                 val car = call.principal<CarPrincipal>()!!
                 call.respond(PublicCar(car.slug, car.name))
             }
-            archiveRoutes(archive)
+            archiveRoutes(archive, prepared = retiming::sessionPrepared)
             tabletCourseRoutes(courses)
         }
     }

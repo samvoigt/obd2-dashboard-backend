@@ -128,6 +128,11 @@ class SessionReaderTest {
             it.bounds shouldBe null
             it.device shouldBe null
         }
+        // A lap names its course (§22.6), ahead of the older `track`.
+        summarise(
+            """{"type":"session","v":3,"id":"s","started":"2026-09-26T12:00:00Z","signals":[],"seq":0,"at":0}""",
+            """{"type":"lap","track":"old","course":"box","courseVersion":2,"layout":"box","lap":1,"time":70.0,"seq":1,"at":1}""",
+        ).track shouldBe "box"
         Bounds(0.0, 0.0, 1.0, 1.0).intersects(Bounds(0.5, 0.5, 2.0, 2.0)) shouldBe true
         Bounds(0.0, 0.0, 1.0, 1.0).intersects(Bounds(1.5, 0.0, 2.0, 1.0)) shouldBe false
     }

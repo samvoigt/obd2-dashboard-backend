@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clockNote,
   AdminError, api, confirmed, day, deleteBlocked, errorText, passcodeProblem, sessionConfirmation, sessionStateText, slugProblem,
-  stateText, tokenProblem, twiceProblem, when, type AdminSession,
+  retimingText, stateText, tokenProblem, twiceProblem, when, type AdminSession,
 } from './admin'
 
 describe('the rules, as the server words them', () => {
@@ -114,3 +114,20 @@ describe("the tablet's clock (M11)", () => {
   })
 })
 
+
+describe('a save\'s re-timing (M13.4)', () => {
+  const p = { version: 3, runs: 2, sessions: 5, done: 1, failed: 0, finished: false }
+  it('says how far it has got, and when it is done', () => {
+    expect(retimingText(p)).toBe('Version 3: re-timing 5 sessions, 1 of 2 runs done…')
+    expect(retimingText({ ...p, done: 2, finished: true })).toBe('Version 3: re-timed 5 sessions.')
+    expect(retimingText({ ...p, sessions: 1, runs: 1, done: 1, finished: true })).toBe('Version 3: re-timed 1 session.')
+  })
+  it('says what failed, and when there was nothing to do', () => {
+    expect(retimingText({ ...p, done: 2, failed: 1, finished: true })).toBe(
+      'Version 3: re-timed 5 sessions; 1 of 2 runs failed, and will be re-timed when viewed.',
+    )
+    expect(retimingText({ ...p, runs: 0, sessions: 0, done: 0, finished: true })).toBe(
+      'Version 3: no sessions were driven here, so nothing to re-time.',
+    )
+  })
+})

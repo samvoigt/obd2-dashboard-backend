@@ -146,7 +146,8 @@ public class SessionReader(
                 val time = (record["time"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull
                 if (lap != null && time != null) {
                     laps += LapInfo(
-                        track = record.string("track"),
+                        // The course's id (§22.6), else `track` as older logs have it.
+                        track = record.string("course") ?: record.string("track"),
                         layout = record.string("layout"),
                         lap = lap,
                         time = time,

@@ -47,7 +47,11 @@ data class Missing(val error: String, val message: String, val skipChunk: Boolea
 data class CompleteRequest(val lastIndex: Long, val recordCount: Long, val sha256: String)
 
 /** Contract §6: the archive lane. Mounted inside `authenticate(CAR_AUTH)`. */
-fun Route.archiveRoutes(archive: ArchiveService) {
+fun Route.archiveRoutes(
+    archive: ArchiveService,
+    /** After a completed session is prepared: its re-timing (M13.4). */
+    prepared: suspend (car: String, id: String) -> Unit = { _, _ -> },
+) {
     put("/v1/sessions/{id}") {
         archiveCall(call) { car, id ->
             val body = call.readCapped(MAX_OPEN_BYTES) ?: return@archiveCall call.tooLarge("a session record is at most $MAX_OPEN_BYTES bytes")
@@ -119,6 +123,14 @@ fun Route.archiveRoutes(archive: ArchiveService) {
                             throw e
                         } catch (e: Exception) {
                             log.warn("preparing $id failed; it will be built on first view", e)
+                            return@launch
+                        }
+                        try {
+                            prepared(car, id)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            log.warn("re-timing $id failed; it is re-timed on view", e)
                         }
                     }
                 }
