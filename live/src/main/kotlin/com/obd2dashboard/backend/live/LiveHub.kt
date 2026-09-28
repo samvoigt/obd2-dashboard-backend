@@ -154,7 +154,7 @@ public class InMemoryLiveHub(
 
     override suspend fun publish(car: String, update: LiveUpdate) {
         val c = car(car)
-        c.mutex.withLock { c.publish(update) }
+        c.mutex.withLock { c.publish(if (update is LiveUpdate.Timing) c.live.timing(update.timing) else update) }
     }
 
     /** How many browsers are subscribed to [car]: for tests, which must see a departed browser removed. */

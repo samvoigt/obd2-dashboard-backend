@@ -1,4 +1,5 @@
 import { isState, type State } from './state'
+import { readStanding, type Standing } from './standing'
 
 /**
  * A car's live state on the page, rebuilt from the server's SSE events
@@ -34,6 +35,8 @@ export interface LiveState {
   stopped: Record<string, Rec>
   fault: Rec | null
   history: Point[]
+  /** Where the car stands (M17.5): the server's, kept across sessions as the server keeps it. */
+  standing: Standing | null
 }
 
 /** How much history the page keeps: the server sends five minutes. */
@@ -44,7 +47,7 @@ export const LIVE_WITHIN_MS = 2000
 export function empty(): LiveState {
   return {
     state: 'offline', lastDataAgoMs: null, statusAtLocal: 0, offsetMs: 0,
-    session: null, signals: [], latest: {}, stopped: {}, fault: null, history: [],
+    session: null, signals: [], latest: {}, stopped: {}, fault: null, history: [], standing: null,
   }
 }
 
@@ -115,7 +118,13 @@ export function applySnapshot(e: Json, localNow: number): LiveState {
     stopped,
     fault: (e.fault as Rec | null) ?? null,
     history,
+    standing: readStanding(e.timing),
   }
+}
+
+/** Where the car stands, as the server now says (M17.5). */
+export function applyTiming(state: LiveState, e: Json, localNow: number): LiveState {
+  return { ...state, standing: readStanding(e.timing), offsetMs: offset(e, localNow, state.offsetMs) }
 }
 
 /** A new session starts afresh (the same session again keeps its state, as on the server). */
@@ -123,7 +132,7 @@ export function applySession(state: LiveState, e: Json, localNow: number): LiveS
   const session = (e.session as Rec | null) ?? null
   const same = session && state.session && session.id === state.session.id
   return {
-    ...(same ? state : { ...empty(), state: state.state, lastDataAgoMs: state.lastDataAgoMs, statusAtLocal: state.statusAtLocal }),
+    ...(same ? state : { ...empty(), state: state.state, lastDataAgoMs: state.lastDataAgoMs, statusAtLocal: state.statusAtLocal, standing: state.standing }),
     offsetMs: offset(e, localNow, state.offsetMs),
     session,
     signals: signalsFrom(e.signals),

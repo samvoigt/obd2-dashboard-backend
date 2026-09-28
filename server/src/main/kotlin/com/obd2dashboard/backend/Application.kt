@@ -99,7 +99,8 @@ fun Application.module(
     // The live run (M17.2) tells `timing` (M17.4) what changed; `timing` needs it to work out where a car stands.
     var timingDownlink: TimingDownlink? = null
     val liveTimings = LiveTimings(archive, this, clock) { car -> timingDownlink?.changed(car) }
-    val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this)
+    val timingPage = TimingPage(hub)
+    val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this, standing = timingPage::standing)
     timingDownlink = timing
     val crewAuth = CrewAuth(crewKey, clock)
     val loginLimiter = LoginLimiter(clock)

@@ -346,6 +346,48 @@ before an event; a sector's best); looked at in Chrome with a replay
 streaming: a driver set from the car page, reaching the tablet's frame and the
 panel within seconds.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The browser's stream** is the hub's (`subscribe`: a snapshot, then
+>   updates), encoded per event (`BrowserRoutes.encode`); `publish` is how
+>   anything not from the tablet reaches it (crew messages). So the standing
+>   goes as a new update, **held by `CarLive`** for later browsers' snapshots,
+>   and kept across sessions (it's replaced when it changes; clearing it on a
+>   new session would leave a page blank when nothing changed).
+> - **Moments on the server's clock** (the tablet's plus `clockOffset`), not
+>   ages: the page already turns server moments into its own (`offsetMs`), and
+>   a snapshot taken later stays right.
+> - **The page** (`CarPage`): `lapsFrom` already has each lap's record, whose
+>   `sectors` `LapRow` carries; `LapsPanel` draws them. The crew's state
+>   (`crew`) and the live session's id (`liveId`) are there for the picker,
+>   which `PUT`s the crew's existing route.
+> - **`timing` is already a name** on the page (the signals' timings), so the
+>   page's is `standing`.
+
+> **✅ Done, 2026-09-28.** `LiveUpdate.Timing`, held by `CarLive` and put in
+> the snapshot; the `timing` SSE event; `TimingPage` (the page's view,
+> published when it changes). On the page: `lib/standing.ts`
+> (`readStanding`, `secondsSince`, `duration`, `sectorBests`),
+> `applyTiming`, `StandingPanel` (driver and stint, race lap and time since
+> the stop or "In the pits", best and theoretical), `LapsPanel` with each
+> lap's sectors and each sector's best marked, `DriverPicker` for the crew.
+> - **Tests:** Kotlin 2 (`TimingPageTest`: the view's shape; published on a
+>   change, held for a later browser, the SSE event); Vitest 4 (reading the
+>   standing, counting on, sector bests by the pit rule; the live state
+>   keeping it). The browser route tests' stream leaves `timing` out, since
+>   it arrives when it's worked out.
+> - **Mutations: 14, all killed**, one after a race with no lap was tested.
+> - **Looked at in Chrome** (the dev server, streams at 1x and 10x): the panel
+>   showing race lap 2 and "In the pits" at the end of the generated race's
+>   first session (its stint counted from the pit entry, as stints split at a
+>   stop); on an NHMS drive with sectors, each lap's three sectors, lap 3's
+>   marked best, the best and theoretical 1:34.143, counting stint.
+> - **Not clicked in Chrome:** the crew's driver picker. Another extension's
+>   page blocked the tab after the passcode field was filled. Its request was
+>   made instead as the crew from outside, while a `--timing` replay streamed:
+>   `driver ALE` and the best credited to ALE in the tablet's next frame,
+>   within 3 s.
+
+
 ### M17.6 — The event page, live
 
 Results with the live run: its laps counted, marked live; the race's

@@ -73,7 +73,8 @@ class BrowserRoutesTest {
     private data class Event(val name: String, val data: JsonObject)
 
     /** An open SSE stream: every raw line kept, and events as they complete. */
-    private inner class Stream(path: String = "/api/cars/yaris/live") {
+    /** A browser's stream; `timing` (M17.5, `TimingPageTest`'s) left out unless asked for, as it comes when worked out. */
+    private inner class Stream(path: String = "/api/cars/yaris/live", private val skip: Set<String> = setOf("timing")) {
         private val raw = StringBuilder()
         private val events = LinkedBlockingQueue<Event>()
         private val response = http.send(HttpRequest.newBuilder(URI.create(base + path)).build(), HttpResponse.BodyHandlers.ofLines())
@@ -90,7 +91,7 @@ class BrowserRoutesTest {
                             line.startsWith("event:") -> name = line.removePrefix("event:").trim()
                             line.startsWith("data:") -> data.append(line.removePrefix("data:").trim())
                             line.isEmpty() && data.isNotEmpty() -> {
-                                events += Event(name, Json.parseToJsonElement(data.toString()).jsonObject)
+                                if (name !in skip) events += Event(name, Json.parseToJsonElement(data.toString()).jsonObject)
                                 name = ""
                                 data.clear()
                             }

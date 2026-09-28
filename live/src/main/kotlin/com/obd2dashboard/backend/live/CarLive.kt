@@ -21,6 +21,9 @@ public sealed interface LiveUpdate {
 
     /** A crew message changed state (M5). **Crew browsers only**: the public stream drops it. */
     public data class MessageChanged(val message: Message) : LiveUpdate
+
+    /** Where the car stands (M17.5), as the page shows it; null when there's nothing to say. Held for snapshots. */
+    public data class Timing(val timing: JsonObject?) : LiveUpdate
 }
 
 /** Everything a browser needs to draw a car from nothing. */
@@ -32,6 +35,8 @@ public data class LiveSnapshot(
     val stopped: List<JsonObject>,
     val fault: JsonObject?,
     val history: List<Stamped>,
+    /** Where the car stands (M17.5), as last published (kept across sessions: it's replaced when it changes); null before. */
+    val timing: JsonObject? = null,
 )
 
 /**
@@ -58,6 +63,7 @@ public class CarLive(
     private var lastDataAt: Instant? = null
     private val offsets = ArrayDeque<Long>()
     private var clockOffset: Duration? = null
+    private var timing: JsonObject? = null
 
     public fun status(): CarStatus = CarStatus(connected, inSession, lastDataAt, sessionId.takeIf { inSession }, clockOffset)
 
@@ -122,7 +128,14 @@ public class CarLive(
             stopped = stopped.values.toList(),
             fault = fault,
             history = history.toList(),
+            timing = timing,
         )
+    }
+
+    /** Holds where the car stands (M17.5), for browsers that come later. */
+    public fun timing(json: JsonObject?): LiveUpdate.Timing {
+        timing = json
+        return LiveUpdate.Timing(json)
     }
 
     private fun absorb(record: JsonObject) {

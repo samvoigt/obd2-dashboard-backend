@@ -35,6 +35,7 @@ class LiveHubTest {
                 is LiveUpdate.Records -> "records(${u.records.size})"
                 is LiveUpdate.Status -> "status(${u.status.freshness(clock.now).wire})"
                 is LiveUpdate.MessageChanged -> "message(${u.message.state.wire})"
+                is LiveUpdate.Timing -> "timing"
             }
         }
     }

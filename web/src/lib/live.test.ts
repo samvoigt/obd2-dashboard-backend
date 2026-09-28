@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  applyRecords, applySession, applySnapshot, applyStatus, defaultChart, format, freshness, label,
+  applyRecords, applySession, applySnapshot, applyStatus, applyTiming, defaultChart, format, freshness, label,
   LIVE_WITHIN_MS, numericSignals, series, WINDOW_MS, type LiveState,
 } from './live'
 
@@ -69,6 +69,18 @@ describe('applying events', () => {
     expect(s.history).toHaveLength(0)
     expect(s.latest).toEqual({})
     expect(s.state).toBe('live') // the car's status is not the session's
+  })
+
+  it('where the car stands: from the snapshot, replaced by each timing event, kept through a new session (M17.5)', () => {
+    let s = snap({ timing: { race: { lap: 3 } } })
+    expect(s.standing).toEqual({ race: { lap: 3, leftPits: undefined } })
+    s = applyTiming(s, { serverNow: 20_000, timing: { race: { lap: 4, leftPits: 15_000 } } }, 21_000)
+    expect(s.standing?.race).toEqual({ lap: 4, leftPits: 15_000 })
+    expect(s.offsetMs).toBe(1_000)
+    s = applySession(s, { serverNow: 20_000, session: { id: 'other' }, signals: [] }, 21_000)
+    expect(s.standing?.race?.lap).toBe(4)
+    expect(applyTiming(s, { serverNow: 20_000, timing: null }, 21_000).standing).toBeNull()
+    expect(snap().standing).toBeNull()
   })
 })
 

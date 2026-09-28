@@ -2,11 +2,14 @@
   import { lapSummary } from '../lib/dashboard'
   import type { LapRow } from '../lib/sessionPage'
   import { lapTime } from '../lib/sessions'
+  import { sectorBests } from '../lib/standing'
 
-  let { rows }: { rows: LapRow[] } = $props()
+  // The laps as the tablet sends them, with their sectors (M17.5); each sector's best marked, the event's if known.
+  let { rows, bestSectors }: { rows: LapRow[]; bestSectors?: (number | null)[] } = $props()
 
   const s = $derived(lapSummary(rows))
   const recent = $derived([...rows].sort((a, b) => b.lap - a.lap).slice(0, 8))
+  const bests = $derived(sectorBests(rows, bestSectors))
 </script>
 
 <section class="laps">
@@ -21,7 +24,9 @@
   <table>
     <tbody>
       {#each recent as lap (lap.lap)}
-        <tr class:best={lap.best}><td>{lap.lap}</td><td class="t">{lapTime(lap.time)}</td><td class="muted">{lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}</td></tr>
+        <tr class:best={lap.best}><td>{lap.lap}</td><td class="t">{lapTime(lap.time)}</td>
+          {#each bests as b, i (i)}<td class="s" class:sbest={b !== null && lap.sectors?.[i] === b}>{lap.sectors?.[i]?.toFixed(3) ?? ''}</td>{/each}
+          <td class="muted">{lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}</td></tr>
       {/each}
     </tbody>
   </table>
@@ -38,4 +43,6 @@
   td { padding: 4px 6px; border-top: 1px solid var(--line); }
   .t { font-variant-numeric: tabular-nums; font-weight: 600; }
   tr.best .t { color: var(--in-range); }
+  .s { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
+  .s.sbest { color: var(--in-range); font-weight: 600; }
 </style>

@@ -5,6 +5,8 @@
   import Gauge from './widgets/Gauge.svelte'
   import GMeter from './widgets/GMeter.svelte'
   import LapsPanel from './widgets/LapsPanel.svelte'
+  import StandingPanel from './widgets/StandingPanel.svelte'
+  import DriverPicker from './widgets/DriverPicker.svelte'
   import Readout from './widgets/Readout.svelte'
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
@@ -18,7 +20,7 @@
   import MessagePanel from './MessagePanel.svelte'
   import { applyList, applyOne, type CrewMessage } from './lib/messages'
   import {
-    applyRecords, applySession, applySnapshot, applyStatus, defaultChart, empty, format, freshness,
+    applyRecords, applySession, applySnapshot, applyStatus, applyTiming, defaultChart, empty, format, freshness,
     label, numericSignals, series, unitOf, type LiveState,
   } from './lib/live'
   import { stateLabel } from './lib/state'
@@ -153,6 +155,7 @@
       on('session', applySession)
       on('records', applyRecords)
       on('status', applyStatus)
+      on('timing', applyTiming)
       s.addEventListener('messages', (ev) => {
         messages = applyList((JSON.parse((ev as MessageEvent).data) as { messages: CrewMessage[] }).messages)
       })
@@ -221,7 +224,9 @@
       <GMeter {trail} peaks={peak} stale={trail.length === 0} />
       <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />
     </section>
-    {#if laps.length > 0}<LapsPanel rows={laps} />{/if}
+    {#if live.standing}<StandingPanel standing={live.standing} {serverNow} />{/if}
+    {#if crew && liveId}<DriverPicker {slug} session={liveId} current={live.standing?.driver?.code} />{/if}
+    {#if laps.length > 0}<LapsPanel rows={laps} bestSectors={live.standing?.bestSectors} />{/if}
     <section class="dash statuses">
       {#each SLOTS.statuses as c (c[0])}{@const n = slotOf(c)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
       <Faults {codes} />

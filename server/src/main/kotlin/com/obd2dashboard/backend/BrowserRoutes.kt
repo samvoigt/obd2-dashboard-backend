@@ -115,6 +115,10 @@ internal fun encode(event: BrowserEvent, clock: Clock, crew: Boolean = false): P
                 put("records", JsonArray(u.records))
             }
             is LiveUpdate.Status -> "status" to statusJson(u.status, now.toEpochMilli(), clock)
+            is LiveUpdate.Timing -> "timing" to buildJsonObject {
+                put("serverNow", now.toEpochMilli())
+                put("timing", u.timing ?: JsonPrimitive(null as String?))
+            }
             is LiveUpdate.MessageChanged -> if (!crew) null else "message" to buildJsonObject {
                 put("serverNow", now.toEpochMilli())
                 put("message", Json.encodeToJsonElement(MessageView.of(u.message)))
@@ -131,6 +135,7 @@ private fun snapshotJson(s: LiveSnapshot, nowMs: Long, clock: Clock) = buildJson
     put("latest", JsonArray(s.latest))
     put("stopped", JsonArray(s.stopped))
     put("fault", s.fault ?: JsonPrimitive(null as String?))
+    put("timing", s.timing ?: JsonPrimitive(null as String?))
     put(
         "history",
         buildJsonArray {
