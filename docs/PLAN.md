@@ -27,7 +27,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M10** | The G-meter and map shown before their data | ✅ (`plans/COMPLETED.md`) |
 | **M11** | What the first drive found: the charging gauge, tablet and test-data sessions, icons, the tablet's clock | ✅ (`plans/COMPLETED.md`) |
 | **M12** | Courses drawn on the website, and sent down to the tablet, which times on them | ✅ (`plans/COMPLETED.md`) |
-| **M13** | Re-timing the tablet's own fixes when a line moves | **planned**: [`plans/M13-RETIMING.md`](plans/M13-RETIMING.md) |
+| **M13** | Re-timing the tablet's own fixes when a line moves | ✅ (`plans/COMPLETED.md`) |
 | **M14** | Drivers, and events with practice and a race | outline |
 | **M15** | The race: sessions stitched into one, stints by driver | outline |
 | **M16** | Results worth reading: lap chart, theoretical best, comparisons | outline |

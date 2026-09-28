@@ -6,10 +6,13 @@ shows the car's data live.
 
 ## Status
 
-M12 done: courses are drawn on the website (layouts, start/finish, sectors,
-pit lines, every save a version, public at https://badnewsbears.live/courses)
-and sent down to the tablet, which times laps on them; the session page shows
-each lap's sectors. Race logging goes on from here (drivers, events, the race;
+M13 done: the server re-times the tablet's own GPS fixes, by the tablet's
+own rule, wherever its laps aren't current (a line moved, or a drive with no
+laps), and checks the tablet's laps to 2 ms; a session's page shows the laps
+as they stand, marked. M12: courses are drawn on the website (layouts,
+start/finish, sectors, pit lines, every save a version, public at
+https://badnewsbears.live/courses) and sent down to the tablet, which times
+laps on them. Race logging goes on from here (drivers, events, the race;
 `docs/plans/RACE-LOGGING.md`). A car's page is a live dashboard, the same for every car: gauges,
 GPS speed, a G-meter, a map following the car, laps, status lights and
 trouble codes, in metric or US units, in the Bad News Bears look. Every

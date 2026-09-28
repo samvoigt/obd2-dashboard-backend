@@ -61,5 +61,8 @@ None of these is in the contract's body, and each has to be true of the server:
   website, closed layouts, NHMS's `pit_line` from the tablet's coordinates
   (§22.5); the tablet's `lap` records with `course`, `courseVersion`, layout
   `id`, `sectors`, `startAt`, `endAt` (§22.6) stored whole and shown.
-- **To come:** re-timing on `fixAt` (§22.1, §22.3, §22.8; M13), `timing`
-  (§22.7; M17).
+- **Built here (M13):** re-timing on `fixAt`, else `at` (§22.1, §22.3), by
+  the tablet's rule (§22.5, §22.6), per run of the app (§22.8): the tablet's
+  laps on the current version stand, each checked to 2 ms and flagged, never
+  replaced; re-timed laps where it has none (decision 33).
+- **To come:** `timing` (§22.7; M17).

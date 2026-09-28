@@ -468,3 +468,56 @@ confirmed here.
 downloaded course, when the app's half (its M44) lands.
 **Left for later:** re-timing (M13); drivers and events (M14 on);
 `import-course` telling connected tablets (they hear at their next `hello`).
+
+## M13 — Re-timing  ✅ 2026-09-27
+
+The second milestone of race logging. Decision 33 (decision 31 made exact);
+contract §22.1, §22.3, §22.5, §22.6, §22.8.
+
+- **`:timing`** (pure): `LapRule`, the tablet's `LapTimer` ported line by
+  line (moves, forward crossings interpolated, arming at 150 m or a quarter
+  of the layout, only the next sector, the pit line and its fallback);
+  `SessionTrace` (a log's fixes on `fixAt`, else `at`, a backward one left
+  out, its `lap` records, `wall − at`); `runs()` (§22.8);
+  `Retiming.retime` (what stands, the 2 ms check) and `Retimer` (stored per
+  run and course version, read back while current); `courseBounds`,
+  `touches`, `runsAt`, `runOf`; `removeTimings`. Test fixtures: a box course
+  and logs of a car round it, shared with the server's tests.
+- **The summary, version 3:** the device, the first and last `at`, the fixes'
+  bounds; a lap's `course` ahead of its `track`.
+- **The server:** `RetimingJobs` (after a session is prepared; every run a
+  course touches when it's saved, one at a time; on view; a removed course's
+  re-timings deleted); `GET /api/admin/courses/{id}/retiming`;
+  `GET /api/sessions/{id}/laps`.
+- **The site:** the course editor follows a save's re-timing ("Version 2:
+  re-timed 1 session."); a session's lap table shows the laps as they stand,
+  "Re-timed on version N", and a flag's "Re-timing found 1:10.000".
+- **`admin.sh remove-course`**: refuses a course a tablet timed laps at, asks
+  for the id again, and deletes its re-timings.
+- **Tests:** Kotlin 43 new (`:timing` 33, `:server` 9, `:archive` and
+  `:tools` 1 each, `:archive-gcp`'s mapping extended); Vitest 123 (4 new).
+  **Mutations: 70, 69 killed, 1 shown equivalent**; tests were added or
+  tightened after ten survivors, each a gap in the test and none a fault in
+  the code (a sector line cutting the track twice, the pit gate's width, a
+  device-less run, a layout named by its name, another course's laps, the
+  pit lane in a course's bounds, noisy positions for the rounding, a tablet
+  number that differs from the run's, the course the laps name, the removal's
+  route).
+- **Found while building:** a tablet lap a millisecond early knocked out the
+  re-timed lap before it (now: more than half shared); the summary read a
+  lap's `track`, not its `course`; a disagreement logged on every page view;
+  the best-sector highlight broken by re-timing's 7th decimal.
+- **Proven:** on the dev server (a drive with no laps re-timed; the tablet's
+  laps with one flagged; all re-timed after the line moved 100 m, S1 2.5 s
+  shorter and the last sector 2.5 s longer). **Deployed as `00022` and
+  `00023`**, the second with a stream across the cutover (`1012`, reconnected
+  at once). **The first real drive, re-timed:** a test course from its own
+  loop, and the drive shows a lap it never had, **434.997 s on version 1 and
+  417.025 s on version 2** (the line 100 m on), the GPS series saying 434.998
+  and 417.026; the course and its re-timings then removed.
+
+**Left for later:** re-timing while a session is driven (the tablet's laps
+are the live ones); a course save's re-timing surviving a restart (the
+progress is in memory; a missing re-timing is built on view); `import-course`
+and `remove-course` starting the server's job (they write Firestore
+directly, so re-timing happens on view).

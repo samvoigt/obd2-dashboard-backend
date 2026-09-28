@@ -283,3 +283,31 @@ whole drive, the admin page's Download.
 - **Firestore holds no arrays inside arrays**, so GeoJSON is stored as text.
 - **Deployed with a drive streaming** (`00021`): the replay reconnected on the
   `1012` and took `courses` from the new revision straight away.
+
+## 2026-09-27 — M13, re-timing
+
+- **The first real drive, re-timed** (read from its public series in a
+  private scratch folder, deleted after). It's one 3.3 km loop, parked at
+  both ends, and passes nowhere twice the same way (out south by one street,
+  home south by another), so **no single line gives it a lap**. The pit line
+  also ends a lap, so the test course had a start/finish on the street out
+  and a pit line on the street home: one in-lap, **434.997 s** re-timed on
+  version 1, **417.025 s** on version 2 (the line 100 m on), against 434.998
+  and 417.026 from the series' own positions. The start moved by exactly the
+  expected millisecond.
+- **The tablet's sessions and the car's that afternoon are one run of the
+  app** (one device, `at` rising): the re-timing was stored beside a desk
+  session from before the drive, as §22.8 says it should be.
+- **A stream across a deploy needs the Mac awake.** Two Ping timeouts (1006)
+  in a live replay were the Mac's idle sleep (20:43:52 and 20:52:26 local, the
+  server's timeout 35 s after each), not the server; in a dark wake between,
+  the cutover went as designed (`1012`, reconnected at once). Run long streams
+  under `caffeinate -i`. A replay that must cross a deploy needs to last longer
+  than the Cloud Build (about 6 minutes): the first, 5 minutes, ended before
+  the cutover.
+- **Floats and equality:** re-timing's sectors differ from each other in the
+  7th decimal (a receiver's centimetres), which broke the page's
+  best-of-each-sector highlight; laps are shown to the millisecond, as the
+  tablet's records are.
+- **Flaky:** `:replay`'s coalescing test failed once in a loaded full run and
+  passed three times alone.

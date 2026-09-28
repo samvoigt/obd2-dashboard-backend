@@ -43,8 +43,9 @@ It reads only a record's envelope (`type`, `seq`, `at`, `wall`), per decision 14
 
 JDK 17 (Homebrew, `java` on PATH). Gradle wrapper, versions pinned in
 `gradle/libs.versions.toml`. Kotlin and kotlinx versions track the app's.
-Modules: `:registry`, `:archive`, `:live`, `:admin` and `:courses` (pure, where
-the rules and most tests live), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
+Modules: `:registry`, `:archive`, `:live`, `:admin`, `:courses` and `:timing`
+(pure, where the rules and most tests live; `:timing` is the tablet's lap rule
+and re-timing, decision 33), `:registry-firestore` and `:archive-gcp` (Google), `:server`,
 `:tools`, `:replay`. The website is `web/` (Svelte, Vite, TypeScript 5.9, uPlot, Leaflet;
 Node 24 from Homebrew `node@24`), built by Gradle into the server jar.
 Colours are roles in `web/src/app.css` only (decision 29; a test enforces
@@ -74,6 +75,7 @@ scripts/archive-smoke.sh        # throwaway session through the real bucket
 scripts/message-smoke.sh        # throwaway messages through the real Firestore
 scripts/course-smoke.sh         # a throwaway course through the real Firestore
 scripts/admin.sh import-course courses/seed/nhms.geojson   # a course from a file, as its next version
+scripts/admin.sh remove-course <id>   # a course and its re-timings (refused if a tablet timed laps there)
 python3 courses/seed/make_nhms.py   # remake NHMS's seed from the app's file (only read)
 ```
 
@@ -89,7 +91,8 @@ every tablet until an app update. People use **https://badnewsbears.live**
 (and `www.`), a Cloud Run domain mapping (decision 23): DNS at Namecheap, the
 certificate Google's. A crew login is per host, so apex and `www` log in apart. Deploy settings (one instance, timeout 3600,
 concurrency 1000) are decision 20; **test deploys with a live connection
-open** (JOURNAL: M4).
+open** (JOURNAL: M4), a stream longer than the build, under `caffeinate -i`
+(JOURNAL: M13).
 All three are set in `scripts/env.sh`. Always go through the scripts, or pass
 `--project` explicitly: the local `gcloud` default is `microtron-scoreboard`,
 which is unrelated. **A deploy keeps any setting it does not mention**, so

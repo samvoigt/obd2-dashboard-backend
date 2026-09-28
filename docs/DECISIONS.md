@@ -819,3 +819,40 @@ courses, drivers, events and results live.
 
 **Why.** One source for every line, so the tablet and the results agree; a
 line moved at the track reaches every tablet and re-times the past, visibly.
+
+## 33. Re-timing: per run of the app, what stands, and a 2 ms check
+
+**Decision.** (M13; decision 31's "the server re-times", made exact.)
+- **The server re-times with the tablet's own rule**, ported line by line
+  (`:timing`'s `LapRule`: each move between fixes, a line counted only
+  forwards and interpolated along the move, the arming, only the next
+  sector, the pit line ending an in-lap), on the tablet's own fixes at
+  `fixAt`, else `at`.
+- **Per run of the app, not per session** (§22.8): one car's sessions from
+  one `device`, back to back, `at` rising, none more than 12 h apart. A lap
+  across an OBD drop is one lap, belonging to the session it ended in, and is
+  numbered through the run, as the tablet numbers it.
+- **What stands**, lap by lap: every tablet lap on the course's current
+  version (and layout), as sent; and every re-timed lap that doesn't share
+  more than half its time with one of those. A tablet lap on the current
+  version **agrees** if a re-timed lap starts and ends within **2 ms** of it
+  (the tablet times on nanoseconds, the log keeps milliseconds); otherwise
+  it's **flagged**, on the session page and once in the service's log, and
+  still stands.
+- **Which course:** the one a session's laps name, else the first its fixes
+  touch (its fixes' bounds against the course's lines, with 50 m round).
+- **When:** after a session is prepared, and for every run a course touches
+  when it's saved, in the background, one run at a time; on view if missing.
+  A removed course takes its re-timings with it.
+- **Stored** beside the run's first session,
+  `timing-v{rule}-{course}-{version}.json.gz`, naming the run's sessions and
+  each one's `wall − at`; rebuilt when the rule, the course's version or the
+  run changes; only the newest of a course kept.
+- **Shown to the millisecond**, as a `lap` record has it: re-timing's doubles
+  differ in the 7th place, and equal sectors must be equal.
+
+**Why.** The same fixes by the same rule give the same laps, so agreement
+is a check on both sides, and a line moved at the track re-times the past
+without anyone re-driving it. Per run, because the tablet's timing carries
+across its sessions; to the millisecond, because that's what the tablet's
+records carry.
