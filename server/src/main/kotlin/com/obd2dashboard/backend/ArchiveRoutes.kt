@@ -134,6 +134,8 @@ fun Route.archiveRoutes(
                         }
                     }
                 }
+                // Sent again (the tablet never saw the first answer, §23): the same answer, and nothing done again.
+                ArchiveService.Complete.AlreadyDone -> call.respond(HttpStatusCode.OK, Completed())
                 is ArchiveService.Complete.Gap -> call.missing(result.missingFrom)
                 ArchiveService.Complete.NotOpen -> call.notOpen(id)
                 ArchiveService.Complete.WrongCar -> call.wrongCar(id)

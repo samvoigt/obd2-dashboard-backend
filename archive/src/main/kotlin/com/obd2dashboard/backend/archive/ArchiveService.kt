@@ -3,6 +3,11 @@ package com.obd2dashboard.backend.archive
 import java.io.InputStream
 import java.security.MessageDigest
 import java.time.Clock
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
@@ -109,8 +114,18 @@ public class ArchiveService(
         }
     }
 
+    /**
+     * One `complete` per session at a time (the instance is one, decision 20):
+     * a second, sent while the first assembles, would read segments the first
+     * then deletes. It waits, and finds the session complete (contract §23).
+     */
+    private val completing = Array(COMPLETE_LOCKS) { Mutex() }
+
     /** `POST /v1/sessions/{id}/complete` (§6.3). */
-    public suspend fun complete(car: String, id: String, lastIndex: Long, recordCount: Long, sha256: String): Complete {
+    public suspend fun complete(car: String, id: String, lastIndex: Long, recordCount: Long, sha256: String): Complete =
+        completing[Math.floorMod(id.hashCode(), COMPLETE_LOCKS)].withLock { completeNow(car, id, lastIndex, recordCount, sha256) }
+
+    private suspend fun completeNow(car: String, id: String, lastIndex: Long, recordCount: Long, sha256: String): Complete {
         val record = index.get(id) ?: return Complete.NotOpen
         if (record.car != car) return Complete.WrongCar
         if (record.ackedThrough < 0) return Complete.NotOpen
@@ -119,7 +134,7 @@ public class ArchiveService(
         }
         if (record.complete) {
             return if (record.ackedThrough == lastIndex && record.sha256.equals(sha256, ignoreCase = true)) {
-                Complete.Done
+                Complete.AlreadyDone
             } else {
                 Complete.BadRecord("the session is already complete, with a different end or hash")
             }
@@ -158,17 +173,32 @@ public class ArchiveService(
      */
     private suspend fun assemble(record: SessionRecord, final: String, hash: LineHash) {
         val id = record.id
+        val segments = record.segments
         store.write(final) { out ->
             var next = 0L
-            for (segment in record.segments) {
-                check(segment.first == next) { "session $id: segments are not contiguous at $next" }
-                val bytes = store.read(segment.key)
-                check(countLines(bytes) == segment.last - segment.first + 1) {
-                    "session $id: segment ${segment.key} does not hold the lines it claims"
+            coroutineScope {
+                // Read ahead, in order: a long drive is a hundred segments or more, and one at a time
+                // took longer than the tablet waits for an answer (contract §23; JOURNAL: M17).
+                val ahead = ArrayDeque<Deferred<ByteArray>>()
+                var queued = 0
+                fun fill() {
+                    while (queued < segments.size && ahead.size < READ_AHEAD) {
+                        val key = segments[queued++].key
+                        ahead.addLast(async { store.read(key) })
+                    }
                 }
-                hash.addLines(bytes)
-                out.write(bytes)
-                next = segment.last + 1
+                fill()
+                for (segment in segments) {
+                    check(segment.first == next) { "session $id: segments are not contiguous at $next" }
+                    val bytes = ahead.removeFirst().await()
+                    fill()
+                    check(countLines(bytes) == segment.last - segment.first + 1) {
+                        "session $id: segment ${segment.key} does not hold the lines it claims"
+                    }
+                    hash.addLines(bytes)
+                    out.write(bytes)
+                    next = segment.last + 1
+                }
             }
             check(next == record.ackedThrough + 1) { "session $id: segments end at ${next - 1}, not ${record.ackedThrough}" }
         }
@@ -297,6 +327,9 @@ public class ArchiveService(
 
     public sealed interface Complete {
         public data object Done : Complete
+
+        /** Complete already, with the same end and hash: answered as [Done], and nothing done again (§23). */
+        public data object AlreadyDone : Complete
         public data class Gap(val missingFrom: Long) : Complete
         public data object NotOpen : Complete
         public data object WrongCar : Complete
@@ -306,6 +339,11 @@ public class ArchiveService(
     public companion object {
         /** A third mismatch would not change anything: the two sides disagree about the bytes. */
         public const val MAX_HASH_RESETS: Int = 2
+
+        /** Segments read ahead while a session is assembled: at most this many in memory. */
+        public const val READ_AHEAD: Int = 8
+
+        private const val COMPLETE_LOCKS: Int = 64
 
         public fun sessionPrefix(id: String): String = "sessions/$id/"
         public fun segmentsPrefix(id: String): String = "sessions/$id/segments/"

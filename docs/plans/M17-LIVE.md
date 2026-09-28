@@ -121,6 +121,39 @@ changed, the session not prepared twice); the first `complete`'s time is
 found in Cloud Run's logs; the answer is written for the tablet side, in chat
 (never in the contract), and noted in `PROTOCOL.md`.
 
+> **Validated against the code and the logs, 2026-09-28, before building.**
+> - **A second `complete`** with the same end and hash answers `Done`, so
+>   `200 {"complete": true}` (§6.3's whole answer), and changes no record. But
+>   the route then **prepares and re-times the session again**, in the
+>   background: harmless, and not "nothing".
+> - **The session** is `69c4ace7-…` (heard from 17:22:27Z, 58,381 lines, about
+>   135 chunks). Cloud Run's log: **two `complete`s at 17:48:30.66 and
+>   17:48:31.24, both `200`, after 16.7 s and 17.3 s**, then a third at
+>   18:07:45, `200` in 99 ms. `0a8dc089-…` (the morning's, 52,138 lines) took
+>   **30.0 s**, then 81 ms. Short sessions take about 0.5 s.
+> - **The tablet's archive client is OkHttp's default** (`OkHttpArchiveApi`,
+>   `OkHttpClient()`): a **10 s read timeout**. So the first `complete`
+>   succeeded here and **the tablet gave up waiting for the answer** before it
+>   came. That, not a failed mark, is why it wasn't marked sent.
+> - **Why 17–30 s:** completing reads every segment from the bucket **one
+>   after another** (`assemble`), about 100 ms each.
+> - **Two `complete`s at once** both assemble; the first then deletes the
+>   segments, which the second may still be reading (a 500). They were lucky.
+> - So, beyond the answer: **segments read ahead** (8 at a time, in order),
+>   **one `complete` per session at a time** (the second waits, and finds it
+>   done), and **a repeat does nothing again** (`AlreadyDone`, answered as
+>   `Done`).
+
+> **✅ Done, 2026-09-28.** `ArchiveService.complete`: a lock per session
+> (striped, 64), `assemble` reading 8 segments ahead, `Complete.AlreadyDone`
+> answered `200 {"complete": true}` with nothing prepared again.
+> - **Tests:** 1 new (two at once: one assembles, the other waits and finds it
+>   done, one write), 3 extended (a repeat changes no record and writes
+>   nothing; the route's repeat answers the same body).
+> - **Mutations: 5, all killed.**
+> - **The answer for the tablet side** is in chat; the timing after the deploy
+>   is measured in M17.7.
+
 ### M17.2 — The live run, held on the server
 
 `:timing`, pure: a `LiveRun` fed the current session's `lap` records (whole,

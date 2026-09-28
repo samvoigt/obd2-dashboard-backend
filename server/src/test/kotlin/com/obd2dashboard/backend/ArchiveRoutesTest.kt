@@ -225,7 +225,8 @@ class ArchiveRoutesTest {
         client.chunk(21, lines.size - 21).acked() shouldBe lines.size - 1L
         client.complete().let { it.status shouldBe HttpStatusCode.OK; it.bodyAsText() shouldBe """{"complete":true}""" }
         store.objects.getValue(ArchiveService.sessionKey(id)).contentEquals(session) shouldBe true
-        client.complete().status shouldBe HttpStatusCode.OK
+        // Sent again, when the tablet never saw the answer (§23): the same answer.
+        client.complete().let { it.status shouldBe HttpStatusCode.OK; it.bodyAsText() shouldBe """{"complete":true}""" }
     }
 
     @Test

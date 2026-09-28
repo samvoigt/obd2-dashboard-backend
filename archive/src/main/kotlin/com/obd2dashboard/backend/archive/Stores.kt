@@ -200,7 +200,17 @@ public class InMemorySegmentStore : SegmentStore {
         afterPut?.let { hook -> afterPut = null; hook() }
     }
 
-    override suspend fun read(key: String): ByteArray = objects[key]?.copyOf() ?: error("no object $key")
+    /** Runs before every [read]: a test's way to let a rival run while segments are read. */
+    public var beforeRead: (suspend () -> Unit)? = null
+
+    /** How many objects [write] has stored. */
+    public var writes: Int = 0
+        private set
+
+    override suspend fun read(key: String): ByteArray {
+        beforeRead?.invoke()
+        return objects[key]?.copyOf() ?: error("no object $key")
+    }
 
     override suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T =
         body(ByteArrayInputStream(objects[key] ?: error("no object $key")))
@@ -216,6 +226,7 @@ public class InMemorySegmentStore : SegmentStore {
         val out = ByteArrayOutputStream()
         body(out) // throws before anything is stored, as the interface requires
         objects[key] = out.toByteArray()
+        writes++
     }
 
     override suspend fun deletePrefix(prefix: String): Int {

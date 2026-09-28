@@ -9,7 +9,10 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.time.Instant
 import kotlin.random.Random
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.Test
 
 class ArchiveServiceTest {
@@ -242,7 +245,7 @@ class ArchiveServiceTest {
         openFixture()
         append(1, lines.size - 1)
         completeFixture() shouldBe ArchiveService.Complete.Done
-        completeFixture() shouldBe ArchiveService.Complete.Done
+        completeFixture() shouldBe ArchiveService.Complete.AlreadyDone
         completeFixture(sha = "0".repeat(64)).shouldBeInstanceOf<ArchiveService.Complete.BadRecord>()
 
         append(1, 5) shouldBe ArchiveService.Append.Acked(lastIndex) // a late resend: already stored
@@ -350,7 +353,7 @@ class ArchiveServiceTest {
         append(1, lines.size - 1)
         completeFixture()
         val summary = archive.summary(id)!!
-        completeFixture() shouldBe ArchiveService.Complete.Done // idempotent, and it must not drop the summary
+        completeFixture() shouldBe ArchiveService.Complete.AlreadyDone // idempotent, and it must not drop the summary
         index.get(id)!!.summary shouldBe summary
     }
 
@@ -411,5 +414,33 @@ class ArchiveServiceTest {
         archive.delete(id)
         seriesKeys() shouldBe emptyList()
     }
-}
 
+    @Test
+    fun `a complete sent again answers the same, and does nothing again`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture() shouldBe ArchiveService.Complete.Done
+        val record = index.get(id)
+        val writes = store.writes
+        completeFixture() shouldBe ArchiveService.Complete.AlreadyDone
+        store.writes shouldBe writes
+        index.get(id) shouldBe record
+        storedSession().contentEquals(Fixtures.session) shouldBe true
+    }
+
+    @Test
+    fun `two completes at once, one assembles and the other waits and finds it done`() = runTest {
+        openFixture()
+        var next = 1
+        while (next <= lastIndex) {
+            val n = minOf(3, lines.size - next)
+            append(next, n)
+            next += n
+        }
+        store.beforeRead = { yield() } // the rival runs between every segment read
+        val both = listOf(async { completeFixture() }, async { completeFixture() }).awaitAll()
+        both.toSet() shouldBe setOf(ArchiveService.Complete.Done, ArchiveService.Complete.AlreadyDone)
+        store.writes shouldBe 1
+        storedSession().contentEquals(Fixtures.session) shouldBe true
+    }
+}
