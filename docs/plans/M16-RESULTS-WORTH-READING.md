@@ -178,6 +178,27 @@ marked.
 **Done when:** tests for the chart's data (the cap, the marks, the shading);
 looked at in Chrome on the generated race (M15's).
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **`Chart.svelte` is a clock-time chart** (its x scale is uPlot's time
+>   scale; its axes and legend print times of day), so the lap chart is its
+>   own small uPlot chart, x the lap number, y the lap time as `m:ss.sss`,
+>   points shown (laps are discrete).
+> - **Its data is pure** (`lib/lapChart.ts`): a series per car; a lap over
+>   130% of the car's best on track drawn at that cap and listed as capped;
+>   bands for stints (alternate shades, driver named below the chart), marks
+>   for each stop's in-lap and the flags' laps. Colours from the theme's roles
+>   only (decision 29), as the session chart's bands are.
+
+> **✅ Done, 2026-09-28.** `lib/lapChart.ts` (`lapChartData`, `CAP`),
+> `LapChart.svelte`, in the race's section.
+> - **Tests: Vitest 6** (a series per car, slow laps at the cap; a lap under it
+>   drawn as it is; the cap from the best on track, never a quick restart lap;
+>   stints shaded and stops and flags marked; a stint with no laps unshaded;
+>   no cars). **Mutations: 6, all killed**, two after those tests were added.
+> - **Looked at in Chrome** (the generated race): laps 1–10, stint 1 shaded
+>   apart, the stop's dashed line on lap 3, the out-lap held at the cap
+>   (1:31), the restart lap (1:30.8) just under it, drawn as it is.
+
 ### M16.4 — Two laps compared
 
 `lib/compare.ts` (projection onto the layout, distance, resampling each metre,

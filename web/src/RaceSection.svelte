@@ -8,6 +8,7 @@
   } from './lib/race'
   import { lapTime } from './lib/sessions'
   import { lapLink } from './lib/laps'
+  import LapChart from './LapChart.svelte'
 
   // The race (M15.4): one timeline per car, and for the admin or a car's crew, its flags and stints.
   let { race, eventId, revision, carName, onChanged }: {
@@ -93,6 +94,7 @@
         {/each}
       </tbody>
     </table>
+    <LapChart cars={race.cars} {carName} driverName={(id) => driverName(id)} />
   {/if}
 
   {#if anyone}
