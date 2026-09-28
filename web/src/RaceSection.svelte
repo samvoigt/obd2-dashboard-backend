@@ -117,7 +117,7 @@
       <thead><tr><th>Stint</th><th>Driver</th><th>Laps</th><th>Time</th><th>Best</th></tr></thead>
       <tbody>
         {#each c.stints as s (s.number)}
-          <tr><td>{s.number}</td><td>{driverName(s.driver)}</td>
+          <tr><td>{s.number}</td><td>{#if s.driver}<a href={`/drivers/${s.driver}`}>{driverName(s.driver)}</a>{:else}{driverName(s.driver)}{/if}</td>
             <td>{s.laps > 0 ? `${s.firstLap}–${s.lastLap} (${s.laps})` : '—'}</td><td>{raceClock(s.seconds)}</td>
             <td>{s.best ? lapTime(s.best) : '—'}</td></tr>
         {/each}

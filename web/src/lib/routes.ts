@@ -9,6 +9,8 @@ export type Route =
   | { page: 'course'; id: string }
   | { page: 'events' }
   | { page: 'event'; id: string }
+  | { page: 'drivers' }
+  | { page: 'driver'; id: string }
   | { page: 'admin-courses' }
   | { page: 'admin-course'; id: string }
   | { page: 'admin-drivers' }
@@ -24,6 +26,8 @@ const COURSES = /^\/courses\/?$/
 const COURSE = /^\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
 const EVENTS = /^\/events\/?$/
 const EVENT = /^\/events\/([a-z][a-z0-9-]{1,31})\/?$/
+const DRIVERS = /^\/drivers\/?$/
+const DRIVER = /^\/drivers\/(d-[0-9a-f]{8})\/?$/
 const ADMIN_COURSES = /^\/admin\/courses\/?$/
 const ADMIN_COURSE = /^\/admin\/courses\/([a-z][a-z0-9-]{1,31})\/?$/
 const ADMIN_DRIVERS = /^\/admin\/drivers\/?$/
@@ -49,6 +53,10 @@ export function route(path: string): Route {
   if (EVENTS.test(path)) return { page: 'events' }
   const publicEvent = EVENT.exec(path)
   if (publicEvent?.[1]) return { page: 'event', id: publicEvent[1] }
+  // Drivers, public (M15.5).
+  if (DRIVERS.test(path)) return { page: 'drivers' }
+  const driver = DRIVER.exec(path)
+  if (driver?.[1]) return { page: 'driver', id: driver[1] }
   // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.
   const preview = import.meta.env.DEV ? /^\/dev\/widgets\/([a-z][a-z0-9-]{1,31})\/?$/.exec(path) : null
   if (preview?.[1]) return { page: 'preview', slug: preview[1] }

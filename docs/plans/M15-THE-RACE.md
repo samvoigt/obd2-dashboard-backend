@@ -302,6 +302,32 @@ best practice laps per course; drivers linked from results.
 
 **Done when:** API tests; looked at in Chrome.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **A driver's record is read off each event's results**, which
+>   `GET /api/events/{id}` computes on view (practice bests, race stints); so
+>   that computation moves out of the route into `eventResults(event)`, used by
+>   both. A driver page computes every event's results: a handful of events,
+>   each run's re-timing stored after its first build (decision 33).
+> - **`GET /api/drivers/{id}`** (public, as `/api/drivers` is): the driver;
+>   per event, newest first, their practice bests and their race stints (car,
+>   laps, time, best); and their best practice lap per course, over every
+>   event.
+> - **Pages** `/drivers` and `/drivers/{id}`, routed as `/events` is; the
+>   landing page links Drivers; every driver's name in results links to their
+>   page.
+
+> **✅ Done, 2026-09-27.** `eventResults(event)` (the results, shared);
+> `GET /api/drivers/{id}` (`DriverRecord`); `DriversPage`, `DriverPage`;
+> routes; links from the landing page and from results.
+> - **Tests: Kotlin 1 new, 2 extended** (a driver's practice best and course
+>   best; their race stints; only the events they drove in, and their best at a
+>   course over two of them), **Vitest 1** (routes).
+> - **Mutations: 5, all killed**, two after that test was added.
+> - **Looked at in Chrome** (the dev server's race): `/drivers`, Alex's page
+>   with their stint (laps 4–10, 9:46, best 1:10.000), the race's names linking
+>   to their pages. **Found by looking:** a stint named its car by slug; now by
+>   name.
+
 ### M15.6 — Deploy, and prove it
 
 Deployed with a stream across it (a second throwaway car's, under

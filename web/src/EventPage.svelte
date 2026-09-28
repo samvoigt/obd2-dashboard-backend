@@ -94,7 +94,7 @@
         {#each list as b, i (b.session + b.lap.lap)}
           <tr>
             <td class="pos">{i + 1}</td>
-            <td>{driverLabel(b.driver)}</td>
+            <td>{#if b.driver}<a href={`/drivers/${b.driver.id}`}>{driverLabel(b.driver)}</a>{:else}{driverLabel(b.driver)}{/if}</td>
             <td class="time"><a href={`/cars/${b.car}/sessions/${b.session}`}>{lapTime(b.lap.time)}</a></td>
             <td class="muted">{gap(b.lap.time, fastest)}</td>
             {#each sectors as best, j (j)}

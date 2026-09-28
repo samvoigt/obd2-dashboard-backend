@@ -44,7 +44,7 @@
       </li>
     {/each}
   </ul>
-  <p class="more"><a href="/events">Events</a> · <a href="/courses">Courses</a></p>
+  <p class="more"><a href="/events">Events</a> · <a href="/drivers">Drivers</a> · <a href="/courses">Courses</a></p>
 </main>
 
 <style>

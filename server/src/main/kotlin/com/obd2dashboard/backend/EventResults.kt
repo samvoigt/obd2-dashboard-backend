@@ -118,6 +118,25 @@ object Results {
     }
 }
 
+/** A driver's best in one practice part (M15.5). */
+@Serializable
+data class DriverPracticeBest(val part: String, val best: DriverBest)
+
+/** A stint a driver drove (M15.5): the car, and the stint as the race has it. */
+@Serializable
+data class DriverStint(val car: String, val stint: com.obd2dashboard.backend.timing.RaceStint)
+
+@Serializable
+data class DriverEvent(val event: PublicEvent, val practice: List<DriverPracticeBest>, val stints: List<DriverStint>)
+
+/** A driver's best practice lap at a course, over every event (M15.5). */
+@Serializable
+data class CourseBest(val course: String, val courseName: String, val event: String, val best: DriverBest)
+
+/** `GET /api/drivers/{id}` (M15.5): a driver's events, practice bests, stints, and best per course. */
+@Serializable
+data class DriverRecord(val driver: DriverView, val events: List<DriverEvent>, val courses: List<CourseBest>)
+
 /** Events, public (M14.5): the list, and one with its practice results. */
 fun Route.publicEventRoutes(
     stores: EventStores,
@@ -141,9 +160,8 @@ fun Route.publicEventRoutes(
         call.respond(stores.events.list().map { public(it) })
     }
 
-    get("/api/events/{id}") {
-        val event = stores.events.get(call.parameters["id"].orEmpty())
-            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
+    /** An event's results (M14.5, M15.4): practice from each session's laps, the race as one timeline. */
+    suspend fun eventResults(event: Event): EventResults {
         val records = archive.sessionsOfCars(event.cars).associateBy { it.id }
         val inParts = EventRules.sessionsIn(event, records.values.map { it.heard() })
         val drivers = stores.drivers.list().associateBy { it.id }
@@ -188,6 +206,30 @@ fun Route.publicEventRoutes(
                 racePart.stints.mapValues { (_, list) -> list.map { StintView(it.start, it.driver) } },
             )
         }
-        call.respond(EventResults(pub, parts, Results.driverBests(practice), Results.bestSectors(practice), race))
+        return EventResults(pub, parts, Results.driverBests(practice), Results.bestSectors(practice), race)
+    }
+
+    get("/api/events/{id}") {
+        val event = stores.events.get(call.parameters["id"].orEmpty())
+            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
+        call.respond(eventResults(event))
+    }
+
+    get("/api/drivers/{id}") {
+        val driver = stores.drivers.get(call.parameters["id"].orEmpty())
+            ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such driver."))
+        val events = stores.events.list().map { e ->
+            val results = eventResults(e)
+            val practice = results.parts.filter { it.part.kind == "practice" }.flatMap { p ->
+                p.bests.filter { it.driver?.id == driver.id }.map { DriverPracticeBest(p.part.name, it) }
+            }
+            val stints = results.race?.cars.orEmpty().flatMap { c -> c.stints.filter { it.driver == driver.id }.map { DriverStint(c.car, it) } }
+            DriverEvent(results.event, practice, stints)
+        }.filter { it.practice.isNotEmpty() || it.stints.isNotEmpty() }
+        val byCourse = events.flatMap { e -> e.practice.map { e.event to it.best } }
+            .groupBy { (e, _) -> e.course }
+            .map { (course, bests) -> bests.minBy { (_, b) -> b.lap.time }.let { (e, b) -> CourseBest(course, e.courseName, e.id, b) } }
+            .sortedBy { it.courseName }
+        call.respond(DriverRecord(driver.view(), events, byCourse))
     }
 }

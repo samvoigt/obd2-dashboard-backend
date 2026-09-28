@@ -81,3 +81,14 @@ export function windowText(p: PublicPart, locale = 'en-GB', timeZone?: string): 
   const day = new Date(p.start).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone })
   return `${day}, ${time(p.start)}–${time(p.end)}`
 }
+
+/** `GET /api/drivers/{id}` (M15.5). */
+export interface DriverRecord {
+  driver: Driver
+  events: {
+    event: PublicEvent
+    practice: { part: string; best: DriverBest }[]
+    stints: { car: string; stint: { number: number; firstLap?: number | null; lastLap?: number | null; laps: number; seconds: number; best?: number | null } }[]
+  }[]
+  courses: { course: string; courseName: string; event: string; best: DriverBest }[]
+}

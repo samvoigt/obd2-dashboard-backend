@@ -132,6 +132,13 @@ class EventResultsTest {
         json.decodeFromString<List<PublicEvent>>(listed).single().parts.size shouldBe 3
         listed shouldNotContain "added"
         client.get("/api/events/nope").status shouldBe HttpStatusCode.NotFound
+
+        // Alex's page (M15.5): the practice they drove, their best there and at the course.
+        val alexRecord = json.decodeFromString<DriverRecord>(client.get("/api/drivers/d-alex").bodyAsText())
+        alexRecord.driver.code shouldBe "ALE"
+        alexRecord.events.single().practice.single().let { it.part shouldBe "Practice 2"; it.best.lap.time shouldBe (69.0 plusOrMinus 1e-9) }
+        alexRecord.courses.single().let { it.course shouldBe "box"; it.courseName shouldBe "The box"; it.best.lap.time shouldBe (69.0 plusOrMinus 1e-9) }
+        client.get("/api/drivers/d-nobody").status shouldBe HttpStatusCode.NotFound
     }
 
     @Test
@@ -224,5 +231,31 @@ class EventResultsTest {
         val edited = json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).race!!
         edited.cars.single().stints.map { it.firstLap to it.lastLap } shouldBe listOf(1 to 5, 6 to 13)
         edited.edited.keys shouldBe setOf("outback")
+
+        // Sam's page (M15.5): their race stints.
+        val samRecord = json.decodeFromString<DriverRecord>(client.get("/api/drivers/d-sam").bodyAsText())
+        samRecord.events.single().stints.single().let { it.car shouldBe "outback"; it.stint.firstLap shouldBe 1; it.stint.laps shouldBe 5 }
+        samRecord.courses shouldBe emptyList() // no practice
+    }
+
+    @Test
+    fun `a driver's page has only the events they drove in, and their best at a course over all of them`() = testApplication {
+        app()
+        val x = "5ace0000-1111-4111-8111-0000000a0155"
+        val y = "5ace0000-1111-4111-8111-0000000b0155"
+        runBlocking {
+            registry.addCar(Slug.parse("outback"), "Outback")
+            courses.save("box", 0, "The box", boxGeoJson(), Instant.EPOCH)
+            stores.drivers.put(Driver("d-alex", "Alex Rider", "ALE"))
+            for ((id, from) in listOf("day-1" to 0L, "day-2" to 60L, "empty-day" to 600L)) {
+                stores.events.save(Event(id, id, "2026-10-04", "box", "box", listOf("outback"),
+                    listOf(Part("p1", PartKind.PRACTICE, "Practice", at(from), at(from + 60)))), 0, t0)
+            }
+        }
+        session(x, 10, boxLog(0, 300, device = "tab-x"), "d-alex") // 70 s laps, day 1
+        session(y, 70, boxLog(0, 300, listOf(boxLap(2, 1, endOff = -1000), boxLap(3, 1, startOff = -1000)), device = "tab-y"), "d-alex") // 69 s, day 2
+        val record = json.decodeFromString<DriverRecord>(client.get("/api/drivers/d-alex").bodyAsText())
+        record.events.map { it.event.id }.toSet() shouldBe setOf("day-1", "day-2") // never the event they didn't drive in
+        record.courses.single().let { it.event shouldBe "day-2"; it.best.lap.time shouldBe (69.0 plusOrMinus 1e-9) }
     }
 }
