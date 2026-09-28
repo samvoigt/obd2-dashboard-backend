@@ -37,6 +37,8 @@ public data class SessionRecord(
     val updated: Instant,
     /** Built once the session is complete (M7.1); null before, or if not built yet. */
     val summary: SessionSummary? = null,
+    /** Who drove it (M14): a driver's id, set on the website; null until someone says. */
+    val driver: String? = null,
 )
 
 /**
@@ -72,6 +74,9 @@ public interface SessionIndex {
 
     /** Sets the session's summary (M7.1), touching nothing else; false if there's no such session. */
     public suspend fun setSummary(id: String, summary: SessionSummary): Boolean
+
+    /** Sets (or with null clears) who drove the session (M14), touching nothing else; false if there's no such session. */
+    public suspend fun setDriver(id: String, driver: String?): Boolean
 
     public suspend fun list(): List<SessionRecord>
 
@@ -160,6 +165,9 @@ public class InMemorySessionIndex : SessionIndex {
 
     override suspend fun setSummary(id: String, summary: SessionSummary): Boolean =
         sessions.computeIfPresent(id) { _, current -> current.copy(summary = summary) } != null
+
+    override suspend fun setDriver(id: String, driver: String?): Boolean =
+        sessions.computeIfPresent(id) { _, current -> current.copy(driver = driver) } != null
 
     override suspend fun list(): List<SessionRecord> = sessions.values.toList()
 

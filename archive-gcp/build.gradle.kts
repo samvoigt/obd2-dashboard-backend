@@ -11,6 +11,7 @@ dependencies {
     api(project(":archive"))
     api(project(":live"))
     api(project(":courses"))
+    api(project(":events"))
     api(platform(libs.google.cloud.bom))
     api(libs.google.cloud.firestore)
     api(libs.google.cloud.storage)
@@ -48,6 +49,15 @@ tasks.register<JavaExec>("courseSmoke") {
     group = "verification"
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("com.obd2dashboard.backend.archive.gcp.CourseSmokeKt")
+    args(providers.gradleProperty("gcpProject").orNull ?: "")
+    outputs.upToDateWhen { false }
+}
+
+tasks.register<JavaExec>("eventSmoke") {
+    description = "Stores, reads and deletes throwaway drivers and an event against the real Firestore."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("com.obd2dashboard.backend.archive.gcp.EventSmokeKt")
     args(providers.gradleProperty("gcpProject").orNull ?: "")
     outputs.upToDateWhen { false }
 }

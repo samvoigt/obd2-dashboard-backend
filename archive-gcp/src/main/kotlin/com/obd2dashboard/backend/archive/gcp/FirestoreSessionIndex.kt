@@ -81,6 +81,9 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
     override suspend fun setSummary(id: String, summary: SessionSummary): Boolean =
         conditional(id) { current -> current.copy(summary = summary) }
 
+    override suspend fun setDriver(id: String, driver: String?): Boolean =
+        conditional(id) { current -> current.copy(driver = driver) }
+
     override suspend fun listByCar(car: String): List<SessionRecord> =
         sessions.whereEqualTo(CAR, car).get().await().documents.mapNotNull { it.toRecord() }
 
@@ -153,6 +156,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             put("updated", updated.toTimestamp())
             // Part of the record, so every whole-document write keeps it (M7.1).
             summary?.let { put("summary", it.toFields()) }
+            driver?.let { put("driver", it) }
         }
 
         private fun SessionSummary.toFields(): Map<String, Any> = buildMap {
@@ -265,6 +269,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 created = instant("created"),
                 updated = instant("updated"),
                 summary = (data["summary"] as? Map<*, *>)?.let { m -> summaryFrom(m.entries.associate { (k, v) -> k.toString() to v }) },
+                driver = string("driver"),
             )
         }
 

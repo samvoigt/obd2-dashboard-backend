@@ -130,6 +130,34 @@ their mappings tested; `scripts/event-smoke.sh` through the real Firestore
 **Done when:** mapping round trips; a stale save refused; the smoke script
 passes.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **`FirestoreDriverStore` and `FirestoreEventStore`** in `:archive-gcp`,
+>   beside `FirestoreCourseStore`, whose shape they follow (`connect`, fields
+>   in and out tested without Firestore, `await` on the API futures).
+> - **A driver's code stays unique** by a transaction that reads every driver
+>   and writes only if no other has the code (a handful of drivers: reading
+>   them all is cheap). **An event's save** is a transaction on its
+>   `revision`; parts are a list of maps inside the event's document (no
+>   arrays inside arrays).
+> - **A session's driver** is `SessionRecord.driver` (a driver's id), set by
+>   `SessionIndex.setDriver` through the index's existing `conditional`
+>   transaction, as `setSummary` is; every other conditional change writes
+>   back the record it read, so the driver survives them.
+> - **The smoke test** as `CourseSmoke`: `EventSmoke` and
+>   `scripts/event-smoke.sh`, a throwaway driver and event, removed.
+
+> **✅ Done, 2026-09-27.** `FirestoreDriverStore`, `FirestoreEventStore`;
+> `SessionRecord.driver`, `SessionIndex.setDriver` (Firestore and in memory),
+> `ArchiveService.setDriver`; `EventSmoke`, `scripts/event-smoke.sh`.
+> - **Tests: 4** (an event's round trip, parts and hand-made changes and all;
+>   a part's kind in words and no list inside a list; a driver's round trip; a
+>   session's driver set, kept through other changes, cleared) and the session
+>   mapping extended. **Mutations: 7, all killed**, one after the in-memory
+>   `setDriver` got its own test.
+> - **The real Firestore** (`scripts/event-smoke.sh`): a code kept unique
+>   inside a transaction (reading the collection there works), a taken id and
+>   a stale save refused, all removed. 13 checks, passed.
+
 ### M14.3 — The admin: drivers and events
 
 Admin API (list, create, edit, delete; a part's sessions, add, remove), every

@@ -52,6 +52,10 @@ class SessionMappingTest {
         // M13: the device, the span of at, and the fixes' bounds.
         val run = complete.copy(summary = summary.copy(device = "tab-1", firstAt = 5_000, lastAt = 9_000, bounds = Bounds(-71.47, 43.36, -71.46, 43.37)))
         recordFrom(id, run.toFields()) shouldBe run
+        // M14: who drove it.
+        val driven = complete.copy(driver = "d-7f3a")
+        recordFrom(id, driven.toFields()) shouldBe driven
+        complete.toFields().containsKey("driver") shouldBe false
     }
 
     @Test
