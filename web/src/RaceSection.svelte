@@ -115,15 +115,17 @@
     {@const who = setters[c.car]}
     <h3>{carName(c.car)}</h3>
     <table class="stints">
-      <thead><tr><th>Stint</th><th>Driver</th><th>Laps</th><th>Time</th><th>Best</th></tr></thead>
+      <thead><tr><th>Stint</th><th>Driver</th><th>Laps</th><th>Time</th><th>Best</th><th>Median</th><th>Spread</th></tr></thead>
       <tbody>
         {#each c.stints as s (s.number)}
           <tr><td>{s.number}</td><td>{#if s.driver}<a href={`/drivers/${s.driver}`}>{driverName(s.driver)}</a>{:else}{driverName(s.driver)}{/if}</td>
             <td>{s.laps > 0 ? `${s.firstLap}–${s.lastLap} (${s.laps})` : '—'}</td><td>{raceClock(s.seconds)}</td>
-            <td>{s.best ? lapTime(s.best) : '—'}</td></tr>
+            <td>{s.best ? lapTime(s.best) : '—'}</td>
+            <td>{s.consistency ? lapTime(s.consistency.median) : '—'}</td><td>{s.consistency ? `± ${s.consistency.spread.toFixed(3)} s` : '—'}</td></tr>
         {/each}
       </tbody>
     </table>
+    {#if c.theoretical}<p class="small">Theoretical best <strong>{lapTime(c.theoretical)}</strong> <span class="muted">(the race's best of each sector added up)</span></p>{/if}
     <p class="muted small">{c.stintsEdited ? 'Stints as set by hand.' : 'Split at every stop; merge a fuel stop, or split where drivers changed without one.'}</p>
     {#if c.stops.length > 0}
       <p class="small">Stops: {#each c.stops as s, i (s.entry)}{i > 0 ? ' · ' : ''}lap {s.lap}, {s.seconds != null ? `${s.seconds.toFixed(1)} s in the pit lane` : 'ended in the pits'}{/each}</p>

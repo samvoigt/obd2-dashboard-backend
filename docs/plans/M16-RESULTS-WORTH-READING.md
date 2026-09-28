@@ -135,6 +135,40 @@ theoretical best, sector rows per driver with gaps, consistency; in
 lap's last sector; gaps to the best; consistency over laps on track only,
 median and spread to the millisecond); looked at in Chrome.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **Consistency is one thing for practice and the race**, so it's pure in
+>   `:timing` (`Consistency.of(times)`): the laps counted, best, median,
+>   spread (the standard deviation), and how many within 1% of the best, to
+>   the millisecond; nothing for no laps.
+> - **Practice** (`Results`, server): each part and all practice gain the
+>   theoretical best (the sum of `bestSectors`, only if every sector has one),
+>   a **sector row per driver** (their best of each sector by §22.6's rule, and
+>   the gap to the best of all), and **consistency per driver** over laps on
+>   track (another layout's laps never count).
+> - **The race** (`Race`, `:timing`): each car gains its theoretical best (its
+>   laps' best sectors by the same rule; a lap across a restart has none), and
+>   each stint its consistency over its laps on track.
+> - **Pages:** the event page's practice gets a sectors table and a
+>   consistency table beside the bests, and the theoretical best under them;
+>   the race's section, a car's theoretical best and each stint's median and
+>   spread.
+
+> **✅ Done, 2026-09-28.** `:timing`'s `Consistency` (and `theoreticalBest`);
+> `Race`'s `bestSectors`, `CarRace.theoretical`, `RaceStint.consistency`;
+> `Results.sectorRows` and `consistency`, and the practice fields in
+> `GET /api/events/{id}`; the event page's sectors and consistency tables and
+> theoretical bests; the race's stint median and spread.
+> - **Tests: Kotlin 4** (consistency and the theoretical best; the race's
+>   theoretical best past in- and out-laps and a restart, and each stint's
+>   consistency; practice's sector rows, gaps and consistency, another layout
+>   never counted), **Vitest 1** (a sector's gap). Two expectations in the
+>   first test were my arithmetic, not the code's.
+> - **Mutations: 11, all killed**, one after the test listed the slower
+>   driver first.
+> - **Looked at in Chrome** (the dev server: two practice drives and the
+>   race): every table renders; the generated laps are all 70.000, so the
+>   figures are too.
+
 ### M16.3 — The lap-time chart
 
 A chart in the race's section: lap times by lap number, per car; slow laps at

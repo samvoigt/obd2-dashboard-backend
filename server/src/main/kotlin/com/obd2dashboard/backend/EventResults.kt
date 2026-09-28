@@ -10,6 +10,7 @@ import com.obd2dashboard.backend.events.PartKind
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.Slug
 import com.obd2dashboard.backend.timing.CarRace
+import com.obd2dashboard.backend.timing.Consistency
 import com.obd2dashboard.backend.timing.Race
 import com.obd2dashboard.backend.timing.StintMark
 import io.ktor.http.HttpStatusCode
@@ -60,8 +61,32 @@ data class SessionResult(
 @Serializable
 data class DriverBest(val driver: DriverView? = null, val car: String, val session: String, val lap: StandingLap)
 
+/** A driver's sectors in a part (M16.2): their best of each, the gap to the best of all, and their theoretical best. */
 @Serializable
-data class PartResults(val part: PublicPart, val sessions: List<SessionResult>, val bests: List<DriverBest>, val bestSectors: List<Double?>)
+data class SectorRow(
+    val driver: DriverView? = null,
+    /** Their best lap on track, seconds. */
+    val best: Double? = null,
+    val sectors: List<Double?>,
+    val gaps: List<Double?>,
+    val theoretical: Double? = null,
+)
+
+/** How consistent a driver was in a part (M16.2); a null driver is "not set". */
+@Serializable
+data class DriverConsistency(val driver: DriverView? = null, val consistency: Consistency)
+
+@Serializable
+data class PartResults(
+    val part: PublicPart,
+    val sessions: List<SessionResult>,
+    val bests: List<DriverBest>,
+    val bestSectors: List<Double?>,
+    /** The best of each sector added up, when every sector has one (M16.2). */
+    val theoretical: Double? = null,
+    val sectorRows: List<SectorRow> = emptyList(),
+    val consistency: List<DriverConsistency> = emptyList(),
+)
 
 /**
  * The race as one timeline (M15.4): each car's, classified. Laps, stops and
@@ -88,6 +113,10 @@ data class EventResults(
     val practiceBests: List<DriverBest>,
     val practiceBestSectors: List<Double?>,
     val race: RaceResults? = null,
+    /** Over all practice (M16.2). */
+    val practiceTheoretical: Double? = null,
+    val practiceSectorRows: List<SectorRow> = emptyList(),
+    val practiceConsistency: List<DriverConsistency> = emptyList(),
 )
 
 /**
@@ -110,6 +139,30 @@ object Results {
 
     /** Whether sector [i] of [lap] can be a best (§22.6): not an in-lap's last, nor an out-lap's first. */
     fun countsForBest(lap: StandingLap, i: Int): Boolean = !(lap.pitIn && i == lap.sectors.size - 1) && !(lap.pitOut && i == 0)
+
+    /** A row per driver (M16.2): their best of each sector, the gap to the best of all, their theoretical best; quickest first. */
+    fun sectorRows(sessions: List<SessionResult>): List<SectorRow> {
+        val counted = sessions.filter { it.otherLayout == null }
+        val all = bestSectors(counted)
+        return counted.groupBy { it.driver?.id }.map { (_, mine) ->
+            val theirs = bestSectors(mine).let { s -> all.indices.map { s.getOrNull(it) } }
+            SectorRow(
+                mine.first().driver,
+                mine.flatMap { it.laps }.filter(::onTrack).minOfOrNull { it.time },
+                theirs,
+                theirs.mapIndexed { i, t -> all[i]?.let { best -> t?.let { ms(it - best) } } },
+                Consistency.theoreticalBest(theirs),
+            )
+        }.sortedWith(compareBy(nullsLast()) { it.best })
+    }
+
+    /** Each driver's consistency over their laps on track (M16.2), the quickest first. */
+    fun consistency(sessions: List<SessionResult>): List<DriverConsistency> =
+        sessions.filter { it.otherLayout == null }.groupBy { it.driver?.id }.mapNotNull { (_, mine) ->
+            Consistency.of(mine.flatMap { it.laps }.filter(::onTrack).map { it.time })?.let { DriverConsistency(mine.first().driver, it) }
+        }.sortedBy { it.consistency.best }
+
+    private fun ms(seconds: Double): Double = kotlin.math.round(seconds * 1000) / 1000.0
 
     fun bestSectors(sessions: List<SessionResult>): List<Double?> {
         val laps = sessions.filter { it.otherLayout == null }.flatMap { it.laps }
@@ -175,7 +228,11 @@ fun Route.publicEventRoutes(
                     laps?.laps.orEmpty(), other, if (other == null) Results.best(laps?.laps.orEmpty()) else null,
                 )
             }
-            PartResults(publicPart, results, Results.driverBests(results), Results.bestSectors(results))
+            val sectors = Results.bestSectors(results)
+            PartResults(
+                publicPart, results, Results.driverBests(results), sectors,
+                Consistency.theoreticalBest(sectors), Results.sectorRows(results), Results.consistency(results),
+            )
         }
         val practice = parts.filter { it.part.kind == PartKind.PRACTICE.name.lowercase() }.flatMap { it.sessions }
         val race = event.race?.let { racePart ->
@@ -206,7 +263,11 @@ fun Route.publicEventRoutes(
                 racePart.stints.mapValues { (_, list) -> list.map { StintView(it.start, it.driver) } },
             )
         }
-        return EventResults(pub, parts, Results.driverBests(practice), Results.bestSectors(practice), race)
+        val practiceSectors = Results.bestSectors(practice)
+        return EventResults(
+            pub, parts, Results.driverBests(practice), practiceSectors, race,
+            Consistency.theoreticalBest(practiceSectors), Results.sectorRows(practice), Results.consistency(practice),
+        )
     }
 
     get("/api/events/{id}") {

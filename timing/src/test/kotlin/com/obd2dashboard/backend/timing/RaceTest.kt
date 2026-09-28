@@ -8,8 +8,8 @@ import org.junit.Test
 class RaceTest {
     private val W = 1_000_000L
 
-    private fun lap(session: String, start: Long, time: Long = 70_000, pitIn: Boolean = false, pitOut: Boolean = false, source: LapSource = LapSource.RETIMED) =
-        RunLap(session, source, start.toDouble(), (start + time).toDouble(), time / 1000.0, emptyList(), pitIn, pitOut)
+    private fun lap(session: String, start: Long, time: Long = 70_000, pitIn: Boolean = false, pitOut: Boolean = false, source: LapSource = LapSource.RETIMED, sectors: List<Double> = emptyList()) =
+        RunLap(session, source, start.toDouble(), (start + time).toDouble(), time / 1000.0, sectors, pitIn, pitOut)
 
     private fun run(vararg laps: RunLap, crossings: List<PitCrossing> = emptyList(), offset: Long = W, sessions: List<String> = laps.map { it.session }.distinct()) =
         RunTiming(2, "box", 1, "box", sessions, laps.toList(), emptyList(), sessions.associateWith { offset } + crossings.associate { it.session to offset }, crossings)
@@ -122,5 +122,22 @@ class RaceTest {
         // Streamed: created 2 s after its start; uploaded at its end: created 11 min after.
         Race.tabletOffset(listOf(t to t.toEpochMilli() - 39_600_000 - 2_000, t to t.toEpochMilli() - 39_600_000 - 660_000)) shouldBe 39_602_000
         Race.tabletOffset(emptyList()) shouldBe null
+    }
+
+    @Test
+    fun `a car's theoretical best never counts an in-lap's last sector nor an out-lap's first, and each stint's consistency its laps on track (M16_2)`() {
+        val r = run(
+            lap("c1", 0, sectors = listOf(35.0, 35.0)),
+            lap("c1", 70_000, time = 69_000, sectors = listOf(34.0, 35.0)),
+            lap("c1", 139_000, time = 60_000, pitIn = true, sectors = listOf(36.0, 24.0)), // its 24 s ends in the pits
+            lap("c1", 199_000, time = 150_000, pitOut = true, sectors = listOf(10.0, 34.5)), // its 10 s starts there
+        )
+        val race = Race.car("outback", listOf(r), setOf("c1"))!!
+        race.bestSectors shouldBe listOf(34.0, 34.5)
+        race.theoretical shouldBe 68.5
+        race.stints.single().consistency shouldBe Consistency.of(listOf(70.0, 69.0))
+        // A lap across a restart has no sectors: the others still make a theoretical best.
+        Race.car("outback", listOf(run(lap("a", 0, sectors = listOf(35.0, 35.0)), offset = W), run(lap("b", 0, sectors = listOf(34.0, 36.0)), offset = W + 100_000)),
+            setOf("a", "b"))!!.theoretical shouldBe 69.0
     }
 }

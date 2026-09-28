@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
-  import { driverLabel, gap, windowText, type DriverBest, type EventResults, type SessionResult } from './lib/eventResults'
+  import {
+    driverLabel, gap, sectorGap, windowText, type DriverBest, type DriverConsistency, type EventResults, type SectorRow, type SessionResult,
+  } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
   import { lapLink } from './lib/laps'
@@ -44,6 +46,7 @@
       <section class="panel">
         <h2>Practice, every part</h2>
         {@render bests(results.practiceBests, results.practiceBestSectors)}
+        {@render analysis(results.practiceSectorRows, results.practiceConsistency, results.practiceTheoretical)}
       </section>
     {/if}
 
@@ -58,6 +61,7 @@
           <p class="muted small">The race as one timeline is above; its sessions are here.</p>
         {:else}
           {@render bests(p.bests, p.bestSectors)}
+          {@render analysis(p.sectorRows, p.consistency, p.theoretical)}
         {/if}
         {#if p.sessions.length === 0}
           <p class="muted small">No sessions.</p>
@@ -83,6 +87,39 @@
     <p class="muted">Loading…</p>
   {/if}
 </main>
+
+{#snippet analysis(rows: SectorRow[], consistency: DriverConsistency[], theoretical: number | null | undefined)}
+  {#if theoretical}<p class="small">Theoretical best <strong>{lapTime(theoretical)}</strong> <span class="muted">(the best of each sector added up)</span></p>{/if}
+  {#if rows.length > 1 && rows[0]!.sectors.length > 0}
+    <details>
+      <summary>Sectors, driver by driver</summary>
+      <table class="bests">
+        <thead><tr><th>Driver</th>{#each rows[0]!.sectors as _, i (i)}<th>S{i + 1}</th>{/each}<th>Theoretical</th></tr></thead>
+        <tbody>
+          {#each rows as r (r.driver?.id ?? 'none')}
+            <tr><td>{driverLabel(r.driver)}</td>
+              {#each r.sectors as t, i (i)}<td class="sector">{t === null ? '' : t.toFixed(3)} <span class="muted small">{sectorGap(r.gaps[i])}</span></td>{/each}
+              <td>{r.theoretical ? lapTime(r.theoretical) : '—'}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+    </details>
+  {/if}
+  {#if consistency.length > 0}
+    <details>
+      <summary>Consistency (laps on track)</summary>
+      <table class="bests">
+        <thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Median</th><th>Spread</th><th>Within 1%</th></tr></thead>
+        <tbody>
+          {#each consistency as c (c.driver?.id ?? 'none')}
+            <tr><td>{driverLabel(c.driver)}</td><td>{c.consistency.laps}</td><td>{lapTime(c.consistency.best)}</td>
+              <td>{lapTime(c.consistency.median)}</td><td>± {c.consistency.spread.toFixed(3)} s</td><td>{c.consistency.withinOnePercent}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+    </details>
+  {/if}
+{/snippet}
 
 {#snippet bests(list: DriverBest[], sectors: (number | null)[])}
   {#if list.length === 0}

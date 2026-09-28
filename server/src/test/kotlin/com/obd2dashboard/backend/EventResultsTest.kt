@@ -36,6 +36,8 @@ class EventResultsTest {
     private fun lap(n: Int, time: Double, sectors: List<Double> = emptyList(), pitIn: Boolean = false, pitOut: Boolean = false) =
         StandingLap(n, time, sectors, pitIn, pitOut, 0, 0, "tablet")
 
+    private fun lapWith(n: Int, time: Double, sectors: List<Double>, pitIn: Boolean = false) = StandingLap(n, time, sectors, pitIn, false, 0, 0, "tablet")
+
     private val sam = DriverView("d-sam", "Sam Voigt", "SAM")
     private val alex = DriverView("d-alex", "Alex Rider", "ALE")
 
@@ -62,6 +64,23 @@ class EventResultsTest {
         // S1: 19 (the in-lap's first counts; the out-lap's 10 doesn't); S2: 20; S3: 20 (the in-lap's 15 doesn't).
         Results.bestSectors(sessions) shouldBe listOf(19.0, 20.0, 20.0)
         Results.bestSectors(emptyList()) shouldBe emptyList()
+    }
+
+    @Test
+    fun `sector rows per driver with gaps to the best of all, and consistency over laps on track (M16_2)`() {
+        val sessions = listOf(
+            // Alex first, slower: the rows come quickest first all the same.
+            SessionResult("b", "o", alex, 0, listOf(lapWith(1, 69.8, listOf(35.3, 34.5)), lapWith(2, 60.0, listOf(34.0, 26.0), pitIn = true))),
+            SessionResult("a", "o", sam, 0, listOf(lapWith(1, 70.0, listOf(35.0, 35.0)), lapWith(2, 69.5, listOf(34.5, 35.0)))),
+            SessionResult("c", "o", alex, 0, listOf(lapWith(1, 50.0, listOf(25.0, 25.0))), otherLayout = "short"), // never counted
+        )
+        val rows = Results.sectorRows(sessions)
+        rows.map { it.driver?.code } shouldBe listOf("SAM", "ALE")
+        rows[0].let { it.best shouldBe 69.5; it.sectors shouldBe listOf(34.5, 35.0); it.gaps shouldBe listOf(0.5, 0.5); it.theoretical shouldBe 69.5 }
+        // Alex's in-lap's first sector (34.0) counts; its last (26.0) never does.
+        rows[1].let { it.sectors shouldBe listOf(34.0, 34.5); it.gaps shouldBe listOf(0.0, 0.0); it.theoretical shouldBe 68.5 }
+        Results.consistency(sessions).map { it.driver?.code to it.consistency } shouldBe
+            listOf("SAM" to com.obd2dashboard.backend.timing.Consistency(2, 69.5, 69.75, 0.25, 2), "ALE" to com.obd2dashboard.backend.timing.Consistency(1, 69.8, 69.8, 0.0, 1))
     }
 
     private val registry = CarRegistry(InMemoryCarStore(), passcodeIterations = 1_000)

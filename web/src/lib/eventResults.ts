@@ -48,11 +48,36 @@ export interface DriverBest {
   lap: StandingLap
 }
 
+/** How consistent a run of laps was (M16.2): over laps on track only, seconds. */
+export interface Consistency {
+  laps: number
+  best: number
+  median: number
+  spread: number
+  withinOnePercent: number
+}
+
+export interface SectorRow {
+  driver?: Driver | null
+  best?: number | null
+  sectors: (number | null)[]
+  gaps: (number | null)[]
+  theoretical?: number | null
+}
+
+export interface DriverConsistency {
+  driver?: Driver | null
+  consistency: Consistency
+}
+
 export interface PartResults {
   part: PublicPart
   sessions: SessionResult[]
   bests: DriverBest[]
   bestSectors: (number | null)[]
+  theoretical?: number | null
+  sectorRows: SectorRow[]
+  consistency: DriverConsistency[]
 }
 
 export interface EventResults {
@@ -62,6 +87,15 @@ export interface EventResults {
   practiceBestSectors: (number | null)[]
   /** The race as one timeline (M15.4). */
   race?: RaceResults | null
+  practiceTheoretical?: number | null
+  practiceSectorRows: SectorRow[]
+  practiceConsistency: DriverConsistency[]
+}
+
+/** "+0.123" behind the best of all; "best" for the best itself; blank for none. */
+export function sectorGap(gap: number | null | undefined): string {
+  if (gap === null || gap === undefined) return ''
+  return gap <= 0 ? 'best' : `+${gap.toFixed(3)}`
 }
 
 /** "+0.900" behind the fastest; blank for the fastest itself. */

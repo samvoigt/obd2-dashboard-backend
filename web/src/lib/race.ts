@@ -3,7 +3,7 @@
  * the stints editor's logic. Laps, stops and stints are on each tablet's
  * clock; a car's `tabletOffset` turns one into the time of day. Pure.
  */
-import type { PublicPart } from './eventResults'
+import type { Consistency, PublicPart } from './eventResults'
 
 export interface RaceLap {
   number: number
@@ -35,6 +35,7 @@ export interface RaceStint {
   laps: number
   seconds: number
   best?: number | null
+  consistency?: Consistency | null
 }
 
 export interface CarRace {
@@ -47,6 +48,8 @@ export interface CarRace {
   greenLap?: number | null
   flagLap?: number | null
   stintsEdited?: boolean
+  bestSectors?: (number | null)[]
+  theoretical?: number | null
 }
 
 export interface RaceResults {

@@ -45,6 +45,8 @@ public data class RaceStint(
     val seconds: Double = 0.0,
     /** Its fastest lap on track, seconds. */
     val best: Double? = null,
+    /** How consistent its laps on track were (M16.2). */
+    val consistency: Consistency? = null,
 )
 
 /** One car's race (M15.2). */
@@ -63,6 +65,9 @@ public data class CarRace(
     val flagLap: Int? = null,
     /** Whether the stints are the default (split at every stop) or as edited. */
     val stintsEdited: Boolean = false,
+    /** The best of each sector over the race (§22.6's rule), and their sum when every sector has one (M16.2). */
+    val bestSectors: List<Double?> = emptyList(),
+    val theoretical: Double? = null,
 )
 
 /** A stint's start as edited, on the tablet's clock, and who drove it. */
@@ -111,7 +116,8 @@ public object Race {
         val stints = marks.mapIndexed { i, m ->
             val mine = laps.filter { it.stint == i + 1 }
             RaceStint(i + 1, m.driver, m.start, mine.firstOrNull()?.number, mine.lastOrNull()?.number, mine.size,
-                seconds(mine.sumOf { it.time } * 1000), mine.filter(::onTrack).minOfOrNull { it.time })
+                seconds(mine.sumOf { it.time } * 1000), mine.filter(::onTrack).minOfOrNull { it.time },
+                Consistency.of(mine.filter(::onTrack).map { it.time }))
         }
         return CarRace(
             car, laps, stops, stints,
@@ -120,6 +126,8 @@ public object Race {
             greenLap = green?.let { t -> laps.firstOrNull { it.end > t }?.number },
             flagLap = flag?.let { t -> laps.firstOrNull { it.end > t }?.number },
             stintsEdited = edited != null && edited.isNotEmpty(),
+            bestSectors = bestSectors(laps),
+            theoretical = Consistency.theoreticalBest(bestSectors(laps)),
         )
     }
 
@@ -136,6 +144,15 @@ public object Race {
         sessions.minOfOrNull { (created, started) -> created.toEpochMilli() - started }
 
     public fun onTrack(lap: RaceLap): Boolean = !lap.pitIn && !lap.pitOut && lap.source != RESTART
+
+    /** Whether sector [i] of [lap] can be a best (§22.6): not an in-lap's last, nor an out-lap's first. */
+    public fun countsForBest(lap: RaceLap, i: Int): Boolean = !(lap.pitIn && i == lap.sectors.size - 1) && !(lap.pitOut && i == 0)
+
+    /** The best of each sector over [laps], by §22.6's rule; as many as the most any lap has. */
+    public fun bestSectors(laps: List<RaceLap>): List<Double?> {
+        val n = laps.maxOfOrNull { it.sectors.size } ?: 0
+        return (0 until n).map { i -> laps.filter { it.sectors.size > i && countsForBest(it, i) }.minOfOrNull { it.sectors[i] } }
+    }
 
     private fun lapsOf(run: RunTiming, race: Set<String>): List<RaceLap> = run.laps.mapNotNull { lap ->
         if (lap.session !in race) return@mapNotNull null
