@@ -150,6 +150,49 @@ bridged by one lap, an out-lap after the pit line; stints split at each stop,
 drivers from their sessions; merged, split and named by hand; two cars
 classified.
 
+> **Validated against the code, 2026-09-27, before building.**
+> - **Pure, in `:timing`**, beside `RunTiming`, which it reads: a car's race
+>   is its race sessions' runs (in the server's order), each run's laps and pit
+>   crossings **whose session is one of the race's** (a run can begin in
+>   practice: runs join across 12 hours), placed on `wall` by their session's
+>   `wall − at`.
+> - **Everything stays on the tablet's clock**, which may be hours out but is
+>   one clock: laps, stops, stints and their boundaries, where a constant offset
+>   cancels in every difference. Stored stint boundaries are on it too.
+> - **The start and finish Sam enters are real times**, so placing them needs
+>   the tablet's offset. The live lane measures it but keeps it in memory. A
+>   session the live lane announced is **created by the server within seconds
+>   of its first record**, so the smallest `created − started` across the
+>   race's sessions is the offset to within seconds, which is plenty to say
+>   which lap the flag fell in. (A tablet-only session, created when it
+>   uploads, only ever makes the difference larger, so the smallest is right.)
+> - **Across a restart**, the lap from the last crossing of one run to the
+>   first of the next is an **out-lap** if the first run ended on the pit line
+>   (its last lap an in-lap), and an **in-lap** if the next begins on it (its
+>   first lap an out-lap), whichever side of the pit line the car stopped.
+> - **A stop** pairs each lane entry with the next exit (an entry with none,
+>   the race ending in the pits, is a stop with no end); it's **on the lap the
+>   car entered the lane in**, its in-lap (the lane's entry comes before the pit
+>   line; found by the tests, which first counted the laps completed at the
+>   entry and so named the lap before). **A stint** holds the laps that **end** in it:
+>   default boundaries are each stop's exit (its entry if it has none), so an
+>   in-lap is the outgoing driver's and the out-lap the incoming one's.
+> - **Two cars** are classified by laps, then by the time from their first lap's
+>   start to their last lap's end.
+
+> **✅ Done, 2026-09-27.** `:timing`'s `Race` (`car`, `classify`,
+> `tabletOffset`), `CarRace`, `RaceLap`, `RaceStop`, `RaceStint`, `StintMark`.
+> - **Tests: 7** (one run through two driver changes: laps 1–9 straight
+>   through, stops on the in-laps, stints split at the exits, drivers from
+>   their sessions, the out-lap the incoming driver's; a restart bridged on
+>   `wall`, an out-lap after the pit line or an in-lap before it, never the
+>   best, no bridge without a gap; only the race's sessions and their stops;
+>   the flags marked, nothing cut; stints edited, merged and split; an entry
+>   with no exit; two cars classified, and the tablet's offset).
+> - **Mutations: 16, all killed**, three after tests were added (a practice
+>   stop in the same run; a bridge on track that would be the quickest; a
+>   stint's quick in-lap).
+
 ### M15.3 — Stints and the race's start and finish, stored and edited
 
 The race part gains its start and finish (optional instants) and each car's
