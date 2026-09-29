@@ -65,4 +65,12 @@ None of these is in the contract's body, and each has to be true of the server:
   the tablet's rule (§22.5, §22.6), per run of the app (§22.8): the tablet's
   laps on the current version stand, each checked to 2 ms and flagged, never
   replaced; re-timed laps where it has none (decision 33).
-- **To come:** `timing` (§22.7; M17).
+- **Built here (M17):** `timing` (§22.7) to a tablet listing `timing.1`, on
+  every `session` frame and whenever it changes, ages from the tablet's `wall`
+  by the live lane's measured offset (decision 37).
+- **§23** (a session completed twice): answered in chat, 2026-09-28. A repeated
+  `complete` answers `200 {"complete": true}` and does nothing again; that
+  session was first completed at 17:48:30Z, twice (0.6 s apart), each answered
+  after 17 s, past the tablet's 10 s read timeout. Completing is now faster (a
+  90,323-line session in 5.0 s) but still grows with the chunks; the tablet's
+  timeout for `complete` should be longer.

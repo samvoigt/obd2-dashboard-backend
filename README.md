@@ -6,7 +6,11 @@ shows the car's data live.
 
 ## Status
 
-M16 done: results worth reading. Every lap links to its moment in its
+M17 done: live. The tablet hears what only the server knows (who's driving
+and for how long, the race's lap count and the time since the stop, the
+event's bests); the car page shows the same, with each lap's sectors and a
+driver picker for the crew; the event page counts the stint being driven.
+Race logging (M12–M17) is complete. M16: results worth reading. Every lap links to its moment in its
 session; practice and the race show the theoretical best, sectors driver by
 driver and how consistent each driver was; the race has a lap-time chart; and
 any two laps can be compared by distance round the course, the time gained or
@@ -23,8 +27,7 @@ laps), and checks the tablet's laps to 2 ms; a session's page shows the laps
 as they stand, marked. M12: courses are drawn on the website (layouts,
 start/finish, sectors, pit lines, every save a version, public at
 https://badnewsbears.live/courses) and sent down to the tablet, which times
-laps on them. Race logging goes on from here (drivers, events, the race;
-`docs/plans/RACE-LOGGING.md`). A car's page is a live dashboard, the same for every car: gauges,
+laps on them. A car's page is a live dashboard, the same for every car: gauges,
 GPS speed, a G-meter, a map following the car, laps, status lights and
 trouble codes, in metric or US units, in the Bad News Bears look. Every
 session a car uploads is on the site too, with full-length charts, laps and a

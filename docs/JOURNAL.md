@@ -371,3 +371,27 @@ whole drive, the admin page's Download.
   M16.1, it came back in M16.4.
 - **A mutant survived because both test laps started at zero.** Test data
   that makes two things equal hides a bug in telling them apart.
+
+## 2026-09-28 — M17, live
+
+- **A long drive's `complete` outlasted the tablet's patience.** The drive of
+  2026-09-28 (58,381 lines, about 135 chunks) completed in 17.3 s, the
+  morning's (52,138 lines) in 30.0 s; the tablet's archive client is OkHttp's
+  default, which gives up reading after 10 s. So the server had the session
+  and the tablet never heard. Completing read every segment from the bucket
+  one after another, about 100 ms each; reading 8 ahead, 90,323 lines in about
+  210 chunks took 5.0 s. It still grows with the chunks (about 24 ms each): a
+  stint of 400 chunks would pass 10 s again, so the tablet's timeout for
+  `complete` should be longer (the §23 answer).
+- **Two `complete`s at once were a race.** The tablet sent two within 0.6 s;
+  both assembled, and the first then deleted the segments the second was
+  reading. They were lucky; now one waits for the other.
+- **A deploy mid-race is survivable.** The race's count carried on through the
+  restart: the live run was rebuilt from the archive, the stream reconnected
+  on 1012.
+- **Two guards for one thing show as a surviving mutant.** Where a live run is
+  let go on `complete` and also filtered out once complete, removing either
+  changes nothing seen; recorded, not chased.
+- **Browser extensions can block the page under test.** A password field
+  brought up another extension's page and the tab couldn't be driven; the
+  request was made from outside instead, and said so.

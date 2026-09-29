@@ -31,7 +31,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M14** | Drivers and events: practice parts and a race, sessions joined by the server's time, who drove, practice results | ✅ (`plans/COMPLETED.md`) |
 | **M15** | The race: one timeline through driver changes and restarts, stops, stints, race results, driver pages | ✅ (`plans/COMPLETED.md`) |
 | **M16** | Results worth reading: every lap linked, theoretical best, sectors compared, consistency, the lap-time chart, two laps compared | ✅ (`plans/COMPLETED.md`) |
-| **M17** | Live: the `timing` frame to the tablet, the car page's driver, stint and race, the event page counting the stint being driven | **planned**: [`plans/M17-LIVE.md`](plans/M17-LIVE.md) |
+| **M17** | Live: the `timing` frame to the tablet, the car page's driver, stint and race, the event page counting the stint being driven | ✅ (`plans/COMPLETED.md`) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -143,16 +143,15 @@ gauges, numbers, bars, the G-meter, the map, laps, status. Not configurable,
 and not a mirror of the tablet, so neither storage nor a contract change.
 Done (decisions 28 and 29, `plans/COMPLETED.md`).
 
-### Next: race logging (M12–M17)
+### Race logging (M12–M17): done
 
 Courses drawn on the website with start/finish, sectors and pit lines, sent
 down to the tablet, **which times laps and sectors: its numbers are the
 results** (Sam); the server keeps the books (drivers, practice and an
-endurance race tied together from many sessions, results) and re-times the
-tablet's own fixes when a line moves. The overall plan is
-[`plans/RACE-LOGGING.md`](plans/RACE-LOGGING.md). It needs a contract change,
-proposed in [`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md)
-(revision 2, answering the tablet's §22).
+endurance race tied together from many sessions, results, live) and re-times
+the tablet's own fixes when a line moves. Its plan is closed
+(`plans/COMPLETED.md`, decisions 31–37); the contract change is §22, from
+[`proposals/COURSES-AND-TIMING-TO-THE-TABLET.md`](proposals/COURSES-AND-TIMING-TO-THE-TABLET.md).
 
 ### Other candidates
 

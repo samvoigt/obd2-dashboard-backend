@@ -432,7 +432,7 @@ second socket, the fake session's `protocol` (JOURNAL).
 
 ## M12 — Courses, and down to the tablet  ✅ 2026-09-27
 
-The first milestone of race logging (`plans/RACE-LOGGING.md`). Decisions 31
+The first milestone of race logging (its plan closed with M17, below). Decisions 31
 and 32; contract §22, proposed here, agreed by Sam and the tablet side, and
 confirmed here.
 
@@ -636,3 +636,49 @@ The fifth milestone of race logging. Decision 36.
 
 **Left for later:** the race live on the car page and the tablet (M17);
 positions per lap; comparing more than two laps.
+
+## M17 — Live: the tablet, the car page, the event page  ✅ 2026-09-28
+
+The last milestone of race logging. Decision 37.
+
+- **§23 answered** (`ArchiveService.complete`): a repeated `complete` answers
+  at once and does nothing again; one per session at a time; segments read 8
+  ahead.
+- **The live run** (`SessionTrace.record`, `Provisional.runs`, `LiveTimings`).
+- **Where a car stands** (`Standings.of`, `CarTimings`).
+- **`timing` to the tablet** (`TimingDownlink`), nudged by the routes that
+  edit what it's made of; `replay --timing`.
+- **The car page, live** (`TimingPage`, the `timing` SSE event;
+  `StandingPanel`, sectors in `LapsPanel`, the crew's `DriverPicker`).
+- **The event page, live** (the live runs in results, marked; `ResultsHold`;
+  the page refreshing during a part).
+- **Tests:** Kotlin 31 new (`:archive` 2, `:timing` 5, `:server` 24) and
+  several extended; Vitest 174 (5 new). **Mutations: 71, 67 killed, 4 as good
+  as equivalent or covered twice over** (each in the plan's record, in git).
+- **Found while building:** a long drive's `complete` took 17–30 s, past the
+  tablet's 10 s (§23's cause); a driver set from the car page would have
+  waited for the next stop in a race; the stint outside a race must look at
+  every run; the box fixture's laps all had one `seq`.
+- **Proven:** Chrome against the dev server; **deployed as `00028`** with a
+  stream across it, then **`00029`** (the panel's spacing) with that stream and
+  a race being driven across it; **in production**, a throwaway car driving a
+  test race live as a `timing.1` tablet: a frame on each lap, the driver set
+  through the crew's passcode reaching it within 5 s, the car page's panel,
+  the event page counting the live stint (marked) and, after the upload, the
+  same race without a lap lost or doubled; the race's count carrying on
+  through the server's restart. A 90,323-line session in about 210 chunks
+  completed in **5.0 s** (a 58,381-line one took 17 s before). All removed.
+
+**Left for later:** re-timing a session before it completes; positions
+between cars; other teams' cars.
+
+## Race logging (M12–M17)  ✅ 2026-09-28
+
+Sam asked (2026-09-27) for race logging: sessions grouped by driver and race,
+a track with start/finish and sectors, lap times and splits. Settled with him
+then: endurance racing, a race of many sessions joined; drivers recorded on
+the website, never the tablet; **the tablet's lap and sector times are the
+results** and the server keeps the books; courses drawn on the website and
+sent down; practice and the race; public, edited behind sign-in; only our
+cars; and the tablet showing what only the server knows. Built as M12–M17
+(decisions 31–37); the contract change is §22, agreed and confirmed.

@@ -953,3 +953,37 @@ keep every lap the tablet timed, which is the tablet's to give (decision 31).
 is quick where, and who is steady, and to go straight to the moment in the
 data. Distance is the only axis two laps share whatever line each took, and
 it's the course's own line that makes it the same for every car.
+
+## 37. Live: what the server knows, while the car is being driven
+
+**Decision.** (M17.)
+- **Sessions not complete yet count.** Every session a car streamed and that
+  isn't complete is held from the live lane (its `lap` records whole, its
+  fixes), joined into runs of the app and **re-timed as a complete run is**:
+  a provisional run, never stored, let go once the session completes (its run
+  is then re-timed whole). A session first seen mid-drive is read from its
+  partial archive first; after a reconnect, the archive is read again for the
+  laps sent while the link was down.
+- **`timing` (contract §22.7)** goes to a tablet listing `timing.1` on every
+  `session` frame, and when where the car stands changes (compared without
+  ages): the course (the event's, else its laps'), at its current version;
+  this car's best and best sectors in the event (else on the layout); who's
+  driving and since when; in a race, its lap count and when the car left the
+  pits. Ages are from the tablet's `wall` now, by the live lane's measured
+  offset.
+- **Who's driving now**: stints the crew edited say who; else the session's
+  driver as set (the car page's picker sets it); else the stint's. A stint
+  outside a race runs from the last pit exit.
+- **The car page** shows the same (moments on the server's clock, counted on
+  by the page), each lap's sectors with each sector's best marked, and, for
+  the crew, who's driving. **The event page** counts the sessions being
+  driven, their laps marked live, and asks again every 30 s while a part is
+  on; results are held 10 s, emptied by any edit.
+- **`complete` answers a repeat at once** (contract §23), one at a time per
+  session, reading segments ahead.
+
+**Why.** Race day is live: the pit wall needs the lap count, who's in and for
+how long, and the tablet needs what only the server knows, while the car is
+out, not after the session is uploaded. Holding the live run as a provisional
+run means one set of rules, the same as for complete sessions, and results
+that settle into the complete ones without a lap lost or doubled.
