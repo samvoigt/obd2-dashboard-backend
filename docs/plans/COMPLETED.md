@@ -720,3 +720,45 @@ Decisions 38–40; decision 28 amended.
 
 **Left for later:** re-timing a session before it completes; positions per
 lap or between cars; M9 (tabled).
+
+## M19 — Long sessions: two 8-hour stints without anyone waiting  ✅ 2026-09-29
+
+Decision 41.
+
+- **Measured first** (`scripts/synthetic-session.py`: the tablet's real rate,
+  37.4 lines/s, any length; `MeasureSeries`, `MeasureRetiming`). The
+  baseline in production (`00030`), one 8-hour session: the car page's
+  request **ran the container out of memory**, then took 150 s; `complete`
+  39.9 s; a full series build 178 MiB peak.
+- **Compaction while uploading** (`SegmentStore.compose`,
+  `SessionIndex.compact`, `ArchiveService.compact`): at most ~33 objects.
+- **`complete` answers at once** (`RunningSha256`, `SessionRecord.hashState`,
+  `completeRunning`, `finish` after the answer and on start).
+- **The car page without rebuilding** (`ThinSeries`, `LiveSeries`,
+  `readLinesFrom`, `GET /api/sessions/{id}/live-laps`, the refill reading
+  only the gap).
+- **Finished long sessions** (`prepare` one at a time, building
+  `series-v2-thin.json.gz` beside the full one; `?thin=1`; the session page
+  thinned, detail when zoomed).
+- **Not built:** incremental re-timing of the live run (6 ms at 8 hours).
+- **Tests:** Kotlin `RunningSha256Test`, `LongSessionTest`, `ThinSeriesTest`,
+  `LiveSeriesTest` new, and the routes', archive's and live timing's
+  extended; Vitest 4 new. **Mutations: 47, 46 killed, 1 equivalent and its
+  code removed** (in the plan's record, in git). **The real bucket:**
+  `archive-smoke.sh` with compaction and finishing.
+- **Found while building:** compaction kept every superseded piece, and each
+  holds all before it (13.6 GB in the dev store at 8 hours); two tests that
+  passed for the wrong reason, found once the mutation tool refused a failing
+  baseline.
+- **Measured:** the thinned series at 8 hours 678 KB gzipped (the full 4 MB);
+  a live session's state 5 MiB; two 8-hour sessions at 60x into the dev
+  server, "Whole session" in 0.08–0.46 s; an 8-hour session's page at 4x
+  slower CPU, phone width, 60 fps.
+- **Proven:** deployed as `00031` (the stream closed `1006`, this machine
+  overloaded) and `00032` (a clean `1012`); **in production**, two 8-hour
+  sessions uploaded in parallel: series requests `200` in 1.4–3 s
+  throughout, `complete` in 703 and 456 ms, each finished into one object
+  with both series; memory 48% rising to 79%, no errors. All removed.
+
+**Left for later:** the tablet's many tiny chunks (a question for the tablet
+side); 1 GiB if a race needs it.

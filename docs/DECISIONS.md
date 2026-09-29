@@ -1039,3 +1039,37 @@ back, not redone.
 **Why.** Re-timing on view always worked, but a page shouldn't wait on it;
 the job exists so that it doesn't, and it should survive the server's
 restarts and the admin tool.
+
+## 41. Long sessions: stored in pieces, finished after the answer, served thinned
+
+**Decision.** (M19.) A session costs the same to upload, complete and watch
+at hour eight as at hour one.
+- **Compaction while uploading.** Once 32 segments follow line 0, they're
+  composed (Cloud Storage's compose, a multi-member gzip) into one piece and
+  the index lists the piece instead; what a compaction replaced is deleted by
+  the next. An 8-hour session stays about 33 objects. The index is still the
+  authority (decision 17); a reader holding an older list reads it whole.
+- **`complete` compares a running hash and answers.** The SHA-256 of the log
+  is kept as chunks are acknowledged (its state on the session's record, in
+  the same write), so `complete` reads nothing. The single
+  `session.jsonl.gz` is composed after the answer, and on start for any
+  session complete and not yet one object; until then readers and the
+  download use the pieces. Sessions opened before M19 keep the old path.
+- **A session still uploading is served thinned, incrementally, shared**:
+  each number's minimum and maximum per 5 s, a position a second, the rest
+  whole, every `seq` counted (so `lastSeq` reaches the newest line); one
+  builder per session fed only new lines, one answer per `ackedThrough` for
+  every viewer. The car page's laps come from the live run
+  (`/live-laps`), and its series is fetched only for "Whole session".
+- **A finished session** gets its full series and a thinned one in one pass,
+  **one build at a time**; its page opens thinned when it's over an hour and
+  loads the full series when the view narrows to half an hour.
+- **The live run is still re-timed from its start** (6 ms at 8 hours).
+- **Cloud Run stays at 512 MiB** for now: two 8-hour sessions uploading and
+  finishing together peaked at 79% of it. Raised to 1 GiB if a race shows
+  more.
+
+**Why.** Two 8-hour stints in a race (Sam, 2026-09-28). Before, every one of
+these grew with the session: at 8 hours, the car page's request ran the
+server out of memory, and `complete` took 40 s against the tablet's 10 s
+timeout.

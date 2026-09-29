@@ -73,4 +73,7 @@ None of these is in the contract's body, and each has to be true of the server:
   session was first completed at 17:48:30Z, twice (0.6 s apart), each answered
   after 17 s, past the tablet's 10 s read timeout. Completing is now faster (a
   90,323-line session in 5.0 s) but still grows with the chunks; the tablet's
-  timeout for `complete` should be longer.
+  timeout for `complete` should be longer. **Since M19** it no longer grows:
+  an 8-hour session's `complete` answered in 0.5–0.7 s in production (a
+  running hash, decision 41). A longer timeout is still advisable for a slow
+  network.

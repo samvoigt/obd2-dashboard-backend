@@ -415,3 +415,28 @@ whole drive, the admin page's Download.
 - **`LiveReplayTest`'s coalescing test** failed once in about seven full
   runs under load (never alone): its hub is replaced on every reconnect. Not
   chased.
+
+## 2026-09-29 — M19, long sessions
+
+- **Before and after, one 8-hour session in production:** the car page's
+  series request, `503` (out of memory) then 150 s → `200` in 1.4–3 s with
+  two uploading at once; `complete` 39.9 s → 0.5–0.7 s; objects per session
+  ~2,400 → ~33. Memory peaked at 79% of 512 MiB (from 48%) with both
+  finishing.
+- **The tablet sends many tiny chunks.** Its request log for the drive of
+  2026-09-28: every 2 minutes one ~80 KB chunk, plus 15–25 under 1 KB in
+  bursts 0.3 s apart, about 10 requests a minute. Harmless now (compaction),
+  but a question for the tablet side.
+- **Measure before assuming.** The plan's estimate (a chunk every 12 s) was
+  wrong both ways; the baseline found an out-of-memory nobody had predicted,
+  and the measurement closed M19.5 without building it.
+- **Compaction grew with the square of the session** until what it replaced
+  was deleted: each piece holds all before it. Found only by running 8 hours
+  through the dev server's memory store.
+- **A mutation run is only as good as its baseline.** Two tests failed on
+  their own and "killed" mutants; `mutlib.py` now refuses to measure against
+  a failing suite.
+- **A deploy's stream closed `1006` instead of `1012`** once, with this machine
+  at load average ~20 (two 8-hour uploads generating and sending); Cloud
+  Run logged "Shutting down user disabled instance". Redeployed with nothing
+  else running: a clean `1012`. Test deploys from an idle machine.

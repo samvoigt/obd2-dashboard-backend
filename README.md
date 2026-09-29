@@ -6,7 +6,10 @@ shows the car's data live.
 
 ## Status
 
-M18 done: the dashboard shows every signal the car sends; sessions can be
+M19 done: two 8-hour stints in a race without anyone waiting. A session is
+compacted as it uploads, `complete` answers at once, and the car page's
+"Whole session" and a long session's page are thinned (full detail when
+zoomed). M18: the dashboard shows every signal the car sends; sessions can be
 named by the admin or the crew; crew messages show beside a session; each
 session keeps the tablet's clock offset; a course's re-timing survives a
 restart. M17: live. The tablet hears what only the server knows (who's driving
