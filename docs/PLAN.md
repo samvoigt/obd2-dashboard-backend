@@ -33,6 +33,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M16** | Results worth reading: every lap linked, theoretical best, sectors compared, consistency, the lap-time chart, two laps compared | ✅ (`plans/COMPLETED.md`) |
 | **M17** | Live: the `timing` frame to the tablet, the car page's driver, stint and race, the event page counting the stint being driven | ✅ (`plans/COMPLETED.md`) |
 | **M18** | The candidates and leftovers: every signal on the dashboard, session names, crew messages beside a session, each session's clock offset stored, re-timing that survives a restart | ✅ (`plans/COMPLETED.md`) |
+| **M19** | Long sessions: two 8-hour stints in a race without anyone waiting (compaction, `complete` at once, the car page and live timing without rebuilding) | **planned**: [`plans/M19-LONG-SESSIONS.md`](plans/M19-LONG-SESSIONS.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -159,8 +160,9 @@ the tablet's own fixes when a line moves. Its plan is closed
 **The first real drive** was 2026-09-27 (`JOURNAL.md`); what it found for the
 site was M11.
 
-The candidates Sam had waiting were built in M18. Next: a local lap-timing
-drive in the neighbourhood (to be planned).
+The candidates Sam had waiting were built in M18. Next: M19 (long
+sessions), then a local lap-timing drive in the neighbourhood (to be
+planned).
 
 ---
 
