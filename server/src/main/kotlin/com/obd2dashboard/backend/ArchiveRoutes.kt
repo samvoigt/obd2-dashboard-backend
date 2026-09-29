@@ -92,7 +92,20 @@ fun Route.archiveRoutes(
                 }
             }
             when (val result = archive.append(car, id, first, lines)) {
-                is ArchiveService.Append.Acked -> call.respond(HttpStatusCode.OK, Acked(result.ackedThrough))
+                is ArchiveService.Append.Acked -> {
+                    call.respond(HttpStatusCode.OK, Acked(result.ackedThrough))
+                    // After the answer (M19.2): a long session's chunks composed into one piece now and then.
+                    val log = call.application.log
+                    call.application.launch {
+                        try {
+                            archive.compact(id)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            log.warn("compacting $id failed; its segments stay as they are", e)
+                        }
+                    }
+                }
                 is ArchiveService.Append.Gap -> call.missing(result.missingFrom)
                 ArchiveService.Append.NotOpen -> call.notOpen(id)
                 ArchiveService.Append.WrongCar -> call.wrongCar(id)
@@ -120,6 +133,13 @@ fun Route.archiveRoutes(
                     // is only logged: the summary is built again on first view.
                     val log = call.application.log
                     call.application.launch {
+                        try {
+                            archive.finish(id) // one object, composed on the store's side (M19.3)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            log.warn("composing $id failed; it's read as its segments, and finished on the next start", e)
+                        }
                         try {
                             archive.prepare(id) // the summary and the series, in one pass (M7.2)
                         } catch (e: CancellationException) {

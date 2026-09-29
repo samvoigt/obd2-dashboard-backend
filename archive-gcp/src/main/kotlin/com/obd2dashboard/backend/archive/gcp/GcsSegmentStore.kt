@@ -66,6 +66,14 @@ public class GcsSegmentStore(private val storage: Storage, private val bucket: S
         withContext(Dispatchers.IO) { storage.delete(BlobId.of(bucket, key)) }
     }
 
+    /** Cloud Storage's compose (M19.2): joined on its side, never downloaded; the target a gzip file as every object here. */
+    override suspend fun compose(target: String, sources: List<String>) {
+        require(sources.size in 1..SegmentStore.COMPOSE_MAX) { "compose takes 1 to ${SegmentStore.COMPOSE_MAX} sources" }
+        withContext(Dispatchers.IO) {
+            storage.compose(Storage.ComposeRequest.newBuilder().addSource(sources).setTarget(info(target)).build())
+        }
+    }
+
     override suspend fun list(prefix: String): List<String> = withContext(Dispatchers.IO) {
         storage.list(bucket, Storage.BlobListOption.prefix(prefix)).iterateAll().map { it.name }.sorted()
     }

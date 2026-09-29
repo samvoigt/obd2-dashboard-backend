@@ -13,6 +13,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.obd2dashboard.backend.archive.Bounds
 import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.Segment
+import com.obd2dashboard.backend.archive.compacted
 import com.obd2dashboard.backend.archive.SessionHeader
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.SessionRecord
@@ -51,30 +52,39 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
         line0Sha256: String,
         segment: Segment,
         now: Instant,
+        hashState: String?,
     ): Boolean = conditional(id) { current ->
         if (current.ackedThrough != -1L) null
-        else current.copy(header = header, line0Sha256 = line0Sha256, ackedThrough = 0, segments = listOf(segment), updated = now)
+        else current.copy(header = header, line0Sha256 = line0Sha256, ackedThrough = 0, segments = listOf(segment), updated = now, hashState = hashState)
     }
 
-    override suspend fun append(id: String, expectedAcked: Long, segment: Segment, now: Instant): Boolean =
+    override suspend fun append(id: String, expectedAcked: Long, segment: Segment, now: Instant, hashState: String?): Boolean =
         conditional(id) { current ->
             if (current.ackedThrough != expectedAcked || current.complete) null
-            else current.copy(ackedThrough = segment.last, segments = current.segments + segment, updated = now)
+            else current.copy(ackedThrough = segment.last, segments = current.segments + segment, updated = now, hashState = hashState ?: current.hashState)
         }
 
-    override suspend fun complete(id: String, expectedAcked: Long, sha256: String, now: Instant): Boolean =
+    override suspend fun complete(id: String, expectedAcked: Long, sha256: String, now: Instant, assembled: Boolean): Boolean =
         conditional(id) { current ->
             if (current.ackedThrough != expectedAcked) null
-            else current.copy(complete = true, sha256 = sha256, segments = emptyList(), updated = now)
+            else current.copy(complete = true, sha256 = sha256, segments = if (assembled) emptyList() else current.segments, updated = now)
         }
 
-    override suspend fun resetToLine0(id: String, expectedAcked: Long, now: Instant): Boolean = conditional(id) { current ->
+    override suspend fun assembled(id: String, now: Instant): Boolean = conditional(id) { current ->
+        if (!current.complete) null else current.copy(segments = emptyList(), updated = now)
+    }
+
+    override suspend fun compact(id: String, replaced: List<String>, piece: Segment, now: Instant): Boolean =
+        conditional(id) { current -> compacted(current, replaced, piece, now) }
+
+    override suspend fun resetToLine0(id: String, expectedAcked: Long, now: Instant, hashState: String?): Boolean = conditional(id) { current ->
         if (current.ackedThrough != expectedAcked) null
         else current.copy(
             ackedThrough = 0,
             segments = current.segments.filter { it.first == 0L },
             hashResets = current.hashResets + 1,
             updated = now,
+            hashState = hashState ?: current.hashState,
         )
     }
 
@@ -165,6 +175,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             driver?.let { put("driver", it) }
             clockOffsetMs?.let { put("clockOffsetMs", it) }
             name?.let { put("name", it) }
+            hashState?.let { put("hashState", it) }
         }
 
         private fun SessionSummary.toFields(): Map<String, Any> = buildMap {
@@ -280,6 +291,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 driver = string("driver"),
                 clockOffsetMs = (data["clockOffsetMs"] as? Number)?.toLong(),
                 name = string("name"),
+                hashState = string("hashState"),
             )
         }
 

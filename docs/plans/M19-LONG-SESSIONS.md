@@ -148,6 +148,40 @@ byte; a reader racing a compaction still reads it whole; the index record's
 size bounded; a failed compose leaves the segments as they were); the real
 bucket (`archive-smoke.sh`, a compaction and a byte-for-byte read).
 
+> **Validated against the code, 2026-09-28, before building** (with M19.3,
+> which touches the same code).
+> - **Segments are gzip files**, so a composed piece is a multi-member gzip,
+>   which `GZIPInputStream` reads straight through (the real bucket checks it).
+> - **The index is the authority** (decision 17): a piece replaces a run of
+>   segments by one conditional write that finds exactly those keys still
+>   there; appends, which add at the end, can't conflict.
+> - **Superseded objects aren't deleted until the session is finished**: a
+>   reader holding an older list then never meets a missing object, and the
+>   duplicate bytes (a few MB) live only until `complete`'s clean-up, which
+>   deletes the whole segments folder as today.
+> - **One piece, growing**: segment 0 (line 0) stays alone (a hash mismatch
+>   keeps it); when 32 more have come after it, the first 32 after it (the
+>   piece so far and 31 chunks) are composed into the next piece, within
+>   compose's 32 sources. A session stays at most ~33 objects.
+> - **When**: after a chunk is answered, in the background (as `prepare` is),
+>   under the session's lock (M17.1's), so it never races `complete` or itself.
+> - **`complete` read each segment whole into memory** (`store.read`): a piece
+>   of an 8-hour session is 125 MB raw. Reads of pieces stream (M19.3 then
+>   leaves `complete` nothing to read).
+
+> **✅ Done, 2026-09-29.** `SegmentStore.compose` (Cloud Storage's compose;
+> in memory, concatenation), `SessionIndex.compact` (`compacted`: the run's
+> keys all still listed, the session not complete), `ArchiveService.compact`
+> (under the session's lock; only sessions with a running hash), launched
+> after each chunk's answer.
+> - **Tests:** `LongSessionTest` (200 one-line chunks: at most 33 objects,
+>   6 composes, byte for byte; a reader holding the list from before a
+>   compaction reads it whole; a failed compose leaves the segments; a stale
+>   compaction refused; exactly 32 after line 0 starts one), `ArchiveRoutesTest`
+>   (one-line chunks through the route compacted as they come). **The real
+>   bucket:** `archive-smoke.sh` (32 composed into a piece, read back through
+>   its gzip members byte for byte).
+
 ### M19.3 — `complete` answers at once
 
 A SHA-256 whose state can be stored (checked against the JDK's), kept with
@@ -158,6 +192,55 @@ after, resumed on start if a session is complete and not yet one object.
 still resets as today; a restart mid-upload carries the hash on; a restart
 before the final compose finishes it; reads before it use the pieces); the
 real bucket; `complete` timed at 2,400 chunks.
+
+> **Validated against the code, 2026-09-28, before building.**
+> - **The JDK's SHA-256 can't hand over its state**, so a small SHA-256 of
+>   our own (FIPS 180-4), checked against the JDK's on random data split
+>   anywhere; its state (the eight words, the length, the partial block) is a
+>   short string stored on the session's record, updated in the same
+>   conditional write that acknowledges a chunk.
+> - **Where the log begins**: line 0 is stored by `open` (a new record) or by
+>   `setLine0` (a record the live lane made); both start the hash. A hash
+>   mismatch resets to line 0 (`resetToLine0`), which restarts it from line
+>   0's bytes (segment 0, one small read).
+> - **`complete`** then compares, marks the session complete **keeping its
+>   pieces**, and answers; `finish` composes the pieces into
+>   `session.jsonl.gz`, marks the record assembled (segments cleared) and
+>   deletes the segments folder. **Readers** use the pieces until then
+>   (`read`), and **the admin's download** streams them zipped, as it does for
+>   a session uploading. `finish` runs after the answer, and **on start for any
+>   session complete and not assembled**.
+> - **Sessions opened before M19** have no running hash: `complete` assembles
+>   them as today, streamed.
+
+> **✅ Done, 2026-09-29** (its timing at 2,400 chunks is M19.7's, in
+> production). `RunningSha256` (FIPS 180-4, state as a short string);
+> `SessionRecord.hashState` (memory, Firestore), carried by `open`,
+> `setLine0` and each append, restarted by `resetToLine0`;
+> `complete` compares and answers (`completeRunning`), keeping the pieces;
+> `finish` composes them (in rounds past 32), marks the record assembled and
+> deletes the folder, after the answer and on start (`unfinished`); `read` and
+> the admin's download use the pieces until then. Sessions from before M19
+> keep the old path, streamed, never compacted.
+> - **Tests:** `RunningSha256Test` 3 (known answers; against the JDK's over
+>   200 random inputs split and restored anywhere; the padding's edges);
+>   `LongSessionTest` (complete reading nothing, finish; the hash across a
+>   restart and finished by the next; a wrong hash starting again with the hash
+>   from line 0; before M19; composed in rounds; announced by the live lane
+>   first), `ArchiveRoutesTest` (finished after the answer; finished on
+>   start), `SessionRoutesTest` (the download before it's one object),
+>   `ArchiveServiceTest` updated (the corrupt-segment guard now on the path
+>   before M19: the running hash trusts what was stored as acknowledged, as the
+>   index does). **The real bucket:** `archive-smoke.sh` (answered with the
+>   segments listed; finished into one object; three gzip members read back).
+> - **Mutations (M19.2 and M19.3): 21, all killed**, four after the tests
+>   above gained a session announced first, exactly 32, and the routes'
+>   launches (two first rewritten, not compiling as written).
+> - **Caught by the full suite before committing:** the "announced first"
+>   test failed on its own (its helper skipped the `PUT` once a record
+>   existed), so the mutant it "killed" hadn't been caught. Fixed, and **the
+>   mutation tool now refuses to measure against a suite that fails without a
+>   mutant**; that mutant, rerun, is caught.
 
 ### M19.4 — The car page without rebuilding the session
 

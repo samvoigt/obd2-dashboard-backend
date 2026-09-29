@@ -40,7 +40,18 @@ class ArchiveServiceTest {
     private suspend fun completeFixture(sha: String = Fixtures.SESSION_SHA256) =
         archive.complete(car, id, lastIndex, lastIndex + 1, sha)
 
-    private fun storedSession(): ByteArray = store.objects.getValue(ArchiveService.sessionKey(id))
+    /** The one object, once `finish` has composed it (M19.3; the route runs it after answering). */
+    private suspend fun storedSession(): ByteArray {
+        archive.finish(id)
+        return store.objects.getValue(ArchiveService.sessionKey(id))
+    }
+
+    /** As a session opened before M19: no running hash, so `complete` reads and hashes it whole. */
+    private suspend fun legacy() {
+        val record = index.get(id)!!
+        index.delete(id)
+        index.create(record.copy(hashState = null))
+    }
 
     @Test
     fun `a session in random chunk sizes completes byte for byte`() = runTest {
@@ -186,9 +197,10 @@ class ArchiveServiceTest {
     }
 
     @Test
-    fun `a segment holding the wrong number of lines refuses to assemble`() = runTest {
+    fun `a segment holding the wrong number of lines refuses to assemble, on the path before M19`() = runTest {
         openFixture()
         append(1, lines.size - 1)
+        legacy()
         val key = index.get(id)!!.segments.last().key
         store.objects[key] = store.objects.getValue(key).dropLast(1).toByteArray().let { b ->
             b.copyOf(b.lastIndexOf('\n'.code.toByte()) + 1) // one line short, still newline-terminated
@@ -440,7 +452,9 @@ class ArchiveServiceTest {
         store.beforeRead = { yield() } // the rival runs between every segment read
         val both = listOf(async { completeFixture() }, async { completeFixture() }).awaitAll()
         both.toSet() shouldBe setOf(ArchiveService.Complete.Done, ArchiveService.Complete.AlreadyDone)
-        store.writes shouldBe 1
+        store.writes shouldBe 0 // nothing read back or written at complete (M19.3)
+        store.composes shouldBe 0
         storedSession().contentEquals(Fixtures.session) shouldBe true
+        store.composes shouldBe 1
     }
 }

@@ -242,7 +242,8 @@ private suspend fun io.ktor.server.application.ApplicationCall.sessionRecord(
 suspend fun io.ktor.server.application.ApplicationCall.downloadSession(archive: ArchiveService, record: SessionRecord) {
     response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${record.id}.jsonl.gz\"")
     respondOutputStream(ContentType.parse("application/gzip")) {
-        if (record.complete) {
+        // One object once finished (M19.3); before that, its pieces zipped as they stream, as while uploading.
+        if (record.complete && record.segments.isEmpty()) {
             archive.readRaw(ArchiveService.sessionKey(record.id)) { it.copyTo(this) }
         } else {
             GZIPOutputStream(this).let { gz ->

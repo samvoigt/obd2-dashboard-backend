@@ -224,7 +224,9 @@ class ArchiveRoutesTest {
         client.chunk(1, 20).acked() shouldBe 20
         client.chunk(21, lines.size - 21).acked() shouldBe lines.size - 1L
         client.complete().let { it.status shouldBe HttpStatusCode.OK; it.bodyAsText() shouldBe """{"complete":true}""" }
-        store.objects.getValue(ArchiveService.sessionKey(id)).contentEquals(session) shouldBe true
+        // Composed into one object after the answer (M19.3).
+        eventually { store.objects[ArchiveService.sessionKey(id)]?.contentEquals(session) == true }
+        index.get(id)!!.segments shouldBe emptyList()
         // Sent again, when the tablet never saw the answer (§23): the same answer.
         client.complete().let { it.status shouldBe HttpStatusCode.OK; it.bodyAsText() shouldBe """{"complete":true}""" }
     }
@@ -290,4 +292,40 @@ class ArchiveRoutesTest {
         flaky.fail = false
         client.chunk(1, 5).acked() shouldBe 5
     }
+
+    private fun eventually(check: suspend () -> Boolean) {
+        val until = System.currentTimeMillis() + 10_000
+        while (!runBlocking { check() }) {
+            check(System.currentTimeMillis() < until) { "not within 10 s" }
+            Thread.sleep(20)
+        }
+    }
+
+    @Test
+    fun `one-line chunks are compacted as they come, and read back whole (M19_2)`() = testApplication {
+        app()
+        client.open()
+        for (i in 1 until lines.size) client.chunk(i, 1).acked() shouldBe i.toLong()
+        eventually { index.get(id)!!.segments.size <= lines.size - ArchiveService.COMPACT_AT + 1 }
+        (store.composes >= 1) shouldBe true
+        client.complete().status shouldBe HttpStatusCode.OK
+        eventually { store.objects[ArchiveService.sessionKey(id)]?.contentEquals(session) == true }
+    }
+
+    @Test
+    fun `a session answered complete and left unfinished is finished when the server starts (M19_3)`() = testApplication {
+        val archive = ArchiveService(index, store)
+        runBlocking {
+            archive.open("yaris", id, lines[0].toByteArray())
+            val rest = lines.drop(1).joinToString("") { "$it\n" }.toByteArray()
+            archive.append("yaris", id, 1, (com.obd2dashboard.backend.archive.LineBlock.split(rest) as com.obd2dashboard.backend.archive.LineBlock.Split.Ok).lines)
+            archive.complete("yaris", id, lines.size - 1L, lines.size.toLong(), sha) shouldBe ArchiveService.Complete.Done
+        }
+        store.objects.containsKey(ArchiveService.sessionKey(id)) shouldBe false // the server stopped before composing
+        app()
+        startApplication()
+        eventually { store.objects[ArchiveService.sessionKey(id)]?.contentEquals(session) == true }
+        eventually { index.get(id)!!.segments.isEmpty() }
+    }
 }
+

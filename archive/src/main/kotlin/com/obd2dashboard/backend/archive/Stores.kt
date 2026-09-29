@@ -47,6 +47,12 @@ public data class SessionRecord(
     val clockOffsetMs: Long? = null,
     /** What the admin or the crew called it (M18.3); null until someone does. */
     val name: String? = null,
+    /**
+     * The SHA-256 of every line acknowledged, as a [RunningSha256]'s state
+     * (M19.3), so `complete` only compares; null for a session opened before
+     * M19, which is hashed whole at `complete`.
+     */
+    val hashState: String? = null,
 )
 
 /**
@@ -62,21 +68,38 @@ public interface SessionIndex {
     /** Adds [record] if no session has its id. */
     public suspend fun create(record: SessionRecord): Boolean
 
-    /** Sets line 0 on a session that has none (one the live lane created). */
-    public suspend fun setLine0(id: String, header: SessionHeader, line0Sha256: String, segment: Segment, now: Instant): Boolean
-
-    /** Appends [segment] and advances `ackedThrough` to its last line, **only if** it is still [expectedAcked]. */
-    public suspend fun append(id: String, expectedAcked: Long, segment: Segment, now: Instant): Boolean
+    /** Sets line 0 on a session that has none (one the live lane created), and the running hash from it (M19.3). */
+    public suspend fun setLine0(id: String, header: SessionHeader, line0Sha256: String, segment: Segment, now: Instant, hashState: String? = null): Boolean
 
     /**
-     * Marks the session complete and clears its segment list (the segments are
-     * deleted once the session is one object), only if `ackedThrough` is still
+     * Appends [segment] and advances `ackedThrough` to its last line, with the
+     * running hash carried over its lines (M19.3), **only if** it is still
      * [expectedAcked].
      */
-    public suspend fun complete(id: String, expectedAcked: Long, sha256: String, now: Instant): Boolean
+    public suspend fun append(id: String, expectedAcked: Long, segment: Segment, now: Instant, hashState: String? = null): Boolean
 
-    /** Drops every segment after line 0 and counts a reset, only if `ackedThrough` is still [expectedAcked]. */
-    public suspend fun resetToLine0(id: String, expectedAcked: Long, now: Instant): Boolean
+    /**
+     * Marks the session complete, only if `ackedThrough` is still
+     * [expectedAcked]. [assembled]: it's one object already, so its segment
+     * list is cleared; else (M19.3) the segments stay listed until
+     * [assembled] is called.
+     */
+    public suspend fun complete(id: String, expectedAcked: Long, sha256: String, now: Instant, assembled: Boolean = true): Boolean
+
+    /** A complete session is now one object (M19.3): its segment list cleared. False if it isn't complete. */
+    public suspend fun assembled(id: String, now: Instant): Boolean
+
+    /**
+     * Replaces the segments whose keys are [replaced] with [piece], composed
+     * from them (M19.2), **only if** every one is still listed; false if not.
+     */
+    public suspend fun compact(id: String, replaced: List<String>, piece: Segment, now: Instant): Boolean
+
+    /**
+     * Drops every segment after line 0 and counts a reset, with the running
+     * hash back at line 0 (M19.3), only if `ackedThrough` is still [expectedAcked].
+     */
+    public suspend fun resetToLine0(id: String, expectedAcked: Long, now: Instant, hashState: String? = null): Boolean
 
     public suspend fun listByCar(car: String): List<SessionRecord>
 
@@ -125,6 +148,18 @@ public interface SegmentStore {
     public suspend fun delete(key: String)
 
     public suspend fun list(prefix: String): List<String>
+
+    /**
+     * Makes [target] of [sources] joined in order, on the store's side (Cloud
+     * Storage's compose, M19.2): at most [COMPOSE_MAX] sources. Gzip files
+     * joined are one multi-member gzip, read straight through.
+     */
+    public suspend fun compose(target: String, sources: List<String>)
+
+    public companion object {
+        /** Cloud Storage's limit on a compose's sources. */
+        public const val COMPOSE_MAX: Int = 32
+    }
 }
 
 /** A [SessionIndex] in memory, for tests. */
@@ -147,12 +182,13 @@ public class InMemorySessionIndex : SessionIndex {
         line0Sha256: String,
         segment: Segment,
         now: Instant,
+        hashState: String?,
     ): Boolean = update(id) {
         if (it.ackedThrough != -1L) null
-        else it.copy(header = header, line0Sha256 = line0Sha256, ackedThrough = 0, segments = listOf(segment), updated = now)
+        else it.copy(header = header, line0Sha256 = line0Sha256, ackedThrough = 0, segments = listOf(segment), updated = now, hashState = hashState)
     }
 
-    override suspend fun append(id: String, expectedAcked: Long, segment: Segment, now: Instant): Boolean {
+    override suspend fun append(id: String, expectedAcked: Long, segment: Segment, now: Instant, hashState: String?): Boolean {
         beforeAppend?.let { hook -> beforeAppend = null; hook() }
         if (failNextAppend) {
             failNextAppend = false
@@ -160,19 +196,30 @@ public class InMemorySessionIndex : SessionIndex {
         }
         return update(id) {
             if (it.ackedThrough != expectedAcked || it.complete) null
-            else it.copy(ackedThrough = segment.last, segments = it.segments + segment, updated = now)
+            else it.copy(ackedThrough = segment.last, segments = it.segments + segment, updated = now, hashState = hashState ?: it.hashState)
         }
     }
 
-    override suspend fun complete(id: String, expectedAcked: Long, sha256: String, now: Instant): Boolean =
+    override suspend fun complete(id: String, expectedAcked: Long, sha256: String, now: Instant, assembled: Boolean): Boolean =
         update(id) {
             if (it.ackedThrough != expectedAcked) null
-            else it.copy(complete = true, sha256 = sha256, segments = emptyList(), updated = now)
+            else it.copy(complete = true, sha256 = sha256, segments = if (assembled) emptyList() else it.segments, updated = now)
         }
 
-    override suspend fun resetToLine0(id: String, expectedAcked: Long, now: Instant): Boolean = update(id) {
+    override suspend fun assembled(id: String, now: Instant): Boolean = update(id) {
+        if (!it.complete) null else it.copy(segments = emptyList(), updated = now)
+    }
+
+    override suspend fun compact(id: String, replaced: List<String>, piece: Segment, now: Instant): Boolean = update(id) {
+        compacted(it, replaced, piece, now)
+    }
+
+    override suspend fun resetToLine0(id: String, expectedAcked: Long, now: Instant, hashState: String?): Boolean = update(id) {
         if (it.ackedThrough != expectedAcked) null
-        else it.copy(ackedThrough = 0, segments = it.segments.filter { s -> s.first == 0L }, hashResets = it.hashResets + 1, updated = now)
+        else it.copy(
+            ackedThrough = 0, segments = it.segments.filter { s -> s.first == 0L }, hashResets = it.hashResets + 1, updated = now,
+            hashState = hashState ?: it.hashState,
+        )
     }
 
     override suspend fun listByCar(car: String): List<SessionRecord> = sessions.values.filter { it.car == car }
@@ -260,4 +307,30 @@ public class InMemorySegmentStore : SegmentStore {
     }
 
     override suspend fun list(prefix: String): List<String> = objects.keys.filter { it.startsWith(prefix) }.sorted()
+
+    /** How many composes ran (M19.2). */
+    public var composes: Int = 0
+        private set
+
+    /** Plain bytes here, so joining is concatenating, as a multi-member gzip reads. */
+    override suspend fun compose(target: String, sources: List<String>) {
+        require(sources.size in 1..SegmentStore.COMPOSE_MAX) { "compose takes 1 to ${SegmentStore.COMPOSE_MAX} sources" }
+        val joined = java.io.ByteArrayOutputStream()
+        for (s in sources) joined.write(objects[s] ?: error("no object $s"))
+        objects[target] = joined.toByteArray()
+        composes++
+    }
 }
+
+/**
+ * [record] with the segments keyed [replaced] swapped for [piece] (M19.2), in
+ * order; null if any of them is no longer listed, or the session is complete.
+ */
+public fun compacted(record: SessionRecord, replaced: List<String>, piece: Segment, now: Instant): SessionRecord? {
+    if (record.complete || replaced.isEmpty()) return null
+    val keys = replaced.toSet()
+    if (!record.segments.map { it.key }.containsAll(keys)) return null
+    val kept = record.segments.filter { it.key !in keys }
+    return record.copy(segments = (kept + piece).sortedBy { it.first }, updated = now)
+}
+

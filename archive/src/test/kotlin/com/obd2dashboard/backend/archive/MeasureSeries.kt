@@ -74,6 +74,7 @@ class MeasureSeries {
             override suspend fun deletePrefix(prefix: String): Int = 0
             override suspend fun delete(key: String) { file(key).delete() }
             override suspend fun list(prefix: String): List<String> = emptyList()
+            override suspend fun compose(target: String, sources: List<String>) = error("not measured here")
         }
         val archive = ArchiveService(index, store)
         val id = "0b8f3c52-5f7e-4b7e-9c55-1d7b0a3e9f10"

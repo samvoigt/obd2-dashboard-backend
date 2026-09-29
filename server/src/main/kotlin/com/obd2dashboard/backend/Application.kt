@@ -18,6 +18,7 @@ import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.application.log
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
@@ -30,6 +31,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.sse.SSE
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 /**
@@ -100,6 +102,12 @@ fun Application.module(
     val downlink = CourseDownlink(courses)
     val retiming = RetimingJobs(registry, archive, courses, this)
     if (watchRetiming) retiming.watch()
+    // Sessions answered complete and not yet one object when the server stopped (M19.3): finished now.
+    launch {
+        runCatching { archive.unfinished() }.getOrDefault(emptyList()).forEach { id ->
+            runCatching { archive.finish(id) }.onFailure { log.warn("finishing $id failed; it's read as its segments", it) }
+        }
+    }
     // The live run (M17.2) tells `timing` (M17.4) what changed; `timing` needs it to work out where a car stands.
     var timingDownlink: TimingDownlink? = null
     val liveTimings = LiveTimings(archive, this, clock) { car -> timingDownlink?.changed(car) }

@@ -205,6 +205,13 @@ class SessionRoutesTest {
         }.headers[HttpHeaders.SetCookie]!!.substringBefore(';')
         val bytes = GZIPInputStream(ByteArrayInputStream(client.get("/api/admin/sessions/$A/download") { header(HttpHeaders.Cookie, cookie) }.bodyAsBytes())).readBytes()
         bytes.decodeToString() shouldBe lines.joinToString("") { "$it\n" }
+        // Answered complete and not yet one object (M19.3): its segments, zipped, all the same.
+        runBlocking {
+            archive.complete("yaris", A, lines.size - 1L, lines.size.toLong(), java.security.MessageDigest.getInstance("SHA-256").digest(lines.joinToString("") { "$it\n" }.toByteArray()).joinToString("") { "%02x".format(it) }) shouldBe ArchiveService.Complete.Done
+            archive.session(A)!!.let { it.complete shouldBe true; (it.segments.isNotEmpty()) shouldBe true }
+        }
+        val again = GZIPInputStream(ByteArrayInputStream(client.get("/api/admin/sessions/$A/download") { header(HttpHeaders.Cookie, cookie) }.bodyAsBytes())).readBytes()
+        again.decodeToString() shouldBe lines.joinToString("") { "$it\n" }
     }
 
     @Test

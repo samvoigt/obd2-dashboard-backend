@@ -47,6 +47,7 @@ public class ArchiveService(
         val record = SessionRecord(
             id = id, car = car, header = header, line0Sha256 = line0Sha, ackedThrough = 0,
             segments = listOf(segment), complete = false, sha256 = null, hashResets = 0, created = now, updated = now,
+            hashState = RunningSha256().update(line0 + NEWLINE).state(), // the running hash begins (M19.3)
         )
         if (index.create(record)) return Open.Created(0)
         // Another request created it first; answer as a reopen of what it made.
@@ -64,7 +65,8 @@ public class ArchiveService(
         if (existing.line0Sha256 == null) {
             // Created by the live lane (M4), without line 0: this PUT supplies it.
             val segment = storeSegment(existing.id, 0, 0, line0 + NEWLINE, singleLine(line0))
-            if (index.setLine0(existing.id, header, line0Sha, segment, clock.instant())) return Open.Created(0)
+            val hashState = RunningSha256().update(line0 + NEWLINE).state()
+            if (index.setLine0(existing.id, header, line0Sha, segment, clock.instant(), hashState)) return Open.Created(0)
             return reopen(index.get(existing.id)!!, car, header, line0, line0Sha)
         }
         if (existing.line0Sha256 != line0Sha) {
@@ -104,8 +106,11 @@ public class ArchiveService(
             Trim.Plan.Duplicate -> Append.Acked(record.ackedThrough)
             is Trim.Plan.Append -> {
                 if (record.complete) return Append.BadRecord("the session is complete; it takes no new lines")
-                val segment = storeSegment(id, plan.first, plan.last, lines.bytesFrom(plan.skip), lines, plan.skip)
-                if (index.append(id, record.ackedThrough, segment, clock.instant())) {
+                val bytes = lines.bytesFrom(plan.skip)
+                val segment = storeSegment(id, plan.first, plan.last, bytes, lines, plan.skip)
+                // The running hash carried over exactly the lines acknowledged (M19.3).
+                val hashState = record.hashState?.let { RunningSha256.restore(it).update(bytes).state() }
+                if (index.append(id, record.ackedThrough, segment, clock.instant(), hashState)) {
                     Append.Acked(plan.last)
                 } else {
                     Append.Acked(index.get(id)?.ackedThrough ?: return Append.NotOpen)
@@ -144,6 +149,8 @@ public class ArchiveService(
             return Complete.BadRecord("the server holds ${record.ackedThrough + 1} lines, more than the session's $recordCount")
         }
 
+        record.hashState?.let { state -> return completeRunning(record, RunningSha256.restore(state).hex(), sha256) }
+        // Opened before M19: no running hash, so hashed and assembled whole, as before.
         val hash = LineHash()
         val final = sessionKey(id)
         assemble(record, final, hash)
@@ -161,6 +168,90 @@ public class ArchiveService(
         // The whole session is durable in one object; segments and any race's orphans can go.
         store.deletePrefix(segmentsPrefix(id))
         return Complete.Done
+    }
+
+    /**
+     * `complete` with the running hash (M19.3): **compare and answer**. The
+     * segments stay listed and are read as they are until [finish] makes them
+     * one object; a mismatch starts again from line 0, as before.
+     */
+    private suspend fun completeRunning(record: SessionRecord, actual: String, sha256: String): Complete {
+        val id = record.id
+        contiguous(record)
+        if (!actual.equals(sha256, ignoreCase = true)) {
+            if (record.hashResets >= MAX_HASH_RESETS) {
+                return Complete.BadRecord("the stored lines never match the session's hash; stopping after $MAX_HASH_RESETS resends")
+            }
+            val line0 = record.segments.first { it.first == 0L }
+            val restart = RunningSha256().update(store.read(line0.key)).state()
+            if (!index.resetToLine0(id, record.ackedThrough, clock.instant(), restart)) return Complete.Gap(currentNext(id))
+            store.list(segmentsPrefix(id)).filter { it != line0.key }.forEach { store.delete(it) }
+            return Complete.Gap(1)
+        }
+        if (!index.complete(id, record.ackedThrough, actual, clock.instant(), assembled = false)) return Complete.Gap(currentNext(id))
+        return Complete.Done
+    }
+
+    /** The index's segments run from line 0 to `ackedThrough` without a gap (decision 17's authority, checked). */
+    private fun contiguous(record: SessionRecord) {
+        var next = 0L
+        for (s in record.segments.sortedBy { it.first }) {
+            check(s.first == next) { "session ${record.id}: segments are not contiguous at $next" }
+            next = s.last + 1
+        }
+        check(next == record.ackedThrough + 1) { "session ${record.id}: segments end at ${next - 1}, not ${record.ackedThrough}" }
+    }
+
+    /**
+     * **One object at last** (M19.3): a complete session's segments composed
+     * into `session.jsonl.gz` on the store's side, the record marked
+     * assembled, and the segments folder deleted. After `complete`'s answer,
+     * and on start for any session left between. False if there was nothing
+     * to do.
+     */
+    public suspend fun finish(id: String): Boolean = completing[Math.floorMod(id.hashCode(), COMPLETE_LOCKS)].withLock {
+        val record = index.get(id) ?: return@withLock false
+        if (!record.complete || record.segments.isEmpty()) return@withLock false
+        contiguous(record)
+        composeAll(sessionKey(id), record.segments.sortedBy { it.first }.map { it.key }, segmentsPrefix(id))
+        if (!index.assembled(id, clock.instant())) return@withLock false
+        store.deletePrefix(segmentsPrefix(id))
+        true
+    }
+
+    /** Complete sessions not yet one object (M19.3): what [finish] has left to do, after a restart. */
+    public suspend fun unfinished(): List<String> = index.list().filter { it.complete && it.segments.isNotEmpty() }.map { it.id }
+
+    /**
+     * **Compaction** (M19.2): once [COMPACT_AT] segments follow line 0, the
+     * first [SegmentStore.COMPOSE_MAX] of them (the piece so far and the chunks
+     * after it) become one piece, composed on the store's side. A session stays
+     * at most ~33 objects however long. What they replace is left until
+     * [finish] deletes the folder, so no reader meets a missing object. Only a
+     * session with a running hash (opened since M19). True if it compacted.
+     */
+    public suspend fun compact(id: String): Boolean = completing[Math.floorMod(id.hashCode(), COMPLETE_LOCKS)].withLock {
+        val record = index.get(id) ?: return@withLock false
+        if (record.complete || record.hashState == null) return@withLock false
+        val after = record.segments.filter { it.first != 0L }.sortedBy { it.first }
+        if (after.size < COMPACT_AT) return@withLock false
+        val run = after.take(SegmentStore.COMPOSE_MAX)
+        val key = segmentKey(id, run.first().first, run.last().last)
+        store.compose(key, run.map { it.key })
+        index.compact(id, run.map { it.key }, Segment(run.first().first, run.last().last, key, run.first().firstSeq, run.last().lastSeq), clock.instant())
+    }
+
+    /** [target] composed of [keys] in order, in rounds of [SegmentStore.COMPOSE_MAX], the rounds' parts under [scratch]. */
+    private suspend fun composeAll(target: String, keys: List<String>, scratch: String) {
+        var parts = keys
+        var round = 0
+        while (parts.size > SegmentStore.COMPOSE_MAX) {
+            round++
+            parts = parts.chunked(SegmentStore.COMPOSE_MAX).mapIndexed { i, group ->
+                "${scratch}compose-$round-$i".also { store.compose(it, group) }
+            }
+        }
+        store.compose(target, parts)
     }
 
     /**
@@ -210,7 +301,8 @@ public class ArchiveService(
      * whole session.
      */
     public suspend fun read(record: SessionRecord, reader: suspend (InputStream) -> Unit) {
-        if (record.complete) {
+        // Complete and one object; else (uploading, or complete and not yet composed, M19.3) its segments.
+        if (record.complete && record.segments.isEmpty()) {
             store.readStream(sessionKey(record.id)) { reader(it) }
         } else {
             // The index lists only acked segments (decision 17), so these are exactly the stored lines.
@@ -345,6 +437,9 @@ public class ArchiveService(
     public companion object {
         /** A third mismatch would not change anything: the two sides disagree about the bytes. */
         public const val MAX_HASH_RESETS: Int = 2
+
+        /** Segments after line 0 that set off a compaction (M19.2): about every 3 minutes at the tablet's rate. */
+        public const val COMPACT_AT: Int = SegmentStore.COMPOSE_MAX
 
         /** Segments read ahead while a session is assembled: at most this many in memory. */
         public const val READ_AHEAD: Int = 8

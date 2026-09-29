@@ -63,6 +63,8 @@ fun main(args: Array<String>) {
 
             check("complete", archive.complete(car, id, lines.size - 1L, lines.size.toLong(), sha) == ArchiveService.Complete.Done)
             check("complete again: answered at once, nothing done again (M17.1)", archive.complete(car, id, lines.size - 1L, lines.size.toLong(), sha) == ArchiveService.Complete.AlreadyDone)
+            check("answered by the running hash: its segments listed until finished (M19.3)", index.get(id)?.segments?.size == 3)
+            check("finished: composed into one object on the store's side (M19.3)", archive.finish(id))
             check("only the session object remains", store.list("sessions/$id/") == listOf(ArchiveService.sessionKey(id)))
             val summary = archive.summary(id)
             check("the summary is built from the stored log (M7.1)", summary?.lines == lines.size.toLong() && summary.unreadable == 0)
@@ -77,10 +79,30 @@ fun main(args: Array<String>) {
             val blob = storage.get(BlobId.of(bucket, ArchiveService.sessionKey(id)))
             check("stored as application/gzip, no content-encoding", blob.contentType == "application/gzip" && blob.contentEncoding == null)
             val downloaded = GZIPInputStream(ByteArrayInputStream(blob.getContent())).use { it.readBytes() }
-            check("the download is the fixture, byte for byte", downloaded.contentEquals(fixture))
+            check("the download is the fixture, byte for byte (three gzip members, composed)", downloaded.contentEquals(fixture))
             val rawRead = store.readRaw(ArchiveService.sessionKey(id)) { it.readBytes() }
             check("readRaw is the object as stored, gzip (M7.3)", rawRead.contentEquals(storage.readAllBytes(blob.blobId)) &&
                 java.util.zip.GZIPInputStream(rawRead.inputStream()).readBytes().contentEquals(fixture))
+
+            // M19.2: one-line chunks, as the tablet's many small ones, compacted into a piece and read back.
+            val id2 = UUID.randomUUID().toString()
+            val fixture2 = fixture.decodeToString().replace(id, id2).toByteArray()
+            val lines2 = (LineBlock.split(fixture2) as LineBlock.Split.Ok).lines
+            fun one(i: Int) = (LineBlock.split(lines2.line(i) + '\n'.code.toByte()) as LineBlock.Split.Ok).lines
+            try {
+                archive.open(car, id2, lines2.line(0))
+                for (i in 1 until lines2.size) archive.append(car, id2, i.toLong(), one(i))
+                check("compacted: ${ArchiveService.COMPACT_AT} segments after line 0 composed into one piece (M19.2)", archive.compact(id2))
+                check("the index lists line 0, the piece and the rest", index.get(id2)?.segments?.size == lines2.size - 32 + 1)
+                val back = java.io.ByteArrayOutputStream().also { out -> archive.read(index.get(id2)!!) { it.copyTo(out) } }.toByteArray()
+                check("the piece reads back through its gzip members, byte for byte", back.contentEquals(fixture2))
+                val sha2 = LineHash().also { it.addLines(fixture2) }.hex()
+                check("complete and finish", archive.complete(car, id2, lines2.size - 1L, lines2.size.toLong(), sha2) == ArchiveService.Complete.Done && archive.finish(id2))
+                val whole = java.io.ByteArrayOutputStream().also { out -> archive.read(index.get(id2)!!) { it.copyTo(out) } }.toByteArray()
+                check("one object, byte for byte, and nothing else left", whole.contentEquals(fixture2) && store.list("sessions/$id2/") == listOf(ArchiveService.sessionKey(id2)))
+            } finally {
+                archive.delete(id2)
+            }
 
             // SegmentStore.write's rule: a body that throws creates no object.
             val failedKey = "sessions/$id/should-not-exist.jsonl.gz"
