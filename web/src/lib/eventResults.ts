@@ -39,6 +39,8 @@ export interface SessionResult {
   /** Its laps were timed on another layout: shown, never counted. */
   otherLayout?: string | null
   best?: StandingLap | null
+  /** Still being driven or uploaded: its laps are provisional (M17.6). */
+  live?: boolean
 }
 
 export interface DriverBest {
@@ -125,4 +127,12 @@ export interface DriverRecord {
     stints: { car: string; stint: { number: number; firstLap?: number | null; lastLap?: number | null; laps: number; seconds: number; best?: number | null } }[]
   }[]
   courses: { course: string; courseName: string; event: string; best: DriverBest }[]
+}
+
+/** How often the event page asks again while a part is on (M17.6). */
+export const REFRESH_MS = 30_000
+
+/** Whether any of [parts] is on at [now] (epoch ms): the page then refreshes itself. */
+export function partOn(parts: { start: number; end: number }[], now: number): boolean {
+  return parts.some((p) => p.start <= now && now < p.end)
 }

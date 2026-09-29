@@ -102,6 +102,9 @@ fun Application.module(
     val timingPage = TimingPage(hub)
     val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this, standing = timingPage::standing)
     timingDownlink = timing
+    val resultsHold = ResultsHold(clock)
+    // Something results and timing are made of was edited: both work it out again at once.
+    val edited: () -> Unit = { timing.nudge(); resultsHold.clear() }
     val crewAuth = CrewAuth(crewKey, clock)
     val loginLimiter = LoginLimiter(clock)
     install(CallLogging)
@@ -126,16 +129,16 @@ fun Application.module(
         }
         adminCourseRoutes(
             courses, courseInUse, clock, adminAuth, admin,
-            onChange = { downlink.changed(); timing.nudge() }, onSaved = { retiming.courseSaved(it) },
+            onChange = { downlink.changed(); edited() }, onSaved = { retiming.courseSaved(it) },
             onRemoved = { retiming.courseRemoved(it) }, retiming = retiming::progress,
         )
-        adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin, onChanged = timing::nudge)
+        adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin, onChanged = edited)
         publicCourseRoutes(courses)
-        publicEventRoutes(events, courses, registry, archive, retiming)
+        publicEventRoutes(events, courses, registry, archive, retiming, liveTimings, hub, resultsHold)
         sessionRoutes(registry, archive, hub, clock, laps = { car, id, on -> retiming.sessionLaps(car, id, on) }, drivers = events.drivers, events = events.events)
         messageRoutes(registry, crewAuth, crew)
-        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = timing::nudge)
-        raceRoutes(events, registry, crewAuth, adminAuth, admin, clock, onChanged = timing::nudge)
+        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = edited)
+        raceRoutes(events, registry, crewAuth, adminAuth, admin, clock, onChanged = edited)
         webRoutes()
 
         // Outside `authenticate`: the socket authenticates after the upgrade, so it can refuse with a frame.

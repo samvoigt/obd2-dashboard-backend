@@ -91,23 +91,7 @@ class RetimingJobs(
     /** [lapsOf] as the session page has it: only the laps that ended in session [id], placed on its `wall`. */
     suspend fun sessionLaps(car: String, id: String, on: String? = null): SessionLaps? {
         val (course, timing) = lapsOf(car, id, on) ?: return null
-        val offset = timing.wallOffsets[id] ?: return null
-        val laps = timing.laps.mapIndexedNotNull { i, lap ->
-            if (lap.session != id) return@mapIndexedNotNull null
-            StandingLap(
-                lap = i + 1,
-                // To the millisecond, as a `lap` record has them: re-timing's doubles differ in the 7th place.
-                time = lap.time.toMillisecond(),
-                sectors = lap.sectors.map { it.toMillisecond() },
-                pitIn = lap.pitIn,
-                pitOut = lap.pitOut,
-                start = (lap.startAt + offset).roundToLong(),
-                end = (lap.endAt + offset).roundToLong(),
-                source = if (lap.source == LapSource.TABLET) "tablet" else "retimed",
-                checked = lap.checked,
-                flag = lap.flag?.let { f -> LapFlag(f.time?.toMillisecond(), f.startAt?.let { (it + offset).roundToLong() }, f.endAt?.let { (it + offset).roundToLong() }) },
-            )
-        }
+        val laps = standingLaps(timing, id) ?: return null
         return SessionLaps(course.id, course.name, timing.courseVersion, timing.layout, laps)
     }
 
@@ -155,9 +139,31 @@ class RetimingJobs(
     private suspend fun sessionsOf(car: String): List<SessionAt> =
         archive.sessionsOf(car).filter { it.complete }.mapNotNull { r -> archive.summary(r.id)?.let { SessionAt(r.id, car, it) } }
 
-    private fun Double.toMillisecond(): Double = (this * 1000).roundToLong() / 1000.0
-
     private companion object {
         val log = LoggerFactory.getLogger("retiming")
     }
 }
+
+/** [timing]'s laps that ended in session [id], placed on its `wall` (M13.5); null if the run can't place them. Live runs too (M17.6). */
+fun standingLaps(timing: RunTiming, id: String): List<StandingLap>? {
+    val offset = timing.wallOffsets[id] ?: return null
+    return timing.laps.mapIndexedNotNull { i, lap ->
+        if (lap.session != id) return@mapIndexedNotNull null
+        StandingLap(
+            lap = i + 1,
+            // To the millisecond, as a `lap` record has them: re-timing's doubles differ in the 7th place.
+            time = lap.time.toMillisecond(),
+            sectors = lap.sectors.map { it.toMillisecond() },
+            pitIn = lap.pitIn,
+            pitOut = lap.pitOut,
+            start = (lap.startAt + offset).roundToLong(),
+            end = (lap.endAt + offset).roundToLong(),
+            source = if (lap.source == LapSource.TABLET) "tablet" else "retimed",
+            checked = lap.checked,
+            flag = lap.flag?.let { f -> LapFlag(f.time?.toMillisecond(), f.startAt?.let { (it + offset).roundToLong() }, f.endAt?.let { (it + offset).roundToLong() }) },
+        )
+    }
+}
+
+private fun Double.toMillisecond(): Double = (this * 1000).roundToLong() / 1000.0
+

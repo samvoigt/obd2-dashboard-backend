@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { driverLabel, gap, sectorGap, windowText } from './eventResults'
+import { driverLabel, gap, sectorGap, windowText, partOn } from './eventResults'
 
 describe('an event’s results (M14.5)', () => {
   it('the gap to the fastest, to the millisecond', () => {
@@ -19,5 +19,17 @@ describe('an event’s results (M14.5)', () => {
     expect(sectorGap(0.1234)).toBe('+0.123')
     expect(sectorGap(0)).toBe('best')
     expect(sectorGap(null)).toBe('')
+  })
+})
+
+describe('the page refreshing itself (M17.6)', () => {
+  it('while a part is on, from its start up to its end', () => {
+    const parts = [{ start: 1_000, end: 2_000 }, { start: 5_000, end: 6_000 }]
+    expect(partOn(parts, 999)).toBe(false)
+    expect(partOn(parts, 1_000)).toBe(true)
+    expect(partOn(parts, 1_999)).toBe(true)
+    expect(partOn(parts, 2_000)).toBe(false)
+    expect(partOn(parts, 5_500)).toBe(true)
+    expect(partOn([], 1_500)).toBe(false)
   })
 })

@@ -23,6 +23,8 @@ public data class RaceLap(
     val stint: Int = 1,
     /** Where re-timing disagrees with the tablet's lap (decision 33). */
     val flag: Disagreement? = null,
+    /** In a session still being driven or uploaded: provisional (M17.6). */
+    val live: Boolean = false,
 )
 
 /**

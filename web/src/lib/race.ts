@@ -17,6 +17,8 @@ export interface RaceLap {
   /** `tablet`, `retimed`, or `restart` (the gap across a restart of the app). */
   source: 'tablet' | 'retimed' | 'restart'
   stint: number
+  /** In a session still being driven or uploaded (M17.6). */
+  live?: boolean
 }
 
 export interface RaceStop {

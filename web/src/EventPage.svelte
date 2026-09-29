@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import {
-    driverLabel, gap, sectorGap, windowText, type DriverBest, type DriverConsistency, type EventResults, type SectorRow, type SessionResult,
+    driverLabel, gap, partOn, REFRESH_MS, sectorGap, windowText, type DriverBest, type DriverConsistency, type EventResults, type SectorRow, type SessionResult,
   } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
@@ -16,7 +16,12 @@
   let missing = $state(false)
   let error: string | null = $state(null)
 
-  onMount(load)
+  // While a part is on, the page asks again every 30 s (M17.6): the stint being driven counts, marked live.
+  onMount(() => {
+    load()
+    const timer = setInterval(() => { if (results && partOn(results.event.parts, Date.now())) load() }, REFRESH_MS)
+    return () => clearInterval(timer)
+  })
 
   async function load() {
     try {
@@ -79,6 +84,7 @@
               <li>
                 <a href={`/cars/${s.car}/sessions/${s.id}`}>{carName(s.car)}, {heard(s)}</a>
                 <span>{driverLabel(s.driver)}</span>
+                {#if s.live}<span class="live">live</span>{/if}
                 {#if s.otherLayout}
                   <span class="muted">Timed on another layout ({s.otherLayout}): not counted here</span>
                 {:else}
@@ -174,4 +180,5 @@
   .sessions { list-style: none; padding: 0; display: grid; gap: 6px; }
   .sessions li { display: grid; gap: 2px; }
   .error { color: var(--critical); }
+  .live { color: var(--in-range); font-weight: 600; font-size: 0.85rem; }
 </style>

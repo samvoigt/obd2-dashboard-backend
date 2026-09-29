@@ -89,6 +89,7 @@
     {#if race.green}Green flag {new Date(race.green).toLocaleTimeString('en-GB', { hour12: false })}{:else}No green flag entered{/if}
     · {#if race.flag}flag {new Date(race.flag).toLocaleTimeString('en-GB', { hour12: false })}{:else}no flag entered{/if}.
     Every lap counts, before the green flag and after the flag too.
+    {#if race.cars.some((c) => c.laps.some((l) => l.live))}Laps marked live are the stint being driven: as the tablet sent them, until its session is uploaded.{/if}
   </p>
 
   {#if race.cars.length === 0}
@@ -187,6 +188,7 @@
                   l.source === 'restart' ? 'Across a restart of the app' : l.source === 'retimed' ? 'Re-timed' : '',
                   l.pitIn ? 'Into the pits' : '',
                   l.pitOut ? 'Out of the pits' : '',
+                  l.live ? 'Live' : '',
                 ].filter(Boolean).join(' · ')}
               </td>
               <td><ComparePick lap={pickOfLap(c, l)} best={c.best ? pickOfLap(c, c.best) : null} /></td>

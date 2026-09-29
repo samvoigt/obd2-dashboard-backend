@@ -399,6 +399,40 @@ completed session replacing its live run without a lap lost or doubled; the
 10 s hold); looked at in Chrome: a race's lap count going up while a replay
 streams.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **Results take laps only from complete sessions**: practice's
+>   `SessionResult` (`if (r.complete) retiming.sessionLaps`), the race's runs
+>   (`filter { it.complete }`). A session not complete gets its laps from its
+>   provisional run, placed on its `wall` as `sessionLaps` places a complete
+>   one's (one helper now, `standingLaps`); the race's runs gain the
+>   provisional ones. Both marked live.
+> - **The tablet's offset** for placing the flags is from complete sessions'
+>   summaries only, so in the race's first stint there's none: it falls back
+>   to the live lane's measured offset.
+> - **The 10 s hold** is keyed by the event and its revision, and emptied by
+>   the same edits that nudge `timing` (a driver, a race, an event, a course):
+>   otherwise saving stints would reload onto the results from before.
+
+> **✅ Done, 2026-09-28.** `publicEventRoutes` with the live runs
+> (`SessionResult.live`, `RaceLap.live`), the live offset for flags, and
+> `ResultsHold`; `standingLaps` shared with `RetimingJobs`. The event page asks
+> again every 30 s while a part is on (`partOn`), marks a session live, and a
+> race's live laps "Live", with a line saying what that means.
+> - **Tests:** `LiveResultsTest` 4 (through the real socket and archive
+>   lane: practice counting a session being driven, marked, then complete in
+>   its place; the race counting the live stint, once complete counting it
+>   once; a flag placed by the live offset, and a driver set shown at once;
+>   the hold's 10 s, revision and emptying). Vitest 1 (`partOn`).
+> - **Mutations: 9, 8 killed, 1 covered twice over** (leaving out complete
+>   sessions from the live runs: the `complete` route already lets them go).
+> - **Looked at in Chrome** (the dev server, the generated race streamed at
+>   1x): the event page, never reloaded, went from "No laps yet" and the
+>   session marked live, to 3 laps and the stop, to 5 laps with the live
+>   ones marked. **Seen as predicted in M17.2:** the lap across c1 and c2,
+>   neither timed by the tablet, showed as across a restart while c2 was
+>   live; once c2 completed it was the out-lap (145.3 s), 7 laps, none live.
+
+
 ### M17.7 — Deploy, and prove it
 
 Deployed with a stream across it (a second throwaway car's, under

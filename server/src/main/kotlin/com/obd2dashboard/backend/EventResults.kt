@@ -7,10 +7,12 @@ import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.events.Event
 import com.obd2dashboard.backend.events.EventRules
 import com.obd2dashboard.backend.events.PartKind
+import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.Slug
 import com.obd2dashboard.backend.timing.CarRace
 import com.obd2dashboard.backend.timing.Consistency
+import com.obd2dashboard.backend.timing.Provisional
 import com.obd2dashboard.backend.timing.Race
 import com.obd2dashboard.backend.timing.StintMark
 import io.ktor.http.HttpStatusCode
@@ -55,6 +57,8 @@ data class SessionResult(
     val otherLayout: String? = null,
     /** Its fastest lap on track (§18); null without one. */
     val best: StandingLap? = null,
+    /** Still being driven or uploaded: its laps are provisional (M17.6). */
+    val live: Boolean = false,
 )
 
 /** A driver's best lap in a part, or over all practice; a null driver is "not set". */
@@ -197,6 +201,11 @@ fun Route.publicEventRoutes(
     registry: CarRegistry,
     archive: ArchiveService,
     retiming: RetimingJobs,
+    /** The live runs (M17.6): sessions not complete yet count, marked. */
+    live: LiveTimings? = null,
+    hub: LiveHub? = null,
+    /** Results held briefly, so many viewers cost one computation. */
+    held: ResultsHold = ResultsHold(),
 ) {
     suspend fun public(event: Event): PublicEvent {
         val course = courses.get(event.course)
@@ -219,13 +228,23 @@ fun Route.publicEventRoutes(
         val inParts = EventRules.sessionsIn(event, records.values.map { it.heard() })
         val drivers = stores.drivers.list().associateBy { it.id }
         val pub = public(event)
+        // The live runs (M17.6), per car: its sessions in the event not complete yet, re-timed as complete ones are.
+        val course = courses.get(event.course)
+        val eventIds = inParts.values.flatten().toSet()
+        val provisional = if (live == null || course == null) emptyMap() else event.cars.associateWith { car ->
+            live.read(car) { held -> Provisional.runs(course, held.filter { s -> s.id in eventIds && records[s.id]?.complete == false }) }
+        }
+        val liveIds = provisional.values.flatten().flatMap { it.sessions }.toSet()
         val parts = event.parts.zip(pub.parts).map { (part, publicPart) ->
             val results = inParts[part.id].orEmpty().mapNotNull { records[it] }.map { r ->
-                val laps = if (r.complete) retiming.sessionLaps(r.car, r.id, event.course) else null
+                val laps = if (r.complete) retiming.sessionLaps(r.car, r.id, event.course)
+                else provisional[r.car]?.firstOrNull { r.id in it.sessions }?.let { run ->
+                    standingLaps(run, r.id)?.let { SessionLaps(run.course, course?.name ?: run.course, run.courseVersion, run.layout, it) }
+                }
                 val other = laps?.layout?.takeIf { it != event.layout }
                 SessionResult(
                     r.id, r.car, r.driver?.let { drivers[it] }?.view(), r.created.toEpochMilli(),
-                    laps?.laps.orEmpty(), other, if (other == null) Results.best(laps?.laps.orEmpty()) else null,
+                    laps?.laps.orEmpty(), other, if (other == null) Results.best(laps?.laps.orEmpty()) else null, live = r.id in liveIds,
                 )
             }
             val sectors = Results.bestSectors(results)
@@ -241,19 +260,21 @@ fun Route.publicEventRoutes(
             val byCar = raceRecords.groupBy { it.car }
             val cars = byCar.mapNotNull { (car, sessions) ->
                 // Each run once, in the order the server first heard its race sessions.
-                val runs = sessions.sortedBy { it.created }.filter { it.complete }
-                    .mapNotNull { retiming.lapsOf(car, it.id, event.course)?.second }
-                    .distinctBy { it.sessions }
-                    .filter { it.layout == event.layout }
-                // The summary as the sessions list gets it: stored, else built now (M7.1).
+                val runs = (
+                    sessions.sortedBy { it.created }.filter { it.complete }
+                        .mapNotNull { retiming.lapsOf(car, it.id, event.course)?.second }
+                        .distinctBy { it.sessions } + provisional[car].orEmpty()
+                    ).filter { it.layout == event.layout }
+                // The summary as the sessions list gets it: stored, else built now (M7.1); before any, the live lane's (M17.6).
                 val offset = Race.tabletOffset(sessions.filter { it.complete }.mapNotNull { r -> archive.summary(r.id)?.let { r.created to it.started } })
+                    ?: hub?.status(car)?.clockOffset?.toMillis()
                 Race.car(
                     car, runs, raceIds.toSet(),
                     drivers = sessions.associate { it.id to it.driver },
                     edited = racePart.stints[car]?.map { StintMark(it.start, it.driver) },
                     green = racePart.green?.let { g -> offset?.let { g.toEpochMilli() - it } },
                     flag = racePart.flag?.let { f -> offset?.let { f.toEpochMilli() - it } },
-                )?.let { it to offset }
+                )?.let { c -> c.copy(laps = c.laps.map { l -> if (l.session in liveIds) l.copy(live = true) else l }) }?.let { it to offset }
             }
             val publicRace = pub.parts.first { it.id == racePart.id }
             RaceResults(
@@ -273,14 +294,14 @@ fun Route.publicEventRoutes(
     get("/api/events/{id}") {
         val event = stores.events.get(call.parameters["id"].orEmpty())
             ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
-        call.respond(eventResults(event))
+        call.respond(held.get(event) { eventResults(event) })
     }
 
     get("/api/drivers/{id}") {
         val driver = stores.drivers.get(call.parameters["id"].orEmpty())
             ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such driver."))
         val events = stores.events.list().map { e ->
-            val results = eventResults(e)
+            val results = held.get(e) { eventResults(e) }
             val practice = results.parts.filter { it.part.kind == "practice" }.flatMap { p ->
                 p.bests.filter { it.driver?.id == driver.id }.map { DriverPracticeBest(p.part.name, it) }
             }
@@ -294,3 +315,23 @@ fun Route.publicEventRoutes(
         call.respond(DriverRecord(driver.view(), events, byCourse))
     }
 }
+
+/**
+ * An event's results held for [forMs] (M17.6): during a part the page asks
+ * every 30 s, and many viewers cost one computation. Emptied whenever what
+ * they're made of is edited (a driver, a race, an event, a course), so an
+ * edit shows at once.
+ */
+class ResultsHold(private val clock: java.time.Clock = java.time.Clock.systemUTC(), private val forMs: Long = 10_000) {
+    private val held = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, EventResults>>()
+
+    suspend fun get(event: Event, compute: suspend () -> EventResults): EventResults {
+        val key = "${event.id}@${event.revision}"
+        val now = clock.millis()
+        held[key]?.takeIf { now - it.first < forMs }?.let { return it.second }
+        return compute().also { held[key] = now to it }
+    }
+
+    fun clear() = held.clear()
+}
+
