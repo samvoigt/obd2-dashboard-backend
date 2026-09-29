@@ -9,6 +9,7 @@ import com.obd2dashboard.backend.events.DriverStore
 import com.obd2dashboard.backend.events.EventRules
 import com.obd2dashboard.backend.events.EventStore
 import com.obd2dashboard.backend.live.LiveHub
+import com.obd2dashboard.backend.live.Message
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.Slug
 import com.obd2dashboard.backend.registry.SlugCheck
@@ -22,6 +23,7 @@ import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import java.time.Clock
+import java.time.Instant
 import java.time.Duration
 import java.util.zip.GZIPOutputStream
 import kotlinx.serialization.Serializable
@@ -119,6 +121,8 @@ fun Route.sessionRoutes(
     drivers: DriverStore? = null,
     /** For the event each session is in (M14.5). */
     events: EventStore? = null,
+    /** A car's crew messages sent in a window (M18.4). */
+    messages: suspend (car: String, from: Instant, to: Instant) -> List<Message> = { _, _, _ -> emptyList() },
 ) {
     /** The events and parts [car]'s sessions are in, by session id. */
     suspend fun eventsOf(car: String, records: List<SessionRecord>): Map<String, EventRef> {
@@ -182,6 +186,13 @@ fun Route.sessionRoutes(
                 driver = record.driver?.let { drivers?.get(it) }?.view(),
             ),
         )
+    }
+
+    get("/api/sessions/{id}/messages") {
+        val record = call.sessionRecord(archive) ?: return@get
+        val summary = if (record.complete) record.summary ?: archive.summary(record.id) else null
+        val (from, to, offset) = SessionMessages.window(record, summary?.started, summary?.ended, clock.instant())
+        call.respond(messages(record.car, from, to).map { SessionMessage.of(it, offset) })
     }
 
     get("/api/sessions/{id}/laps") {
@@ -265,3 +276,40 @@ const val FAKE: String = "fake"
 val DRIVE_GAP: Duration = Duration.ofMinutes(10)
 
 private fun LapInfo.view() = LapView(lap, time)
+
+/** A crew message beside a session (M18.4): its text, and when it was sent, received and shown, on the server's clock. */
+@Serializable
+data class SessionMessage(
+    val text: String,
+    val preset: String? = null,
+    val state: String,
+    val sentAt: Long,
+    val receivedAt: Long? = null,
+    val displayedAt: Long? = null,
+    val endedAt: Long? = null,
+    /** When it was sent on the tablet's `wall`, where the session's chart is; null if the offset isn't known. */
+    val at: Long? = null,
+) {
+    companion object {
+        fun of(m: Message, offsetMs: Long?): SessionMessage = SessionMessage(
+            m.text, m.preset, m.state.wire, m.sentAt.toEpochMilli(), m.receivedAt?.toEpochMilli(), m.displayedAt?.toEpochMilli(),
+            m.endedAt?.toEpochMilli(), offsetMs?.let { m.sentAt.toEpochMilli() - it },
+        )
+    }
+}
+
+/** Which messages were sent while a session ran (M18.4). Pure. */
+object SessionMessages {
+    /**
+     * The session on the server's clock, and the offset (server less tablet)
+     * that put it there: its own [started] to [ended] (the summary's, on the
+     * tablet's `wall`) plus the stored offset (M18.1), else `created −
+     * started` (M15). Without a summary (still going): first heard to [now].
+     */
+    fun window(record: SessionRecord, started: Long?, ended: Long?, now: Instant): Triple<Instant, Instant, Long?> {
+        val offset = record.clockOffsetMs ?: started?.let { record.created.toEpochMilli() - it }
+        if (started == null || ended == null || offset == null) return Triple(record.created, now, offset)
+        return Triple(Instant.ofEpochMilli(started + offset), Instant.ofEpochMilli(ended + offset), offset)
+    }
+}
+

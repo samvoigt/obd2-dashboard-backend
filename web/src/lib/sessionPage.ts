@@ -201,8 +201,38 @@ export function joined(series: Series, names: string[]): [number[], ...(number |
 export interface Marker {
   /** Seconds, as the chart's axis. */
   t: number
-  kind: 'fault' | 'gap' | 'stopped' | 'lap'
+  kind: 'fault' | 'gap' | 'stopped' | 'lap' | 'message'
   text: string
+}
+
+/** A crew message sent while the session ran (M18.4), as `GET /api/sessions/{id}/messages` has it; times on the server's clock. */
+export interface SessionMessage {
+  text: string
+  preset?: string | null
+  state: string
+  sentAt: number
+  receivedAt?: number | null
+  displayedAt?: number | null
+  endedAt?: number | null
+  /** When it was sent on the tablet's `wall`, the chart's clock; null if the session's offset isn't known. */
+  at?: number | null
+}
+
+const later = (from: number, to: number | null | undefined) => (to == null ? null : `${((to - from) / 1000).toFixed(1)} s later`)
+
+/**
+ * Crew messages as the chart's marks and "What happened" (M18.4): each where
+ * it was sent, saying whether and how soon the tablet received and showed it.
+ * A message the session's clock can't place is left out.
+ */
+export function messageMarkers(messages: readonly SessionMessage[]): Marker[] {
+  return messages.flatMap((m): Marker[] => {
+    if (m.at == null) return []
+    const received = later(m.sentAt, m.receivedAt)
+    const shown = later(m.sentAt, m.displayedAt)
+    const fate = received === null ? 'never received' : shown === null ? `received ${received}, not shown` : `received ${received}, shown ${shown}`
+    return [{ t: m.at / 1000, kind: 'message', text: `Crew message “${m.text}”: ${fate}` }]
+  })
 }
 
 /** What happened, in time order: faults, gaps, signals that stopped, and each lap's end. */

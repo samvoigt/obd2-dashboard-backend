@@ -66,6 +66,9 @@ public interface MessageStore {
     /** The most recent [limit] messages for [car], newest first. */
     public suspend fun recent(car: String, limit: Int): List<Message>
 
+    /** [car]'s messages sent from [from] to [to], inclusive, oldest first (M18.4). */
+    public suspend fun between(car: String, from: java.time.Instant, to: java.time.Instant): List<Message>
+
     /** Deletes every message for [car], when the car itself is removed. Returns how many. */
     public suspend fun deleteCar(car: String): Int
 }
@@ -87,6 +90,9 @@ public class InMemoryMessageStore : MessageStore {
 
     override suspend fun active(car: String): List<Message> =
         messages.values.filter { it.car == car && it.state.active }
+
+    override suspend fun between(car: String, from: java.time.Instant, to: java.time.Instant): List<Message> =
+        messages.values.filter { it.car == car && !it.sentAt.isBefore(from) && !it.sentAt.isAfter(to) }.sortedBy { it.sentAt }
 
     override suspend fun recent(car: String, limit: Int): List<Message> =
         messages.values.filter { it.car == car }.sortedByDescending { it.sentAt }.take(limit)
@@ -185,6 +191,9 @@ public class Messages(
     }
 
     public suspend fun recent(car: String, limit: Int = 20): List<Message> = store.recent(car, limit)
+
+    /** Those sent while a session ran (M18.4), oldest first. */
+    public suspend fun between(car: String, from: java.time.Instant, to: java.time.Instant): List<Message> = store.between(car, from, to)
 
     public suspend fun get(id: String): Message? = store.get(id)
 

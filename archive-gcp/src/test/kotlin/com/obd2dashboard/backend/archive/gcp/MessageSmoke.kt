@@ -35,6 +35,12 @@ fun main(args: Array<String>) {
             check("cleared", messages.clear(car, second.message.id)?.state == MessageState.Cleared)
             val third = messages.send(car, "PUSH", "push", Duration.ofMinutes(1)).message.also { ids += it.id }
             check("recent query (car + sentAt desc)", messages.recent(car, 20).map { it.id } == listOf(third.id, second.message.id, first.id))
+            // M18.4: a session's window, on the same index, oldest first.
+            val all = messages.recent(car, 20).reversed()
+            check("between: all three, oldest first", messages.between(car, all.first().sentAt, all.last().sentAt).map { it.id } == all.map { it.id })
+            check("between: a window with only the middle one",
+                messages.between(car, all[1].sentAt, all[1].sentAt).map { it.id } == listOf(all[1].id))
+            check("between: before any", messages.between(car, all.first().sentAt.minusSeconds(60), all.first().sentAt.minusMillis(1)).isEmpty())
             check("sync frame carries the active one", messages.syncFrame(car).contains(third.id))
             check("deleteCar removes all three (remove-car)", store.deleteCar(car) == 3 && messages.recent(car, 20).isEmpty())
         } catch (e: Exception) {

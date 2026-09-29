@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bestSectors, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, nearest, speedColor, speedsAtPositions, speedSignal, standingRows,
+  bestSectors, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, messageMarkers, nearest, speedColor, speedsAtPositions, speedSignal, standingRows,
   type Series, type SessionLaps,
 } from './sessionPage'
 
@@ -173,5 +173,21 @@ describe('laps as they stand (M13.5)', () => {
     expect(await fetchLaps('s', answer(404))).toBeNull()
     expect((await fetchLaps('s', answer(200, laps([lap(1, 70)]))))!.laps.length).toBe(1)
     await expect(fetchLaps('s', answer(500))).rejects.toThrow('500')
+  })
+})
+
+describe('crew messages beside a session (M18.4)', () => {
+  it('each where it was sent on the tablet\u2019s clock, saying how soon it was received and shown', () => {
+    const sent = 1_790_000_100_000
+    expect(messageMarkers([
+      { text: 'PIT NOW', state: 'displayed', sentAt: sent, receivedAt: sent + 400, displayedAt: sent + 900, at: t0 + 60_000 },
+      { text: 'Push', state: 'received', sentAt: sent, receivedAt: sent + 1_250, at: t0 + 90_000 },
+      { text: 'Fuel', state: 'expired', sentAt: sent, at: t0 + 120_000 },
+      { text: 'Unplaced', state: 'queued', sentAt: sent, at: null }, // the session's clock unknown: left out
+    ])).toEqual([
+      { t: (t0 + 60_000) / 1000, kind: 'message', text: 'Crew message “PIT NOW”: received 0.4 s later, shown 0.9 s later' },
+      { t: (t0 + 90_000) / 1000, kind: 'message', text: 'Crew message “Push”: received 1.3 s later, not shown' },
+      { t: (t0 + 120_000) / 1000, kind: 'message', text: 'Crew message “Fuel”: never received' },
+    ])
   })
 })

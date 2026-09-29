@@ -50,6 +50,14 @@ public class FirestoreMessageStore(private val db: Firestore) : MessageStore {
             .whereIn(STATE, MessageState.entries.filter { it.active }.map { it.wire })
             .get().await().documents.mapNotNull { it.toMessage() }
 
+    /** On the same index as [recent] (`car`, `sentAt` descending), so newest first, then turned round. */
+    override suspend fun between(car: String, from: java.time.Instant, to: java.time.Instant): List<Message> =
+        messages.whereEqualTo(CAR, car)
+            .whereGreaterThanOrEqualTo(SENT_AT, from.toTimestamp())
+            .whereLessThanOrEqualTo(SENT_AT, to.toTimestamp())
+            .orderBy(SENT_AT, Query.Direction.DESCENDING)
+            .get().await().documents.mapNotNull { it.toMessage() }.reversed()
+
     override suspend fun recent(car: String, limit: Int): List<Message> =
         messages.whereEqualTo(CAR, car).orderBy(SENT_AT, Query.Direction.DESCENDING).limit(limit)
             .get().await().documents.mapNotNull { it.toMessage() }

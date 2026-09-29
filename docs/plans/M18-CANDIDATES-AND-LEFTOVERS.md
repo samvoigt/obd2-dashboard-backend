@@ -230,6 +230,45 @@ A store query for a car's messages sent in a window; `GET
 the stored offset, else `created − started`; the marks where they were sent);
 looked at in Chrome with messages sent during a replay.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The store** lists a car's messages newest first (`recent`), on
+>   Firestore's composite index (`car`, `sentAt` descending, `gcp-setup.sh`).
+>   A window is the same query with a `sentAt` range, **newest first then
+>   reversed**, so no new index; `message-smoke.sh` proves it.
+> - **The window** is the session on the server's clock: its `started` and
+>   `ended` (the summary's, tablet `wall`) plus its offset (M18.1's stored one,
+>   else `created − started`). A session still going runs from when it was
+>   first heard to now. Messages go only over the live socket, so a session
+>   uploaded later without streaming has none anyway.
+> - **The page** already lists "What happened" (faults, gaps, stopped
+>   signals) and marks each on the chart (`events`, `Marker`). A message
+>   joins as its own kind at the moment it was sent on the tablet's clock,
+>   its text saying when it was sent, received and shown: the list and the
+>   marks in one.
+
+> **✅ Done, 2026-09-28.** `MessageStore.between` (in memory; Firestore on
+> the existing index, newest first then turned round), `Messages.between`,
+> `GET /api/sessions/{id}/messages` (`SessionMessages.window`,
+> `SessionMessage`); on the session page, `messageMarkers`: each message in
+> "What happened" and marked on the chart in the accent colour, saying how
+> soon it was received and shown ("received 0.4 s later, shown 0.9 s later",
+> "not shown", "never received"). Test data can now be named from its page
+> (who may edit was asked only for real sessions).
+> - **Tests:** Kotlin 3 (the window by the stored offset, else `created −
+>   started`, else first heard to now; the route: only this car's, only
+>   inside, oldest first, placed on the tablet's clock, the times as stored;
+>   the store's window over twenty messages created out of order). Vitest 1.
+>   **The real Firestore:** `message-smoke.sh` passed with the window's three
+>   new checks.
+> - **Mutations: 12, all killed.** Two looked like survivors first: one had
+>   mutated `active()`'s identical text instead, and one passed because two
+>   messages came back in order by chance; the store's own test settles both.
+> - **Looked at in Chrome** (the dev server, two messages sent as the crew
+>   while a session streamed): both under "What happened" on its page. That
+>   session has no numeric signals, so no chart to mark; the marks are drawn
+>   as faults' and gaps' are. At 2x replay speed the placement drifts (the
+>   tablet's clock runs twice as fast); a tablet runs at 1x.
+
 ### M18.5 — The dashboard shows every signal the car sends
 
 `lib/dashboard.ts` gains the layout from the declared signals (by kind and

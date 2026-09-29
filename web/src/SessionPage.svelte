@@ -3,8 +3,8 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, speedsAtPositions, standingRows, unitOf,
-    type LapRow, type Series, type SessionLaps,
+    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, messageMarkers, speedsAtPositions, standingRows, unitOf,
+    type LapRow, type Series, type SessionLaps, type SessionMessage,
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
@@ -129,8 +129,9 @@
   })
   const whereLabel = (s: SessionItem): string | null =>
     !s.track ? null : courseNames ? `${courseNames.name}${s.layout ? ` · ${courseNames.layouts[s.layout] ?? s.layout}` : ''}` : trackOf(s)
-  const happened = $derived(view ? events(view) : [])
-  const markers = $derived(happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : 'muted') })))
+  let messages: SessionMessage[] = $state.raw([])
+  const happened = $derived([...(view ? events(view) : []), ...messageMarkers(messages)].sort((a, b) => a.t - b.t))
+  const markers = $derived(happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : m.kind === 'message' ? 'accent' : 'muted') })))
   const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
   const speeds = $derived(view ? speedsAtPositions(view) : [])
   // The map's stretch (M16.1): the positions inside the window, or all of them.
@@ -149,11 +150,14 @@
       }
       if (!response.ok) throw new Error(`The server answered ${response.status}.`)
       detail = (await response.json()) as Detail
-      // Who drove (M14.4): everyone sees it; the admin or the car's crew can set it. Never on test data.
+      // Who drove (M14.4): everyone sees it; the admin or the car's crew can set it. Never on test data, though
+      // test data can be named (M18.3).
       if (detail.session.source !== 'fake') {
         void fetch('/api/drivers').then((r) => (r.ok ? r.json() : [])).then((d: Driver[]) => (drivers = d)).catch(() => {})
-        void whoCanSet(slug).then((w) => (setter = w))
       }
+      void whoCanSet(slug).then((w) => (setter = w))
+      // Crew messages sent while it ran (M18.4).
+      void fetch(`/api/sessions/${id}/messages`).then((r) => (r.ok ? r.json() : [])).then((m: SessionMessage[]) => (messages = m)).catch(() => {})
       series = await fetchSeries(id)
       // A lap's link (M16.1): the chart zoomed to its window, the map showing that stretch.
       const linked = readWindow(window.location.search)

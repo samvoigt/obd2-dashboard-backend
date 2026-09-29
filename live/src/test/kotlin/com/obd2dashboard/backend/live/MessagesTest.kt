@@ -161,4 +161,17 @@ class MessagesTest {
         val b = messages.send("yaris", "B", null).message
         messages.recent("yaris").map { it.id } shouldBe listOf(b.id, a.id)
     }
+
+    @Test
+    fun `a car's messages in a window, oldest first, both ends included (M18_4)`() = kotlinx.coroutines.test.runTest {
+        val t0 = java.time.Instant.parse("2026-09-28T12:00:00Z")
+        // Created in a scrambled order, twenty of them, and another car's among them.
+        for (i in listOf(7, 2, 15, 0, 11, 19, 4, 9, 13, 1, 17, 6, 3, 18, 10, 5, 14, 8, 16, 12)) {
+            val at = t0.plusSeconds(i * 10L)
+            store.create(Message("m$i", if (i == 9) "yaris" else "outback", "M$i", null, at, at.plusSeconds(60), MessageState.Queued))
+        }
+        store.between("outback", t0.plusSeconds(50), t0.plusSeconds(120)).map { it.id } shouldBe listOf("m5", "m6", "m7", "m8", "m10", "m11", "m12")
+        store.between("outback", t0.plusSeconds(1000), t0.plusSeconds(2000)) shouldBe emptyList()
+    }
 }
+
