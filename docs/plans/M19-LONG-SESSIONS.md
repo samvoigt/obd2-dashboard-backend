@@ -305,6 +305,12 @@ measured with two 8-hour sessions streaming (frame rate, request times).
 >   (laps on `wall`; the refill reads only the gap's segments), `LongSessionTest`
 >   (what a compaction replaces is gone by the next), Vitest 2
 >   (`lapsFromLive`, `fetchLiveLaps`).
+> - **Mutations: 18, 17 killed, 1 equivalent and its code removed** (the
+>   order a bucket's minimum and maximum went to the builder: it sorts each
+>   signal's points by time). Four survived first and the tests grew: the
+>   newest line a dropped one (`lastSeq`), the very same answer when nothing is
+>   new, and **a build resuming inside a compacted piece** that straddles what
+>   was read (with laps in the lines, which a line fed twice would show).
 > - **Measured:** the thinned series of an 8-hour session is **2 MB raw, 678 KB
 >   gzipped** (the full one 16 MB and 4 MB); **a live session's state keeps 5
 >   MiB**; with **two 8-hour sessions streamed at 60x** into the dev server,

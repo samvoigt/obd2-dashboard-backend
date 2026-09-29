@@ -35,7 +35,11 @@ class LiveSeriesTest {
     private val W = 1_790_000_000_000L
     private val lines: List<String> =
         listOf("""{"type":"session","v":3,"id":"$id","started":"2026-09-29T12:00:00Z","signals":[{"name":"engine.rpm","unit":"rpm","kind":"number"}],"seq":0,"at":0,"wall":$W}""") +
-            (1..600).map { """{"type":"sample","signal":"engine.rpm","value":${3000 + it % 50},"seq":$it,"at":${it * 100},"wall":${W + it * 100}}""" }
+            (1..600).map {
+                // A lap every 10th line: passed whole, so a line fed twice would show.
+                if (it % 10 == 0) """{"type":"lap","lap":${it / 10},"time":70.0,"seq":$it,"at":${it * 100},"wall":${W + it * 100}}"""
+                else """{"type":"sample","signal":"engine.rpm","value":${3000 + it % 50},"seq":$it,"at":${it * 100},"wall":${W + it * 100}}"""
+            }
 
     private suspend fun upload(from: Int, to: Int) {
         if (from == 0) archive.open("outback", id, lines[0].toByteArray())
@@ -70,7 +74,7 @@ class LiveSeriesTest {
         unzip(second.second) shouldBe onePass(401)
         // Asked again with nothing new: the same answer, nothing read.
         val again = store.streamed
-        live.series(index.get(id)!!) shouldBe second
+        (live.series(index.get(id)!!).second === second.second) shouldBe true // the very answer, not built again
         store.streamed shouldBe again
     }
 
@@ -97,4 +101,18 @@ class LiveSeriesTest {
         live.series(index.get(id)!!.copy(id = "5ace0000-1111-4111-8111-000000000195"))
         live.held() shouldBe 1 // the idle one gone, the new one held
     }
+
+    @Test
+    fun `after a compaction merges lines read and unread into a piece, only the unread are fed`() = runTest {
+        // One-line chunks, as the tablet's small ones: 40 of them, a build, then a compaction and more.
+        archive.open("outback", id, lines[0].toByteArray())
+        fun one(i: Int) = (LineBlock.split("${lines[i]}\n".toByteArray()) as LineBlock.Split.Ok).lines
+        for (i in 1..20) archive.append("outback", id, i.toLong(), one(i))
+        live.series(index.get(id)!!) // read through line 20
+        for (i in 21..70) archive.append("outback", id, i.toLong(), one(i))
+        archive.compact(id) shouldBe true // lines 1-32 into one piece: 1-20 read, 21-32 not; the build resumes inside it
+        for (i in 71..80) archive.append("outback", id, i.toLong(), one(i))
+        unzip(live.series(index.get(id)!!).second) shouldBe onePass(81)
+    }
 }
+

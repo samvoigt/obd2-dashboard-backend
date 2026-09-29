@@ -71,19 +71,16 @@ public class ThinSeries(
         builder.write(out, t0, signals)
     }
 
+    /** The bucket's minimum and maximum; the builder puts each signal's points in time order itself. */
     private fun emit(b: Bucket) {
-        if (b.min === b.max) return builder.record(b.min)
-        val (first, second) = if (wallOf(b.min) <= wallOf(b.max)) b.min to b.max else b.max to b.min
-        builder.record(first)
-        builder.record(second)
+        builder.record(b.min)
+        if (b.max !== b.min) builder.record(b.max)
     }
 
     private fun numberOf(record: JsonObject): Double? {
         (record["value"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull?.let { return it }
         return (record["flag"] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull?.let { if (it) 1.0 else 0.0 }
     }
-
-    private fun wallOf(r: JsonObject) = (r["wall"] as JsonPrimitive).longOrNull ?: 0
 
     private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
 }

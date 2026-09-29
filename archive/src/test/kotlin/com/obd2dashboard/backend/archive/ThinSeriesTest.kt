@@ -40,6 +40,7 @@ class ThinSeriesTest {
         listOf(0L to 3000.0, 2000L to 1000.0, 4000L to 7000.0, 4500L to 4000.0, 5000L to 5000.0, 9000L to 4000.0).forEach { (ms, v) -> thin.record(rpm(ms, v)) }
         thin.record(lap(9500, 1))
         thin.record(fix(9600))
+        thin.record(rpm(9700, 4100.0)) // in the open bucket, and not its extreme: placed nowhere, yet the newest line
         val s = written(thin)
         rpmPoints(s) shouldBe listOf(2000L to 1000.0, 4000L to 7000.0) // the latest bucket (5-10 s) still open
         s["lastSeq"]!!.jsonPrimitive.long shouldBe seq // the newest line, though most weren't placed
