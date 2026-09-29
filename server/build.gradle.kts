@@ -105,6 +105,8 @@ tasks.register<JavaExec>("devServer") {
     mainClass.set("com.obd2dashboard.backend.DevServerKt")
     workingDir = layout.projectDirectory.asFile
     systemProperty("devTokenFile", layout.buildDirectory.file("dev-token").get().asFile.path)
+    // e.g. -PdevJvmArgs="-XX:+UseSerialGC -Xmx384m": the JVM as Cloud Run's (1 CPU, 512 MiB).
+    providers.gradleProperty("devJvmArgs").orNull?.let { jvmArgs(it.split(" ")) }
 }
 
 // Course tests read the NHMS seed: a changed seed must re-run them (M12.3).

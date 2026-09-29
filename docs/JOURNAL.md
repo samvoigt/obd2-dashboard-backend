@@ -421,8 +421,19 @@ whole drive, the admin page's Download.
 - **Before and after, one 8-hour session in production:** the car page's
   series request, `503` (out of memory) then 150 s → `200` in 1.4–3 s with
   two uploading at once; `complete` 39.9 s → 0.5–0.7 s; objects per session
-  ~2,400 → ~33. Memory peaked at 79% of 512 MiB (from 48%) with both
-  finishing.
+  ~2,400 → ~33.
+- **Memory went to 98–99% of 512 MiB and stayed, idle.** First recorded as
+  79%: that was read at 21:32, while it was still climbing. Reproduced
+  locally with the real server, production's JVM (`-XX:+UseSerialGC`, one
+  CPU, `-Xmx384m`) and the real bucket: after both finished, **~20 MB live**
+  and no session state left (no leak); the heap committed and not given back
+  (Serial GC shrinks only on a full collection); the rest is the JVM's own
+  (threads, classes, compiled code: ~200 MB in production at start, 48%).
+  384 MiB of heap plus that is more than 512 MiB: under enough load the
+  container, not the heap, runs out first (the M19.1 kill: "513 MiB used").
+- **The dev server can't measure memory at production's heap:** its store
+  keeps every object uncompressed on the heap (two 8-hour sessions: 250 MB),
+  so it ran out itself. `-PdevJvmArgs` runs it with other JVM settings.
 - **The tablet sends many tiny chunks.** Its request log for the drive of
   2026-09-28: every 2 minutes one ~80 KB chunk, plus 15–25 under 1 KB in
   bursts 0.3 s apart, about 10 requests a minute. Harmless now (compaction),

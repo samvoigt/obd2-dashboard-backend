@@ -1065,9 +1065,12 @@ at hour eight as at hour one.
   **one build at a time**; its page opens thinned when it's over an hour and
   loads the full series when the view narrows to half an hour.
 - **The live run is still re-timed from its start** (6 ms at 8 hours).
-- **Cloud Run stays at 512 MiB** for now: two 8-hour sessions uploading and
-  finishing together peaked at 79% of it. Raised to 1 GiB if a race shows
-  more.
+- **Memory: undecided, and too tight as it stands.** After two 8-hour
+  sessions finished, the container sat at 98–99% of 512 MiB, idle. Not a
+  leak: the server's live data was ~20 MB afterwards (measured locally with
+  production's JVM settings). The JVM's own overhead is ~200 MB, and the heap
+  (up to 75%, 384 MiB) grows under load and isn't given back; together they
+  exceed 512 MiB. Options put to Sam, 2026-09-29.
 
 **Why.** Two 8-hour stints in a race (Sam, 2026-09-28). Before, every one of
 these grew with the session: at 8 hours, the car page's request ran the

@@ -758,7 +758,8 @@ Decision 41.
   overloaded) and `00032` (a clean `1012`); **in production**, two 8-hour
   sessions uploaded in parallel: series requests `200` in 1.4–3 s
   throughout, `complete` in 703 and 456 ms, each finished into one object
-  with both series; memory 48% rising to 79%, no errors. All removed.
+  with both series; no errors, but memory rose from 48% to 98–99% and stayed
+  there idle (see the JOURNAL). All removed.
 
 **Left for later:** the tablet's many tiny chunks (a question for the tablet
-side); 1 GiB if a race needs it.
+side); the memory setting (decision 41).
