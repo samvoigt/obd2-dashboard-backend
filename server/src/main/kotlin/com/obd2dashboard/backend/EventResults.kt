@@ -59,6 +59,8 @@ data class SessionResult(
     val best: StandingLap? = null,
     /** Still being driven or uploaded: its laps are provisional (M17.6). */
     val live: Boolean = false,
+    /** What the admin or the crew called it (M18.3). */
+    val name: String? = null,
 )
 
 /** A driver's best lap in a part, or over all practice; a null driver is "not set". */
@@ -244,7 +246,7 @@ fun Route.publicEventRoutes(
                 val other = laps?.layout?.takeIf { it != event.layout }
                 SessionResult(
                     r.id, r.car, r.driver?.let { drivers[it] }?.view(), r.created.toEpochMilli(),
-                    laps?.laps.orEmpty(), other, if (other == null) Results.best(laps?.laps.orEmpty()) else null, live = r.id in liveIds,
+                    laps?.laps.orEmpty(), other, if (other == null) Results.best(laps?.laps.orEmpty()) else null, live = r.id in liveIds, name = r.name,
                 )
             }
             val sectors = Results.bestSectors(results)

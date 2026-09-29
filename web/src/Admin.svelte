@@ -319,7 +319,7 @@
                     <li>
                       <div class="srow">
                         <span>
-                          <a href={`/cars/${car.slug}/sessions/${s.id}`}><strong>{when(s.started)}</strong></a>
+                          <a href={`/cars/${car.slug}/sessions/${s.id}`}>{#if s.name}<strong>{s.name}</strong> · {/if}<strong>{when(s.started)}</strong></a>
                           <span class="muted"> · {s.lines.toLocaleString()} {s.lines === 1 ? 'line' : 'lines'} · </span>
                           <span class:live-text={s.state === 'live'}>{sessionStateText(s.state)}</span>
                         </span>

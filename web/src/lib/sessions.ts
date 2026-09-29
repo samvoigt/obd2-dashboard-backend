@@ -26,6 +26,8 @@ export interface SessionItem {
   source?: string | null
   /** The event and part it's in (M14.5). */
   event?: { id: string; name: string; part: string } | null
+  /** What the admin or the crew called it (M18.3). */
+  name?: string | null
 }
 
 /**

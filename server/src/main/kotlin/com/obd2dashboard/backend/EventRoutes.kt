@@ -92,6 +92,8 @@ data class SessionBrief(
     val source: String? = null,
     val driver: String? = null,
     val laps: Int = 0,
+    /** What the admin or the crew called it (M18.3). */
+    val name: String? = null,
 )
 
 /** An event on the admin page: each part's sessions, and the entered cars' others around its day, to add by hand. */
@@ -113,7 +115,7 @@ fun Event.view(): EventView = EventView(
 fun SessionRecord.heard(): SessionHeard = SessionHeard(id, car, created, updated, header?.source ?: summary?.source)
 
 fun SessionRecord.brief(): SessionBrief = SessionBrief(
-    id, car, created.toEpochMilli(), updated.toEpochMilli(), summary?.started, header?.source ?: summary?.source, driver, summary?.laps ?: 0,
+    id, car, created.toEpochMilli(), updated.toEpochMilli(), summary?.started, header?.source ?: summary?.source, driver, summary?.laps ?: 0, name,
 )
 
 /** Every session of [cars], as the index holds them. */

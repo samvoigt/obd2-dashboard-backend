@@ -51,6 +51,48 @@ fun Route.driverRoutes(
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
         call.setDriver(record, drivers, archive, "the crew of ${car.slug.value}", onChanged)
     }
+
+    // Names (M18.3): the same two sign-ins, the same rule for whose session it is.
+    put("/api/admin/sessions/{id}/name") {
+        val email = call.admin(adminAuth, config, change = true) ?: return@put
+        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+            ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        call.setName(record, archive, email, onChanged)
+    }
+
+    put("/api/cars/{slug}/sessions/{id}/name") {
+        val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
+        if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
+        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+            ?.takeIf { it.car == car.slug.value }
+            ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
+        call.setName(record, archive, "the crew of ${car.slug.value}", onChanged)
+    }
+}
+
+/** A session's name (M18.3): trimmed, up to [NAME_MAX] characters, no control characters; empty clears it. */
+@Serializable
+data class SetName(val name: String? = null)
+
+const val NAME_MAX: Int = 60
+
+/** The name to store, or why it can't be. */
+fun sessionName(raw: String?): Result<String?> {
+    val name = raw?.trim().orEmpty()
+    return when {
+        name.isEmpty() -> Result.success(null)
+        name.length > NAME_MAX -> Result.failure(IllegalArgumentException("A name is at most $NAME_MAX characters."))
+        name.any { it.isISOControl() } -> Result.failure(IllegalArgumentException("A name is one line of text."))
+        else -> Result.success(name)
+    }
+}
+
+private suspend fun ApplicationCall.setName(record: SessionRecord, archive: ArchiveService, who: String, onChanged: () -> Unit) {
+    val name = sessionName(receive<SetName>().name).getOrElse { return respond(HttpStatusCode.BadRequest, ApiError("invalid", it.message ?: "Not a name.")) }
+    if (!archive.setName(record.id, name)) return respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+    adminLog.info("session named: {} of {} to {} by {}", record.id, record.car, name?.let { "\"$it\"" } ?: "nothing", who)
+    onChanged()
+    respond(SetName(name))
 }
 
 private suspend fun ApplicationCall.setDriver(record: SessionRecord, drivers: DriverStore, archive: ArchiveService, who: String, onChanged: () -> Unit) {

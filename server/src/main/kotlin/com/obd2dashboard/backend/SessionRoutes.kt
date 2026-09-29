@@ -76,6 +76,8 @@ data class SessionItem(
     val source: String? = null,
     /** The event and part it's in (M14.5), if any. */
     val event: EventRef? = null,
+    /** What the admin or the crew called it (M18.3). */
+    val name: String? = null,
 )
 
 /** Which event and part a session is in (M14.5). */
@@ -149,6 +151,7 @@ fun Route.sessionRoutes(
             // The summary's, or while uploading the header's.
             source = summary?.source ?: record.header?.source,
             event = event,
+            name = record.name,
         )
     }
 

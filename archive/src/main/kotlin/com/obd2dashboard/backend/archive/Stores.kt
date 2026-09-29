@@ -45,6 +45,8 @@ public data class SessionRecord(
      * streamed before M18.
      */
     val clockOffsetMs: Long? = null,
+    /** What the admin or the crew called it (M18.3); null until someone does. */
+    val name: String? = null,
 )
 
 /**
@@ -83,6 +85,9 @@ public interface SessionIndex {
 
     /** Sets (or with null clears) who drove the session (M14), touching nothing else; false if there's no such session. */
     public suspend fun setDriver(id: String, driver: String?): Boolean
+
+    /** Names the session, or clears its name with null (M18.3). */
+    public suspend fun setName(id: String, name: String?): Boolean
 
     /** Stores [offsetMs] as the session's clock offset, or keeps the one stored if smaller (M18.1). */
     public suspend fun setClockOffset(id: String, offsetMs: Long): Boolean
@@ -177,6 +182,9 @@ public class InMemorySessionIndex : SessionIndex {
 
     override suspend fun setDriver(id: String, driver: String?): Boolean =
         sessions.computeIfPresent(id) { _, current -> current.copy(driver = driver) } != null
+
+    override suspend fun setName(id: String, name: String?): Boolean =
+        sessions.computeIfPresent(id) { _, current -> current.copy(name = name) } != null
 
     override suspend fun setClockOffset(id: String, offsetMs: Long): Boolean =
         sessions.computeIfPresent(id) { _, current -> current.copy(clockOffsetMs = minOf(current.clockOffsetMs ?: offsetMs, offsetMs)) } != null

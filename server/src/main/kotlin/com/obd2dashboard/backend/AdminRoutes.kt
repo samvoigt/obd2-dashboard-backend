@@ -142,6 +142,8 @@ data class AdminSession(
     val lines: Long,
     /** `live`, `uploading`, `complete` or `incomplete`. */
     val state: String,
+    /** What the admin or the crew called it (M18.3). */
+    val name: String? = null,
 )
 
 @Serializable
@@ -199,6 +201,7 @@ fun Route.adminCarRoutes(
         sessionStarted(record).toEpochMilli(),
         record.ackedThrough + 1,
         sessionState(record, live, clock.instant()),
+        record.name,
     )
 
     suspend fun ApplicationCall.pathSlug(): Slug? =

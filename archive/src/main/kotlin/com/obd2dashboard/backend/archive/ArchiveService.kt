@@ -281,6 +281,9 @@ public class ArchiveService(
     /** Sets (or with null clears) who drove session [id] (M14); false if there's no such session. */
     public suspend fun setDriver(id: String, driver: String?): Boolean = index.setDriver(id, driver)
 
+    /** Names the session, or clears its name (M18.3). */
+    public suspend fun setName(id: String, name: String?): Boolean = index.setName(id, name)
+
     /** The session's clock offset as the live lane measured it (M18.1); the smaller is kept. */
     public suspend fun setClockOffset(id: String, offsetMs: Long): Boolean = index.setClockOffset(id, offsetMs)
 

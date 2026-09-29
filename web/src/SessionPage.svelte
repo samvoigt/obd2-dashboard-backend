@@ -8,7 +8,7 @@
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
-  import { setSessionDriver, whoCanSet, type Driver, type DriverSetter } from './lib/events'
+  import { setSessionDriver, setSessionName, whoCanSet, type Driver, type DriverSetter } from './lib/events'
   import { indexesIn, readWindow, withWindow } from './lib/laps'
   import type { LapPick } from './lib/comparePick'
   import ComparePick from './ComparePick.svelte'
@@ -35,6 +35,24 @@
   let setter: DriverSetter = $state(null)
   let settingDriver = $state(false)
   let driverError: string | null = $state(null)
+
+  // Its name (M18.3), for the admin or the car's crew.
+  let naming = $state(false)
+  let nameDraft = $state('')
+  let nameError: string | null = $state(null)
+
+  async function saveName() {
+    const d = detail
+    if (!d || !setter) return
+    nameError = null
+    try {
+      const name = await setSessionName(setter, slug, d.session.id, nameDraft.trim() || null)
+      detail = { ...d, session: { ...d.session, name } }
+      naming = false
+    } catch (e) {
+      nameError = e instanceof Error ? e.message : String(e)
+    }
+  }
 
   async function chooseDriver(id: string | null) {
     const d = detail
@@ -224,7 +242,19 @@
   {:else if detail}
     {@const s = detail.session}
     {@const b = badge(s.state)}
-    <h1>{detail.carName} <span class="muted">· {dayOf(s.started)}, {clockOf(s.started)}</span></h1>
+    <h1>{#if s.name}{s.name} <span class="muted">· {detail.carName}, {dayOf(s.started)}, {clockOf(s.started)}</span>{:else}{detail.carName} <span class="muted">· {dayOf(s.started)}, {clockOf(s.started)}</span>{/if}</h1>
+    {#if setter}
+      {#if naming}
+        <form class="naming" onsubmit={(e) => { e.preventDefault(); saveName() }}>
+          <label>Name <input bind:value={nameDraft} maxlength="60" placeholder="e.g. Practice 2, wet" /></label>
+          <button class="primary" type="submit">Save</button>
+          <button type="button" onclick={() => (naming = false)}>Cancel</button>
+          {#if nameError}<span class="error">{nameError}</span>{/if}
+        </form>
+      {:else}
+        <p class="naming"><button class="link" onclick={() => { nameDraft = s.name ?? ''; nameError = null; naming = true }}>{s.name ? 'Rename' : 'Name this session'}</button></p>
+      {/if}
+    {/if}
     {@const src = sourceLabel(s.source)}
     <p class="facts">
       <span>{duration(s.ended - s.started)}</span>
@@ -354,6 +384,7 @@
   .laps .bestsector { color: var(--in-range); font-weight: 700; }
   .laps tr.chosen td { background: var(--bg); }
   .driver { margin: 0 0 8px; }
+  .naming { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; }
   .driver label { display: inline-flex; gap: 8px; align-items: center; }
   .laps .note { display: block; font-size: 0.8rem; white-space: nowrap; }
   .laps .note.flag { color: var(--caution); }

@@ -53,6 +53,7 @@
           <li>
             <a href={`/cars/${slug}/sessions/${s.id}`}>
               <span class="when">
+                {#if s.name}<strong class="name">{s.name}</strong>{/if}
                 <strong>{clockOf(s.started)}</strong>
                 <span class="muted">{duration(s.ended - s.started)}</span>
                 {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}

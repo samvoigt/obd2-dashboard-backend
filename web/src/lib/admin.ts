@@ -51,6 +51,8 @@ export interface AdminSession {
   started: number
   lines: number
   state: SessionState
+  /** What the admin or the crew called it (M18.3). */
+  name?: string | null
 }
 
 const SESSION_WORDS: Record<SessionState, string> = {

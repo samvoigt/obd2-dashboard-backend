@@ -227,7 +227,7 @@
 
 {#snippet sessionRow(s: SessionBrief)}
   <div class="session">
-    <a href={`/cars/${s.car}/sessions/${s.id}`}>{heardText(s)}</a>
+    <a href={`/cars/${s.car}/sessions/${s.id}`}>{#if s.name}{s.name} · {/if}{heardText(s)}</a>
     <span class="muted">{s.car}{s.source === 'tablet' ? ' · tablet only' : ''} · {s.laps} lap{s.laps === 1 ? '' : 's'} · driver {driverName(s.driver)}</span>
   </div>
 {/snippet}

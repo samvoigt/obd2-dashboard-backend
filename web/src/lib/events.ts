@@ -45,6 +45,8 @@ export interface SessionBrief {
   source?: string | null
   driver?: string | null
   laps: number
+  /** What the admin or the crew called it (M18.3). */
+  name?: string | null
 }
 
 export interface AdminEvent {
@@ -133,6 +135,15 @@ export async function setSessionDriver(who: 'admin' | 'crew', slug: string, id: 
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     throw new Error(body.message || `The server answered ${response.status}.`)
   }
+}
+
+/** A session's name set or cleared (M18.3), by the admin or the car's crew, as who drove it is. The name as stored. */
+export async function setSessionName(who: 'admin' | 'crew', slug: string, id: string, name: string | null, fetcher: typeof fetch = fetch): Promise<string | null> {
+  const path = who === 'admin' ? `/api/admin/sessions/${id}/name` : `/api/cars/${slug}/sessions/${id}/name`
+  const response = await fetcher(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+  const body = (await response.json().catch(() => ({}))) as { name?: string | null; message?: string }
+  if (!response.ok) throw new Error(body.message || `The server answered ${response.status}.`)
+  return body.name ?? null
 }
 
 /** Whether whoever is looking may set who drove: the admin first, else this car's crew. */

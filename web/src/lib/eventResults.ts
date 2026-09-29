@@ -41,6 +41,8 @@ export interface SessionResult {
   best?: StandingLap | null
   /** Still being driven or uploaded: its laps are provisional (M17.6). */
   live?: boolean
+  /** What the admin or the crew called it (M18.3). */
+  name?: string | null
 }
 
 export interface DriverBest {

@@ -127,8 +127,11 @@ class EventResultsTest {
         session(a, 10, boxLog(0, 300, device = "tab-a"), "d-sam")
         session(b, 70, boxLog(0, 300, listOf(boxLap(1, 1), boxLap(2, 1, endOff = -1000), boxLap(3, 1, startOff = -1000)), device = "tab-b"), "d-alex")
         session(r, 130, boxLog(0, 300, device = "tab-c"), null)
+        runBlocking { index.setName(a, "Sam's first run") } // M18.3
 
         val results = json.decodeFromString<EventResults>(client.get("/api/events/box-day").bodyAsText())
+        results.parts[0].sessions.single().name shouldBe "Sam's first run"
+        results.parts[1].sessions.single().name shouldBe null
         results.event.courseName shouldBe "The box"
         results.event.layoutName shouldBe "Box"
         results.event.cars shouldBe listOf(CarRef("outback", "Outback"))

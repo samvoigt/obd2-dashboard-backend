@@ -187,6 +187,40 @@ admin page and event results; `admin.sh sessions` showing it.
 for another car's crew, for a fake session; shown in each list); looked at in
 Chrome.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The driver's path is the name's**: `SessionRecord` (kept through every
+>   whole-document write by `toFields`), a conditional `setName`, two routes
+>   (`/api/admin/sessions/{id}/name`, `/api/cars/{slug}/sessions/{id}/name`)
+>   each on its own sign-in's cookie path, logged, and the edit nudging
+>   results and `timing` (M17.6's `edited`).
+> - **Where sessions are listed**: `SessionItem` (a car's sessions and the
+>   session page's header), `AdminSession` (the admin page), `SessionBrief`
+>   (the event editor), `SessionResult` (event results), and `admin.sh
+>   sessions`. Each gains the name.
+> - **A fake session can be named** (a change from the step above): who
+>   drove is refused for test data because nobody did, but a name says what
+>   the test was.
+> - **The rule**: trimmed, up to 60 characters, no control characters; empty
+>   clears it.
+
+> **✅ Done, 2026-09-28.** `SessionRecord.name` (memory, Firestore),
+> `setName`, `sessionName` (the rule), the admin's and crew's routes (logged,
+> nudging results); the name in `SessionItem`, `AdminSession`, `SessionBrief`,
+> `SessionResult` and `admin.sh sessions` and `session`. On the site: the
+> session page's heading and its "Name this session" / "Rename" editor for the
+> admin or the crew, and the name first in a car's sessions, the admin page,
+> the event page and the event editor.
+> - **Tests:** Kotlin 2 new, 2 extended (the crew naming, trimmed, in its
+>   lists, a fake session named, cleared by blanks; the admin naming any car's,
+>   on the admin page; nobody else, another car's crew, 61 characters and two
+>   lines refused, 60 kept; event results; the Firestore mapping); Vitest 1
+>   (`setSessionName`'s two paths and the name stored back).
+> - **Mutations: 11, all killed.**
+> - **Looked at in Chrome** (the dev server, as its admin): a session named
+>   "Race box, first stint" on its page, heading "Race box, first stint · Dev
+>   car, …", and first in the car's sessions list. (Typing into the field
+>   raised the browser extension's error again, though the text went in.)
+
 ### M18.4 — Crew messages beside a session
 
 A store query for a car's messages sent in a window; `GET

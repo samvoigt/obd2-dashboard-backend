@@ -82,7 +82,7 @@
           <ul class="sessions">
             {#each p.sessions as s (s.id)}
               <li>
-                <a href={`/cars/${s.car}/sessions/${s.id}`}>{carName(s.car)}, {heard(s)}</a>
+                <a href={`/cars/${s.car}/sessions/${s.id}`}>{#if s.name}{s.name} · {/if}{carName(s.car)}, {heard(s)}</a>
                 <span>{driverLabel(s.driver)}</span>
                 {#if s.live}<span class="live">live</span>{/if}
                 {#if s.otherLayout}

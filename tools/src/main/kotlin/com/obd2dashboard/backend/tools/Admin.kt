@@ -329,13 +329,14 @@ class ListSessions : RegistryCommand("sessions", "List sessions, all or one car'
             echo("No sessions.")
             return
         }
-        val rows = listOf(listOf("ID", "CAR", "STARTED", "LINES", "STATE")) + sessions.map {
+        val rows = listOf(listOf("ID", "CAR", "STARTED", "LINES", "STATE", "NAME")) + sessions.map {
             listOf(
                 it.id,
                 it.car,
                 it.header?.started ?: "(no record yet)",
                 (it.ackedThrough + 1).toString(),
                 if (it.complete) "complete" else "uploading",
+                it.name.orEmpty(),
             )
         }
         val widths = rows.first().indices.map { col -> rows.maxOf { it[col].length } }
@@ -350,6 +351,7 @@ class ShowSession : RegistryCommand("session", "Everything the index holds about
         val s = tools.sessions.get(id.lowercase()) ?: throw CliktError("No session $id.")
         val h = s.header
         echo("id          ${s.id}")
+        s.name?.let { echo("name        $it") }
         echo("car         ${s.car}")
         echo("started     ${h?.started ?: "(no session record yet)"}")
         echo("format      ${h?.v?.let { "v$it" } ?: "-"}")

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, setSessionDriver, toLocalInput, whoCanSet, type Part } from './events'
+import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, setSessionDriver, setSessionName, toLocalInput, whoCanSet, type Part } from './events'
 
 const part = (id: string, added: string[] = [], removed: string[] = []): Part =>
   ({ id, kind: 'practice', name: id, start: 0, end: 1, added, removed })
@@ -71,6 +71,16 @@ describe('who drove (M14.4)', () => {
     expect(seen[0]!.init!.body).toBe('{"driver":"d-sam"}')
     expect(seen[1]!.init!.body).toBe('{"driver":null}')
     await expect(setSessionDriver('crew', 'yaris', 's1', 'd-sam', ok)).rejects.toThrow('nope')
+  })
+
+  it('a name through the same two paths, the name as stored back (M18.3)', async () => {
+    seen.length = 0
+    const ok = answering({ '/api/admin/sessions/s1/name': [200, { name: 'Wet' }], '/api/cars/outback/sessions/s1/name': [200, { name: null }] })
+    expect(await setSessionName('admin', 'outback', 's1', '  Wet ', ok)).toBe('Wet')
+    expect(await setSessionName('crew', 'outback', 's1', null, ok)).toBeNull()
+    expect(seen.map((s) => s.url)).toEqual(['/api/admin/sessions/s1/name', '/api/cars/outback/sessions/s1/name'])
+    expect(seen[0]!.init!.body).toBe('{"name":"  Wet "}')
+    await expect(setSessionName('crew', 'yaris', 's1', 'x', ok)).rejects.toThrow('nope')
   })
 
   it('who may set it: the admin first, else the car\u2019s crew, else nobody', async () => {

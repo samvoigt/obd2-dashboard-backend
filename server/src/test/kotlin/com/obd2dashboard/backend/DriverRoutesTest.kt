@@ -148,4 +148,50 @@ class DriverRoutesTest {
         app()
         json.decodeFromString<List<DriverView>>(client.get("/api/drivers").bodyAsText()).map { it.code } shouldBe listOf("ALE", "SAM")
     }
+
+    // Names (M18.3)
+
+    private suspend fun ApplicationTestBuilder.name(path: String, cookie: String?, name: String?): HttpResponse =
+        client.put(path) {
+            header(HttpHeaders.Host, "localhost")
+            header(HttpHeaders.Origin, "http://localhost")
+            cookie?.let { header(HttpHeaders.Cookie, it) }
+            contentType(ContentType.Application.Json)
+            setBody(if (name == null) """{"name":null}""" else """{"name":${Json.encodeToString(kotlinx.serialization.serializer<String>(), name)}}""")
+        }
+
+    private suspend fun ApplicationTestBuilder.nameOf(id: String): String? =
+        json.decodeFromString<SessionDetail>(client.get("/api/sessions/$id").bodyAsText()).session.name
+
+    @Test
+    fun `the crew names its session, trimmed, shown in its lists, and clears it (M18_3)`() = testApplication {
+        app()
+        val c = crew("outback", "outback-crew")
+        name("/api/cars/outback/sessions/$s/name", c, "  Practice 2, wet  ").status shouldBe HttpStatusCode.OK
+        nameOf(s) shouldBe "Practice 2, wet"
+        log.list.map { it.formattedMessage } shouldContain "session named: $s of outback to \"Practice 2, wet\" by the crew of outback"
+        json.decodeFromString<List<Drive>>(client.get("/api/cars/outback/sessions").bodyAsText()).flatMap { it.sessions }.single { it.id == s }.name shouldBe "Practice 2, wet"
+        // Test data can be named: it says what the test was.
+        name("/api/cars/outback/sessions/$fake/name", c, "Fake: pit stop").status shouldBe HttpStatusCode.OK
+        name("/api/cars/outback/sessions/$s/name", c, "   ").status shouldBe HttpStatusCode.OK
+        nameOf(s) shouldBe null
+    }
+
+    @Test
+    fun `the admin names any car's session, shown on the admin page, nobody else, and nothing too long or on two lines (M18_3)`() = testApplication {
+        app()
+        val a = admin()
+        name("/api/admin/sessions/$theirs/name", a, "Yaris shakedown").status shouldBe HttpStatusCode.OK
+        nameOf(theirs) shouldBe "Yaris shakedown"
+        client.get("/api/admin/cars/yaris/sessions") { header(HttpHeaders.Cookie, a) }.bodyAsText().contains("\"name\":\"Yaris shakedown\"") shouldBe true
+        val yaris = crew("yaris", "pit-lane")
+        name("/api/cars/outback/sessions/$s/name", null, "x").status shouldBe HttpStatusCode.Unauthorized
+        name("/api/cars/yaris/sessions/$s/name", yaris, "x").status shouldBe HttpStatusCode.NotFound // outback's
+        val c = crew("outback", "outback-crew")
+        name("/api/cars/outback/sessions/$s/name", c, "x".repeat(61)).status shouldBe HttpStatusCode.BadRequest
+        name("/api/cars/outback/sessions/$s/name", c, "x".repeat(60)).status shouldBe HttpStatusCode.OK
+        name("/api/cars/outback/sessions/$s/name", c, "two\nlines").status shouldBe HttpStatusCode.BadRequest
+        nameOf(s) shouldBe "x".repeat(60)
+    }
 }
+

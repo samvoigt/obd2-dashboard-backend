@@ -60,6 +60,10 @@ class SessionMappingTest {
         val measured = complete.copy(clockOffsetMs = 39_480_123)
         recordFrom(id, measured.toFields()) shouldBe measured
         complete.toFields().containsKey("clockOffsetMs") shouldBe false
+        // M18.3: its name.
+        val named = complete.copy(name = "Practice 2, wet")
+        recordFrom(id, named.toFields()) shouldBe named
+        complete.toFields().containsKey("name") shouldBe false
     }
 
     @Test
