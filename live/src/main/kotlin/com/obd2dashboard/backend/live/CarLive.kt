@@ -63,9 +63,14 @@ public class CarLive(
     private var lastDataAt: Instant? = null
     private val offsets = ArrayDeque<Long>()
     private var clockOffset: Duration? = null
+    /** The smallest offset over the current (or last) session's batches (M18.1): stored with the session. */
+    private var sessionOffset: Duration? = null
     private var timing: JsonObject? = null
 
     public fun status(): CarStatus = CarStatus(connected, inSession, lastDataAt, sessionId.takeIf { inSession }, clockOffset)
+
+    /** Session [id]'s smallest measured offset (M18.1), if it's the one this car last announced. */
+    public fun sessionOffset(id: String): Duration? = sessionOffset.takeIf { id == sessionId }
 
     public fun connected(): LiveUpdate.Status {
         connected = true
@@ -86,7 +91,7 @@ public class CarLive(
                 if (frame.id != sessionId) {
                     // A new session starts afresh; the same one re-sent after a reconnect keeps its state.
                     sessionId = frame.id
-                    latest.clear(); stopped.clear(); fault = null; history.clear()
+                    latest.clear(); stopped.clear(); fault = null; history.clear(); sessionOffset = null
                     signals = frame.record["signals"] as? JsonArray
                 }
                 header = frame.record
@@ -163,6 +168,8 @@ public class CarLive(
     private fun noteClock(now: Instant, records: List<JsonObject>) {
         val newest = records.mapNotNull { it.long("wall") }.maxOrNull() ?: return
         offsets.addLast(now.toEpochMilli() - newest)
+        val offset = Duration.ofMillis(now.toEpochMilli() - newest)
+        sessionOffset = sessionOffset?.let { minOf(it, offset) } ?: offset
         while (offsets.size > CLOCK_BATCHES) offsets.removeFirst()
         clockOffset = Duration.ofMillis(offsets.min())
     }

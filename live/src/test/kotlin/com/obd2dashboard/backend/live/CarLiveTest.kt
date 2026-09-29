@@ -142,6 +142,24 @@ class CarLiveTest {
     }
 
     @Test
+    fun `each session keeps its smallest offset over all its batches, after it ends, until another is announced (M18_1)`() {
+        apply(sessionFrame())
+        car.sessionOffset(SESSION).shouldBeNull()
+        batchFromTablet(60_000, seq = 0, behind = 40)
+        batchFromTablet(60_000, seq = 10, behind = 20) // the least delayed
+        // More than the window's batches later, the session's smallest is still that one.
+        repeat(CarLive.CLOCK_BATCHES + 5) { batchFromTablet(60_000, seq = 100L + it * 2, behind = 90) }
+        car.status().clockOffset shouldBe Duration.ofMillis(60_090)
+        car.sessionOffset(SESSION) shouldBe Duration.ofMillis(60_020)
+        apply("""{"t":"end","session":"$SESSION","lastSeq":300}""")
+        car.sessionOffset(SESSION) shouldBe Duration.ofMillis(60_020) // kept after its end, to be stored
+        car.sessionOffset("another").shouldBeNull()
+        apply(sessionFrame(id = "5ace0000-1111-4111-8111-00000000beef"))
+        car.sessionOffset(SESSION).shouldBeNull() // another announced: not this one's any more
+        car.sessionOffset("5ace0000-1111-4111-8111-00000000beef").shouldBeNull() // nothing measured yet
+    }
+
+    @Test
     fun `history keeps five minutes, by the server's clock`() {
         apply(sessionFrame())
         apply(batch(sample("engine.rpm", 1.0, 1)))

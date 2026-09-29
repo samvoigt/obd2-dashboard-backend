@@ -84,6 +84,9 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
     override suspend fun setDriver(id: String, driver: String?): Boolean =
         conditional(id) { current -> current.copy(driver = driver) }
 
+    override suspend fun setClockOffset(id: String, offsetMs: Long): Boolean =
+        conditional(id) { current -> current.copy(clockOffsetMs = minOf(current.clockOffsetMs ?: offsetMs, offsetMs)) }
+
     override suspend fun listByCar(car: String): List<SessionRecord> =
         sessions.whereEqualTo(CAR, car).get().await().documents.mapNotNull { it.toRecord() }
 
@@ -157,6 +160,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             // Part of the record, so every whole-document write keeps it (M7.1).
             summary?.let { put("summary", it.toFields()) }
             driver?.let { put("driver", it) }
+            clockOffsetMs?.let { put("clockOffsetMs", it) }
         }
 
         private fun SessionSummary.toFields(): Map<String, Any> = buildMap {
@@ -270,6 +274,7 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 updated = instant("updated"),
                 summary = (data["summary"] as? Map<*, *>)?.let { m -> summaryFrom(m.entries.associate { (k, v) -> k.toString() to v }) },
                 driver = string("driver"),
+                clockOffsetMs = (data["clockOffsetMs"] as? Number)?.toLong(),
             )
         }
 

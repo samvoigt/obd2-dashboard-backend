@@ -56,6 +56,10 @@ class SessionMappingTest {
         val driven = complete.copy(driver = "d-7f3a")
         recordFrom(id, driven.toFields()) shouldBe driven
         complete.toFields().containsKey("driver") shouldBe false
+        // M18.1: the clock offset measured live.
+        val measured = complete.copy(clockOffsetMs = 39_480_123)
+        recordFrom(id, measured.toFields()) shouldBe measured
+        complete.toFields().containsKey("clockOffsetMs") shouldBe false
     }
 
     @Test

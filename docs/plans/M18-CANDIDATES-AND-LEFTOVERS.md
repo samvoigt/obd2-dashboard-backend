@@ -105,6 +105,38 @@ and at a disconnect; a new session starts afresh; the flags placed by it, and
 by `created − started` without it); the real Firestore round trip
 (`firestore-smoke.sh` or a new line in it).
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **`CarLive.noteClock`** keeps the smallest of the last 50 batches' offsets
+>   (`clockOffset`, for the admin page's clock note), across sessions. The
+>   session's own smallest is a second value, reset when a new session is
+>   announced and kept after its `end`, so it can be written then.
+> - **When to write**: the socket sees the `end` frame, a new `session` frame
+>   (the previous one is over, or it's the same one again after a reconnect),
+>   and its own close (`finally`). It writes the session's smallest then,
+>   through `ArchiveService`, **keeping the smaller of what's stored and what
+>   came** (a session can span reconnects, and a restart of the server).
+> - **`SessionRecord`** gains `clockOffsetMs`, kept through every
+>   whole-document write as `driver` is (`toFields`, `recordFrom`), set
+>   conditionally (`setClockOffset`).
+> - **The race's flags** (`publicEventRoutes`) take the car's smallest stored
+>   offset over its race sessions, else `created − started` (M15), else the
+>   live lane's (M17.6).
+
+> **✅ Done, 2026-09-28.** `CarLive.sessionOffset` (the session's smallest,
+> reset on a new one, kept after its end), `LiveHub.sessionOffset`,
+> `SessionRecord.clockOffsetMs` (in memory and Firestore; the smaller kept),
+> the socket storing it at an `end`, a new session and its close (the close's
+> write not cancelled with the socket); the race's flags by it first.
+> - **Found:** the archive smoke still expected M17.1's repeated `complete`
+>   to answer `Done`, and its "a later write keeps the summary" relied on that
+>   write, which no longer happens; the offset's write now plays that part.
+> - **Tests:** `:live` 1, `:server` 2 and one extended (`ClockOffsetTest`: at
+>   the end, the smallest; at the next session and a disconnect; the smaller
+>   kept; the race's green flag by the stored offset), `:archive-gcp` mapping
+>   extended. **The real Firestore:** `archive-smoke.sh` passed (stored, the
+>   smaller kept, the summary kept through it).
+> - **Mutations: 14, all killed** (one rewritten after it didn't compile).
+
 ### M18.2 — Re-timing that survives a restart, and follows `import-course`
 
 The last finished re-timing's version per course, stored; a watcher on start

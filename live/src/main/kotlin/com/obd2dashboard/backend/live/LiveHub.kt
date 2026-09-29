@@ -47,6 +47,9 @@ public interface LiveHub {
 
     public suspend fun status(car: String): CarStatus
 
+    /** [car]'s session [id]'s smallest measured clock offset (M18.1); null if not measured, or another session is current. */
+    public suspend fun sessionOffset(car: String, id: String): java.time.Duration?
+
     /** Sends [frame] to [car]'s attached tablet; false if none is attached (a message then waits for the next sync). */
     public suspend fun toTablet(car: String, frame: String): Boolean
 
@@ -144,6 +147,11 @@ public class InMemoryLiveHub(
     override suspend fun status(car: String): CarStatus {
         val c = cars[car] ?: return CarStatus(connected = false, inSession = false, lastDataAt = null)
         return c.mutex.withLock { c.live.status() }
+    }
+
+    override suspend fun sessionOffset(car: String, id: String): java.time.Duration? {
+        val c = cars[car] ?: return null
+        return c.mutex.withLock { c.live.sessionOffset(id) }
     }
 
     override suspend fun toTablet(car: String, frame: String): Boolean {

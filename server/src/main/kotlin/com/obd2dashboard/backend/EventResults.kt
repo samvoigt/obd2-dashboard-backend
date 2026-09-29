@@ -265,8 +265,10 @@ fun Route.publicEventRoutes(
                         .mapNotNull { retiming.lapsOf(car, it.id, event.course)?.second }
                         .distinctBy { it.sessions } + provisional[car].orEmpty()
                     ).filter { it.layout == event.layout }
-                // The summary as the sessions list gets it: stored, else built now (M7.1); before any, the live lane's (M17.6).
-                val offset = Race.tabletOffset(sessions.filter { it.complete }.mapNotNull { r -> archive.summary(r.id)?.let { r.created to it.started } })
+                // The tablet's clock: as measured live and stored per session (M18.1), the smallest; else from each
+                // summary as the sessions list gets it, stored or built now (M7.1); before any, the live lane's (M17.6).
+                val offset = sessions.mapNotNull { it.clockOffsetMs }.minOrNull()
+                    ?: Race.tabletOffset(sessions.filter { it.complete }.mapNotNull { r -> archive.summary(r.id)?.let { r.created to it.started } })
                     ?: hub?.status(car)?.clockOffset?.toMillis()
                 Race.car(
                     car, runs, raceIds.toSet(),

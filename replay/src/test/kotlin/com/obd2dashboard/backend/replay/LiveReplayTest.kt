@@ -160,6 +160,7 @@ class LiveReplayTest {
         }
         override fun subscribe(car: String) = current.subscribe(car)
         override suspend fun status(car: String) = current.status(car)
+        override suspend fun sessionOffset(car: String, id: String) = current.sessionOffset(car, id)
         override suspend fun closeAll(code: Short, reason: String) = current.closeAll(code, reason)
         override suspend fun toTablet(car: String, frame: String) = current.toTablet(car, frame)
         override suspend fun publish(car: String, update: LiveUpdate) = current.publish(car, update)

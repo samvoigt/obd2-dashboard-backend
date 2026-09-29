@@ -30,7 +30,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.runBlocking
 
 /** The live lane's timings; tests shorten them. */
@@ -114,6 +116,8 @@ private class TabletSocket(
         if (car == null) return refuse(ErrorCode.Auth, "this car's token was not recognised")
 
         var attachment: Attachment? = null
+        // The session this socket last announced: its clock offset is stored when it ends (M18.1).
+        var announced: String? = null
         val watchdog = session.launch {
             // A clean close before Cloud Run's cut, so the tablet reconnects at once (§5.3).
             launch { delay(config.maxAge); close(CloseReason.Codes.GOING_AWAY.code, "socket age") }
@@ -170,20 +174,35 @@ private class TabletSocket(
                     is TabletFrame.Displayed -> crew.displayed(car.slug, tabletFrame.id)
                     else -> Unit
                 }
+                // A new session: the one before it is over, and its offset is final.
+                if (tabletFrame is TabletFrame.Session && announced != null && announced != tabletFrame.id) storeOffset(car.slug, announced)
                 val applied = attached.apply(tabletFrame)
                 if (applied is CarLive.Applied.Refused) {
                     badMessage(applied.reason)
                 } else {
                     timings?.offer(car.slug, tabletFrame)
-                    if (tabletFrame is TabletFrame.Session) timing?.sessionStarted(car.slug)
+                    if (tabletFrame is TabletFrame.Session) {
+                        announced = tabletFrame.id
+                        timing?.sessionStarted(car.slug)
+                    }
+                    if (tabletFrame is TabletFrame.End) storeOffset(car.slug, tabletFrame.session)
                 }
             }
         } finally {
+            // A closed socket's scope may be cancelled: the write still goes.
+            announced?.let { withContext(NonCancellable) { storeOffset(car.slug, it) } }
             watchdog.cancel()
             attachment?.detach()
             downlink.leave(this)
             timing?.leave(car.slug, this)
         }
+    }
+
+    /** Session [id]'s measured clock offset, onto its record (M18.1); the smaller of it and any stored is kept. */
+    private suspend fun storeOffset(car: String, id: String) {
+        runCatching {
+            hub.sessionOffset(car, id)?.let { archive.setClockOffset(id, it.toMillis()) }
+        }.onFailure { log.warn("storing session {}'s clock offset failed", id, it) }
     }
 
     override fun superseded() {

@@ -97,6 +97,8 @@ class EventResultsTest {
         store.put(ArchiveService.sessionKey(id), lines.joinToString("\n", postfix = "\n").toByteArray())
     }
 
+    private fun archiveOf() = ArchiveService(index, store)
+
     private fun ApplicationTestBuilder.app() {
         application {
             module(registry, ArchiveService(index, store), InMemoryLiveHub(),
@@ -255,6 +257,20 @@ class EventResultsTest {
         val samRecord = json.decodeFromString<DriverRecord>(client.get("/api/drivers/d-sam").bodyAsText())
         samRecord.events.single().stints.single().let { it.car shouldBe "outback"; it.stint.firstLap shouldBe 1; it.stint.laps shouldBe 5 }
         samRecord.courses shouldBe emptyList() // no practice
+
+        // Offsets the live lane measured and stored (M18.1) come first: the tablet 70 s further behind puts the
+        // green flag 70 s earlier on its clock, in lap 1. The smallest of the race's sessions counts.
+        val derived = race.tabletOffset.getValue("outback")
+        runBlocking {
+            archiveOf().setClockOffset(r1, derived + 70_000)
+            archiveOf().setClockOffset(r2, derived + 90_000)
+            val e = stores.events.get("race-day")!!
+            stores.events.save(e, e.revision, t0) // a new revision: past the 10 s hold
+        }
+        json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).race!!.let {
+            it.tabletOffset.getValue("outback") shouldBe derived + 70_000
+            it.cars.single().greenLap shouldBe 1
+        }
     }
 
     @Test
