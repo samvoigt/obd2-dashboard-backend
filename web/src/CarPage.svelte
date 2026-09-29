@@ -11,16 +11,16 @@
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
   import Bar from './widgets/Bar.svelte'
-  import { freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, SHOWN, SLOTS, slotSignal, timings, valueOf, type Peaks } from './lib/dashboard'
+  import { dashboardLayout, freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, shownIn, timings, valueOf, type Peaks } from './lib/dashboard'
   import { sourceLabel } from './lib/sessions'
   import { nearest } from './lib/sessionPage'
-  import { columnShown, shownUnit, toShown } from './lib/units'
+  import { columnShown, shownUnit } from './lib/units'
   import { units } from './lib/unitsState.svelte'
   import Chart from './Chart.svelte'
   import MessagePanel from './MessagePanel.svelte'
   import { applyList, applyOne, type CrewMessage } from './lib/messages'
   import {
-    applyRecords, applySession, applySnapshot, applyStatus, applyTiming, defaultChart, empty, format, freshness,
+    applyRecords, applySession, applySnapshot, applyStatus, applyTiming, defaultChart, empty, freshness,
     label, numericSignals, series, unitOf, type LiveState,
   } from './lib/live'
   import { stateLabel } from './lib/state'
@@ -53,10 +53,10 @@
 
   // The dashboard (M8): its readings, and whether each is current, by one pass over the history per batch.
   const serverNow = $derived(now - live.offsetMs)
-  const timing = $derived(timings(live.history, SHOWN))
+  // Every signal the car sends, in its widget (M18.5); timed in one pass, only what's shown (M8.4).
+  const dash = $derived(dashboardLayout(live.signals, live.latest))
+  const timing = $derived(timings(live.history, shownIn(dash)))
   // Each slot shows the first of its signals this session sends (M11).
-  const declared = $derived(new Set(live.signals.map((s) => s.name)))
-  const slotOf = (choices: readonly string[]) => slotSignal(choices, declared, live.latest)
   const current = (n: string) => freshnessOf(n, timing, live.latest[n], !!live.stopped[n], serverNow)
   const trail = $derived(gTrail(live.history, serverNow))
   let peak: Peaks = $state(NO_PEAKS)
@@ -69,7 +69,6 @@
     return positions.map((p) => { const i = nearest(times, p.t); return i < 0 ? null : (speed[i]!.rec.value as number) })
   })
   const codes = $derived(Array.isArray(live.fault?.codes) ? (live.fault.codes as string[]).filter((c) => typeof c === 'string') : [])
-  const tileNames = $derived(names.filter((n) => !SHOWN.has(n)))
 
   /** The chart's columns in the viewer's units (M8.3). */
   function inUnits(data: [number[], ...(number | null | undefined)[][]]): [number[], ...(number | null | undefined)[][]] {
@@ -77,13 +76,6 @@
     return [x, ...ys.map((y, i) => columnShown(y, unitOf(live, chartNames[i] ?? ''), units.system))]
   }
 
-  /** A tile's reading, in the viewer's units. */
-  function tileText(n: string): string {
-    const rec = live.latest[n]
-    const unit = unitOf(live, n)
-    if (rec && typeof rec.value === 'number') return format({ ...rec, value: toShown(rec.value, unit, units.system) }, shownUnit(unit, units.system))
-    return format(rec, unit)
-  }
   const chartNames = $derived(chosen.length > 0 ? chosen : defaultChart(live))
   const chartUnits = $derived(chartNames.map((n) => shownUnit(unitOf(live, n), units.system)))
   // The archive's prepared file for the live session (M7.6), for "Whole session" and for laps (M8.3).
@@ -204,19 +196,19 @@
     </div>
 
     <!-- The dashboard (M8): one fixed layout, Sam's slots (dashboard.ts). -->
-    {#if SLOTS.gauges.length > 0}
+    {#if dash.gauges.length > 0}
       <section class="dash gauges">
-        {#each SLOTS.gauges as c (c[0])}{@const n = slotOf(c)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+        {#each dash.gauges as n (n)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
-    {#if SLOTS.numbers.length > 0}
+    {#if dash.numbers.length > 0}
       <section class="dash numbers">
-        {#each SLOTS.numbers as c (c[0])}{@const n = slotOf(c)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+        {#each dash.numbers as n (n)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
-    {#if SLOTS.bars.length > 0}
+    {#if dash.bars.length > 0}
       <section class="dash bars">
-        {#each SLOTS.bars as c (c[0])}{@const n = slotOf(c)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
+        {#each dash.bars as n (n)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={current(n)} />{/each}
       </section>
     {/if}
     <!-- Always there (M10): empty, they say nothing has come, where hidden they'd say nothing. -->
@@ -228,7 +220,7 @@
     {#if crew && liveId}<DriverPicker {slug} session={liveId} current={live.standing?.driver?.code} />{/if}
     {#if laps.length > 0}<LapsPanel rows={laps} bestSectors={live.standing?.bestSectors} />{/if}
     <section class="dash statuses">
-      {#each SLOTS.statuses as c (c[0])}{@const n = slotOf(c)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
+      {#each dash.statuses as n (n)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
       <Faults {codes} />
     </section>
 
@@ -256,17 +248,6 @@
         {/if}
       </section>
 
-      <section class="tiles">
-        {#each tileNames as n (n)}
-          {@const stopped = live.stopped[n]}
-          {@const text = tileText(n)}
-          <div class="tile" class:stopped={!!stopped} title={stopped ? String(stopped.reason ?? 'stopped') : n}>
-            <div class="name">{label(n)}</div>
-            <div class="value" class:long={text.length > 14}>{text}</div>
-            {#if stopped}<div class="why">{String(stopped.reason ?? 'stopped')}</div>{/if}
-          </div>
-        {/each}
-      </section>
     {:else if connected}
       <p class="muted">No signals yet.</p>
     {/if}
@@ -304,16 +285,7 @@
   .toggle button.on { background: var(--panel); color: var(--text); font-weight: 600; }
   .toggle button:disabled { opacity: 0.5; cursor: default; }
   select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 0.95rem; max-width: 100%; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
-  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
-  .tile .name { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
-  .tile .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .tile .value.long { font-size: 1rem; font-weight: 600; line-height: 1.3; }
-  .tile.stopped { opacity: 0.45; }
-  .tile .why { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
   @media (max-width: 480px) {
     .banner { font-size: 1.3rem; }
-    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .tile .value { font-size: 1.25rem; }
   }
 </style>

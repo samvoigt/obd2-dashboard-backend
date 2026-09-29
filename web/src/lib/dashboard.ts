@@ -1,38 +1,70 @@
 /**
- * The dashboard (M8): one fixed layout for every car. Its slots, and each
- * signal's range and warning zones, **generic**: by unit, and by what a signal
- * is on any engine, never by which car it is (the app's decision 33). Pure, so
- * it is tested without a browser.
+ * The dashboard (M8): one layout for every car, **every signal the car sends**
+ * in the widget its kind and unit call for (M18.5), and each signal's range and
+ * warning zones, **generic**: by unit, and by what a signal is on any engine,
+ * never by which car it is (the app's decision 33). Pure, so it is tested
+ * without a browser.
  */
 import type { Point, Rec } from './live'
 import { lapRows, type LapRecord, type LapRow, type Series } from './sessionPage'
 
-/**
- * What fills each slot: Sam's choice (2026-09-27): "rpm, speed, coolant temp,
- * charging, gps speed, acceleration, gps position, status lights". The G-meter
- * and the map are fixed sections. No bars for now.
- *
- * **A slot is a list of signals, the first a session sends shown** (M11): a
- * tablet sends only what its own dashboard shows plus chosen extras, so one
- * name can be missing from a drive. Charging is the control module's supply
- * voltage, or the battery's at the OBD port (the first drive sent only that).
- */
-export const SLOTS = {
-  gauges: [['engine.rpm'], ['vehicle.speed'], ['engine.coolant_temperature'], ['control_module.voltage', 'vehicle.system_voltage']],
-  numbers: [['gps.speed']],
-  bars: [],
-  statuses: [['diagnostics.mil'], ['fuel.system_1_status']],
-} as const satisfies Record<string, readonly (readonly string[])[]>
+/** What the dashboard shows (M18.5): every signal the car sends, each in the widget its kind and unit call for. */
+export interface Layout {
+  gauges: string[]
+  bars: string[]
+  numbers: string[]
+  statuses: string[]
+}
 
-/** Every signal any slot may show, so the tiles below leave them all out. */
-export const SHOWN: ReadonlySet<string> = new Set([...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses].flat())
+/** Signals the dashboard draws elsewhere: the map's position and the G-meter's accelerations. */
+function drawnElsewhere(name: string): boolean {
+  return name === 'gps.position' || name.startsWith('motion.acceleration.')
+}
 
 /**
- * The signal a slot shows: the first of [choices] the session declares; with no
- * session record yet, the first with a reading; else the first, which reads "—".
+ * **The dashboard from what the car sends** (M18.5, Sam: "just display all
+ * the signals being sent up by the car"): every signal the session declares,
+ * in the tablet's order, a number with a known range a **gauge** (a
+ * percentage a **bar**), any other number a **number**, a state or flag a
+ * **status light**; the position and the accelerations go to the map and
+ * the G-meter. A signal read and not declared (no session record yet) follows
+ * the declared ones, by name. Nothing is picked by name.
  */
-export function slotSignal(choices: readonly string[], declared: ReadonlySet<string>, latest: Readonly<Record<string, unknown>>): string {
-  return choices.find((n) => declared.has(n)) ?? choices.find((n) => latest[n] !== undefined) ?? choices[0]!
+export function dashboardLayout(declared: readonly { name: string; unit: string; kind: string }[], latest: Readonly<Record<string, Rec>>): Layout {
+  const out: Layout = { gauges: [], bars: [], numbers: [], statuses: [] }
+  const placed = new Set<string>()
+  const place = (name: string, kind: string, unit: string) => {
+    if (placed.has(name) || drawnElsewhere(name) || kind === 'position') return
+    placed.add(name)
+    if (kind !== 'number') out.statuses.push(name)
+    else if (unit === '%') out.bars.push(name)
+    else if (unit in BY_UNIT) out.gauges.push(name)
+    else out.numbers.push(name)
+  }
+  for (const s of declared) place(s.name, s.kind, s.unit)
+  for (const name of Object.keys(latest).sort()) {
+    const r = latest[name]!
+    place(name, typeof r.value === 'number' ? 'number' : typeof r.lat === 'number' ? 'position' : 'state', '')
+  }
+  return out
+}
+
+/**
+ * A status light's words: a flag On or Off, a state its words (or code), a
+ * flag set the flags it names ("None" for none), since every declared signal
+ * that isn't a number is a light now (M18.5); "—" before a reading.
+ */
+export function statusText(rec: Rec | undefined): string {
+  if (typeof rec?.flag === 'boolean') return rec.flag ? 'On' : 'Off'
+  if (typeof rec?.text === 'string') return rec.text
+  if (Array.isArray(rec?.flags)) return rec.flags.length === 0 ? 'None' : rec.flags.map(String).join(', ')
+  if (rec?.code !== undefined) return `Code ${String(rec.code)}`
+  return '—'
+}
+
+/** Every signal [layout] shows. */
+export function shownIn(layout: Layout): ReadonlySet<string> {
+  return new Set([...layout.gauges, ...layout.bars, ...layout.numbers, ...layout.statuses])
 }
 
 export type Level = 'normal' | 'caution' | 'critical'

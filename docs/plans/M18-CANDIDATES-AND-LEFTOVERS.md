@@ -294,6 +294,37 @@ no declaration shown; nothing picked by name); looked at in Chrome with the
 first drive's signals and a fake session's; measured with `measure.mjs` as M8
 was (a page of more gauges must still hold its frame rate).
 
+> **Validated against the code, 2026-09-28** (written down with the step's
+> record, not before building it, as it should have been):
+> - `SLOTS` named Sam's picks; `slotSignal` chose among a slot's names;
+>   `SHOWN` kept the tiles from repeating them and **limited `timings()` to
+>   them** (M8.4's fix: one pass, only what's shown). The layout takes that
+>   place: `timings()` gets every laid-out signal, still one pass.
+> - A declared signal's `kind` is `number`, `state`, `flag`, `flags` or
+>   `position` (contract §3.4). **The Status widget knew flags and states, not
+>   flag sets**, which the tiles had drawn (`format`); found by looking (below).
+> - **`%` fits the bar** (`Bar.svelte`, drawn as a fill) better than a gauge:
+>   a change from "Decided here".
+
+> **✅ Done, 2026-09-28.** `dashboardLayout` and `shownIn` in
+> `lib/dashboard.ts`, `statusText` (a flag, a state, a flag set, a code);
+> `CarPage` and the widgets preview drawing from the layout; `SLOTS`,
+> `slotSignal`, `SHOWN` and the tiles removed.
+> - **Tests:** Vitest 3 new in place of the slots' 2 (each kind and unit to
+>   its widget in the tablet's order; the undeclared by name, once, other
+>   positions left out, nothing picked by name; a status light's words).
+> - **Mutations: 14, all killed**, three after the tests gained another
+>   position and two undeclared numbers out of order.
+> - **Looked at in Chrome** (the dev server): the afternoon drive of
+>   2026-09-28 from the app's test data (only read), streamed at 10x, its 17
+>   signals as 5 gauges, 5 numbers and 4 lights, the map and the G-meter. Its
+>   monitor flag sets read "—" in the lights: **found by looking and fixed**
+>   (`statusText`).
+> - **Measured** (`measure.mjs`, 4x slower CPU, 390 px wide, 3 minutes, the
+>   50-signal synthetic session streaming at 1x, looped): **60 fps, no long
+>   tasks, heap 17 MB falling to 8 MB**, as M8's baseline. A first run read an
+>   ended stream ("Offline") and wasn't counted.
+
 ### M18.6 — Deploy, and prove it
 
 Deployed with a stream across it (a second throwaway car's, under

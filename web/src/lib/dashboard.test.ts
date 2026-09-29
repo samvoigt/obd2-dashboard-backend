@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, SHOWN, SLOTS, slotSignal, SWEEP, valueOf, zoneBands,
+  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, dashboardLayout, shownIn, statusText, SWEEP, valueOf, zoneBands,
 } from './dashboard'
 import type { Point } from './live'
 
@@ -50,28 +50,48 @@ describe('ranges and zones', () => {
   })
 })
 
-describe('the slots', () => {
-  it('show each signal once, and the tiles below leave out every choice', () => {
-    const all = [...SLOTS.gauges, ...SLOTS.numbers, ...SLOTS.bars, ...SLOTS.statuses].flat()
-    expect(new Set(all).size).toBe(all.length)
-    expect(SHOWN.size).toBe(all.length)
-    expect(SHOWN.has('vehicle.system_voltage')).toBe(true)
-    expect(SLOTS.gauges.length).toBeLessThanOrEqual(4)
-    expect(SLOTS.numbers.length).toBeLessThanOrEqual(6)
-    expect(SLOTS.bars.length).toBeLessThanOrEqual(4)
+describe('the dashboard, from what the car sends (M18.5)', () => {
+  const sig = (name: string, unit: string, kind = 'number') => ({ name, unit, kind })
+
+  it('every declared signal in the tablet\u2019s order, in the widget its kind and unit call for', () => {
+    const declared = [
+      sig('vehicle.speed', 'km/h'), sig('engine.rpm', 'rpm'), sig('fuel.tank_level', '%'), sig('diagnostics.mil', '', 'flag'),
+      sig('engine.coolant_temperature', '°C'), sig('fuel.system_1_status', '', 'state'), sig('engine.timing_advance', '°'),
+      sig('gps.position', '', 'position'), sig('motion.acceleration.lateral', 'm/s²'), sig('motion.acceleration.longitudinal', 'm/s²'),
+      sig('dtc.pending', '', 'flags'), sig('vehicle.system_voltage', 'V'), sig('engine.load', '%'),
+    ]
+    expect(dashboardLayout(declared, {})).toEqual({
+      gauges: ['vehicle.speed', 'engine.rpm', 'engine.coolant_temperature', 'vehicle.system_voltage'],
+      bars: ['fuel.tank_level', 'engine.load'],
+      numbers: ['engine.timing_advance'], // no range for its unit
+      statuses: ['diagnostics.mil', 'fuel.system_1_status', 'dtc.pending'],
+    })
   })
-  it('each show the first signal the session sends (M11)', () => {
-    const charging = ['control_module.voltage', 'vehicle.system_voltage']
-    // The first drive declared only the battery's voltage.
-    expect(slotSignal(charging, new Set(['engine.rpm', 'vehicle.system_voltage']), {})).toBe('vehicle.system_voltage')
-    expect(slotSignal(charging, new Set(['control_module.voltage', 'vehicle.system_voltage']), {})).toBe('control_module.voltage')
-    // No session record yet: the first with a reading.
-    expect(slotSignal(charging, new Set(), { 'vehicle.system_voltage': { value: 14.1 } })).toBe('vehicle.system_voltage')
-    // What the session declares wins over a leftover reading.
-    expect(slotSignal(charging, new Set(['control_module.voltage']), { 'vehicle.system_voltage': { value: 14.1 } })).toBe('control_module.voltage')
-    // Neither: the first, which reads "—".
-    expect(slotSignal(charging, new Set(['engine.rpm']), {})).toBe('control_module.voltage')
+
+  it('a signal read and not declared follows, by name; each only once; nothing picked by name', () => {
+    const latest = {
+      'zeta.count': { value: 3 }, 'alpha.mode': { text: 'on' }, 'engine.rpm': { value: 900 }, 'beta.count': { value: 1 },
+      'gps.position': { lat: 1, lon: 2 }, 'motion.acceleration.vertical': { value: 9.8 }, 'rtk.fix': { lat: 1, lon: 2 },
+    }
+    // Another position, declared or only read, is a place, not a light.
+    const layout = dashboardLayout([sig('engine.rpm', 'rpm'), sig('engine.rpm', 'rpm'), sig('base.position', '', 'position')], latest)
+    expect(layout).toEqual({ gauges: ['engine.rpm'], bars: [], numbers: ['beta.count', 'zeta.count'], statuses: ['alpha.mode'] })
+    expect([...shownIn(layout)].sort()).toEqual(['alpha.mode', 'beta.count', 'engine.rpm', 'zeta.count'])
+    // A car sending something no one has seen shows it; nothing sent, nothing shown.
+    expect(dashboardLayout([sig('hybrid.battery_temperature', '°C')], {}).gauges).toEqual(['hybrid.battery_temperature'])
+    expect(dashboardLayout([], {})).toEqual({ gauges: [], bars: [], numbers: [], statuses: [] })
   })
+
+  it('a status light says a flag, a state, a code, or the flags a set names (a flag set was "—" before)', () => {
+    expect(statusText({ flag: true })).toBe('On')
+    expect(statusText({ flag: false })).toBe('Off')
+    expect(statusText({ text: 'Spark ignition' })).toBe('Spark ignition')
+    expect(statusText({ flags: ['misfire', 'fuel_system'] })).toBe('misfire, fuel_system')
+    expect(statusText({ flags: [] })).toBe('None')
+    expect(statusText({ code: 3 })).toBe('Code 3')
+    expect(statusText(undefined)).toBe('—')
+  })
+
   it('give the battery voltage the charging zones', () => {
     expect(profile('vehicle.system_voltage', 'V')).toEqual(profile('control_module.voltage', 'V'))
   })

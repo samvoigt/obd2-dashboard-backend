@@ -11,7 +11,7 @@
   import Readout from './widgets/Readout.svelte'
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
-  import { freshnessOf, gTrail, NO_PEAKS, peaks, SLOTS, slotSignal, timings, valueOf, type Peaks } from './lib/dashboard'
+  import { dashboardLayout, freshnessOf, gTrail, NO_PEAKS, peaks, timings, valueOf, type Peaks } from './lib/dashboard'
   import { applyRecords, applySession, applySnapshot, applyStatus, empty, unitOf, type LiveState } from './lib/live'
   import { merge } from './lib/merge'
   import { fetchSeries, lapRows, type Series } from './lib/sessionPage'
@@ -31,8 +31,7 @@
   const positions = $derived(live.history.filter((p) => p.rec.signal === 'gps.position' && typeof p.rec.lat === 'number'))
   const laps = $derived(lapRows(merge(archived, live.history.map((p) => p.rec as Record<string, unknown>), live.signals).series))
   const timing = $derived(timings(live.history)) // once per batch, not once per widget per tick
-  const declared = $derived(new Set(live.signals.map((s) => s.name)))
-  const slotOf = (choices: readonly string[]) => slotSignal(choices, declared, live.latest)
+  const dash = $derived(dashboardLayout(live.signals, live.latest))
   const fresh = (n: string) => freshnessOf(n, timing, live.latest[n], !!live.stopped[n], serverNow)
   const codes = $derived(Array.isArray(live.fault?.codes) ? (live.fault.codes as string[]) : [])
 
@@ -58,13 +57,13 @@
 <main>
   <h1>Widgets <span class="muted">· {slug}</span> <UnitsSwitch /></h1>
   <section class="row gauges">
-    {#each SLOTS.gauges as c (c[0])}{@const n = slotOf(c)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={fresh(n)} />{/each}
+    {#each dash.gauges as n (n)}<Gauge signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={fresh(n)} />{/each}
   </section>
   <section class="row numbers">
-    {#each SLOTS.numbers as c (c[0])}{@const n = slotOf(c)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={fresh(n)} />{/each}
+    {#each dash.numbers as n (n)}<Readout signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={fresh(n)} />{/each}
   </section>
   <section class="row bars">
-    {#each SLOTS.bars as c (c[0])}{@const n = slotOf(c)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={fresh(n)} />{/each}
+    {#each dash.bars as n (n)}<Bar signal={n} unit={unitOf(live, n)} value={valueOf(live.latest[n])} freshness={fresh(n)} />{/each}
   </section>
   <section class="row two">
     <GMeter {trail} peaks={peak} stale={trail.length === 0} />
@@ -72,7 +71,7 @@
   </section>
   {#if laps.length > 0}<LapsPanel rows={laps} />{/if}
   <section class="row statuses">
-    {#each SLOTS.statuses as c (c[0])}{@const n = slotOf(c)}<Status signal={n} rec={live.latest[n]} freshness={fresh(n)} />{/each}
+    {#each dash.statuses as n (n)}<Status signal={n} rec={live.latest[n]} freshness={fresh(n)} />{/each}
     <Faults {codes} />
   </section>
 </main>

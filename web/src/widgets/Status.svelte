@@ -1,14 +1,12 @@
 <script lang="ts">
-  import type { Freshness } from '../lib/dashboard'
+  import { statusText, type Freshness } from '../lib/dashboard'
   import { label, type Rec } from '../lib/live'
 
   let { signal, rec, freshness }: { signal: string; rec: Rec | undefined; freshness: Freshness } = $props()
 
   // A flag is a light: the MIL on is critical, off is fine. A state is its words.
   const flag = $derived(typeof rec?.flag === 'boolean' ? rec.flag : null)
-  const text = $derived(
-    flag !== null ? (flag ? 'On' : 'Off') : typeof rec?.text === 'string' ? rec.text : rec?.code !== undefined ? `Code ${String(rec.code)}` : '—',
-  )
+  const text = $derived(statusText(rec))
   const kind = $derived(flag === true ? 'critical' : flag === false ? 'ok' : 'state')
 </script>
 
