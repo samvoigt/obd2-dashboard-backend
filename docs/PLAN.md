@@ -32,7 +32,7 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M15** | The race: one timeline through driver changes and restarts, stops, stints, race results, driver pages | ✅ (`plans/COMPLETED.md`) |
 | **M16** | Results worth reading: every lap linked, theoretical best, sectors compared, consistency, the lap-time chart, two laps compared | ✅ (`plans/COMPLETED.md`) |
 | **M17** | Live: the `timing` frame to the tablet, the car page's driver, stint and race, the event page counting the stint being driven | ✅ (`plans/COMPLETED.md`) |
-| **M18** | The candidates and leftovers: every signal on the dashboard, session names, crew messages beside a session, each session's clock offset stored, re-timing that survives a restart | **planned**: [`plans/M18-CANDIDATES-AND-LEFTOVERS.md`](plans/M18-CANDIDATES-AND-LEFTOVERS.md) |
+| **M18** | The candidates and leftovers: every signal on the dashboard, session names, crew messages beside a session, each session's clock offset stored, re-timing that survives a restart | ✅ (`plans/COMPLETED.md`) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -159,9 +159,8 @@ the tablet's own fixes when a line moves. Its plan is closed
 **The first real drive** was 2026-09-27 (`JOURNAL.md`); what it found for the
 site was M11.
 
-Candidates, for Sam to choose from: a per-car form on the admin page for the
-dashboard's slots and ranges (decision 28's way on); comparing laps; naming
-sessions; crew messages shown beside a session.
+The candidates Sam had waiting were built in M18. Next: a local lap-timing
+drive in the neighbourhood (to be planned).
 
 ---
 
@@ -180,8 +179,8 @@ The server is ready for each piece before the tablet needs it. M3 lands before
 the shipper, M4 before the live lane, and M5 before the widget. **All three are
 ready**; the widget (the app's M34.5) needs a real car registered with a passcode.
 
-**Hardware.** The tablet has no cellular (measured 2026-09-10). A phone hotspot
-is enough to test in a car.
+**Hardware.** The tablet has cellular: a working SIM (the tablet's §23,
+2026-09-28; measured without one on 2026-09-10).
 
 ## Open questions
 

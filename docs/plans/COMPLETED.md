@@ -682,3 +682,41 @@ results** and the server keeps the books; courses drawn on the website and
 sent down; practice and the race; public, edited behind sign-in; only our
 cars; and the tablet showing what only the server knows. Built as M12–M17
 (decisions 31–37); the contract change is §22, agreed and confirmed.
+
+## M18 — The candidates, and what earlier milestones left  ✅ 2026-09-28
+
+Decisions 38–40; decision 28 amended.
+
+- **Each session's clock offset, stored** (`CarLive.sessionOffset`,
+  `SessionRecord.clockOffsetMs`), placing the race's flags first; `admin.sh
+  session` shows it.
+- **Re-timing that catches up** (`CourseStore.retimed`, `RetimingJobs.catchUp`
+  and `watch`).
+- **Names for sessions** (the admin's and the crew's routes; every list;
+  the session page's editor).
+- **Crew messages beside a session** (`MessageStore.between`,
+  `GET /api/sessions/{id}/messages`; "What happened" and the chart's marks).
+- **The dashboard shows every signal the car sends** (`dashboardLayout`,
+  `statusText`); `SLOTS` and the tiles gone.
+- **Also:** `TimingDownlink` sent a duplicate frame at a session's start
+  (M17.4's race), fixed; the archive smoke's M17.1 expectations brought up to
+  date.
+- **Tests:** Kotlin 12 new (`:live` 2, `:server` 10) and several extended;
+  Vitest 177 (5 new, 2 gone with the slots). **Mutations: 54, all killed**
+  (in the plan's record, in git). **The real Firestore:** `archive-smoke.sh`, `course-smoke.sh` and
+  `message-smoke.sh` passed with the new checks.
+- **Found while building:** a flag set drawn as "—" once every non-number was
+  a light; test data couldn't be named from its page; a mutant "surviving" on
+  another method's identical text.
+- **Measured:** the car page with 50 signals streaming, 4x slower CPU, phone
+  width: 60 fps, no long tasks, heap steady.
+- **Proven:** Chrome against the dev server (the real afternoon drive of
+  2026-09-28, read from the app's test data, as 5 gauges, 5 numbers and 4
+  lights); **deployed as `00030`** with a stream across it; **in production**,
+  a throwaway car streaming a 50-signal drive: its dashboard, two messages
+  from the crew received in 0.1–0.2 s and on its session's chart and list, a
+  name set by the crew, its offset stored at its end; a course imported with
+  `admin.sh` re-timed by the server 35 s later. All removed.
+
+**Left for later:** re-timing a session before it completes; positions per
+lap or between cars; M9 (tabled).

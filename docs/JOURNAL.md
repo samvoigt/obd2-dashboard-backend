@@ -395,3 +395,23 @@ whole drive, the admin page's Download.
 - **Browser extensions can block the page under test.** A password field
   brought up another extension's page and the tab couldn't be driven; the
   request was made from outside instead, and said so.
+
+## 2026-09-28 — M18, the candidates and leftovers
+
+- **A commit went in after a failed test run, again.** The commit was chained
+  after the tests rather than on their result; the M15 lesson written down
+  and still missed. Commits now run only on a passing run
+  (`… && git commit`, never `…; git commit`). The failure it hid was real: a
+  race in M17.4 sent a duplicate `timing` frame.
+- **The same text in two places misleads a mutation run.** A mutant meant for
+  the new window query changed `active()`'s identical filter and "survived";
+  match on a line that's unique.
+- **A validation written after the fact** (M18.5's) says so; the step was
+  checked against the code before building, but the plan got it only with
+  the record.
+- **Fast replays move clocks.** At 2x or 5x the tablet's `wall` runs faster
+  than the server's, so anything placed by a measured offset (messages on a
+  chart) drifts; a tablet runs at 1x.
+- **`LiveReplayTest`'s coalescing test** failed once in about seven full
+  runs under load (never alone): its hub is replaced on every reconnect. Not
+  chased.

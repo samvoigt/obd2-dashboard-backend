@@ -6,7 +6,10 @@ shows the car's data live.
 
 ## Status
 
-M17 done: live. The tablet hears what only the server knows (who's driving
+M18 done: the dashboard shows every signal the car sends; sessions can be
+named by the admin or the crew; crew messages show beside a session; each
+session keeps the tablet's clock offset; a course's re-timing survives a
+restart. M17: live. The tablet hears what only the server knows (who's driving
 and for how long, the race's lap count and the time since the stop, the
 event's bests); the car page shows the same, with each lap's sectors and a
 driver picker for the crew; the event page counts the stint being driven.

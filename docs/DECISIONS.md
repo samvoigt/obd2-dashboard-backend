@@ -693,6 +693,15 @@ session, and `seq` is the only key both lanes share exactly.
   > only what its own dashboard shows plus chosen extras, so the first drive
   > carried `vehicle.system_voltage` and not `control_module.voltage`, and the
   > charging gauge was blank. Charging is now either, with the same zones.
+
+  > **Amended by M18** (Sam, 2026-09-28: "just display all the signals being
+  > sent up by the car"): **no slots.** Every signal the session declares
+  > gets a place, in the tablet's order, by its kind and unit: a number whose
+  > unit has a range a gauge, a percentage a bar, any other number a number,
+  > a state, flag or flag set a status light; the position and the
+  > accelerations stay the map and the G-meter. The tiles went with the slots.
+  > Nothing is picked by name, so a car sending something new shows it
+  > without a deploy; a per-car form isn't needed.
 - **Ranges come from the unit, zones from the signal**, and both are generic
   engine knowledge, never one car's (the app's decision 33): coolant caution
   over 105 °C, critical over 115; voltage caution under 12.0 V, critical
@@ -987,3 +996,46 @@ how long, and the tablet needs what only the server knows, while the car is
 out, not after the session is uploaded. Holding the live run as a provisional
 run means one set of rules, the same as for complete sessions, and results
 that settle into the complete ones without a lap lost or doubled.
+
+## 38. What the site learns of a session: its name and its clock
+
+**Decision.** (M18.)
+- **A session can be named**, by the admin or the car's crew (its passcode),
+  as who drove it is set: up to 60 characters, one line, blank clears it,
+  logged. Test data can be named too (who drove it can't). The name leads
+  wherever sessions are listed.
+- **Each session keeps its clock offset** (the server's clock less the
+  tablet's), the smallest the live lane measured over it, stored when the
+  session ends, the next begins, or the socket closes; the smaller is kept
+  across reconnects. It places the race's flags and crew messages first,
+  before `created − started` (M15).
+
+**Why.** A list of times says little a week later; the crew knows what each
+run was. And the live lane's measurement is the best the server has of the
+tablet's clock, to the network's delay: kept per session, it places anything
+on the server's clock onto the session's.
+
+## 39. Crew messages beside a session
+
+**Decision.** (M18.) A session's page lists the crew messages sent while it
+ran (its span, on the server's clock by its offset) in "What happened", each
+marked on the chart where it was sent and saying how soon the tablet
+received and showed it. Public, as the session page is: the text is what the
+driver saw.
+
+**Why.** A message is part of what happened in the car: "BOX THIS LAP" next
+to the lap that followed says why it was slow.
+
+## 40. A course's re-timing catches up
+
+**Decision.** (M18.) Each course records the version its last re-timing
+finished at (Firestore, on the course's document, forgotten by the next
+save). On start and every minute the server starts the job for any course
+behind, unless it's re-timing it at that version already. So a restart
+resumes a job, and a course saved outside the server (`admin.sh
+import-course`) is re-timed within a minute. Runs already re-timed are read
+back, not redone.
+
+**Why.** Re-timing on view always worked, but a page shouldn't wait on it;
+the job exists so that it doesn't, and it should survive the server's
+restarts and the admin tool.
