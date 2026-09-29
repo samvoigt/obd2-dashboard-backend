@@ -352,6 +352,7 @@ class ShowSession : RegistryCommand("session", "Everything the index holds about
         val h = s.header
         echo("id          ${s.id}")
         s.name?.let { echo("name        $it") }
+        s.clockOffsetMs?.let { echo("clock       the tablet ${"%.1f".format(it / 1000.0)} s behind the server (measured live)") }
         echo("car         ${s.car}")
         echo("started     ${h?.started ?: "(no session record yet)"}")
         echo("format      ${h?.v?.let { "v$it" } ?: "-"}")
