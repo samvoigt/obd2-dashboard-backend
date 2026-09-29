@@ -12,7 +12,7 @@
 <section class="standing" aria-label="Where the car stands">
   <div>
     <div class="name">Driver</div>
-    <div class="value">{standing.driver?.name ?? 'Not set'}{#if standing.driver?.code} <span class="muted">{standing.driver.code}</span>{/if}</div>
+    <div class="value">{standing.driver?.name ?? 'Not set'}{#if standing.driver?.code}{' '}<span class="muted">{standing.driver.code}</span>{/if}</div>
     {#if stint !== null}<div class="muted small">stint {duration(stint)}</div>{/if}
   </div>
   {#if standing.race}
@@ -26,7 +26,7 @@
     <div>
       <div class="name">Best</div>
       <div class="value best">{lapTime(standing.best.time)}</div>
-      <div class="muted small">{standing.best.driver ?? ''}{#if standing.theoretical} · theoretical {lapTime(standing.theoretical)}{/if}</div>
+      <div class="muted small">{[standing.best.driver, standing.theoretical ? `theoretical ${lapTime(standing.theoretical)}` : ''].filter(Boolean).join(' · ')}</div>
     </div>
   {/if}
 </section>
