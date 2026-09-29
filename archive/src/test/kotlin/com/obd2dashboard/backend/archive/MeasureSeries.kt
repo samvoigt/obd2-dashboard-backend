@@ -19,14 +19,16 @@ class MeasureSeries {
         val hours = (System.getenv("MEASURE_HOURS") ?: "3").toDouble()
         val t0 = 1_790_000_000_000L
         val dir = kotlin.io.path.createTempDirectory("measure").toFile().apply { deleteOnExit() }
-        val logFile = java.io.File(dir, "log.jsonl")
-        val raw = logFile.outputStream().buffered(1 shl 16)
+        // A log of your own (M19.1: `scripts/synthetic-session.py`, the tablet's real rate), else the one below.
+        val given = System.getenv("MEASURE_FILE")?.let { java.io.File(it) }
+        val logFile = given ?: java.io.File(dir, "log.jsonl")
+        val raw = if (given != null) java.io.OutputStream.nullOutputStream() else logFile.outputStream().buffered(1 shl 16)
         var seq = 0L
         var lines = 0
         fun line(s: String) { raw.write(s.toByteArray()); raw.write('\n'.code); lines++ }
         val signals = (1..50).map { "obd.signal_$it" }
         line("""{"type":"session","v":3,"id":"m","started":"2026-09-26T12:00:00Z","signals":[${(signals + "motion.acceleration.longitudinal" + "motion.acceleration.lateral" + "gps.speed").joinToString(",") { """{"name":"$it","unit":"u","kind":"number"}""" }},{"name":"gps.position","unit":"","kind":"position"}],"seq":0,"at":0,"wall":$t0}""")
-        val end = (hours * 3600_000).toLong()
+        val end = if (given != null) 0L else (hours * 3600_000).toLong()
         var ms = 0L
         var lap = 0
         while (ms < end) {
@@ -54,6 +56,7 @@ class MeasureSeries {
             ms += 20
         }
         raw.close()
+        if (given != null) lines = given.useLines { it.count() }
         val gzFile = java.io.File(dir, "log.jsonl.gz")
         GZIPOutputStream(gzFile.outputStream()).use { out -> logFile.inputStream().use { it.copyTo(out) } }
 

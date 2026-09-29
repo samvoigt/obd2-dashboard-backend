@@ -100,6 +100,42 @@ series requests and their times, the server's heap, the page's frame rate.
 **Done when:** the generator's output checked against the real drive's
 rates; the baseline recorded.
 
+> **Validated against the code and the logs, 2026-09-28, before building.**
+> - **The tablet's real upload pattern** (Cloud Run's request log for
+>   `69c4ace7-…`): **270 chunk requests in 26 minutes**, all `200`: every 2
+>   minutes one ~80 KB chunk (its 2 minutes of lines), plus 15–25 requests
+>   under 1 KB each, in bursts 0.3 s apart. About 10 a minute: **an 8-hour
+>   session could be up to ~5,000 chunks**, not the 2,400 first estimated.
+>   (The tiny chunks are a question for the tablet side.) A duplicate chunk
+>   stores nothing; each distinct one is a segment.
+> - **The generator** writes the real drive's record mix at its rates
+>   (measured from the app's file, only read: 37.4 lines/s), round the box.
+> - **Where to measure**: `complete` and the car page's request are dominated
+>   by Cloud Storage's latency, which the dev server's in-memory store doesn't
+>   have, so **the baseline is production as deployed** (a throwaway car);
+>   memory and re-timing are measured locally, the heap capped as production's.
+
+> **✅ Done, 2026-09-28.** `scripts/synthetic-session.py` (any length, the
+> real rates, the box's GeoJSON beside); `MeasureSeries` takes a log
+> (`MEASURE_FILE`); `MeasureRetiming` (a live run re-timed from its start).
+> - **Checked:** 1 hour: 37.4 lines/s, time never backwards, a lap every
+>   70 s (51). **8 hours: 1,075,677 lines, 125 MB, 12.6 MB gzipped, 411 laps.**
+> - **The baseline**, one 8-hour session in 12 s chunks (~2,400), to
+>   production (`00030`) as a throwaway car:
+>   - **the car page's request for the session while uploading** (2,350
+>     chunks in): **the first failed, `503` after 34 s: the container passed
+>     its 512 MiB ("Memory limit of 512 MiB exceeded with 513 MiB used") and
+>     Cloud Run restarted it**, dropping every socket. The second: **`200`
+>     after 150 s** (3.9 MB). One viewer, once; the page asks every minute;
+>   - **`complete`: 39.9 s** (the tablet waits 10 s);
+>   - **building its series once complete** (local, a 384 MiB heap): 2.4 s,
+>     **peak 178 MiB**: two at once would need ~356 MiB. The series is **16 MB
+>     raw, 4 MB gzipped**, what the session page downloads;
+>   - **re-timing the live run from its start: 6 ms** (25,623 fixes). At a
+>     10 Hz receiver about 60 ms: **not worth making incremental**, so M19.5
+>     is closed on this measurement.
+> - All removed after.
+
 ### M19.2 — Compaction while uploading
 
 Every few minutes (and at `complete`), a session's new segments composed into
@@ -142,6 +178,11 @@ fed only new fixes; the result the same as re-timing from the start.
 **Done when:** tests (incremental equals from-scratch on the box, across a
 session change and a restart of the app); measured at 8 hours: a standing
 worked out in milliseconds.
+
+> **Closed on M19.1's measurement, 2026-09-28:** re-timing an 8-hour live run
+> from its start takes 6 ms (25,623 fixes), about 60 ms at a 10 Hz
+> receiver, every 10 s: a standing is already worked out in milliseconds.
+> Nothing built; `MeasureRetiming` stays for measuring again.
 
 ### M19.6 — Finished long sessions
 
