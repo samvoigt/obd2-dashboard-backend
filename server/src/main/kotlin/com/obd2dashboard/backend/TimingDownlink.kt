@@ -40,6 +40,8 @@ class TimingDownlink(
         val timing: MutableSet<TabletHandle> = ConcurrentHashMap.newKeySet(),
         val lock: Mutex = Mutex(),
         @Volatile var last: Standing? = null,
+        /** A session frame came, and `timing` is owed whatever the last said: sent once, by whichever update runs first. */
+        @Volatile var owed: Boolean = false,
     )
 
     private val cars = ConcurrentHashMap<String, Listening>()
@@ -70,12 +72,14 @@ class TimingDownlink(
 
     /** A `session` frame from [car]'s tablet (after every `hello`): `timing` goes whatever the last one said. */
     fun sessionStarted(car: String) {
-        if (cars.containsKey(car)) scope.launch { update(car, always = true) }
+        val listening = cars[car] ?: return
+        listening.owed = true
+        scope.launch { update(car) }
     }
 
     /** Something [car]'s timing depends on changed: `timing` goes if it differs. */
     fun changed(car: String) {
-        if (cars.containsKey(car)) scope.launch { update(car, always = false) }
+        if (cars.containsKey(car)) scope.launch { update(car) }
     }
 
     /** A driver, a race, an event or a course changed: every listening car is worked out again. */
@@ -83,13 +87,15 @@ class TimingDownlink(
         cars.keys.forEach { changed(it) }
     }
 
-    private suspend fun update(car: String, always: Boolean) {
+    private suspend fun update(car: String) {
         val listening = cars[car] ?: return
         try {
             listening.lock.withLock {
                 val now = timings.standing(car)
                 standing(car, now)
-                if (now == null || (!always && now == listening.last)) return@withLock
+                // Owed after a session frame (one frame, however many updates race to it); else only a change.
+                if (now == null || (!listening.owed && now == listening.last)) return@withLock
+                listening.owed = false
                 listening.last = now
                 val offset = hub.status(car).clockOffset?.toMillis()
                 val frame = frame(now, offset?.let { clock.millis() - it }).toString()

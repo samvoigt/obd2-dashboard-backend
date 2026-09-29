@@ -139,6 +139,7 @@ class TimingDownlinkTest {
             hello(timing = true)
             send(Frame.Text("""{"t":"session","record":${lines[0]}}"""))
             timing()!!.let { it.at("session") shouldBe id; it.at("course") shouldBe null }
+            timing(1_000) shouldBe null // one frame for the session frame, however the updates raced to it
             batch(1, lines.indexOfFirst { it.contains("\"lap\":2") } + 1)
             val first = timing()!!
             first.at("course", "id") shouldBe "box"

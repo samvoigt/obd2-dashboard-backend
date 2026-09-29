@@ -269,6 +269,20 @@ looked at in Chrome with messages sent during a replay.
 >   as faults' and gaps' are. At 2x replay speed the placement drifts (the
 >   tablet's clock runs twice as fast); a tablet runs at 1x.
 
+> **Found after M18.4's commit, and fixed:** that commit went in with a
+> test run that had failed (the commit was chained after the tests, not on
+> their result: the JOURNAL's M15 lesson again). The failures:
+> - **`TimingDownlink` sent a duplicate frame** at a session's start
+>   (M17.4): the session frame's forced update and `LiveTimings`' "a session
+>   began" update raced, and the second to run sent the same standing again.
+>   Now a session frame marks one frame **owed**, sent by whichever update runs
+>   first; the test checks there's no second. Five runs of it, then three
+>   full suites, all passed.
+> - **`LiveReplayTest`'s coalescing test** found an empty history once in
+>   about seven full-suite runs, never alone (three runs): its hub is replaced
+>   on every reconnect, so a reconnect under load leaves the check reading a
+>   fresh one. A flake of the test's harness; noted in the JOURNAL, not chased.
+
 ### M18.5 — The dashboard shows every signal the car sends
 
 `lib/dashboard.ts` gains the layout from the declared signals (by kind and
