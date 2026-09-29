@@ -33,6 +33,14 @@ fun main(args: Array<String>) {
             check("version 1 kept", store.get(id, 1)?.name == "Smoke")
             check("both versions listed", store.versions(id).map { it.version } == listOf(1, 2))
             check("current lists it at version 2", store.current().any { it.id == id && it.version == 2 })
+            // M18.2: which version the server last finished re-timing.
+            check("not re-timed yet", id !in store.retimed())
+            store.setRetimed(id, 1)
+            check("an older version's re-timing isn't recorded", id !in store.retimed())
+            store.setRetimed(id, 2)
+            check("re-timed at version 2", store.retimed()[id] == 2 && store.get(id)?.version == 2)
+            val third = store.save(id, 2, "Smoke, third", nhms, now)
+            check("a new version forgets it", third?.version == 3 && id !in store.retimed())
         } catch (e: Exception) {
             println("  FAIL  ${e.javaClass.simpleName}: ${e.message}")
             failures++

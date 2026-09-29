@@ -148,6 +148,35 @@ again and reads back what was done; a course saved outside the server:
 re-timed within a tick; a course up to date: nothing runs); proven against
 the real Firestore with a throwaway course.
 
+> **Validated against the code, 2026-09-28, before building.**
+> - **The course's own document** (Firestore: `courses/{id}`, its latest
+>   version, name, when saved) is rewritten whole on every save. So a
+>   "re-timed up to version N" field there is **reset by each new version by
+>   itself**, and one merge-write records a finished job.
+> - **The job** (`RetimingJobs.courseSaved`) re-times every run at the course,
+>   reading back any run already stored for that version (`Retimer`), so
+>   starting it again after a restart costs only reads. One job per course;
+>   a newer save cancels the older.
+> - **The watcher**: on start and every minute, `courses.current()` against
+>   what's recorded; any course behind, and not already being re-timed at its
+>   version, gets the job; a job that finishes records its version (failures
+>   included: a run that can't be re-timed is re-timed on view, as today).
+>   The first start after this deploy re-times every course once (NHMS's runs
+>   mostly read back).
+
+> **✅ Done, 2026-09-28.** `CourseStore.retimed` and `setRetimed` (Firestore:
+> a `retimed` field on the course's document, written only while its version
+> is the latest, forgotten by the next save), `RetimingJobs.catchUp` and
+> `watch` (jobs kept with their version), on in production and the dev server.
+> - **Tests:** 3 (a course saved outside caught up, recorded, then left
+>   alone, and caught up again at a new version, an older version's finish not
+>   recorded; a job cut short run again, read back not redone, a running one
+>   not started twice; one at an older version replaced). **The real
+>   Firestore:** `course-smoke.sh` passed (not re-timed yet; an older
+>   version's not recorded; recorded at the latest; forgotten by a new save).
+> - **Mutations: 6, all killed**, two after the tests above were added.
+> - **Seen:** the dev server, on start, catching up on its seeded NHMS.
+
 ### M18.3 — Names for sessions
 
 `SessionRecord.name`; the admin's and the crew's routes (as the driver's);

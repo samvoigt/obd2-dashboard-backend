@@ -55,7 +55,8 @@ class RetimingJobs(
         }
     }
     private val lock = Mutex()
-    private val jobs = ConcurrentHashMap<String, Job>()
+    /** Each course's job, and the version it's for. */
+    private val jobs = ConcurrentHashMap<String, Pair<Int, Job>>()
     private val progress = ConcurrentHashMap<String, RetimingProgress>()
 
     /** The latest save's re-timing of course [id], or null if none since the server started. */
@@ -97,7 +98,7 @@ class RetimingJobs(
 
     /** A course was saved: re-time every run it touches, in the background, in place of any earlier save's job. */
     fun courseSaved(course: Course): Job {
-        jobs.remove(course.id)?.cancel()
+        jobs.remove(course.id)?.second?.cancel()
         val job = scope.launch {
             val runs = registry.list().flatMap { runsAt(sessionsOf(it.slug.value), course) }
             var p = RetimingProgress(course.version, runs.size, runs.sumOf { it.size })
@@ -116,15 +117,48 @@ class RetimingJobs(
             }
             progress[course.id] = p.copy(finished = true)
             log.info("re-timed {} runs at {} v{}, {} failed", runs.size, course.id, course.version, p.failed)
+            // Done at this version: a restart won't start it again (M18.2). A run that failed is re-timed on view.
+            courses.setRetimed(course.id, course.version)
         }
-        jobs[course.id] = job
-        job.invokeOnCompletion { jobs.remove(course.id, job) }
+        val entry = course.version to job
+        jobs[course.id] = entry
+        job.invokeOnCompletion { jobs.remove(course.id, entry) }
         return job
+    }
+
+    /**
+     * **Catching up** (M18.2): a job for every course not re-timed at its
+     * latest version and not being re-timed at it now: after a restart cut
+     * one short, or a course saved outside the server (`admin.sh
+     * import-course`). The jobs it starts.
+     */
+    suspend fun catchUp(): List<Job> {
+        val done = courses.retimed()
+        return courses.current()
+            .filter { c -> done[c.id] != c.version && jobs[c.id]?.let { (v, job) -> v == c.version && job.isActive } != true }
+            .map { c ->
+                log.info("re-timing {} v{}: not finished at that version", c.id, c.version)
+                courseSaved(c)
+            }
+    }
+
+    /** [catchUp] now and every [every], for as long as [scope] lives. */
+    fun watch(every: kotlin.time.Duration = kotlin.time.Duration.parse("1m")): Job = scope.launch {
+        while (true) {
+            try {
+                catchUp()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn("catching up on re-timing failed; trying again in {}", every, e)
+            }
+            kotlinx.coroutines.delay(every)
+        }
     }
 
     /** A course was removed: its re-timings go too, in the background. */
     fun courseRemoved(id: String): Job {
-        jobs.remove(id)?.cancel()
+        jobs.remove(id)?.second?.cancel()
         progress.remove(id)
         return scope.launch {
             val sessions = registry.list().flatMap { car -> archive.sessionsOf(car.slug.value).map { it.id } }

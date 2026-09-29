@@ -51,6 +51,7 @@ fun main() {
             admin = devAdmin(),
             courses = devCourses(),
             events = EventStores(InMemoryDriverStore(), InMemoryEventStore()),
+            watchRetiming = true,
         )
     }.start(wait = true)
 }

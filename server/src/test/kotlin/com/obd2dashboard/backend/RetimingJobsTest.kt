@@ -139,4 +139,55 @@ class RetimingJobsTest {
         }
         timingFiles() shouldBe listOf("sessions/$id/timing-v2-box-1.json.gz")
     }
+
+    @Test
+    fun `a course saved outside the server is caught up, recorded, and then left alone (M18_2)`(): Unit = runBlocking {
+        registry.addCar(Slug.parse("outback"), "Outback")
+        session("a", "outback", boxLog(0, 300))
+        val course = courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!! // as admin.sh import-course does
+        val jobs = RetimingJobs(registry, archive, courses, this)
+        jobs.catchUp().single().join()
+        timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz")
+        courses.retimed() shouldBe mapOf("box" to course.version)
+        jobs.catchUp() shouldBe emptyList()
+        // A restarted server: nothing to do either.
+        RetimingJobs(registry, archive, courses, this).catchUp() shouldBe emptyList()
+        // A new version forgets it: caught up again.
+        courses.save("box", 1, "Box", boxGeoJson(sfX = 600.0), Instant.EPOCH)
+        courses.retimed() shouldBe emptyMap()
+        courses.setRetimed("box", 1) // an older version's job finishing late: not recorded
+        courses.retimed() shouldBe emptyMap()
+        jobs.catchUp().single().join()
+        courses.retimed() shouldBe mapOf("box" to 2)
+    }
+
+    @Test
+    fun `a job at an older version is replaced when a newer one is caught up (M18_2)`(): Unit = runBlocking {
+        registry.addCar(Slug.parse("outback"), "Outback")
+        session("a", "outback", boxLog(0, 300))
+        val jobs = RetimingJobs(registry, archive, courses, this)
+        val old = jobs.courseSaved(courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!!) // not started yet
+        courses.save("box", 1, "Box", boxGeoJson(sfX = 600.0), Instant.EPOCH) // saved outside the server
+        jobs.catchUp().single().join()
+        old.isCancelled shouldBe true
+        courses.retimed() shouldBe mapOf("box" to 2)
+    }
+
+    @Test
+    fun `a job cut short by a restart runs again, reading back what was done, and a running one isn't started twice (M18_2)`(): Unit = runBlocking {
+        registry.addCar(Slug.parse("outback"), "Outback")
+        session("a", "outback", boxLog(0, 300))
+        val course = courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!!
+        val jobs = RetimingJobs(registry, archive, courses, this)
+        val running = jobs.courseSaved(course) // not started yet: runBlocking's one thread is still here
+        jobs.catchUp() shouldBe emptyList() // being re-timed at this version already
+        running.join()
+        // As if the server stopped after the run was stored and before the job was recorded as finished.
+        val written = store.writes
+        courses.forgetRetimed("box")
+        RetimingJobs(registry, archive, courses, this).catchUp().single().join()
+        store.writes shouldBe written // read back, not redone
+        courses.retimed() shouldBe mapOf("box" to 1)
+    }
 }
+

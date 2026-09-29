@@ -27,10 +27,17 @@ public interface CourseStore {
 
     /** Removes course [id] and every version of it. False if there was none. */
     public suspend fun delete(id: String): Boolean
+
+    /** For each course, the version the server last finished re-timing it at (M18.2); absent if none since its save. */
+    public suspend fun retimed(): Map<String, Int>
+
+    /** Records that the re-timing of [id] at [version] finished; a newer save forgets it. */
+    public suspend fun setRetimed(id: String, version: Int)
 }
 
 public class InMemoryCourseStore : CourseStore {
     private val courses = ConcurrentHashMap<String, List<Course>>()
+    private val retimed = ConcurrentHashMap<String, Int>()
 
     override suspend fun current(): List<Course> = courses.values.map { it.last() }.sortedBy { it.id }
 
@@ -46,10 +53,22 @@ public class InMemoryCourseStore : CourseStore {
             if (latest != expected) return@compute all
             val course = Course(id, name, latest + 1, geojson, now)
             saved = course
+            retimed.remove(id) // as Firestore's course document is rewritten
             all.orEmpty() + course
         }
         return saved
     }
 
-    override suspend fun delete(id: String): Boolean = courses.remove(id) != null
+    override suspend fun delete(id: String): Boolean = courses.remove(id).also { retimed.remove(id) } != null
+
+    override suspend fun retimed(): Map<String, Int> = retimed.toMap()
+
+    /** For tests: as if the server stopped before recording a finished job. */
+    public fun forgetRetimed(id: String) {
+        retimed.remove(id)
+    }
+
+    override suspend fun setRetimed(id: String, version: Int) {
+        if (courses[id]?.last()?.version == version) retimed[id] = version
+    }
 }

@@ -66,6 +66,7 @@ fun main() {
             admin = AdminConfig.fromEnvironment(System::getenv),
             courses = FirestoreCourseStore.connect(project),
             events = EventStores(FirestoreDriverStore.connect(project), FirestoreEventStore.connect(project)),
+            watchRetiming = true,
         )
     }
     server.start(wait = true)
@@ -92,10 +93,13 @@ fun Application.module(
     courses: CourseStore,
     /** Drivers and events (M14); no default, as for courses. */
     events: EventStores,
+    /** Catch up on courses' re-timing, on start and every minute (M18.2): production's and the dev server's, not tests'. */
+    watchRetiming: Boolean = false,
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
     val retiming = RetimingJobs(registry, archive, courses, this)
+    if (watchRetiming) retiming.watch()
     // The live run (M17.2) tells `timing` (M17.4) what changed; `timing` needs it to work out where a car stands.
     var timingDownlink: TimingDownlink? = null
     val liveTimings = LiveTimings(archive, this, clock) { car -> timingDownlink?.changed(car) }

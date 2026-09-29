@@ -58,6 +58,17 @@ public class FirestoreCourseStore(private val db: Firestore) : CourseStore {
         }.await()
     }
 
+    override suspend fun retimed(): Map<String, Int> =
+        courses.get().await().documents.mapNotNull { doc -> (doc.get(RETIMED) as? Number)?.let { doc.id to it.toInt() } }.toMap()
+
+    /** Only while [version] is still the latest: a save since has started its own re-timing. */
+    override suspend fun setRetimed(id: String, version: Int) {
+        val ref = courses.document(id)
+        db.runTransaction { tx: Transaction ->
+            if ((tx.get(ref).get().get(VERSION) as? Number)?.toInt() == version) tx.update(ref, RETIMED, version.toLong())
+        }.await()
+    }
+
     /** The versions in batches of [DELETE_BATCH], within Firestore's 500 writes a batch, then the course. */
     override suspend fun delete(id: String): Boolean {
         val ref = courses.document(id)
@@ -73,6 +84,7 @@ public class FirestoreCourseStore(private val db: Firestore) : CourseStore {
 
     public companion object {
         public const val COLLECTION: String = "courses"
+        private const val RETIMED = "retimed"
         private const val VERSIONS = "versions"
         private const val VERSION = "version"
         private const val NAME = "name"
