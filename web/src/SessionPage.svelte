@@ -3,7 +3,8 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, messageMarkers, speedsAtPositions, standingRows, unitOf,
+    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, LONG_SESSION_MS, messageMarkers, needsDetail, speedsAtPositions,
+    standingRows, unitOf,
     type LapRow, type Series, type SessionLaps, type SessionMessage,
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
@@ -74,6 +75,22 @@
 
   let chosen: string[] = $state([])
   let range = $state<[number, number] | null>(null)
+  // A long session opens on its thinned series; narrowed to half an hour or less, it loads the detail (M19.6).
+  let thin = $state(false)
+  let viewed = $state<[number, number] | null>(null)
+  let loadingDetail = false
+  $effect(() => {
+    const view = viewed ?? range
+    if (!needsDetail(thin, view) || loadingDetail) return
+    loadingDetail = true
+    void fetchSeries(id).then((full) => {
+      if (full) {
+        series = full
+        thin = false
+        range = view // kept where it was
+      }
+    }).finally(() => { loadingDetail = false })
+  })
   /** The stretch the map shows, on `wall` (M16.1): a lap chosen or linked; null for the whole session. */
   let focus = $state<[number, number] | null>(null)
   let chosenLap = $state<number | null>(null)
@@ -158,7 +175,8 @@
       void whoCanSet(slug).then((w) => (setter = w))
       // Crew messages sent while it ran (M18.4).
       void fetch(`/api/sessions/${id}/messages`).then((r) => (r.ok ? r.json() : [])).then((m: SessionMessage[]) => (messages = m)).catch(() => {})
-      series = await fetchSeries(id)
+      thin = detail.session.state === 'complete' && detail.session.ended - detail.session.started > LONG_SESSION_MS
+      series = await fetchSeries(id, fetch, thin)
       // A lap's link (M16.1): the chart zoomed to its window, the map showing that stretch.
       const linked = readWindow(window.location.search)
       if (linked) {
@@ -304,7 +322,7 @@
           <span class="muted small">Drag across the chart to zoom in; double-click to zoom out.</span>
         </div>
         {#if data && data[0].length > 0}
-          <Chart {data} {names} units={chartUnits} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} />
+          <Chart {data} {names} units={chartUnits} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} onRange={(a, b) => (viewed = [a, b])} />
         {:else}
           <p class="muted">No readings to chart.</p>
         {/if}

@@ -381,17 +381,51 @@ public class ArchiveService(
         val record = index.get(id) ?: return null
         if (record.ackedThrough < 0) return null
         val key = seriesKey(id, if (record.complete) null else record.ackedThrough)
+        val thin = thinSeriesKey(id).takeIf { record.complete }
         if (key in store.list(key)) return key
-        val builder = SeriesBuilder()
-        val reader = SessionReader(also = builder::record)
-        read(record) { reader.read(it) }
-        val summary = reader.summary()
-        store.write(key) { builder.write(it, summary.started, summary.signals) }
-        if (record.complete && record.summary?.version != SessionSummary.VERSION) index.setSummary(id, summary)
-        // Only the newest stays: earlier partial ones, and any of an older version.
-        store.list(seriesPrefix(id)).filter { it != key }.forEach { store.delete(it) }
-        return key
+        // One full build at a time (M19.6): an 8-hour session's peaks at ~178 MiB of a 384 MiB heap, two ~356.
+        return building.withLock {
+            if (key in store.list(key)) return@withLock key
+            val builder = SeriesBuilder()
+            // A complete session's thinned series, in the same pass (M19.6): what its page opens on.
+            val thinned = thin?.let { ThinSeries() }
+            val reader = SessionReader(also = { builder.record(it); thinned?.record(it) })
+            read(record) { reader.read(it) }
+            val summary = reader.summary()
+            store.write(key) { builder.write(it, summary.started, summary.signals) }
+            if (thin != null && thinned != null) store.write(thin) { thinned.write(it, summary.started, summary.signals, final = true) }
+            if (record.complete && record.summary?.version != SessionSummary.VERSION) index.setSummary(id, summary)
+            // Only the newest stays: earlier partial ones, and any of an older version.
+            store.list(seriesPrefix(id)).filter { it != key && it != thin }.forEach { store.delete(it) }
+            key
+        }
     }
+
+    /**
+     * The key of a **complete** session's thinned series (M19.6), building it
+     * if it isn't stored: its full series first, as [prepare], which builds
+     * both; a session prepared before M19 gets its thinned one on its own,
+     * one pass. Null for one not complete (the live series is thinned already).
+     */
+    public suspend fun prepareThin(id: String): String? {
+        val record = index.get(id) ?: return null
+        if (!record.complete) return null
+        val thin = thinSeriesKey(id)
+        if (thin in store.list(thin)) return thin
+        prepare(id) ?: return null
+        if (thin in store.list(thin)) return thin
+        return building.withLock {
+            if (thin in store.list(thin)) return@withLock thin
+            val thinned = ThinSeries()
+            val reader = SessionReader(also = thinned::record)
+            read(record) { reader.read(it) }
+            store.write(thin) { thinned.write(it, reader.summary().started, reader.summary().signals, final = true) }
+            thin
+        }
+    }
+
+    /** Full series are built one at a time (M19.6). */
+    private val building = Mutex()
 
     /** A file derived from session [id]'s lines, kept beside it and deleted with it (M13): null if there's none. */
     public suspend fun derived(id: String, name: String): ByteArray? {
@@ -504,6 +538,9 @@ public class ArchiveService(
             "${seriesPrefix(id)}v${SeriesBuilder.VERSION}${ackedThrough?.let { "-$it" } ?: ""}.json.gz"
 
         public fun seriesPrefix(id: String): String = "sessions/$id/series-"
+
+        /** A complete session's thinned series (M19.6), beside its full one. */
+        public fun thinSeriesKey(id: String): String = "${seriesPrefix(id)}v${SeriesBuilder.VERSION}-thin.json.gz"
 
         public fun segmentKey(id: String, first: Long, last: Long): String =
             segmentsPrefix(id) + "%010d-%010d.jsonl.gz".format(first, last)

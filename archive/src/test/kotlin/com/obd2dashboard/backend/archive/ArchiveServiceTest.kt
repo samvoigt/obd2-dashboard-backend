@@ -400,7 +400,7 @@ class ArchiveServiceTest {
         append(21, lines.size - 21)
         completeFixture()
         archive.prepare(id) shouldBe ArchiveService.seriesKey(id, null)
-        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, null))
+        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, null), ArchiveService.thinSeriesKey(id)).sorted() // and its thinned one (M19.6)
     }
 
     @Test
@@ -414,7 +414,7 @@ class ArchiveServiceTest {
         completeFixture()
         store.objects["sessions/$id/series-v0.json.gz"] = ByteArray(1)
         archive.prepare(id)
-        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, null))
+        seriesKeys() shouldBe listOf(ArchiveService.seriesKey(id, null), ArchiveService.thinSeriesKey(id)).sorted() // and its thinned one (M19.6)
     }
 
     @Test

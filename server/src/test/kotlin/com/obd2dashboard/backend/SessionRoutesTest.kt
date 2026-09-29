@@ -207,6 +207,17 @@ class SessionRoutesTest {
     }
 
     @Test
+    fun `a complete session's thinned series on asking, with its own tag (M19_6)`() = testApplication {
+        app()
+        runBlocking { upload(A, "yaris", t, complete = true) }
+        val full = client.get("/api/sessions/$A/series")
+        val thin = client.get("/api/sessions/$A/series?thin=1")
+        thin.status shouldBe HttpStatusCode.OK
+        (thin.headers[HttpHeaders.ETag]!!.contains("thin")) shouldBe true
+        (thin.headers[HttpHeaders.ETag] != full.headers[HttpHeaders.ETag]) shouldBe true
+    }
+
+    @Test
     fun `an unfinished session downloads as its segments, zipped`() = testApplication {
         app()
         val lines = runBlocking { upload(A, "yaris", t, complete = false) }

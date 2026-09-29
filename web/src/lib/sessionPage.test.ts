@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bestSectors, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, messageMarkers, nearest, speedColor, speedsAtPositions, speedSignal, standingRows,
+  bestSectors, defaultSignals, DETAIL_WINDOW_S, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, messageMarkers, nearest, needsDetail, speedColor, speedsAtPositions, speedSignal, standingRows,
   type Series, type SessionLaps,
 } from './sessionPage'
 
@@ -191,3 +191,21 @@ describe('crew messages beside a session (M18.4)', () => {
     ])
   })
 })
+
+describe('a long session\u2019s page (M19.6)', () => {
+  it('opens thinned, and loads the detail once narrowed to half an hour', () => {
+    expect(needsDetail(true, null)).toBe(false)
+    expect(needsDetail(true, [0, DETAIL_WINDOW_S + 1])).toBe(false)
+    expect(needsDetail(true, [100, 100 + DETAIL_WINDOW_S])).toBe(true)
+    expect(needsDetail(false, [0, 60])).toBe(false) // already the detail
+  })
+
+  it('asks for the thinned series when told', async () => {
+    const asked: string[] = []
+    const f = (async (url: string) => { asked.push(url); return new Response('{}', { status: 200 }) }) as unknown as typeof fetch
+    await fetchSeries('s', f, true)
+    await fetchSeries('s', f)
+    expect(asked).toEqual(['/api/sessions/s/series?thin=1', '/api/sessions/s/series'])
+  })
+})
+

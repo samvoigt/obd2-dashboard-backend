@@ -341,6 +341,39 @@ session page's series thinned for the whole view, full detail when zoomed.
 session page of an 8-hour session measured on a phone-sized page at 4x
 slower CPU.
 
+> **Validated against the code, 2026-09-29** (checked before building, and
+> written down with the record, not before it, as it should have been):
+> - `prepare` had no lock, and two 8-hour builds at once would peak around
+>   356 MiB of the 384 MiB heap (M19.1); re-timing already runs one at a time.
+> - `prepare` deletes every series file but the newest, so a thinned one kept
+>   beside the full one must be spared.
+> - The session page fetches the series once (`fetchSeries`) and zooms inside
+>   uPlot, which told the page nothing; a range set from outside (a lap, a
+>   link) goes the other way.
+
+> **✅ Done, 2026-09-29.** `prepare` one build at a time (a lock), building a
+> complete session's thinned series in the same pass
+> (`series-v2-thin.json.gz`, spared by its clean-up); `prepareThin` (for a
+> session prepared before, one pass on its own); the series route's
+> `?thin=1`. The page: a complete session over an hour opens on the thinned
+> series (`LONG_SESSION_MS`), and a view of half an hour or less, dragged or
+> set, loads the full one once, the view kept (`needsDetail`; the chart's
+> `onRange`).
+> - **Tests:** `LongSessionTest` 3 (both built in one pass and both kept; a
+>   session prepared before gets its thinned one, the full untouched; full
+>   builds one at a time), `ArchiveServiceTest` updated (a complete session's
+>   two files), `SessionRoutesTest` (`?thin=1`, its own tag), Vitest 2
+>   (`needsDetail`, the thin fetch).
+> - **Mutations: 8, all killed**, two after tests were fixed: the "one at a
+>   time" test never opened its second session (it was given the first's
+>   line 0, so its `PUT` was refused and nothing overlapped); and the thinned
+>   one built alone wasn't checked to exist.
+> - **Measured** (the dev server, an 8-hour session complete): its thinned
+>   series **686 KB gzipped in 0.14 s**, the full one 4 MB in 0.73 s; its page
+>   on a phone-sized window at 4x slower CPU **60 fps, no long tasks, 18 MB
+>   heap**. **Looked at in Chrome:** the page opened thinned; dragging across
+>   ~23 minutes loaded the full series once, the view kept, in full detail.
+
 ### M19.7 — Deploy, and prove it
 
 Deployed with a stream across it. **Proof in production:** two throwaway

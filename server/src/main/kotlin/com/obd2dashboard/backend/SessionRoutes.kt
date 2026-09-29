@@ -230,7 +230,10 @@ fun Route.sessionRoutes(
             call.response.header(HttpHeaders.ContentEncoding, "gzip")
             return@get call.respondBytes(gz, ContentType.Application.Json)
         }
-        val key = archive.prepare(record.id) ?: return@get call.respond(HttpStatusCode.NoContent)
+        // `?thin=1` (M19.6): a complete session's thinned series, what a long session's page opens on.
+        val thin = call.request.queryParameters["thin"] == "1"
+        val key = (if (thin) archive.prepareThin(record.id) else archive.prepare(record.id))
+            ?: return@get call.respond(HttpStatusCode.NoContent)
         // The key names the version and, while uploading, how far it goes; the log's hash (the session
         // record's, while uploading) says whose: a session deleted and its id used again never shares a tag (M16.4).
         val whose = (record.sha256 ?: record.line0Sha256)?.take(16)

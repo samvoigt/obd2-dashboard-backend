@@ -11,6 +11,7 @@
     zoom = false,
     range = null,
     onCursor,
+    onRange,
     markers = [],
     bands = [],
   }: {
@@ -23,6 +24,8 @@
     range?: [number, number] | null
     /** The time under the cursor, in seconds, or null when it leaves. */
     onCursor?: (t: number | null) => void
+    /** The time axis's range after a zoom, in seconds (M19.6: a long session loads its detail). */
+    onRange?: (min: number, max: number) => void
     /** Thin lines across the plot, at seconds. */
     markers?: { t: number; color: string }[]
     /** Shaded stretches, in seconds: live data the archive doesn't cover yet (M7.6). */
@@ -47,6 +50,10 @@
         setCursor: [(u) => {
           const i = u.cursor.idx
           onCursor?.(i == null ? null : (u.data[0][i] ?? null))
+        }],
+        setScale: [(u, key) => {
+          const s = u.scales[key]
+          if (key === 'x' && s && s.min != null && s.max != null) onRange?.(s.min, s.max)
         }],
         draw: [(u) => {
           const { ctx, bbox } = u

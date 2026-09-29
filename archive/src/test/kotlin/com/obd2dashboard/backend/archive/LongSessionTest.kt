@@ -6,6 +6,8 @@ import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -169,6 +171,57 @@ class LongSessionTest {
         upload(to = 33, compact = false) // 32
         archive.compact(id) shouldBe true
         index.get(id)!!.segments.size shouldBe 2 // line 0 and the piece
+    }
+
+    private suspend fun completed(archive: ArchiveService = this.archive, sessionId: String = id) {
+        archive.complete(car, sessionId, lines.size - 1L, lines.size.toLong(), sha)
+        archive.finish(sessionId)
+    }
+
+    @Test
+    fun `a complete session's full and thinned series are built in one pass, and both kept (M19_6)`() = runTest {
+        upload()
+        completed()
+        val key = archive.prepare(id)!!
+        store.list(ArchiveService.seriesPrefix(id)) shouldBe listOf(key, ArchiveService.thinSeriesKey(id)).sorted()
+        archive.prepareThin(id) shouldBe ArchiveService.thinSeriesKey(id)
+    }
+
+    @Test
+    fun `a session prepared before M19 gets its thinned series on its own (M19_6)`() = runTest {
+        upload()
+        completed()
+        archive.prepare(id)
+        store.objects.remove(ArchiveService.thinSeriesKey(id)) // as one prepared before
+        val full = store.objects.getValue(ArchiveService.seriesKey(id, null))
+        archive.prepareThin(id) shouldBe ArchiveService.thinSeriesKey(id)
+        store.objects.containsKey(ArchiveService.thinSeriesKey(id)) shouldBe true
+        store.objects.getValue(ArchiveService.seriesKey(id, null)) shouldBe full // the full one untouched
+        archive.prepareThin("5ace0000-1111-4111-8111-00000000ffff") shouldBe null
+    }
+
+    @Test
+    fun `full builds run one at a time (M19_6)`() = runTest {
+        var reading = 0
+        var most = 0
+        val counting = object : SegmentStore by store {
+            override suspend fun <T> readStream(key: String, body: suspend (java.io.InputStream) -> T): T {
+                reading++; most = maxOf(most, reading)
+                try { kotlinx.coroutines.yield(); return store.readStream(key, body) } finally { reading-- }
+            }
+        }
+        val shared = ArchiveService(index, counting)
+        val other = "5ace0000-1111-4111-8111-00000000beef"
+        upload(); completed(shared)
+        // The second session: its own line 0 (its id) and so its own hash.
+        val line0 = lines[0].decodeToString().replace(id, other).toByteArray()
+        shared.open(car, other, line0) shouldBe ArchiveService.Open.Created(0)
+        for (i in 1 until lines.size) shared.append(car, other, i.toLong(), block(i, 1))
+        val otherSha = MessageDigest.getInstance("SHA-256").digest(line0 + '\n'.code.toByte() + log.copyOfRange(lines[0].size + 1, log.size)).joinToString("") { "%02x".format(it) }
+        shared.complete(car, other, lines.size - 1L, lines.size.toLong(), otherSha) shouldBe ArchiveService.Complete.Done
+        shared.finish(other)
+        listOf(async { shared.prepare(id) }, async { shared.prepare(other) }).awaitAll().all { it != null } shouldBe true
+        most shouldBe 1
     }
 }
 

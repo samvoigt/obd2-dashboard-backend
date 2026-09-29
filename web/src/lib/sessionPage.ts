@@ -297,10 +297,22 @@ export function mix(a: string, b: string, f: number): string {
   return '#' + x.map((c, k) => Math.round(c + (y[k]! - c) * f).toString(16).padStart(2, '0')).join('')
 }
 
-export async function fetchSeries(id: string, fetcher: typeof fetch = fetch): Promise<Series | null> {
-  const response = await fetcher(`/api/sessions/${id}/series`)
+/** Fetches a session's series; [thin] (M19.6), its thinned one, what a long session's page opens on. */
+export async function fetchSeries(id: string, fetcher: typeof fetch = fetch, thin = false): Promise<Series | null> {
+  const response = await fetcher(`/api/sessions/${id}/series${thin ? '?thin=1' : ''}`)
   // None yet: 204 for a live session with nothing uploaded (M11), 404 before M11 or for no session.
   if (response.status === 404 || response.status === 204) return null
   if (!response.ok) throw new Error(`The server answered ${response.status}.`)
   return (await response.json()) as Series
 }
+
+/** A session this long (ms) opens on its thinned series (M19.6). */
+export const LONG_SESSION_MS = 3_600_000
+/** A view this narrow (seconds) or narrower loads the full detail. */
+export const DETAIL_WINDOW_S = 1_800
+
+/** Whether a page showing a thinned series should load the full one: its view narrowed to [DETAIL_WINDOW_S] or less. */
+export function needsDetail(thin: boolean, range: readonly [number, number] | null): boolean {
+  return thin && range !== null && range[1] - range[0] <= DETAIL_WINDOW_S
+}
+
