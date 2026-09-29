@@ -51,7 +51,8 @@ class LiveTimings(
     private sealed interface Input {
         data class Session(val id: String, val record: JsonObject) : Input
         data class Records(val session: String, val records: List<JsonObject>) : Input
-        data class Refill(val session: String) : Input
+        /** The laps sent while the link was down: the archive's, from [fromSeq] on (M19.4: only the gap's segments). */
+        data class Refill(val session: String, val fromSeq: Long) : Input
         data class Completed(val session: String) : Input
     }
 
@@ -82,7 +83,8 @@ class LiveTimings(
                 val known = lock.withLock { sessions[input.id] }
                 if (known != null) {
                     // A reconnect: what was sent while the link was down is in the archive a little later.
-                    scope.launch { delay(refillAfter); inputs.trySend(Input.Refill(input.id)) }
+                    val fromSeq = lock.withLock { known.live.trace.lastSeq }
+                    scope.launch { delay(refillAfter); inputs.trySend(Input.Refill(input.id, fromSeq)) }
                     lock.withLock { known.heard = clock.instant(); known.live.trace.record(input.record) }
                     false
                 } else {
@@ -115,7 +117,9 @@ class LiveTimings(
                 if (record == null || record.complete) false
                 else {
                     val laps = mutableListOf<JsonObject>()
-                    archive.read(record) { stream -> LineSplitter { line -> Records.parseObject(line)?.takeIf { it.type() == "lap" }?.let(laps::add) }.feed(stream) }
+                    archive.readSegmentsFromSeq(record, input.fromSeq) { stream ->
+                        LineSplitter { line -> Records.parseObject(line)?.takeIf { it.type() == "lap" }?.let(laps::add) }.feed(stream)
+                    }
                     lock.withLock {
                         val trace = sessions[input.session]?.live?.trace ?: return@withLock false
                         val before = trace.tabletLaps.size
@@ -160,6 +164,20 @@ class LiveTimings(
         cars[car]?.inputs?.trySend(Input.Completed(id))
     }
 
+    /**
+     * Session [id]'s laps as the tablet sent them (M19.4), each with the `wall`
+     * it ended at: what the car page shows, without the session's series.
+     * Null if it isn't held (complete, or never streamed).
+     */
+    suspend fun laps(car: String, id: String): List<LiveLap>? = read(car) { sessions ->
+        val trace = sessions.firstOrNull { it.id == id }?.trace ?: return@read null
+        val offset = trace.wallOffset ?: return@read emptyList()
+        trace.tabletLaps.mapNotNull { lap ->
+            val end = lap.endAt ?: lap.at ?: return@mapNotNull null
+            LiveLap(end + offset, lap.lap, lap.time, lap.sectors.takeIf { it.isNotEmpty() }, lap.pitIn, lap.pitOut)
+        }.sortedBy { it.lap }
+    }
+
     /** [block] over [car]'s sessions not complete, oldest first, under its lock (the traces change as records come). */
     suspend fun <T> read(car: String, block: (List<LiveSession>) -> T): T {
         val c = cars[car] ?: return block(emptyList())
@@ -172,3 +190,8 @@ class LiveTimings(
         val log = LoggerFactory.getLogger("live-timing")
     }
 }
+
+/** A lap of a session being driven (M19.4), as the car page's laps panel takes it; [wall] when it ended. */
+@kotlinx.serialization.Serializable
+data class LiveLap(val wall: Long, val lap: Int, val time: Double, val sectors: List<Double>? = null, val pitIn: Boolean = false, val pitOut: Boolean = false)
+

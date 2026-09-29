@@ -253,6 +253,64 @@ two viewers asking at once cause one build; a second request after a new
 piece reads only that piece; thinning keeps each span's peaks); the car page
 measured with two 8-hour sessions streaming (frame rate, request times).
 
+> **Validated against the code and the baseline, 2026-09-29, before building.**
+> - **What ran production out of memory** is the series route for a session
+>   still uploading: `prepare` builds it full-size (`SeriesBuilder`: 178 MiB
+>   peak at 8 hours) for each new `ackedThrough`, for each request. So **a
+>   session not complete is never built full-size again**: the route answers
+>   with a **thinned series**, built **incrementally** (a `SessionReader` and
+>   builder kept per session, fed only lines past the last they saw, which
+>   works whatever the segments are, pieces included) and **shared** (one
+>   lock and one cached answer per session and `ackedThrough`; an ETag for
+>   the rest).
+> - **Thinning**: each number's minimum and maximum per 5 s (the records
+>   themselves, in time order, so peaks survive), states and flag sets when
+>   they change, a position a second, and laps, faults, gaps and stopped
+>   signals whole. **`lastSeq` must still reach the newest line** (the page
+>   merges the live lane after it, §7), so every dropped record passes its
+>   `seq` alone, which `SeriesBuilder` counts and doesn't place. The latest,
+>   unfinished 5 s are left out; the live lane's five minutes cover them.
+> - **The car page** fetched the series every minute **for its laps**
+>   (`lapsFrom`) and for "Whole session". Laps now come from the live run the
+>   server already holds (`LiveTimings`: the tablet's own `lap` records, placed
+>   on `wall`), by a small route, with the series as the fallback once the
+>   session is complete; the series is fetched only while "Whole session" is
+>   on.
+> - **Read-ahead** matters less now that a session is at most ~33 objects;
+>   the **refill after a reconnect** reads only the segments from the gap on
+>   (each segment knows its `firstSeq` and `lastSeq`).
+
+> **✅ Done, 2026-09-29.** `ThinSeries` (each number's minimum and maximum
+> per 5 s, a position a second, the rest whole, every `seq` counted, the open
+> bucket held back), `ArchiveService.readLinesFrom` and `readSegmentsFromSeq`,
+> `LiveSeries` (per session: a reader and a thinned builder fed only new
+> lines, one lock, one answer per `ackedThrough`, let go on `complete` or
+> after 30 idle minutes), the series route serving it with its own tag
+> (`thin-…`) for any session not complete, `GET /api/sessions/{id}/live-laps`
+> (`LiveTimings.laps`), the refill reading only the gap's segments. The car
+> page: laps from the live run every 30 s (`lapsFromLive`, the series once as
+> the fallback), the series only while "Whole session" is on.
+> - **Found by measuring:** compaction kept every superseded piece until the
+>   session finished, and **each piece holds all before it**, so what was kept
+>   grew with the square of the session's length (13.6 GB in the dev server's
+>   memory store at 8 hours; about half a GB of dead copies per session in
+>   the bucket). **What a compaction replaces is now deleted by the next**, about
+>   3 minutes later.
+> - **Tests:** `ThinSeriesTest` 3 (minimum and maximum per bucket in time
+>   order, `lastSeq` the newest line; a position a second and a state's
+>   changes; built as it grows equals one pass), `LiveSeriesTest` 3 (only new
+>   lines read, the same as one pass, nothing read when nothing's new; five
+>   viewers at once, one build; let go), `SessionRoutesTest` (thinned with its
+>   tag, 304, no live laps for a session not streamed), `LiveTimingsTest` 2
+>   (laps on `wall`; the refill reads only the gap's segments), `LongSessionTest`
+>   (what a compaction replaces is gone by the next), Vitest 2
+>   (`lapsFromLive`, `fetchLiveLaps`).
+> - **Measured:** the thinned series of an 8-hour session is **2 MB raw, 678 KB
+>   gzipped** (the full one 16 MB and 4 MB); **a live session's state keeps 5
+>   MiB**; with **two 8-hour sessions streamed at 60x** into the dev server,
+>   the "Whole session" request took **0.08–0.46 s** throughout (0.28 s at
+>   the start, 0.46 s at the end) and laps **~2 ms**.
+
 ### M19.5 — The live run without starting over
 
 `LapRule`, `PitLane` and the run's state kept per live session and course,

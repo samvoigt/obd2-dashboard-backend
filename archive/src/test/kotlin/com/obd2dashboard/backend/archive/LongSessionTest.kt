@@ -49,6 +49,14 @@ class LongSessionTest {
     }
 
     @Test
+    fun `what a compaction replaces is deleted by the next, so objects stay few (M19_4)`() = runTest {
+        upload()
+        // Line 0, the piece, the chunks after it, and only the last compaction's replaced 32, not every piece before.
+        val listed = index.get(id)!!.segments.size
+        store.list(ArchiveService.segmentsPrefix(id)).size shouldBe listed + ArchiveService.COMPACT_AT
+    }
+
+    @Test
     fun `a reader holding the list from before a compaction still reads it whole`() = runTest {
         upload(to = 60, compact = false)
         val before = index.get(id)!!

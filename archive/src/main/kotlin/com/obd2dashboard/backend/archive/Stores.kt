@@ -279,8 +279,14 @@ public class InMemorySegmentStore : SegmentStore {
         return objects[key]?.copyOf() ?: error("no object $key")
     }
 
-    override suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T =
-        body(ByteArrayInputStream(objects[key] ?: error("no object $key")))
+    /** How many objects were streamed (M19.4). */
+    public var streamed: Int = 0
+        private set
+
+    override suspend fun <T> readStream(key: String, body: suspend (InputStream) -> T): T {
+        streamed++
+        return body(ByteArrayInputStream(objects[key] ?: error("no object $key")))
+    }
 
     /** This store keeps plain bytes, so "as stored" is gzipped here, as Cloud Storage keeps them. */
     override suspend fun <T> readRaw(key: String, body: suspend (InputStream) -> T): T {

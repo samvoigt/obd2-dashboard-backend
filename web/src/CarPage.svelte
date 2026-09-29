@@ -11,7 +11,9 @@
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
   import Bar from './widgets/Bar.svelte'
-  import { dashboardLayout, freshnessOf, gTrail, lapsFrom, NO_PEAKS, peaks, shownIn, timings, valueOf, type Peaks } from './lib/dashboard'
+  import {
+    dashboardLayout, fetchLiveLaps, freshnessOf, gTrail, lapsFrom, lapsFromLive, NO_PEAKS, peaks, shownIn, timings, valueOf, type LiveLap, type Peaks,
+  } from './lib/dashboard'
   import { sourceLabel } from './lib/sessions'
   import { nearest } from './lib/sessionPage'
   import { columnShown, shownUnit } from './lib/units'
@@ -78,24 +80,46 @@
 
   const chartNames = $derived(chosen.length > 0 ? chosen : defaultChart(live))
   const chartUnits = $derived(chartNames.map((n) => shownUnit(unitOf(live, n), units.system)))
-  // The archive's prepared file for the live session (M7.6), for "Whole session" and for laps (M8.3).
+  // The session so far, for "Whole session" (M7.6), fetched **only while it's shown** (M19.4): for a session
+  // still uploading the server sends it thinned and builds it as it grows; a long race's whole session each
+  // minute for every viewer, full-size, ran production out of memory (M19.1).
   let whole = $state(false)
   let archived = $state.raw<Series | null>(null)
   const liveId = $derived(typeof live.session?.id === 'string' ? live.session.id : null)
   $effect(() => {
     const id = liveId
-    if (!id) {
+    if (!id || !whole) {
       archived = null
       return
     }
     let stopped = false
     const load = () => fetchSeries(id).then((s) => { if (!stopped) archived = s }).catch(() => {})
     load()
-    const timer = setInterval(load, 60_000) // a new chunk every 2 minutes; usually a 304
+    const timer = setInterval(load, 60_000) // usually a 304
     return () => { stopped = true; clearInterval(timer) }
   })
 
-  const laps = $derived(lapsFrom(archived, live.history))
+  // Laps (M19.4): the server's live run holds them; once it doesn't (the session complete), the series once.
+  let held = $state.raw<LiveLap[] | null>(null)
+  let lapSeries = $state.raw<Series | null>(null)
+  $effect(() => {
+    const id = liveId
+    held = null
+    lapSeries = null
+    if (!id) return
+    let stopped = false
+    const load = async () => {
+      const laps = await fetchLiveLaps(id).catch(() => null)
+      if (stopped) return
+      held = laps
+      if (laps === null && lapSeries === null) lapSeries = await fetchSeries(id).catch(() => null)
+    }
+    load()
+    const timer = setInterval(load, 30_000)
+    return () => { stopped = true; clearInterval(timer) }
+  })
+
+  const laps = $derived(held !== null ? lapsFromLive(held, live.history) : lapsFrom(lapSeries ?? archived, live.history))
 
   // The chart redraws at most every half second (a second for the whole session): the eye cannot use
   // more, and a phone should not work harder.

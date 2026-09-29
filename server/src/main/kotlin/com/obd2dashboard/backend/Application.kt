@@ -115,6 +115,7 @@ fun Application.module(
     val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this, standing = timingPage::standing)
     timingDownlink = timing
     val resultsHold = ResultsHold(clock)
+    val liveSeries = LiveSeries(archive, clock)
     // Something results and timing are made of was edited: both work it out again at once.
     val edited: () -> Unit = { timing.nudge(); resultsHold.clear() }
     val crewAuth = CrewAuth(crewKey, clock)
@@ -150,6 +151,7 @@ fun Application.module(
         sessionRoutes(
             registry, archive, hub, clock, laps = { car, id, on -> retiming.sessionLaps(car, id, on) }, drivers = events.drivers, events = events.events,
             messages = { car, from, to -> messages.between(car, from, to) },
+            liveSeries = liveSeries, liveLaps = { car, id -> liveTimings.laps(car, id) },
         )
         messageRoutes(registry, crewAuth, crew)
         driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = edited)
@@ -165,7 +167,7 @@ fun Application.module(
                 val car = call.principal<CarPrincipal>()!!
                 call.respond(PublicCar(car.slug, car.name))
             }
-            archiveRoutes(archive, prepared = retiming::sessionPrepared, completed = liveTimings::completed)
+            archiveRoutes(archive, prepared = retiming::sessionPrepared, completed = { car, id -> liveTimings.completed(car, id); liveSeries.completed(id) })
             tabletCourseRoutes(courses)
         }
     }

@@ -123,4 +123,41 @@ class LiveTimingsTest {
         timings.offer("outback", TabletFrame.Session("5ace0000-1111-4111-8111-000000000018", header))
         eventually { runBlocking { timings.read("outback") { s -> s.map { it.id } } } == listOf("5ace0000-1111-4111-8111-000000000018") }
     }
+
+    @Test
+    fun `a session's laps as the tablet sent them, each placed on its wall (M19_4)`() {
+        timings.offer("outback", TabletFrame.Session(id, header))
+        timings.offer("outback", TabletFrame.Batch(id, body))
+        eventually { laps().size == 4 }
+        val held = runBlocking { timings.laps("outback", id) }!!
+        held.map { it.lap } shouldBe listOf(1, 2, 3, 4)
+        // Lap 1 ends 82.5 s into the box, on `fixAt`; the fixture's wall is its at plus BOX_WALL0.
+        held[0].wall shouldBe com.obd2dashboard.backend.timing.BOX_WALL0 + 82_500
+        held[0].sectors shouldBe listOf(17.5, 17.5, 17.5, 17.5)
+        runBlocking { timings.laps("outback", "5ace0000-1111-4111-8111-00000000dead") } shouldBe null
+    }
+
+    @Test
+    fun `the refill reads only the segments from the gap on (M19_4)`() {
+        val lap3 = log.indexOfFirst { it["lap"]?.toString() == "3" }
+        timings.offer("outback", TabletFrame.Session(id, header))
+        timings.offer("outback", TabletFrame.Batch(id, log.subList(1, lap3 - 5)))
+        eventually { laps() == listOf(1, 2) }
+        // The archive in chunks of 20 lines, as the tablet uploads.
+        runBlocking {
+            archive.open("outback", id, log.first().toString().toByteArray())
+            for (from in 1 until log.size step 20) {
+                val part = log.subList(from, minOf(from + 20, log.size)).joinToString("") { "$it\n" }.toByteArray()
+                archive.append("outback", id, from.toLong(), (LineBlock.split(part) as LineBlock.Split.Ok).lines)
+            }
+        }
+        val segments = runBlocking { archive.session(id)!!.segments }
+        val before = store.streamed
+        timings.offer("outback", TabletFrame.Session(id, header)) // the reconnect
+        eventually { laps() == listOf(1, 2, 3, 4) }
+        val gapFrom = (lap3 - 6).toLong() // the last seq held before the link dropped
+        store.streamed - before shouldBe segments.count { it.lastSeq == null || it.lastSeq!! >= gapFrom }
+        (store.streamed - before < segments.size) shouldBe true
+    }
 }
+

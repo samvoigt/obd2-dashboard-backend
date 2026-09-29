@@ -276,3 +276,38 @@ export function lapsFrom(archived: Series | null, history: Point[]): LapRow[] {
   return lapRows({ version: 0, t0, lastSeq: null, signals: [], numbers: {}, states: {}, sets: {}, positions: { t: [], lat: [], lon: [] }, events })
 }
 
+/** A lap of a session being driven, as the server's live run holds it (M19.4): [wall] when it ended. */
+export interface LiveLap {
+  wall: number
+  lap: number
+  time: number
+  sectors?: number[] | null
+  pitIn?: boolean
+  pitOut?: boolean
+}
+
+/**
+ * The session's laps from the server's live run (M19.4), then any the live
+ * lane has brought since (a lap number it doesn't hold yet): the car page's
+ * laps without downloading the session's series.
+ */
+export function lapsFromLive(held: readonly LiveLap[], history: Point[]): LapRow[] {
+  const known = new Set(held.map((l) => l.lap))
+  const lap: [number, LapRecord][] = held.map((l) => [l.wall, { lap: l.lap, time: l.time, sectors: l.sectors ?? undefined, pitIn: l.pitIn, pitOut: l.pitOut }])
+  for (const p of history) {
+    const r = p.rec
+    if (r.type !== 'lap' || typeof r.lap !== 'number' || typeof r.time !== 'number' || typeof r.wall !== 'number' || known.has(r.lap)) continue
+    known.add(r.lap)
+    lap.push([r.wall, r as unknown as LapRecord])
+  }
+  const events = { stopped: [], fault: [], gap: [], lap }
+  return lapRows({ version: 0, t0: 0, lastSeq: null, signals: [], numbers: {}, states: {}, sets: {}, positions: { t: [], lat: [], lon: [] }, events })
+}
+
+/** The live run's laps for session [id] (M19.4); null when the server doesn't hold it (complete, or not streamed). */
+export async function fetchLiveLaps(id: string, fetcher: typeof fetch = fetch): Promise<LiveLap[] | null> {
+  const r = await fetcher(`/api/sessions/${id}/live-laps`)
+  if (r.status === 204 || !r.ok) return null
+  return (await r.json()) as LiveLap[]
+}
+

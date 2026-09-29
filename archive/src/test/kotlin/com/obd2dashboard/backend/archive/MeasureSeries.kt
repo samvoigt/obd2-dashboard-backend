@@ -91,7 +91,18 @@ class MeasureSeries {
             }
         }.apply { isDaemon = true; start() }
         val started = System.nanoTime()
-        val key = archive.prepare(id)!!
+        // MEASURE_THIN=1 (M19.4): the thinned series a session still uploading gets, in one pass.
+        val key = if (System.getenv("MEASURE_THIN") != null) {
+            val thin = ThinSeries()
+            val reader = SessionReader(also = thin::record)
+            logFile.inputStream().buffered(1 shl 16).use { reader.read(it) }
+            val k = "thin"
+            store.write(k) { thin.write(it, reader.summary().started, reader.summary().signals, final = true) }
+            // What a live session's state keeps between requests: the reader and the thinned builder.
+            System.gc(); Thread.sleep(200); System.gc()
+            println("MEASURE thin: retained ${(memory.heapMemoryUsage.used - before) / 1_048_576} MiB with the state held" + (if (thin.hashCode() == reader.hashCode()) "" else ""))
+            k
+        } else archive.prepare(id)!!
         val took = (System.nanoTime() - started) / 1_000_000
         sampler.interrupt()
         val seriesGz = store.file(key).length()

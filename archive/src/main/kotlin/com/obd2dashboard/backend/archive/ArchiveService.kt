@@ -216,6 +216,7 @@ public class ArchiveService(
         composeAll(sessionKey(id), record.segments.sortedBy { it.first }.map { it.key }, segmentsPrefix(id))
         if (!index.assembled(id, clock.instant())) return@withLock false
         store.deletePrefix(segmentsPrefix(id))
+        superseded.remove(id)
         true
     }
 
@@ -226,9 +227,13 @@ public class ArchiveService(
      * **Compaction** (M19.2): once [COMPACT_AT] segments follow line 0, the
      * first [SegmentStore.COMPOSE_MAX] of them (the piece so far and the chunks
      * after it) become one piece, composed on the store's side. A session stays
-     * at most ~33 objects however long. What they replace is left until
-     * [finish] deletes the folder, so no reader meets a missing object. Only a
-     * session with a running hash (opened since M19). True if it compacted.
+     * at most ~33 objects however long. **What a compaction replaces is
+     * deleted by the next one** (about 3 minutes later), so a reader that took
+     * the list before it has long finished; kept for good, every piece would
+     * keep all the ones before it, growing with the square of the session's
+     * length (M19.4's measurement). A restart forgets what's waiting; [finish]
+     * deletes the folder whole. Only a session with a running hash (opened
+     * since M19). True if it compacted.
      */
     public suspend fun compact(id: String): Boolean = completing[Math.floorMod(id.hashCode(), COMPLETE_LOCKS)].withLock {
         val record = index.get(id) ?: return@withLock false
@@ -238,8 +243,17 @@ public class ArchiveService(
         val run = after.take(SegmentStore.COMPOSE_MAX)
         val key = segmentKey(id, run.first().first, run.last().last)
         store.compose(key, run.map { it.key })
-        index.compact(id, run.map { it.key }, Segment(run.first().first, run.last().last, key, run.first().firstSeq, run.last().lastSeq), clock.instant())
+        val done = index.compact(id, run.map { it.key }, Segment(run.first().first, run.last().last, key, run.first().firstSeq, run.last().lastSeq), clock.instant())
+        if (done) {
+            superseded.put(id, run.map { it.key })?.forEach { store.delete(it) }
+        } else {
+            store.delete(key) // lost a race: this piece is no one's
+        }
+        done
     }
+
+    /** What each session's last compaction replaced, deleted by its next (M19.4). */
+    private val superseded = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
 
     /** [target] composed of [keys] in order, in rounds of [SegmentStore.COMPOSE_MAX], the rounds' parts under [scratch]. */
     private suspend fun composeAll(target: String, keys: List<String>, scratch: String) {
@@ -309,6 +323,35 @@ public class ArchiveService(
             for (segment in record.segments.sortedBy { it.first }) {
                 store.readStream(segment.key) { reader(it) }
             }
+        }
+    }
+
+    /**
+     * Lines of a session not yet one object, **from line [from] on**, each
+     * with its index (M19.4): only the segments that reach it are read, and
+     * lines before it in the first are skipped, whatever the segments are.
+     */
+    public suspend fun readLinesFrom(record: SessionRecord, from: Long, each: (Long, ByteArray) -> Unit) {
+        check(!(record.complete && record.segments.isEmpty())) { "session ${record.id} is one object: read it whole" }
+        for (segment in record.segments.sortedBy { it.first }) {
+            if (segment.last < from) continue
+            var index = segment.first
+            store.readStream(segment.key) { stream ->
+                LineSplitter { line -> if (index >= from) each(index, line); index++ }.feed(stream)
+            }
+        }
+    }
+
+    /**
+     * Streams the segments of a session not yet one object that can hold a
+     * record with `seq` [fromSeq] or later (M19.4: a refill after a reconnect
+     * reads only the gap's). A segment that doesn't know its `seq`s is read.
+     */
+    public suspend fun readSegmentsFromSeq(record: SessionRecord, fromSeq: Long, reader: suspend (InputStream) -> Unit) {
+        check(!(record.complete && record.segments.isEmpty())) { "session ${record.id} is one object: read it whole" }
+        for (segment in record.segments.sortedBy { it.first }) {
+            if (segment.lastSeq != null && segment.lastSeq < fromSeq) continue
+            store.readStream(segment.key) { reader(it) }
         }
     }
 

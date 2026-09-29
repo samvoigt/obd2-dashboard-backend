@@ -194,6 +194,19 @@ class SessionRoutesTest {
     }
 
     @Test
+    fun `a session still uploading is served thinned, with its own tag, and nothing new is a 304 (M19_4)`() = testApplication {
+        app()
+        runBlocking { upload(A, "yaris", t, complete = false) }
+        val first = client.get("/api/sessions/$A/series")
+        first.status shouldBe HttpStatusCode.OK
+        val tag = first.headers[HttpHeaders.ETag]!!
+        tag.startsWith("\"thin-") shouldBe true
+        client.get("/api/sessions/$A/series") { header(HttpHeaders.IfNoneMatch, tag) }.status shouldBe HttpStatusCode.NotModified
+        // Not streamed, so the live run doesn't hold it: its laps come from its series.
+        client.get("/api/sessions/$A/live-laps").status shouldBe HttpStatusCode.NoContent
+    }
+
+    @Test
     fun `an unfinished session downloads as its segments, zipped`() = testApplication {
         app()
         val lines = runBlocking { upload(A, "yaris", t, complete = false) }

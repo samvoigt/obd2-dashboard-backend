@@ -19,6 +19,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.header
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -123,6 +124,10 @@ fun Route.sessionRoutes(
     events: EventStore? = null,
     /** A car's crew messages sent in a window (M18.4). */
     messages: suspend (car: String, from: Instant, to: Instant) -> List<Message> = { _, _, _ -> emptyList() },
+    /** A session still uploading as a thinned series (M19.4); null to build it full-size, as before. */
+    liveSeries: LiveSeries? = null,
+    /** A session being driven's laps from the live run (M19.4); null if it isn't held. */
+    liveLaps: suspend (car: String, id: String) -> List<LiveLap>? = { _, _ -> null },
 ) {
     /** The events and parts [car]'s sessions are in, by session id. */
     suspend fun eventsOf(car: String, records: List<SessionRecord>): Map<String, EventRef> {
@@ -188,6 +193,12 @@ fun Route.sessionRoutes(
         )
     }
 
+    get("/api/sessions/{id}/live-laps") {
+        val record = call.sessionRecord(archive, allowLive = hub) ?: return@get
+        val laps = liveLaps(record.car, record.id) ?: return@get call.respond(HttpStatusCode.NoContent)
+        call.respond(laps)
+    }
+
     get("/api/sessions/{id}/messages") {
         val record = call.sessionRecord(archive) ?: return@get
         val summary = if (record.complete) record.summary ?: archive.summary(record.id) else null
@@ -207,6 +218,18 @@ fun Route.sessionRoutes(
     get("/api/sessions/{id}/series") {
         // A live session with nothing uploaded yet (a tablet's uploads at its end): nothing to send, not a 404 (M11).
         val record = call.sessionRecord(archive, allowLive = hub) ?: return@get
+        // Still uploading (M19.4): thinned, built as it grows, one build for every viewer; never full-size.
+        if (liveSeries != null && !record.complete) {
+            if (record.ackedThrough < 0) return@get call.respond(HttpStatusCode.NoContent)
+            val (through, gz) = liveSeries.series(record)
+            val whose = record.line0Sha256?.take(16)
+            val tag = "\"thin-v${com.obd2dashboard.backend.archive.SeriesBuilder.VERSION}-$through${whose?.let { "-$it" } ?: ""}\""
+            call.response.header(HttpHeaders.ETag, tag)
+            call.response.header(HttpHeaders.CacheControl, "no-cache")
+            if (call.request.header(HttpHeaders.IfNoneMatch) == tag) return@get call.respond(HttpStatusCode.NotModified)
+            call.response.header(HttpHeaders.ContentEncoding, "gzip")
+            return@get call.respondBytes(gz, ContentType.Application.Json)
+        }
         val key = archive.prepare(record.id) ?: return@get call.respond(HttpStatusCode.NoContent)
         // The key names the version and, while uploading, how far it goes; the log's hash (the session
         // record's, while uploading) says whose: a session deleted and its id used again never shares a tag (M16.4).

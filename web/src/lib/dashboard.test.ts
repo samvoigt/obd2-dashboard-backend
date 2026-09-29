@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, dashboardLayout, shownIn, statusText, SWEEP, valueOf, zoneBands,
+  fraction, freshnessOf, G, gTrail, lapsFrom, timings, lapSummary, level, needleAngle, NO_PEAKS, peaks, profile, dashboardLayout, fetchLiveLaps, lapsFromLive, shownIn, statusText, SWEEP, valueOf, zoneBands,
 } from './dashboard'
 import type { Point } from './live'
 
@@ -181,6 +181,30 @@ describe('laps while live', () => {
     expect(lapsFrom(null, [lap(5, 1, 90)]).map((r) => r.lap)).toEqual([1])
     expect(lapsFrom(null, [{ t: 1, rec: { type: 'sample', signal: 'engine.rpm', value: 1, seq: 1, wall: 1 } }])).toEqual([])
     expect(lapsFrom(null, [{ t: 1, rec: { type: 'lap', lap: 1, seq: 1, wall: 1 } }])).toEqual([]) // no time: not a lap
+  })
+})
+
+describe('laps without the series (M19.4)', () => {
+  it('the live run\u2019s, then the live lane\u2019s newer ones, the best marked', () => {
+    const held = [
+      { wall: 100_000, lap: 1, time: 70, sectors: [35, 35] },
+      { wall: 170_000, lap: 2, time: 69.5, pitIn: true },
+    ]
+    const history = [
+      { t: 170_100, rec: { type: 'lap', lap: 2, time: 69.5, wall: 170_000, seq: 9 } }, // held already
+      { t: 239_100, rec: { type: 'lap', lap: 3, time: 69, wall: 239_000, seq: 12 } },
+    ]
+    const rows = lapsFromLive(held, history)
+    expect(rows.map((r) => [r.lap, r.end, r.best, r.pitIn])).toEqual([[1, 100_000, false, false], [2, 170_000, false, true], [3, 239_000, true, false]])
+    expect(rows[0]!.sectors).toEqual([35, 35])
+    expect(lapsFromLive([], [])).toEqual([])
+  })
+
+  it('asks the live run, and says so when it doesn\u2019t hold the session', async () => {
+    const ok = (async () => new Response(JSON.stringify([{ wall: 1, lap: 1, time: 70 }]), { status: 200 })) as unknown as typeof fetch
+    const none = (async () => new Response(null, { status: 204 })) as unknown as typeof fetch
+    expect(await fetchLiveLaps('s', ok)).toEqual([{ wall: 1, lap: 1, time: 70 }])
+    expect(await fetchLiveLaps('s', none)).toBeNull()
   })
 })
 
