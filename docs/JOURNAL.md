@@ -451,3 +451,6 @@ whole drive, the admin page's Download.
   at load average ~20 (two 8-hour uploads generating and sending); Cloud
   Run logged "Shutting down user disabled instance". Redeployed with nothing
   else running: a clean `1012`. Test deploys from an idle machine.
+- **1 GiB deployed** (`00033`, 2026-09-30) with a stream across it: a clean
+  `1012` and at once reconnected. Memory with the stream running: 27–29% of
+  1 GiB (~290 MB), against 98–99% of 512 MiB after the long sessions.
