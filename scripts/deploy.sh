@@ -20,6 +20,8 @@ gcloud builds submit --project "$PROJECT" --config cloudbuild.yaml \
 # --timeout 3600: a socket or stream would otherwise be cut at 5 minutes; the
 #   server closes its own at 55 (contract §5.3). --concurrency 1000: every open
 #   socket and browser stream is a request, and the default 80 would refuse the 81st.
+# --memory 1Gi: the JVM's heap is 512 MiB (the Dockerfile), and it needs ~200 MB
+#   of its own beside it (decision 41).
 # --set-secrets replaces every secret the service mounts with exactly these: the
 # crew-login signing key (M5.4), and the admin allowlist (M6), kept out of this
 # public repo. A deploy keeps any setting it does not mention, so naming the
@@ -34,4 +36,5 @@ gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --max-instances 1 \
   --timeout 3600 \
   --concurrency 1000 \
+  --memory 1Gi \
   --quiet

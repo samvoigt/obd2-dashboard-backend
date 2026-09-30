@@ -20,6 +20,8 @@ WORKDIR /app
 COPY --from=build /src/server/build/libs/server.jar server.jar
 # Cloud Run sets PORT; the server reads it and defaults to 8080.
 EXPOSE 8080
-# The JVM takes a quarter of the container by default: 128 MiB of Cloud Run's 512.
-# Three quarters leaves room for preparing sessions beside the live lane (M7.2).
-CMD ["java", "-XX:MaxRAMPercentage=75", "-jar", "server.jar"]
+# A heap of 512 MiB in a 1 GiB container (decision 41): the rest is the JVM's own
+# (threads, classes, compiled code: ~200 MB) with room to spare. A share of the
+# container (75% of 512 MiB, M7.2) left too little of it: 98-99% after two
+# 8-hour sessions (M19).
+CMD ["java", "-Xmx512m", "-jar", "server.jar"]

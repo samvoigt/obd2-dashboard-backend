@@ -645,7 +645,8 @@ the page ever needs to act without a Google account.
   as stored, gzipped, with its file name as the `ETag`.
 - **The map is Leaflet on OpenStreetMap's tiles** (Sam), coloured by speed.
 - **The server's JVM gets 75% of the container** (`-XX:MaxRAMPercentage=75`),
-  not Java's default quarter (128 MiB of 512).
+  not Java's default quarter (128 MiB of 512). *Replaced by decision 41: a
+  512 MiB heap in a 1 GiB container.*
 
 **Why.** A race with the G-meter and GPS is about 3,000 lines a minute: a
 3-hour one is 540,000 lines, 55 MB raw. A page can't parse that. Prepared, it
@@ -1065,12 +1066,13 @@ at hour eight as at hour one.
   **one build at a time**; its page opens thinned when it's over an hour and
   loads the full series when the view narrows to half an hour.
 - **The live run is still re-timed from its start** (6 ms at 8 hours).
-- **Memory: undecided, and too tight as it stands.** After two 8-hour
-  sessions finished, the container sat at 98–99% of 512 MiB, idle. Not a
-  leak: the server's live data was ~20 MB afterwards (measured locally with
-  production's JVM settings). The JVM's own overhead is ~200 MB, and the heap
-  (up to 75%, 384 MiB) grows under load and isn't given back; together they
-  exceed 512 MiB. Options put to Sam, 2026-09-29.
+- **Cloud Run gets 1 GiB, the JVM a 512 MiB heap** (`-Xmx512m`, set in the
+  Dockerfile, not as a share of the container; `--memory 1Gi` in
+  `deploy.sh`), Sam, 2026-09-29. At 512 MiB the container sat at 98–99%, idle,
+  after two 8-hour sessions finished. Not a leak: ~20 MB was live afterwards
+  (measured locally with production's JVM settings). But the JVM's own
+  overhead is ~200 MB, and the heap (up to 75%, 384 MiB) grows under load and
+  isn't given back; together they exceed 512 MiB.
 
 **Why.** Two 8-hour stints in a race (Sam, 2026-09-28). Before, every one of
 these grew with the session: at 8 hours, the car page's request ran the
