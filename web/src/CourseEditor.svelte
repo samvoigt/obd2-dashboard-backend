@@ -6,9 +6,10 @@
   import { onMount, untrack } from 'svelte'
   import { api, AdminError, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
   import {
-    addSector, arrows, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector, removeLayout, removeSector,
-    sectorsOf, toGeoJSON, unsaved, type EditCourse, type Pt,
+    addSector, arrows, assignLayout, assignPitLane, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector,
+    removeLayout, removeSector, removeUnassigned, reverse, sectorsOf, toGeoJSON, unsaved, type EditCourse, type Pt,
   } from './lib/courseEdit'
+  import { contents, length, MAX_FILE_BYTES, readCourseFile } from './lib/courseFile'
   import { fetchSeries } from './lib/sessionPage'
   import { color } from './lib/theme'
 
@@ -31,6 +32,14 @@
   let savedName = $state('') // the name as loaded or saved; '' for a new course
   const changed = $derived(unsaved(dirty, name, savedName))
   let retiming: RetimingProgress | null = $state(null) // the latest save's re-timing (M13.4)
+  let savedLayouts: string[] = $state([]) // the latest saved version's layout ids, which events name
+
+  // A file opened into the drawing (M20): what was in it, and the names offered for its lines.
+  let fromFile: { file: string; read: string; leftOut: string[] } | null = $state(null)
+  let labelNames: string[] = $state([])
+  let hovered: number | null = $state(null) // an unassigned line, highlighted
+  let fileInput: HTMLInputElement | undefined = $state()
+  const gone = $derived(savedLayouts.filter((id) => !course.layouts.some((l) => l.id === id)))
 
   type Tool = 'layout' | 'pit_lane' | 'start_finish' | 'sector' | 'pit_in' | 'pit_out' | 'pit_line'
   let tool: Tool | null = $state(null)
@@ -105,6 +114,7 @@
     name = c.name
     savedName = c.name
     version = c.version
+    savedLayouts = course.layouts.map((l) => l.id)
     selected = course.layouts.find((l) => l.default)?.id ?? course.layouts[0]?.id ?? null
     dirty = false
     fit()
@@ -125,7 +135,7 @@
   }
 
   function fit() {
-    const pts = course.layouts.flatMap((l) => l.path)
+    const pts = [...course.layouts.flatMap((l) => l.path), ...(course.pitLane?.path ?? []), ...course.unassigned.flatMap((u) => u.path)]
     if (map && pts.length > 1) map.fitBounds(L.latLngBounds(pts.map(([lon, lat]) => [lat, lon] as L.LatLngTuple)), { padding: [24, 24] })
   }
 
@@ -200,6 +210,7 @@
     const m = map
     const sel = selected
     const pointsOf = editing
+    const lit = hovered
     void readOnly
     if (!m || !drawn) return
     drawn.clearLayers()
@@ -226,6 +237,11 @@
       const line = c[key]
       if (line) drawLine(line.a, line.b, color('critical'), label, (a, b) => change({ ...c, [key]: { ...line, a, b } }), 'right')
     }
+    // Lines from a file still to label (M20), dashed, with their direction.
+    c.unassigned.forEach((u, i) => {
+      drawn!.addLayer(L.polyline(u.path.map(latlng), { color: color('caution'), weight: lit === i ? 6 : 3, dashArray: '6 6', interactive: false }))
+      for (const head of arrows(u.path)) drawn!.addLayer(L.polyline(head.map(latlng), { color: color('caution'), weight: 2, opacity: lit === i ? 1 : 0.6, interactive: false }))
+    })
     if (firstPoint) drawn.addLayer(L.circleMarker(latlng(firstPoint), { radius: 6, color: color('caution'), weight: 3 }))
   })
 
@@ -293,6 +309,7 @@
       version = saved.version
       dirty = false
       savedName = saved.name
+      savedLayouts = course.layouts.map((l) => l.id)
       message = `Saved as version ${saved.version}.`
       if (isNew) window.location.assign(`/admin/courses/${saved.id}`)
       versions = await api<CourseVersion[]>('GET', `/courses/${courseId}/versions`)
@@ -332,6 +349,51 @@
     if (guide.length > 1 && course.layouts.length === 0) map?.fitBounds(L.latLngBounds(guide.map(latlng)), { padding: [24, 24] })
   }
 
+  /** A file into the drawing (M20): checked and saved as anything drawn is, only when Save is pressed. */
+  async function openFile(file: File | undefined) {
+    if (!file || readOnly) return
+    if (file.size > MAX_FILE_BYTES) { message = `${file.name} is over ${MAX_FILE_BYTES / 1024 / 1024} MB.`; return }
+    if (changed && !confirm('Leave your unsaved changes?')) return
+    const r = readCourseFile(await file.text())
+    if ('refused' in r) { message = `${file.name}: ${r.refused}`; return }
+    stop()
+    editing = null
+    hovered = null
+    change(r.course)
+    if (isNew && r.name) name = r.name
+    selected = r.course.layouts.find((l) => l.default)?.id ?? r.course.layouts[0]?.id ?? null
+    labelNames = r.course.unassigned.map((u) => u.name)
+    fromFile = { file: file.name, read: contents(r.course), leftOut: r.leftOut }
+    message = null
+    fit()
+  }
+
+  function label(i: number, as: 'layout' | 'pit_lane' | 'remove') {
+    if (as === 'layout') {
+      const next = assignLayout(course, i, labelNames[i]?.trim() || `Layout ${course.layouts.length + 1}`)
+      selected = next.layouts[next.layouts.length - 1]!.id
+      change(next)
+    } else change(as === 'pit_lane' ? assignPitLane(course, i) : removeUnassigned(course, i))
+    labelNames = labelNames.filter((_, j) => j !== i)
+    hovered = null
+  }
+
+  /** What's on the screen as a file (M20.4): a saved version by its number, anything else a draft. */
+  function download() {
+    const id = courseId || 'course'
+    // The course's own name, not whatever name a file opened into it had: it's what `import-course` and Open file read.
+    const geojson = name.trim() ? { ...toGeoJSON(course), name: name.trim() } : toGeoJSON(course)
+    const blob = new Blob([JSON.stringify(geojson, null, 1) + '\n'], { type: 'application/geo+json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = changed ? `${id}-draft.geojson` : `${id}-v${viewing ?? version}.geojson`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 0)
+  }
+
+  /** How far apart a line's ends are: a layout made of it is closed with a straight line between them. */
+  const gap = (path: Pt[]) => (path.length > 1 ? metres(path[0]!, path[path.length - 1]!) : 0)
+
   const hint: Record<Tool, string> = {
     layout: 'Click along the line cars take, in the direction they go; click the last point again to finish.',
     pit_lane: 'Click along the pit lane, in the direction cars go; click the last point again to finish.',
@@ -350,7 +412,14 @@
   {:else}
     <div class="editor">
       <div class="mapwrap">
-        <div class="map" bind:this={box}></div>
+        <div
+          class="map"
+          bind:this={box}
+          role="region"
+          aria-label="Map; drop a .geojson file here to open it"
+          ondragover={(e) => { if (!readOnly) e.preventDefault() }}
+          ondrop={(e) => { e.preventDefault(); void openFile(e.dataTransfer?.files[0]) }}
+        ></div>
         {#if tool}<p class="hint">{hint[tool]} <button onclick={stop}>Stop</button></p>{/if}
       </div>
       <aside>
@@ -362,6 +431,51 @@
           <p class="muted small">{pathId} · {viewing ? `viewing version ${viewing}` : `version ${version}`}{changed ? ' · unsaved changes' : ''}</p>
         {/if}
         <label class="check"><input type="checkbox" bind:checked={imagery} /> Aerial imagery</label>
+        <div class="row wrap">
+          {#if !readOnly}
+            <button onclick={() => fileInput?.click()}>Open file…</button>
+            <input
+              class="hidden"
+              type="file"
+              accept=".geojson,.json,application/geo+json,application/json"
+              bind:this={fileInput}
+              onchange={(e) => { const input = e.currentTarget as HTMLInputElement; void openFile(input.files?.[0]); input.value = '' }}
+            />
+          {/if}
+          <button onclick={download} disabled={isNew && !changed}>Download</button>
+        </div>
+        {#if !readOnly}<p class="muted small">A .geojson file, opened or dropped on the map, replaces the drawing. Nothing is saved until you press Save.</p>{/if}
+
+        {#if fromFile && !readOnly}
+          <h2>From {fromFile.file}</h2>
+          <p class="small">Read: {fromFile.read}.</p>
+          {#if fromFile.leftOut.length > 0}
+            <p class="small warn">Left out: {fromFile.leftOut.join('; ')}.</p>
+          {/if}
+          {#if course.unassigned.length > 0}
+            <p class="small">Lines to label, longest first. Each is a layout, the pit lane, or removed; the arrows show which way it goes.</p>
+            {#each course.unassigned as u, i (i)}
+              <div class="unassigned" role="group" onmouseenter={() => (hovered = i)} onmouseleave={() => (hovered = null)}>
+                <div class="row small">
+                  <span>{Math.round(length(u.path))} m{gap(u.path) > 5 ? `, ends ${Math.round(gap(u.path))} m apart` : ', closed'}</span>
+                  {#if typeof u.extra.osm === 'string'}<span class="muted">{u.extra.osm}</span>{/if}
+                </div>
+                <div class="row small">
+                  <input placeholder="Layout's name" bind:value={labelNames[i]} />
+                  <button onclick={() => label(i, 'layout')}>Make layout</button>
+                </div>
+                <div class="row small wrap">
+                  <button onclick={() => label(i, 'pit_lane')}>Make pit lane</button>
+                  <button onclick={() => change(reverse(course, { unassigned: i }))}>Reverse</button>
+                  <button class="danger" onclick={() => label(i, 'remove')}>Remove</button>
+                </div>
+              </div>
+            {/each}
+            {#if course.unassigned.length > 1}
+              <button class="small danger" onclick={() => { change({ ...course, unassigned: [] }); labelNames = [] }}>Remove all {course.unassigned.length}</button>
+            {/if}
+          {/if}
+        {/if}
 
         {#if readOnly}
           <p class="warn">An older version, to look at. <button onclick={() => view(versions[0]!.version)}>Back to the latest</button></p>
@@ -376,7 +490,10 @@
             </div>
           {/each}
           {#if selected}
-            <label class="check small"><input type="checkbox" checked={editing === 'layout'} onchange={(e) => (editing = (e.currentTarget as HTMLInputElement).checked ? 'layout' : null)} /> Move the points of {course.layouts.find((l) => l.id === selected)?.name}</label>
+            <div class="row wrap small">
+              <label class="check"><input type="checkbox" checked={editing === 'layout'} onchange={(e) => (editing = (e.currentTarget as HTMLInputElement).checked ? 'layout' : null)} /> Move the points of {course.layouts.find((l) => l.id === selected)?.name}</label>
+              <button onclick={() => change(reverse(course, { layout: selected! }))}>Reverse it</button>
+            </div>
           {/if}
           <div class="row">
             <input placeholder="New layout's name" bind:value={newLayoutName} />
@@ -411,6 +528,7 @@
           <div class="row wrap small">
             {#if course.pitLane}
               <label class="check"><input type="checkbox" checked={editing === 'pit_lane'} onchange={(e) => (editing = (e.currentTarget as HTMLInputElement).checked ? 'pit_lane' : null)} /> Move its points</label>
+              <button onclick={() => change(reverse(course, 'pit_lane'))}>Reverse pit lane</button>
               <button class="danger" onclick={() => change({ ...course, pitLane: null })}>Remove pit lane</button>
             {/if}
             {#each [['pitIn', 'pit in'], ['pitOut', 'pit out'], ['pitLine', 'pit line']] as const as [key, label] (key)}
@@ -418,6 +536,12 @@
             {/each}
           </div>
 
+          {#if gone.length > 0}
+            <p class="small warn">Not in this drawing, but in version {version}: {gone.join(', ')}. Events at this course name their layout by id; save only if that's meant.</p>
+          {/if}
+          {#if course.unassigned.length > 0}
+            <p class="small warn">{course.unassigned.length === 1 ? 'A line' : `${course.unassigned.length} lines`} from the file still to label won't be saved.</p>
+          {/if}
           {#if problems.length > 0}
             <h2>To fix before saving</h2>
             <ul class="problems">{#each problems as p (p)}<li>{p}</li>{/each}</ul>
@@ -479,5 +603,7 @@
   .warn { color: var(--caution); }
   .problems { color: var(--caution); margin: 0; padding-left: 18px; font-size: 0.9rem; }
   .message { font-weight: 600; }
+  .hidden { display: none; }
+  .unassigned { border: 1px dashed var(--caution); border-radius: 6px; padding: 6px; display: grid; gap: 4px; }
   :global(.course-label) { background: var(--panel); color: var(--text); border: 1px solid var(--line); font-size: 0.75rem; padding: 0 4px; box-shadow: none; }
 </style>

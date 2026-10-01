@@ -37,12 +37,21 @@ export interface EditCourse {
   pitIn: EditLine | null
   pitOut: EditLine | null
   pitLine: EditLine | null
+  /** Lines from a file with no role yet (M20), to be made a layout or the pit lane. Never saved. */
+  unassigned: Unassigned[]
+}
+
+/** A line from a file with no role (M20): its points, its OSM id as `osm`, and the name the file gave it, if any. */
+export interface Unassigned {
+  path: Pt[]
+  extra: Record<string, unknown>
+  name: string
 }
 
 type Feature = { type: 'Feature'; properties: Record<string, unknown>; geometry: { type: 'LineString'; coordinates: Pt[] } }
 
 export function emptyCourse(): EditCourse {
-  return { top: {}, layouts: [], startFinish: [], sectors: [], pitLane: null, pitIn: null, pitOut: null, pitLine: null }
+  return { top: {}, layouts: [], startFinish: [], sectors: [], pitLane: null, pitIn: null, pitOut: null, pitLine: null, unassigned: [] }
 }
 
 function without(props: Record<string, unknown>, ...keys: string[]): Record<string, unknown> {
@@ -58,14 +67,42 @@ function line(feature: Feature, ...keys: string[]): EditLine | null {
   return p.length === 2 ? { a: p[0]!, b: p[1]!, extra: without(feature.properties ?? {}, 'role', ...keys) } : null
 }
 
+/** What each role is called when it's left out (M20). */
+const ROLE_NAMES: Record<string, string> = {
+  layout: 'a layout', start_finish: 'a start/finish', sector: 'a sector', pit_lane: 'a pit lane', pit_in: 'a pit in', pit_out: 'a pit out', pit_line: 'a pit line',
+}
+
 /** A course's GeoJSON as the editor's model. Anything it can't read is dropped from the model, not guessed at. */
 export function fromGeoJSON(geojson: unknown): EditCourse {
+  return readCourse(geojson, [])
+}
+
+/**
+ * [fromGeoJSON], saying in [leftOut] why each feature with a role was dropped
+ * (M20: a file, unlike a stored course, hasn't been through the server's rules).
+ * Features without a role are left for the caller.
+ */
+export function readCourse(geojson: unknown, leftOut: string[]): EditCourse {
   const course = emptyCourse()
   if (typeof geojson !== 'object' || geojson === null) return course
   const g = geojson as Record<string, unknown>
   course.top = without(g, 'type', 'features')
   for (const f of (Array.isArray(g.features) ? g.features : []) as Feature[]) {
     const props = f?.properties ?? {}
+    if (typeof props.role !== 'string') continue
+    const what = ROLE_NAMES[props.role]
+    if (what === undefined) {
+      leftOut.push(`a feature with the unknown role "${props.role}"`)
+      continue
+    }
+    if (f.geometry?.type !== 'LineString' || !Array.isArray(f.geometry.coordinates)) {
+      leftOut.push(`${what} that isn't a LineString`)
+      continue
+    }
+    const two = (l: EditLine | null): EditLine | null => {
+      if (!l) leftOut.push(`${what} that isn't 2 points`)
+      return l
+    }
     switch (props.role) {
       case 'layout':
         course.layouts.push({
@@ -77,28 +114,28 @@ export function fromGeoJSON(geojson: unknown): EditCourse {
         })
         break
       case 'start_finish': {
-        const l = line(f, 'layout')
+        const l = two(line(f, 'layout'))
         if (l) course.startFinish.push({ ...l, layout: typeof props.layout === 'string' ? props.layout : null })
         break
       }
       case 'sector': {
-        const l = line(f, 'layout', 'index')
+        const l = two(line(f, 'layout', 'index'))
         if (l && typeof props.layout === 'string' && typeof props.index === 'number') {
           course.sectors.push({ ...l, layout: props.layout, index: props.index })
-        }
+        } else if (l) leftOut.push('a sector without its layout and index')
         break
       }
       case 'pit_lane':
         course.pitLane = { path: points(f), extra: without(props, 'role') }
         break
       case 'pit_in':
-        course.pitIn = line(f)
+        course.pitIn = two(line(f))
         break
       case 'pit_out':
-        course.pitOut = line(f)
+        course.pitOut = two(line(f))
         break
       case 'pit_line':
-        course.pitLine = line(f)
+        course.pitLine = two(line(f))
         break
     }
   }
@@ -169,6 +206,39 @@ export function removeLayout(course: EditCourse, id: string): EditCourse {
     sectors: course.sectors.filter((s) => s.layout !== id),
     startFinish: course.startFinish.filter((s) => s.layout !== id),
   }
+}
+
+/** Unassigned line [i] as a layout named [name] (M20): closed, its id from the name, the default if it's the first. */
+export function assignLayout(course: EditCourse, i: number, name: string): EditCourse {
+  const u = course.unassigned[i]
+  if (!u) return course
+  const id = idFrom(name, course.layouts.map((l) => l.id))
+  const layout: EditLayout = { id, name: name.trim(), default: course.layouts.length === 0, path: closed(u.path), extra: { ...u.extra } }
+  return { ...course, layouts: [...course.layouts, layout], unassigned: course.unassigned.filter((_, j) => j !== i) }
+}
+
+/** Unassigned line [i] as the pit lane (M20), in place of any pit lane there was. */
+export function assignPitLane(course: EditCourse, i: number): EditCourse {
+  const u = course.unassigned[i]
+  if (!u) return course
+  return { ...course, pitLane: { path: [...u.path], extra: { ...u.extra } }, unassigned: course.unassigned.filter((_, j) => j !== i) }
+}
+
+export function removeUnassigned(course: EditCourse, i: number): EditCourse {
+  return { ...course, unassigned: course.unassigned.filter((_, j) => j !== i) }
+}
+
+/**
+ * A line the other way round (M20): an unassigned one, a layout or the pit
+ * lane. A closed layout stays closed from the same point; its start/finish and
+ * sectors stay where they are.
+ */
+export function reverse(course: EditCourse, which: { unassigned: number } | { layout: string } | 'pit_lane'): EditCourse {
+  if (which === 'pit_lane') return course.pitLane ? { ...course, pitLane: { ...course.pitLane, path: [...course.pitLane.path].reverse() } } : course
+  if ('layout' in which) {
+    return { ...course, layouts: course.layouts.map((l) => (l.id === which.layout ? { ...l, path: [...l.path].reverse() } : l)) }
+  }
+  return { ...course, unassigned: course.unassigned.map((u, j) => (j === which.unassigned ? { ...u, path: [...u.path].reverse() } : u)) }
 }
 
 /** Makes [id] the default layout, and no other. */
