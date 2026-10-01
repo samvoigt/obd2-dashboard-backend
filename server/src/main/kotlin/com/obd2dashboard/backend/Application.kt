@@ -15,7 +15,9 @@ import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
 import java.time.Clock
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
@@ -27,6 +29,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.path
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -125,6 +129,12 @@ fun Application.module(
     install(Authentication) { carTokens(registry) }
     installLive(hub, project)
     install(SSE)
+    // What a signed-in page is sent (M21): never kept by a browser or a proxy.
+    install(
+        createApplicationPlugin("AdminNoStore") {
+            onCall { call -> if (call.request.path().startsWith("/api/admin/")) call.response.header(HttpHeaders.CacheControl, "no-store") }
+        },
+    )
 
     routing {
         // Not /healthz: Cloud Run's front end reserves paths ending in "z" and

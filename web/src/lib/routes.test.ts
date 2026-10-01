@@ -14,16 +14,19 @@ describe('route', () => {
       page: 'session', slug: 'yaris', id: '7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f',
     })
   })
-  it('reads the admin page', () => {
-    expect(route('/admin')).toEqual({ page: 'admin' })
-    expect(route('/admin/')).toEqual({ page: 'admin' })
+  it('reads the Cars page and a car\u2019s management (M21.5)', () => {
+    expect(route('/cars')).toEqual({ page: 'cars' })
+    expect(route('/cars/')).toEqual({ page: 'cars' })
+    expect(route('/cars/yaris/manage')).toEqual({ page: 'manage', slug: 'yaris' })
+    expect(route('/cars/yaris/manage/')).toEqual({ page: 'manage', slug: 'yaris' })
   })
-  it('reads the admin page\u2019s drivers and events (M14.3)', () => {
-    expect(route('/admin/drivers')).toEqual({ page: 'admin-drivers' })
-    expect(route('/admin/events/')).toEqual({ page: 'admin-events' })
-    expect(route('/admin/events/nhms-october')).toEqual({ page: 'admin-event', id: 'nhms-october' })
-    expect(route('/admin/events/new')).toEqual({ page: 'admin-event', id: 'new' })
-    expect(route('/admin/events/Bad')).toEqual({ page: 'landing' })
+  it('reads the editors where courses and events are shown (M21.3)', () => {
+    expect(route('/courses/new')).toEqual({ page: 'course-edit', id: 'new' })
+    expect(route('/courses/nhms/edit')).toEqual({ page: 'course-edit', id: 'nhms' })
+    expect(route('/courses/nhms')).toEqual({ page: 'course', id: 'nhms' })
+    expect(route('/events/new/')).toEqual({ page: 'event-edit', id: 'new' })
+    expect(route('/events/nhms-october/edit')).toEqual({ page: 'event-edit', id: 'nhms-october' })
+    expect(route('/events/Bad/edit')).toEqual({ page: 'landing' })
   })
   it('reads the compare page (M16.4)', () => {
     expect(route('/compare')).toEqual({ page: 'compare' })
@@ -38,7 +41,8 @@ describe('route', () => {
     expect(route('/events/box-day/')).toEqual({ page: 'event', id: 'box-day' })
   })
   it('sends anything else to the landing page', () => {
-    for (const path of ['/', '/cars', '/cars/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin/x', '/administrator', '/cars/yaris/sessions/nope', '/cars/yaris/sessions/a/b']) {
+    // The admin page is gone (M21): its paths are anything else now.
+    for (const path of ['/', '/cars/Yaris', '/cars/a/b', '/api/cars', '/admin', '/admin/courses/nhms', '/admin/x', '/administrator', '/cars/yaris/sessions/nope', '/cars/yaris/sessions/a/b']) {
       expect(route(path)).toEqual({ page: 'landing' })
     }
   })
@@ -61,14 +65,11 @@ describe('fetchCars', () => {
   })
 })
 
-describe('the course editor (M12.4)', () => {
-  it('has a list and a page per course, "new" for one not yet saved', () => {
-    expect(route('/admin/courses')).toEqual({ page: 'admin-courses' })
-    expect(route('/admin/courses/')).toEqual({ page: 'admin-courses' })
-    expect(route('/admin/courses/nhms')).toEqual({ page: 'admin-course', id: 'nhms' })
-    expect(route('/admin/courses/new')).toEqual({ page: 'admin-course', id: 'new' })
-    expect(route('/admin/courses/NHMS')).toEqual({ page: 'landing' }) // not an id
-    expect(route('/admin')).toEqual({ page: 'admin' })
+describe('the course editor (M12.4), where courses are shown (M21.3)', () => {
+  it('has a page per course, "new" for one not yet saved', () => {
+    expect(route('/courses/nhms/edit/')).toEqual({ page: 'course-edit', id: 'nhms' })
+    expect(route('/courses/new')).toEqual({ page: 'course-edit', id: 'new' })
+    expect(route('/courses/NHMS/edit')).toEqual({ page: 'landing' }) // not an id
   })
 })
 

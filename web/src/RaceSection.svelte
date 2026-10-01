@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { whoCanSet, type Driver, type DriverSetter } from './lib/events'
+  import { signin } from './lib/signin'
   import { fromLocalInput, toLocalInput } from './lib/events'
   import {
     marksOf, mergeWithPrevious, raceClock, racePath, sendRaceEdit, setDriver, splitAt, timeOfDay,
@@ -45,9 +46,19 @@
 
   onMount(async () => {
     drivers = await fetch('/api/drivers').then((r) => (r.ok ? r.json() : [])).catch(() => [])
-    for (const c of race.cars) setters[c.car] = await whoCanSet(c.car)
     green = race.green ? toSeconds(race.green) : ''
     flag = race.flag ? toSeconds(race.flag) : ''
+  })
+
+  // Who may set each car's flags and stints: asked again when the header signs in or out (M21.1).
+  $effect(() => {
+    void $signin
+    const cars = race.cars.map((c) => c.car)
+    void (async () => {
+      const next: typeof setters = {}
+      for (const car of cars) next[car] = await whoCanSet(car)
+      setters = next
+    })()
   })
 
   async function edit(action: () => Promise<number>) {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createSignIn } from './signin'
 import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, setSessionDriver, setSessionName, toLocalInput, whoCanSet, type Part } from './events'
 
 const part = (id: string, added: string[] = [], removed: string[] = []): Part =>
@@ -84,8 +85,12 @@ describe('who drove (M14.4)', () => {
   })
 
   it('who may set it: the admin first, else the car\u2019s crew, else nobody', async () => {
-    expect(await whoCanSet('outback', answering({ '/api/admin/me': [200, { email: 'a' }] }))).toBe('admin')
-    expect(await whoCanSet('outback', answering({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: true }] }))).toBe('crew')
-    expect(await whoCanSet('outback', answering({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: false }] }))).toBeNull()
+    const ask = (answers: Parameters<typeof answering>[0]) => {
+      const fetcher = answering({ '/api/admin/config': [200, { enabled: true, googleClientId: null, dev: true }], ...answers })
+      return whoCanSet('outback', fetcher, createSignIn(fetcher))
+    }
+    expect(await ask({ '/api/admin/me': [200, { email: 'a' }] })).toBe('admin')
+    expect(await ask({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: true }] })).toBe('crew')
+    expect(await ask({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: false }] })).toBeNull()
   })
 })

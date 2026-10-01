@@ -29,35 +29,28 @@ fun Route.webRoutes() {
             return
         }
         response.cacheControl(CacheControl.NoCache(null)) // always the latest page, which names the latest assets
+        // Every page can carry the admin's edits once signed in (M21), so no other site may frame any of them.
+        response.header("X-Frame-Options", "DENY")
+        response.header("Content-Security-Policy", "frame-ancestors 'none'")
         respondText(index, ContentType.Text.Html)
     }
 
     get("/") { call.page() }
-    // Courses (M12.5), public.
-    for (path in listOf("/courses", "/courses/", "/courses/{id}", "/courses/{id}/")) get(path) { call.page() }
-    // Events and their results (M14.5), public.
-    for (path in listOf("/events", "/events/", "/events/{id}", "/events/{id}/")) get(path) { call.page() }
+    // Courses (M12.5), and their editor where they're shown (M21.3; `new` for one not yet saved).
+    for (path in listOf("/courses", "/courses/", "/courses/{id}", "/courses/{id}/", "/courses/{id}/edit", "/courses/{id}/edit/")) get(path) { call.page() }
+    // Events and their results (M14.5), and their editor the same way.
+    for (path in listOf("/events", "/events/", "/events/{id}", "/events/{id}/", "/events/{id}/edit", "/events/{id}/edit/")) get(path) { call.page() }
     // Drivers (M15.5), public.
     for (path in listOf("/drivers", "/drivers/", "/drivers/{id}", "/drivers/{id}/")) get(path) { call.page() }
     // Two laps compared (M16.4), public.
     for (path in listOf("/compare", "/compare/")) get(path) { call.page() }
-    get("/cars/{slug}") { call.page() }
-    get("/cars/{slug}/") { call.page() }
+    // The cars (M21.5), each one's live feed, and its management.
+    for (path in listOf("/cars", "/cars/", "/cars/{slug}", "/cars/{slug}/", "/cars/{slug}/manage", "/cars/{slug}/manage/")) get(path) { call.page() }
     // Past sessions (M7.4, M7.5).
     for (path in listOf("/cars/{slug}/sessions", "/cars/{slug}/sessions/", "/cars/{slug}/sessions/{id}", "/cars/{slug}/sessions/{id}/")) {
         get(path) { call.page() }
     }
-    // The admin page (M6.5) can replace every token, so no other site may frame it.
-    for (path in listOf(
-        "/admin", "/admin/", "/admin/courses", "/admin/courses/", "/admin/courses/{id}",
-        "/admin/drivers", "/admin/drivers/", "/admin/events", "/admin/events/", "/admin/events/{id}",
-    )) {
-        get(path) {
-            call.response.header("X-Frame-Options", "DENY")
-            call.response.header("Content-Security-Policy", "frame-ancestors 'none'")
-            call.page()
-        }
-    }
+    // No admin page (M21): its edits are on the pages they belong to, once signed in.
     // At the root because that's where they're asked for (M11): an iPhone's home-screen
     // icon, under both its names, and a classic favicon. Named, never a fallback.
     for ((path, file, type) in ROOT_ICONS) {

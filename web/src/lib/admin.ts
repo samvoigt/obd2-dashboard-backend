@@ -3,6 +3,7 @@
  * (the server still decides), and the API calls. Pure where it can be, so it is
  * tested without a browser.
  */
+import { signin } from './signin'
 import { isState, stateLabel, type State } from './state'
 
 export interface AdminConfig {
@@ -162,6 +163,7 @@ export async function api<T>(method: string, path: string, body?: unknown, fetch
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!response.ok) {
+    if (response.status === 401) signin.lapsed()
     const { message, problems } = await errorOf(response)
     throw new AdminError(response.status, message, problems)
   }

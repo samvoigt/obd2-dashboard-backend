@@ -10,6 +10,7 @@
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
   import { setSessionDriver, setSessionName, whoCanSet, type Driver, type DriverSetter } from './lib/events'
+  import { signin } from './lib/signin'
   import { indexesIn, readWindow, withWindow } from './lib/laps'
   import type { LapPick } from './lib/comparePick'
   import ComparePick from './ComparePick.svelte'
@@ -172,7 +173,6 @@
       if (detail.session.source !== 'fake') {
         void fetch('/api/drivers').then((r) => (r.ok ? r.json() : [])).then((d: Driver[]) => (drivers = d)).catch(() => {})
       }
-      void whoCanSet(slug).then((w) => (setter = w))
       // Crew messages sent while it ran (M18.4).
       void fetch(`/api/sessions/${id}/messages`).then((r) => (r.ok ? r.json() : [])).then((m: SessionMessage[]) => (messages = m)).catch(() => {})
       thin = detail.session.state === 'complete' && detail.session.ended - detail.session.started > LONG_SESSION_MS
@@ -252,6 +252,12 @@
     focus = w
     history.replaceState(null, '', window.location.pathname + withWindow(window.location.search, w))
   }
+
+  // Who may name it and set who drove (M14.4, M18.3): asked again when the header signs in or out (M21.1).
+  $effect(() => {
+    void $signin
+    void whoCanSet(slug).then((w) => (setter = w))
+  })
 </script>
 
 <main>

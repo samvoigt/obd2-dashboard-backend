@@ -54,7 +54,7 @@ internal val adminLog = LoggerFactory.getLogger("admin")
  */
 internal suspend fun ApplicationCall.admin(auth: AdminAuth, config: AdminConfig, change: Boolean): String? {
     if (change && !fromOurPage()) {
-        respond(HttpStatusCode.Forbidden, ApiError("origin", "Changes must come from the admin page."))
+        respond(HttpStatusCode.Forbidden, ApiError("origin", "Changes must come from this site."))
         return null
     }
     val email = auth.verify(request.cookies[AdminAuth.COOKIE], config.allowlist)
@@ -72,8 +72,8 @@ fun Route.adminSignInRoutes(auth: AdminAuth, config: AdminConfig) {
 
     post("/api/admin/login") {
         val identity = config.identity
-            ?: return@post call.respond(HttpStatusCode.ServiceUnavailable, ApiError("not_configured", "The admin page is not set up yet."))
-        if (!call.fromOurPage()) return@post call.respond(HttpStatusCode.Forbidden, ApiError("origin", "Changes must come from the admin page."))
+            ?: return@post call.respond(HttpStatusCode.ServiceUnavailable, ApiError("not_configured", "Signing in is not set up yet."))
+        if (!call.fromOurPage()) return@post call.respond(HttpStatusCode.Forbidden, ApiError("origin", "Changes must come from this site."))
         when (val result = identity.verify(call.receive<AdminSignInRequest>().credential)) {
             is SignIn.Allowed -> {
                 adminLog.info("sign-in: {}", result.email)
@@ -93,7 +93,7 @@ fun Route.adminSignInRoutes(auth: AdminAuth, config: AdminConfig) {
     }
 
     delete("/api/admin/login") {
-        if (!call.fromOurPage()) return@delete call.respond(HttpStatusCode.Forbidden, ApiError("origin", "Changes must come from the admin page."))
+        if (!call.fromOurPage()) return@delete call.respond(HttpStatusCode.Forbidden, ApiError("origin", "Changes must come from this site."))
         call.response.cookies.append(cookie("", 0))
         call.respond(HttpStatusCode.NoContent)
     }

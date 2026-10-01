@@ -132,7 +132,7 @@ from `/api/admin/*`, and that must stay so.
 
 ## The steps
 
-### M21.1 — The header, and who's signed in (not validated)
+### M21.1 — The header, and who's signed in ✅
 
 A site header on every page (`App.svelte`): the logo's home link, and **Sign
 in** or the signed-in email with **Sign out**. A small store, `lib/signin.ts`,
@@ -140,7 +140,23 @@ asks `/api/admin/me` once and is updated on sign-in and sign-out. `whoCanSet`
 reads it instead of asking again. Google's button opens on demand. Tests:
 the store's states, and that a `401` from any admin call signs the page out.
 
-### M21.2 — The server: every page unframed, the admin API not stored (not validated)
+**Validated and built, 2026-10-01.** No page has a fixed full-screen layout,
+so the header sits above each page's `main`. `lib/signin.ts` is a Svelte
+store (`createSignIn(fetcher)`, tested with a fake server): it asks
+`/api/admin/config` and `/me` once, however often it's checked. `api()` in
+`lib/admin.ts` calls `signin.lapsed()` on any `401`. `whoCanSet` takes the
+store (tests pass their own), and `SessionPage` and `RaceSection` ask it
+again whenever the sign-in changes, so signing in on a page turns its edits
+on without a reload. `SiteHeader.svelte` has home, Cars · Events · Drivers ·
+Courses (the current one underlined), and Sign in / the email and Sign out.
+On the dev server, Sign in is the dev sign-in. In production it shows
+Google's button, whose script loads on the first press. Nothing shows if
+sign-in isn't set up. The router lost every `/admin…` route and gained
+`cars`, `manage`, `course-edit` and `event-edit` (`new` for one not yet
+saved, as before). App renders placeholders for the Cars and Manage pages,
+which M21.5 fills.
+
+### M21.2 — The server: every page unframed, the admin API not stored ✅
 
 `frame-ancestors 'none'` and `X-Frame-Options: DENY` on the page shell
 everywhere. `Cache-Control: no-store` on `/api/admin/*`. The `403` text.
@@ -149,6 +165,15 @@ The new page paths `/cars`, `/cars/{slug}/manage`, `/courses/new`,
 `WebRoutes.kt`'s list). The `/admin…` page paths removed, so they're `404`.
 Tests in `:server`, next to today's `/admin` header test, which becomes
 "every page".
+
+**Validated and built, 2026-10-01.** The frame headers moved into
+`page()`, so every page sends them. `/api/admin/*` gets `no-store` from a
+small application plugin (`AdminNoStore`), not per route, since the admin
+API spans five route files. The admin page's paths are gone and are `404`.
+"…from the admin page" became "…from this site", and "The admin page is not
+set up yet" became "Signing in is not set up yet". `WebRoutesTest` covers the
+new paths, the headers on every page, the `404`s and `no-store`, and that the
+public API is unchanged.
 
 ### M21.3 — Courses and events edited where they're shown (not validated)
 

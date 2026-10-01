@@ -3,6 +3,8 @@
  * editor's logic. Pure, so it's tested without a browser.
  */
 
+import { get } from 'svelte/store'
+import { isSignedIn, signin, type SignIn } from './signin'
 export interface Driver {
   id: string
   name: string
@@ -146,10 +148,13 @@ export async function setSessionName(who: 'admin' | 'crew', slug: string, id: st
   return body.name ?? null
 }
 
-/** Whether whoever is looking may set who drove: the admin first, else this car's crew. */
-export async function whoCanSet(slug: string, fetcher: typeof fetch = fetch): Promise<DriverSetter> {
-  const admin = await fetcher('/api/admin/me').catch(() => null)
-  if (admin?.ok) return 'admin'
+/**
+ * Whether whoever is looking may set who drove: the admin first (the page's
+ * one sign-in, M21.1), else this car's crew.
+ */
+export async function whoCanSet(slug: string, fetcher: typeof fetch = fetch, from: SignIn = signin): Promise<DriverSetter> {
+  await from.check()
+  if (isSignedIn(get(from))) return 'admin'
   const crew = await fetcher(`/api/cars/${slug}/crew`).catch(() => null)
   const body = crew?.ok ? ((await crew.json().catch(() => ({}))) as { crew?: boolean }) : {}
   return body.crew === true ? 'crew' : null
