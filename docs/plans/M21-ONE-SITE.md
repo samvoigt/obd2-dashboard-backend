@@ -330,6 +330,19 @@ mentions of `/admin`. Then the plan is deleted.
   isn't the cars list any more, so it reads "← Home".
 - **Docs:** README, `CLAUDE.md`, and `env.sh`'s and `gcp-setup.sh`'s
   comments no longer mention an admin page.
-**Still to do:** deploy (with a live connection open), Sam signs in on
-badnewsbears.live, decision 25 amended, `COMPLETED`, `JOURNAL`, `PLAN`, and
-the plan deleted.
+**Deployed, 2026-10-01**, as revision `00035` (`9bf18d3`), with a live
+stream open across it: a throwaway `smoke-m21` car replaying a scratch copy
+of the 2026-09-28 morning drive (fresh session id, no VIN), `--live
+--no-archive --courses`, under `caffeinate -i`. The old revision closed it
+with `1012`; it reconnected at once and took "courses: unchanged". Checked
+from outside:
+- `/`, `/cars`, `/cars/outback/manage` and `/courses/new` answer `200`, and
+  every page sends `X-Frame-Options: DENY` and `frame-ancestors 'none'`.
+- `/admin` and `/admin/courses/new` are `404`.
+- `/api/admin/me` is `401` with `no-store`, and `/api/cars` is unchanged.
+The car and the session its live lane recorded were removed after.
+(`curl -I` sends `HEAD`, which these routes don't answer, so headers are
+read from a `GET`.)
+
+**Still to do:** Sam signs in on badnewsbears.live, decision 25 amended,
+`COMPLETED`, `JOURNAL`, `PLAN`, and the plan deleted.
