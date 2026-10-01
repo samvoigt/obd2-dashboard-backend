@@ -273,6 +273,19 @@ lines, and saves. What it took, and what got in the way, goes in `JOURNAL.md`.
 Anything the file showed the editor needs is fixed here, before the milestone
 closes.
 
+**Deployed, 2026-10-01**, as revision `00034` (`cb5f292`), with a live
+stream open across it: a throwaway `smoke-m20` car replaying the 2026-09-28
+morning drive at real time, `--live --no-archive --courses`, under
+`caffeinate -i`. The old revision closed it with `1012`; it reconnected at
+once and took "courses: unchanged" from the new one. The deployed
+`CourseEditor` chunk carries Open file. The car, and the session the live
+lane recorded for it even with `--no-archive`, were removed after.
+**Found:** a replay of a log already archived for another car is refused
+frame by frame (`bad_message`, "a batch for a session not announced": its
+id belongs to the Outback, `Announce.WrongCar`). The smoke run streamed a
+scratch copy with a fresh session id and no VIN. **Waiting on:** Sam's
+Palmer file.
+
 ### M20.7 — Recorded
 
 A decision (courses from files: into the editor, plain lines unassigned,
