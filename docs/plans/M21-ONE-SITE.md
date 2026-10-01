@@ -175,7 +175,7 @@ set up yet" became "Signing in is not set up yet". `WebRoutesTest` covers the
 new paths, the headers on every page, the `404`s and `no-store`, and that the
 public API is unchanged.
 
-### M21.3 — Courses and events edited where they're shown (not validated)
+### M21.3 — Courses and events edited where they're shown ✅
 
 The routes `/courses/new`, `/courses/{id}/edit`, `/events/new` and
 `/events/{id}/edit` (`routes.ts`, tests). `CourseEditor` and `EventEditor`
@@ -183,12 +183,42 @@ move there unchanged. "New …" and "Edit" buttons show when signed in. The
 "Sign in on the admin page first" messages become the header's sign-in.
 `CoursesAdmin` and `EventsAdmin` go.
 
-### M21.4 — Drivers edited on `/drivers` (not validated)
+**Validated and built, 2026-10-01** (by a subagent). Both editors asked
+`/me` once in `onMount` and said "Sign in on the admin page first". Their
+links and redirects went to `/admin/courses…` and `/admin/events…`.
+`CourseEditor` built its Leaflet map in `onMount`, on a `div` that doesn't
+exist while the page is signed out. **Done:**
+- **Public pages:** signed in, **New course** on `/courses` and **New
+  event** on `/events`, and **Edit** on a course's and an event's page. They
+  follow `$signin`.
+- **The editors:** signed out they say "Sign in (top right) to edit." Back
+  goes to the list for a new one, else to the course's or event's page. A
+  first save goes to `…/{id}/edit`, and removing an event goes to `/events`.
+  A `401` signs out through `api()`.
+- **`CourseEditor`'s map** is built by an `$effect` on its `div`, so it
+  appears when you sign in. M20's file features are unchanged.
+- **`EventEditor`** loads once when the sign-in turns `in`.
+- **Deleted:** `CoursesAdmin` and `EventsAdmin`.
+**Changed:** signing out mid-edit unmounts the editor, and unsaved changes
+go with it.
+
+### M21.4 — Drivers edited on `/drivers` ✅
 
 `DriversAdmin`'s add, rename, code and remove, inline on `DriversPage` when
 signed in. `DriversAdmin` goes.
 
-### M21.5 — The Cars page, a car's management, and its sessions (not validated)
+**Validated and built, 2026-10-01** (by a subagent, in parallel with M21.3,
+.5 and .6). `DriversAdmin` used `POST`, `PUT` and `DELETE
+/api/admin/drivers[/{id}]`. Remove is refused `409` for a driver who drove
+("…so stays. Rename instead.") and `404` for an unknown one. The public
+`/api/drivers` has the same id, name and code, so the page lists from it and
+reloads it after each change. Signed in, `DriversPage` shows the add form (the
+code follows the name until typed) and Rename / Remove on each driver, with
+the refusal shown above the list. Signed out it's today's list, and signing
+out mid-edit closes the edit. It follows `$signin` without a reload. No new
+helpers were needed (`codeFrom`, `api`). `DriversAdmin.svelte` is deleted.
+
+### M21.5 — The Cars page, a car's management, and its sessions ✅
 
 - **`/cars`** (`CarsPage`, new route): every car from `/api/cars`, its live
   state, and links to Live, Sessions and, signed in, Manage. Signed in:
@@ -203,7 +233,40 @@ signed in. `DriversAdmin` goes.
   only when signed in. A test pins that **no public endpoint's answer changes
   with an admin cookie**. `Admin.svelte` goes.
 
-### M21.6 — The landing page, expanded (not validated)
+**Validated and built, 2026-10-01** (by a subagent). Read against
+`Admin.svelte` before deleting it:
+- **No single-car `GET`**, so Manage finds the car in `GET
+  /api/admin/cars`.
+- **`POST /cars` returns the token only when the server made it**, as before.
+- **Removing a car is refused while it has sessions.**
+- **`GET /api/admin/sessions/{id}/download`** existed (and logs who) but the
+  admin page never linked it.
+- **The public session list carries a state**, but deleting goes by the
+  admin list's, which knows from the live hub what's live.
+
+**Built:**
+- **`/cars`:** every car with its state, polled every 10 s. Each links to
+  Live, Sessions, and (signed in) Manage, plus **Add a car** with the
+  show-once banner.
+- **`/cars/{slug}/manage`:** state, the token's hint and date, passcode set
+  or not, the clock note. Rename, replace token (generated, or chosen and
+  typed twice), passcode, and remove (slug typed, then `/cars`; refused with
+  a link while sessions remain). It follows `$signin`. Signed out it shows
+  nothing of the car's.
+- **`SessionsPage`:** signed in, each session has its admin state,
+  **Download** (new UI on the existing endpoint) and **Delete** (the old
+  rules: `deleteBlocked`, the id's first 8 characters typed), plus a Manage
+  link. The admin list is fetched only when signed in.
+- **`CarPage`:** "← Cars" goes to `/cars`.
+- **`TokenOnce.svelte`** (new, shared by Cars and Manage) is the only place
+  a token is ever shown.
+- **`PublicWithSignInTest`:** for a car with a chosen token, a passcode and
+  a session, `/api/cars`, its sessions, a session, `/api/courses`,
+  `/api/events` and `/api/drivers` answer the same status and body with and
+  without a real admin cookie, and none holds the token, the passcode,
+  `tokenHint` or `passcode`.
+
+### M21.6 — The landing page, expanded ✅
 
 A section per page, each a summary that links to it, with the same look
 (decision 29): **cars** (live state, each one's latest session) → `/cars`;
@@ -212,7 +275,35 @@ A section per page, each a summary that links to it, with the same look
 layouts → `/courses`. Measured with `measure.mjs` with a replay streaming, since
 it's the page most people open. Phone width checked.
 
-### M21.7 — Proven, deployed, recorded (not validated)
+**Validated and built, 2026-10-01** (by a subagent; measured by me). It
+reads only the public endpoints the other pages use, with their helpers
+(`fetchCars`, `dayOf`, `clockOf`, `duration`, `lapTime`, `badge`). An
+event's "under way" was nowhere yet: it's new in `lib/landing.ts`, with
+`latestSession`, `sessionLine`, `eventsShown` and `layoutsLine`, tested in
+`landing.test.ts`. Sections:
+- **Cars:** state, and each car's latest session line.
+- **Events:** the newest five, "Under way" in mint, "All N events →".
+- **Drivers:** name and code.
+- **Courses:** a 160 px `CourseMap` of the default layout, and the layouts.
+Cars are polled every 10 s, and everything else (each car's latest session
+included) once a minute. A course map is fetched again only when its version
+changes. A section that fails says so in one line. The small maps don't move
+(`pointer-events: none`, the card is the link), and their zoom buttons are
+hidden.
+
+**Measured, 2026-10-01:** `measure.mjs` on `/` for 3 minutes, CPU 4× slower,
+390×844, with the dev car live (a drive replayed at real time): 60 fps
+every minute, no long tasks, heap 2.0 → 2.3 MB, 298 nodes.
+
+**Phone width:** every page (`/`, `/cars`, `/courses`, `/events`,
+`/drivers`, a car's sessions and its Manage) at 390 px, by the DevTools
+protocol's mobile emulation: the scroll width equals the screen's. The
+same-host 390 px frame used before can't work now that no page may be
+framed. Chrome's `--window-size` screenshots crop wrongly (the window, not
+the viewport), so they aren't a test. The header's links wrapped at 390 px,
+so they're tighter there.
+
+### M21.7 — Proven, deployed, recorded
 
 Through the dev server: every former admin task done from its new home,
 signed out nothing editable shows, and a public page's raw responses
@@ -220,3 +311,25 @@ compared signed in and out. Deployed with a live connection open. Sam signs
 in on badnewsbears.live. Decision 25 amended (no admin page; sign-in on
 every page), `COMPLETED.md`, `JOURNAL.md`, `PLAN.md`, README, `CLAUDE.md`'s
 mentions of `/admin`. Then the plan is deleted.
+
+**Proven locally, 2026-10-01**, through Chrome against the dev server, after
+`./gradlew test` (all modules, the site built in) and 204 site tests passed:
+- **Header sign-in and sign-out.** Signed out, `/cars` shows only Live and
+  Sessions, `/courses` has no New, `/drivers` is the list, and a car's
+  Manage shows only "Sign in (top right) to manage this car." Signing out on
+  Manage cleared it without a reload, and signing in on `/drivers` turned on
+  its add form the same way.
+- **Signed in:** a throwaway `smoke-local` car added on `/cars` (the
+  show-once banner appeared; its text was never read), then removed from its
+  Manage page, which went back to `/cars`. The dev car renamed and named
+  back.
+- **Editors:** a course's page links Edit to `/courses/nhms/edit`, whose
+  editor and map loaded, with back going to the course. `/events/new` loaded
+  its editor, with back going to `/events`.
+- **Back links:** "← Cars" on Courses, Events and Drivers went to `/`, which
+  isn't the cars list any more, so it reads "← Home".
+- **Docs:** README, `CLAUDE.md`, and `env.sh`'s and `gcp-setup.sh`'s
+  comments no longer mention an admin page.
+**Still to do:** deploy (with a live connection open), Sam signs in on
+badnewsbears.live, decision 25 amended, `COMPLETED`, `JOURNAL`, `PLAN`, and
+the plan deleted.

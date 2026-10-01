@@ -58,7 +58,7 @@ deep `$state` (JOURNAL: M8).
 GCP_PROJECT=obd2-dashboard-backend SESSIONS_BUCKET=obd2-dashboard-backend-sessions \
   CREW_COOKIE_KEY=… ./gradlew :server:run   # real Firestore and bucket; any 32+ byte base64url key
 scripts/admin.sh list           # the admin tool (cars, tokens, passcodes, sessions);
-                                #   also the admin page, /admin (decision 25)
+                                #   also the site, signed in (decision 25, M21)
 scripts/replay.sh --help        # the tablet's lanes (--live), faults included
 ./gradlew :server:devServer     # the real module in memory + the real site, car dev-car
                                 #   (token and crew passcode in server/build/dev-token,
@@ -108,7 +108,7 @@ file that is deleted, never into output, and remove the car afterwards.
 `chmod 600` file (`set-passcode --passcode-file`), keep the cookie in a
 `chmod 600` jar, and delete both. Typing a passcode into a page is only for the
 dev server's generated one, on localhost.
-**The admin page on the deployed site is Sam's to sign in to**, with his Google
-account; never enter a Google password. Locally, the dev server's dev sign-in
+**Signing in on the deployed site is Sam's**, with his Google account (Sign in,
+top right of every page, turns on the edits); never enter a Google password. Locally, the dev server's dev sign-in
 covers everything. The allowlist (`admin-emails`) holds Sam's address and stays
 out of this public repo.

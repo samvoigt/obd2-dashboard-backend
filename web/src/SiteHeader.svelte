@@ -117,5 +117,8 @@
   .panel p { margin: 0; }
   .small { font-size: 0.85rem; }
   .error { flex-basis: 100%; text-align: right; color: var(--critical); margin: 0; }
-  @media (max-width: 520px) { .home span { display: none; } }
+  @media (max-width: 520px) {
+    .home span { display: none; }
+    nav { gap: 10px; font-size: 0.95rem; }
+  }
 </style>

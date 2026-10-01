@@ -194,7 +194,7 @@
 </script>
 
 <main>
-  <p class="back"><a href="/">← Cars</a><a href={`/cars/${slug}/sessions`}>Past sessions →</a></p>
+  <p class="back"><a href="/cars">← Cars</a><a href={`/cars/${slug}/sessions`}>Past sessions →</a></p>
 
   {#if notFound}
     <h1>No car “{slug}”</h1>

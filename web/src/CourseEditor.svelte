@@ -3,8 +3,9 @@
   import 'leaflet/dist/leaflet.css'
   import '@geoman-io/leaflet-geoman-free'
   import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
-  import { onMount, untrack } from 'svelte'
-  import { api, AdminError, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
+  import { untrack } from 'svelte'
+  import { signin } from './lib/signin'
+  import { api, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
   import {
     addSector, arrows, assignLayout, assignPitLane, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector,
     removeLayout, removeSector, removeUnassigned, reverse, sectorsOf, toGeoJSON, unsaved, type EditCourse, type Pt,
@@ -26,7 +27,8 @@
   let versions: CourseVersion[] = $state([])
   let problems: string[] = $state([])
   let message: string | null = $state(null)
-  let signedOut = $state(false)
+  // Signed in (M21.3): the editor shows, and loads, only then; a 401 signs the page out (`api`).
+  const signedIn = $derived($signin.state === 'in')
   let saving = $state(false)
   let dirty = $state(false) // the drawing changed since it was loaded or saved
   let savedName = $state('') // the name as loaded or saved; '' for a new course
@@ -71,8 +73,14 @@
     dirty = true
   }
 
-  onMount(() => {
-    if (!box) return
+  // The map, once the editor is shown: signing in shows it without a reload (M21.3).
+  $effect(() => {
+    const el = box
+    if (!el) return
+    return untrack(() => mount(el))
+  })
+
+  function mount(box: HTMLDivElement) {
     map = L.map(box, { zoomControl: true }).setView([43.3629, -71.4615], 16)
     street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 20, maxNativeZoom: 19,
@@ -89,11 +97,10 @@
     const resize = new ResizeObserver(() => map?.invalidateSize())
     resize.observe(box)
     return () => { resize.disconnect(); map?.remove(); map = null }
-  })
+  }
 
   async function load() {
     try {
-      await api('GET', '/me')
       cars = await api<{ slug: string; name: string }[]>('GET', '/cars')
       if (isNew) {
         course = emptyCourse()
@@ -104,8 +111,7 @@
       versions = await api<CourseVersion[]>('GET', `/courses/${pathId}/versions`)
       void followRetiming()
     } catch (e) {
-      if (e instanceof AdminError && e.status === 401) signedOut = true
-      else message = e instanceof Error ? e.message : String(e)
+      message = e instanceof Error ? e.message : String(e)
     }
   }
 
@@ -150,7 +156,7 @@
   let checkTimer: ReturnType<typeof setTimeout> | undefined
   $effect(() => {
     const body = { name, geojson: toGeoJSON(course), id: isNew ? newId : undefined }
-    if (signedOut) return
+    if (!signedIn) return
     clearTimeout(checkTimer)
     checkTimer = setTimeout(async () => {
       try {
@@ -311,7 +317,7 @@
       savedName = saved.name
       savedLayouts = course.layouts.map((l) => l.id)
       message = `Saved as version ${saved.version}.`
-      if (isNew) window.location.assign(`/admin/courses/${saved.id}`)
+      if (isNew) window.location.assign(`/courses/${saved.id}/edit`)
       versions = await api<CourseVersion[]>('GET', `/courses/${courseId}/versions`)
       void followRetiming()
     } catch (e) {
@@ -406,10 +412,10 @@
 </script>
 
 <main>
-  <p class="back"><a href="/admin/courses">← Courses</a></p>
-  {#if signedOut}
-    <p>Sign in on the <a href="/admin">admin page</a> first, then come back.</p>
-  {:else}
+  <p class="back">{#if isNew}<a href="/courses">← Courses</a>{:else}<a href={`/courses/${pathId}`}>← {savedName || pathId}</a>{/if}</p>
+  {#if $signin.state === 'out'}
+    <p>Sign in (top right) to edit.</p>
+  {:else if signedIn}
     <div class="editor">
       <div class="mapwrap">
         <div

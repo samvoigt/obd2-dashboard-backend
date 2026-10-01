@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import CourseMap from './CourseMap.svelte'
+  import { signin } from './lib/signin'
   import { day, type CourseVersion, type CourseView } from './lib/admin'
   import { fromGeoJSON, metres, sectorsOf, type EditCourse } from './lib/courseEdit'
 
@@ -38,6 +39,7 @@
     <h1>No such course</h1>
   {:else if view && course}
     <h1>{view.name}</h1>
+    {#if $signin.state === 'in'}<p><a class="button" href={`/courses/${id}/edit`}>Edit</a></p>{/if}
     <p class="muted">
       Version {view.version}{view.version !== latest ? ` (the latest is ${latest})` : ''}, {day(view.saved)}
       {#if course.startFinish.some((s) => s.extra.guess === true)} · <span class="guess">start/finish not yet checked at the track</span>{/if}
@@ -73,4 +75,5 @@
   .versions { list-style: none; padding: 0; display: grid; gap: 4px; }
   .guess { color: var(--caution); }
   h2 { font-size: 1rem; margin: 16px 0 6px; }
+  .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 </style>

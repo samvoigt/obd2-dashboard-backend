@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type Drive } from './lib/sessions'
+  import { signin } from './lib/signin'
+  import { AdminError, api, confirmed, deleteBlocked, sessionConfirmation, sessionStateText, type AdminSession } from './lib/admin'
 
   let { slug }: { slug: string } = $props()
 
@@ -19,17 +21,55 @@
     }
   }
 
+  // Signed in (M21.5): each session's admin facts (its state as deleting sees it), from the admin API only.
+  const signedIn = $derived($signin.state === 'in')
+  let admin: Map<string, AdminSession> = $state.raw(new Map())
+  let deleting: string | null = $state(null)
+  let typed = $state('')
+  let busy = $state(false)
+  let adminError: string | null = $state(null)
+
+  async function refreshAdmin() {
+    if (!signedIn) return
+    try {
+      const list = await api<AdminSession[]>('GET', `/cars/${slug}/sessions`)
+      admin = new Map(list.map((s) => [s.id, s]))
+    } catch (e) {
+      if (!(e instanceof AdminError && e.status === 404)) adminError = e instanceof Error ? e.message : String(e)
+    }
+  }
+
+  $effect(() => {
+    if (signedIn) void refreshAdmin()
+    else { admin = new Map(); deleting = null; adminError = null }
+  })
+
+  async function remove(s: AdminSession) {
+    busy = true
+    adminError = null
+    try {
+      await api('DELETE', `/sessions/${s.id}`)
+      deleting = null
+      typed = ''
+      await Promise.all([refresh(), refreshAdmin()])
+    } catch (e) {
+      adminError = e instanceof Error ? e.message : String(e)
+    }
+    busy = false
+  }
+
   // A live or uploading session changes as it goes; a finished list doesn't.
   onMount(() => {
     refresh()
-    const timer = setInterval(refresh, 30_000)
+    const timer = setInterval(() => { void refresh(); void refreshAdmin() }, 30_000)
     return () => clearInterval(timer)
   })
 </script>
 
 <main>
-  <p class="back"><a href={`/cars/${slug}`}>← {slug}, live</a></p>
+  <p class="back"><a href={`/cars/${slug}`}>← {slug}, live</a>{#if signedIn}<a href={`/cars/${slug}/manage`}>Manage {slug} →</a>{/if}</p>
   <h1>Past sessions</h1>
+  {#if adminError}<p class="error" role="alert">{adminError}</p>{/if}
 
   {#if error}
     <p class="error">Could not load the sessions: {error}</p>
@@ -68,6 +108,28 @@
                 {#if s.lines > 0}<span class="muted">{s.lines.toLocaleString()} lines</span>{/if}
               </span>
             </a>
+            {#if signedIn && admin.get(s.id)}
+              {@const a = admin.get(s.id)!}
+              <div class="manage">
+                <span class="muted small">{sessionStateText(a.state)}</span>
+                {#if a.lines > 0}<a class="small" href={`/api/admin/sessions/${s.id}/download`} download>Download</a>{/if}
+                <button class="danger small" onclick={() => { deleting = deleting === s.id ? null : s.id; typed = '' }}>Delete</button>
+              </div>
+              {#if deleting === s.id}
+                {@const blocked = deleteBlocked(a)}
+                <div class="confirm">
+                  {#if blocked}
+                    <p class="warn">{blocked}</p>
+                  {:else}
+                    <p class="warn">Its data and record are deleted. This can't be undone.</p>
+                    <label><span>Type <strong>{sessionConfirmation(s.id)}</strong> (the start of its id) to confirm</span>
+                      <input bind:value={typed} autocapitalize="off" autocomplete="off" spellcheck="false" />
+                    </label>
+                    <div><button class="danger" disabled={busy || !confirmed(typed, sessionConfirmation(s.id))} onclick={() => remove(a)}>Delete session</button></div>
+                  {/if}
+                </div>
+              {/if}
+            {/if}
           </li>
         {/each}
       </ul>
@@ -76,7 +138,7 @@
 </main>
 
 <style>
-  .back { margin: 0 0 8px; }
+  .back { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .back a { color: var(--muted); text-decoration: none; }
   .drive { margin: 18px 0; }
   h2 { font-size: 1.05rem; margin: 0 0 8px; }
@@ -97,4 +159,14 @@
   .dot.stale { background: var(--caution); }
   .fault { color: var(--critical); font-weight: 600; }
   .error { color: var(--critical); }
+  .manage { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 6px 14px 0; }
+  .manage a { color: var(--accent); }
+  .confirm { display: grid; gap: 8px; padding: 8px 14px 0; }
+  .confirm label { display: grid; gap: 4px; font-size: 0.95rem; }
+  .confirm input { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; max-width: 220px; }
+  .warn { color: var(--caution); margin: 0; }
+  .small { font-size: 0.85rem; }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.danger { border-color: var(--critical); color: var(--critical); }
 </style>

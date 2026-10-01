@@ -1,5 +1,5 @@
 /**
- * The admin page's logic (M6.5): the server's rules mirrored for instant hints
+ * The signed-in edits' logic (M6.5, M21): the server's rules mirrored for instant hints
  * (the server still decides), and the API calls. Pure where it can be, so it is
  * tested without a browser.
  */

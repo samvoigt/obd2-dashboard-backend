@@ -37,8 +37,9 @@ laps on them. A car's page is a live dashboard, the same for every car: gauges,
 GPS speed, a G-meter, a map following the car, laps, status lights and
 trouble codes, in metric or US units, in the Bad News Bears look. Every
 session a car uploads is on the site too, with full-length charts, laps and a
-map (M7). Cars, tokens and sessions are managed at
-https://badnewsbears.live/admin (M6). The crew can send the driver messages
+map (M7). Signing in (top right of every page) turns on each page's edits:
+cars, tokens and sessions on https://badnewsbears.live/cars, courses, events
+and drivers on their own pages (M21). The crew can send the driver messages
 (M5). See
 [`docs/PLAN.md`](docs/PLAN.md). The protocol is the app's
 [telemetry contract](https://github.com/samvoigt/obd2-dashboard/blob/918fa1e/docs/TELEMETRY-CONTRACT.md).
@@ -66,8 +67,9 @@ Credentials (`gcloud auth application-default login`).
 
 ## Cars
 
-At https://badnewsbears.live/admin (Google sign-in; the allowlist is the
-`admin-emails` secret), or from the command line; both follow the same rules:
+On https://badnewsbears.live/cars, signed in (Google; the allowlist is the
+`admin-emails` secret), each car's **Manage**, or from the command line; both
+follow the same rules:
 
 ```sh
 scripts/admin.sh list
@@ -104,7 +106,7 @@ scripts/replay.sh --server … --token-file car.token --live --speed 1 \
 | `:archive` | The archive lane's rules, and reading a session into its summary and series. Pure Kotlin |
 | `:archive-gcp` | The archive on Cloud Storage and Firestore |
 | `:live` | The live lane's rules: frames, a car's live state, the hub, crew messages. Pure Kotlin |
-| `:admin` | The owner's rules shared by `admin.sh` and the admin page. Pure Kotlin |
+| `:admin` | The owner's rules shared by `admin.sh` and the site's signed-in edits. Pure Kotlin |
 | `:server` | Ktor server: tablet auth, both lanes, the browser stream, the website |
 | `web/` | The website: Svelte, Vite, TypeScript, uPlot, Leaflet |
 | `:tools` | The `admin` tool |

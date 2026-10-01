@@ -8,6 +8,6 @@ IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/server"
 BUCKET="${PROJECT}-sessions"
 # The website's own address (decision 23). The run.app URL stays too: the app has it built in.
 DOMAINS=(badnewsbears.live www.badnewsbears.live)
-# "Sign in with Google" for the admin page (M6). Public by nature: every visitor's
+# "Sign in with Google" on the site (M6, M21). Public by nature: every visitor's
 # browser receives it. Empty until the OAuth client exists; then admin is off.
 GOOGLE_CLIENT_ID="286164118741-s19us3m2ctv9b8l883dja6oc5sk2ikfb.apps.googleusercontent.com"

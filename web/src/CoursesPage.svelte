@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { signin } from './lib/signin'
   import type { CourseSummary } from './lib/admin'
 
   // Every course (M12.5), public: where laps are timed.
@@ -14,8 +15,10 @@
 </script>
 
 <main>
-  <p class="back"><a href="/">← Cars</a></p>
+  <p class="back"><a href="/">← Home</a></p>
   <h1>Courses</h1>
+  <!-- Signed in (M21.3): courses are made here, and edited from their own page. -->
+  {#if $signin.state === 'in'}<p><a class="button" href="/courses/new">New course</a></p>{/if}
   {#if error}
     <p class="error">{error}</p>
   {:else if courses && courses.length === 0}
@@ -41,4 +44,5 @@
   .list li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; }
   .small { font-size: 0.9rem; }
   .error { color: var(--critical); }
+  .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 </style>

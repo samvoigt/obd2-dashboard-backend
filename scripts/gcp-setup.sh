@@ -107,7 +107,7 @@ else
 fi
 
 
-# Who may use the admin page (M6): a secret only so that it stays out of this public
+# Who may sign in on the site (M6, M21): a secret only so that it stays out of this public
 # repo. Created by hand, with the admin's address, since this script can't know it:
 #   printf '%s' 'someone@example.com' | gcloud secrets create admin-emails \
 #     --project obd2-dashboard-backend --replication-policy automatic --data-file=-

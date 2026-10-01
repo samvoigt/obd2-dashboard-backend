@@ -5,6 +5,7 @@
   } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
+  import { signin } from './lib/signin'
   import { lapLink } from './lib/laps'
   import type { LapPick } from './lib/comparePick'
   import ComparePick from './ComparePick.svelte'
@@ -52,6 +53,7 @@
   {:else if results}
     {@const e = results.event}
     <h1>{e.name}</h1>
+    {#if $signin.state === 'in'}<p><a class="button" href={`/events/${id}/edit`}>Edit</a></p>{/if}
     <p class="muted">{e.date} · <a href={`/courses/${e.course}`}>{e.courseName}</a>, {e.layoutName} · {e.cars.map((c) => c.name).join(', ')}</p>
 
     {#if results.parts.some((p) => p.part.kind === 'practice')}
@@ -181,4 +183,5 @@
   .sessions li { display: grid; gap: 2px; }
   .error { color: var(--critical); }
   .live { color: var(--in-range); font-weight: 600; font-size: 0.85rem; }
+  .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 </style>

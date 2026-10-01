@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte'
+  import { untrack } from 'svelte'
+  import { signin } from './lib/signin'
   import { api, AdminError, type AdminCar, type CourseSummary } from './lib/admin'
   import { idFrom } from './lib/courseEdit'
   import {
@@ -26,7 +27,6 @@
   let allCourses: CourseSummary[] = $state.raw([])
   let allCars: AdminCar[] = $state.raw([])
   let drivers: Driver[] = $state.raw([])
-  let signedOut = $state(false)
   let loaded = $state(false)
   let busy = $state(false)
   let message: string | null = $state(null)
@@ -49,9 +49,16 @@
     if (ls.length > 0 && !ls.some((l) => l.id === untrack(() => layout))) layout = ls.find((l) => l.default)?.id ?? ls[0]!.id
   })
 
-  onMount(async () => {
+  // Loaded once signed in (M21.3): signing in on the page shows the editor without a reload; a 401 signs it out (`api`).
+  let loading = false
+  $effect(() => {
+    if ($signin.state !== 'in' || untrack(() => loaded) || loading) return
+    loading = true
+    void load().finally(() => (loading = false))
+  })
+
+  async function load() {
     try {
-      await api('GET', '/me')
       ;[allCourses, allCars, drivers] = await Promise.all([
         api<CourseSummary[]>('GET', '/courses'),
         api<AdminCar[]>('GET', '/cars'),
@@ -66,10 +73,9 @@
       }
       loaded = true
     } catch (e) {
-      if (e instanceof AdminError && e.status === 401) signedOut = true
-      else message = e instanceof Error ? e.message : String(e)
+      message = e instanceof Error ? e.message : String(e)
     }
-  })
+  }
 
   async function reload() {
     const p = await api<AdminEvent>('GET', `/events/${pathId}`)
@@ -91,7 +97,7 @@
     try {
       await api('PUT', `/events/${eventId}`, saveBody(draft, revision))
       if (isNew) {
-        window.location.assign(`/admin/events/${eventId}`)
+        window.location.assign(`/events/${eventId}/edit`)
         return
       }
       await reload()
@@ -121,7 +127,7 @@
   async function remove() {
     if (!confirm(`Remove ${name}? Its sessions stay.`)) return
     await api('DELETE', `/events/${pathId}`)
-    window.location.assign('/admin/events')
+    window.location.assign('/events')
   }
 
   let target: Record<string, string> = $state({}) // the part each offered session would go to
@@ -129,9 +135,9 @@
 </script>
 
 <main>
-  <p class="back"><a href="/admin/events">← Events</a></p>
-  {#if signedOut}
-    <p>Sign in on the <a href="/admin">admin page</a> first, then come back.</p>
+  <p class="back">{#if isNew}<a href="/events">← Events</a>{:else}<a href={`/events/${pathId}`}>← {page?.event.name ?? pathId}</a>{/if}</p>
+  {#if $signin.state === 'out'}
+    <p>Sign in (top right) to edit.</p>
   {:else if !loaded}
     {#if message}<p class="error">{message}</p>{:else}<p class="muted">Loading…</p>{/if}
   {:else}
