@@ -36,7 +36,8 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M19** | Long sessions: two 8-hour stints in a race without anyone waiting (compaction, `complete` at once, the car page and live timing without rebuilding) | ✅ (`plans/COMPLETED.md`) |
 | **M20** | Courses from a `.geojson` file into the editor (our format, or plain lines to label), and downloaded as one; Palmer the test | **deployed** (00034); waiting on Sam's Palmer upload: [`plans/M20-COURSE-FILES.md`](plans/M20-COURSE-FILES.md) |
 | **M21** | One site: the landing page shows every page in short; sign in and out on every page turns on each page's edits; the admin page goes | **deployed** (00035); waiting on Sam's sign-in: [`plans/M21-ONE-SITE.md`](plans/M21-ONE-SITE.md) |
-| **M22** | Timing lines in one click: square across the path at the click, ends draggable, stopping short of other paths | **planned**: [`plans/M22-ONE-CLICK-LINES.md`](plans/M22-ONE-CLICK-LINES.md) |
+| **M22** | Timing lines in one click: square across the path at the click, ends draggable, stopping short of other paths | **deployed** (00036); waiting on Sam's Palmer lines: [`plans/M22-ONE-CLICK-LINES.md`](plans/M22-ONE-CLICK-LINES.md) |
+| **M23** | Users: invited by the master admin; each car, event, course and driver edited by its creator and whoever they add, deleted only by its creator or the master | **planned**: [`plans/M23-USERS.md`](plans/M23-USERS.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
