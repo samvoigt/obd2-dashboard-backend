@@ -1,5 +1,11 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Access
+import com.obd2dashboard.backend.admin.Action
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Permissions
+import com.obd2dashboard.backend.admin.Thing
+import com.obd2dashboard.backend.admin.Who
 import com.obd2dashboard.backend.courses.Course
 import com.obd2dashboard.backend.courses.CourseCheck
 import com.obd2dashboard.backend.courses.CourseRules
@@ -18,6 +24,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import java.time.Clock
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
@@ -30,7 +38,13 @@ data class CourseSummary(
     /** Epoch milliseconds. */
     val saved: Long,
     val layouts: List<LayoutSummary>,
+    /** Signed in only (M23): who made it, who edits it, and what the caller may do. Never written when null, so public lists never carry it, even as `null`. */
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val access: AccessView? = null,
 )
+
+/** [thing]'s access as [who] sees it; null if they may not edit it, so it's left out of their list. */
+internal fun accessFor(who: Who, thing: Thing, records: Map<Thing, Access>): AccessView? = accessView(who, records[thing])
 
 @Serializable
 data class LayoutSummary(val id: String, val name: String, val default: Boolean, val sectors: Int)
@@ -95,34 +109,39 @@ fun Route.adminCourseRoutes(
             ?: run { respond(HttpStatusCode.NotFound, ApiError("not_found", "No such course.")); null }
 
     get("/api/admin/courses") {
-        call.admin(auth, config, change = false) ?: return@get
-        call.respond(courses.current().map { it.summary() })
+        val who = call.signedIn(change = false) ?: return@get
+        val records = call.application.gate.access.all()
+        call.respond(courses.current().mapNotNull { c -> accessFor(who, Thing(Kind.COURSE, c.id), records)?.let { c.summary().copy(access = it) } })
     }
 
     // The rules as the editor draws, with no second copy of them in the page (M12.4). Changes nothing.
     post("/api/admin/courses/check") {
-        call.admin(auth, config, change = false) ?: return@post
+        call.signedIn(change = false) ?: return@post
         val request = call.receive<CheckCourse>()
         call.respond(CourseProblems(problemsOf(request.id, request.name, request.geojson)))
     }
 
     get("/api/admin/courses/{id}") {
-        call.admin(auth, config, change = false) ?: return@get
         val id = call.pathId() ?: return@get
+        call.may(Action.EDIT, Thing(Kind.COURSE, id)) ?: return@get
         val version = call.request.queryParameters["version"]?.toIntOrNull()
         val course = courses.get(id, version) ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such course."))
         call.respond(course.view())
     }
 
     get("/api/admin/courses/{id}/versions") {
-        call.admin(auth, config, change = false) ?: return@get
         val id = call.pathId() ?: return@get
+        call.may(Action.EDIT, Thing(Kind.COURSE, id)) ?: return@get
         call.respond(courses.versions(id).map { CourseVersion(it.version, it.name, it.saved.toEpochMilli()) }.reversed())
     }
 
     put("/api/admin/courses/{id}") {
-        val email = call.admin(auth, config, change = true) ?: return@put
         val id = call.parameters["id"].orEmpty()
+        val thing = Thing(Kind.COURSE, id)
+        // A new course is anyone's to make; an existing one, its creator's and editors' to change (M23).
+        val isNew = CourseRules.idProblem(id) != null || courses.get(id) == null
+        val who = call.may(if (isNew) Action.CREATE else Action.EDIT, if (isNew) null else thing) ?: return@put
+        val email = who.email
         val request = call.receive<SaveCourse>()
         val problems = problemsOf(id, request.name, request.geojson)
         if (problems.isNotEmpty()) {
@@ -133,6 +152,7 @@ fun Route.adminCourseRoutes(
                 HttpStatusCode.Conflict,
                 ApiError("conflict", "Someone saved this course since you opened it. Reload it, and draw your change again."),
             )
+        if (saved.version == 1) call.application.gate.created(thing, who)
         adminLog.info("course saved: {} v{} by {}", id, saved.version, email)
         onChange()
         onSaved(saved)
@@ -140,15 +160,15 @@ fun Route.adminCourseRoutes(
     }
 
     get("/api/admin/courses/{id}/retiming") {
-        call.admin(auth, config, change = false) ?: return@get
         val id = call.pathId() ?: return@get
+        call.may(Action.EDIT, Thing(Kind.COURSE, id)) ?: return@get
         val progress = retiming(id) ?: return@get call.respond(HttpStatusCode.NoContent)
         call.respond(progress)
     }
 
     delete("/api/admin/courses/{id}") {
-        val email = call.admin(auth, config, change = true) ?: return@delete
         val id = call.pathId() ?: return@delete
+        val email = call.may(Action.DELETE, Thing(Kind.COURSE, id))?.email ?: return@delete
         if (courses.get(id) == null) return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such course."))
         if (inUse(id)) {
             return@delete call.respond(
@@ -157,6 +177,7 @@ fun Route.adminCourseRoutes(
             )
         }
         courses.delete(id)
+        call.application.gate.deleted(Thing(Kind.COURSE, id))
         adminLog.info("course removed: {} by {}", id, email)
         onChange()
         onRemoved(id)

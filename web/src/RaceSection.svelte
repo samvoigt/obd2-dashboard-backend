@@ -56,7 +56,8 @@
     const cars = race.cars.map((c) => c.car)
     void (async () => {
       const next: typeof setters = {}
-      for (const car of cars) next[car] = await whoCanSet(car)
+      // Flags and stints go through the event's admin routes (M23): an editor of the event, else the car's crew.
+      for (const car of cars) next[car] = await whoCanSet(car, fetch, signin, { kind: 'event', id: eventId })
       setters = next
     })()
   })

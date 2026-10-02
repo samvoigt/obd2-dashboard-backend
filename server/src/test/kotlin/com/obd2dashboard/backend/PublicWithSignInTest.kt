@@ -1,5 +1,11 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Access
+import com.obd2dashboard.backend.admin.InMemoryAccessStore
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
+import com.obd2dashboard.backend.admin.User
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
@@ -21,6 +27,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import java.time.Instant
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 /**
@@ -34,14 +41,26 @@ class PublicWithSignInTest {
     private val config = AdminConfig(
         googleClientId = "client-id",
         allowlist = Allowlist.parse("sam@example.com"),
-        identity = IdentityVerifier { if (it == "good") SignIn.Allowed("sam@example.com") else SignIn.Refused(Refusal.BadSignature) },
+        identity = IdentityVerifier {
+            when (it) {
+                "good" -> SignIn.Allowed("sam@example.com")
+                "user" -> SignIn.Allowed("ann@example.com")
+                else -> SignIn.Refused(Refusal.BadSignature)
+            }
+        },
     )
+    // An invited user too (M23), with a car of her own and an editor's place on Yaris.
+    private val users = InMemoryUserStore().also { runBlocking { it.add(User("ann@example.com", "sam@example.com", Instant.EPOCH)) } }
+    private val access = InMemoryAccessStore().also {
+        runBlocking { it.set(Thing(Kind.CAR, "yaris"), Access("", setOf("ann@example.com"))) }
+    }
 
     @Test
-    fun `no public answer changes with an admin cookie, and none carries a secret`() = testApplication {
+    fun `no public answer changes with a master admin's or a user's cookie, and none carries a secret`() = testApplication {
         application {
             module(registry, ArchiveService(sessions, InMemorySegmentStore()), InMemoryLiveHub(),
-                messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), admin = config)
+                messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), admin = config,
+                users = users, access = access)
         }
         val yaris = Slug.parse("yaris")
         registry.addCar(yaris, "Yaris")
@@ -49,15 +68,19 @@ class PublicWithSignInTest {
         registry.setPasscode(yaris, "pit-wall-77".toCharArray())
         sessions.create(SessionRecord(SESSION, "yaris", null, null, -1, emptyList(), false, null, 0, Instant.EPOCH, Instant.EPOCH))
 
-        val cookie = client.post("/api/admin/login") {
+        suspend fun signIn(credential: String) = client.post("/api/admin/login") {
             header(HttpHeaders.Host, "localhost")
             header(HttpHeaders.Origin, "http://localhost")
             contentType(ContentType.Application.Json)
-            setBody("""{"credential":"good"}""")
+            setBody("""{"credential":"$credential"}""")
         }.headers[HttpHeaders.SetCookie]!!.substringBefore(';')
-        client.get("/api/admin/me") { header(HttpHeaders.Cookie, cookie) }.status shouldBe HttpStatusCode.OK // a real sign-in
+        val master = signIn("good")
+        val user = signIn("user")
+        for (cookie in listOf(master, user)) {
+            client.get("/api/admin/me") { header(HttpHeaders.Cookie, cookie) }.status shouldBe HttpStatusCode.OK // a real sign-in
+        }
 
-        for (path in listOf("/api/cars", "/api/cars/yaris/sessions", "/api/sessions/$SESSION", "/api/courses", "/api/events", "/api/drivers")) {
+        for (cookie in listOf(master, user)) for (path in listOf("/api/cars", "/api/cars/yaris/sessions", "/api/sessions/$SESSION", "/api/courses", "/api/events", "/api/drivers")) {
             val out = client.get(path)
             val signedIn = client.get(path) { header(HttpHeaders.Cookie, cookie) }
             signedIn.status shouldBe out.status

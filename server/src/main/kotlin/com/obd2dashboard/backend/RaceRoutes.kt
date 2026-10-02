@@ -1,5 +1,8 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Action
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
 import com.obd2dashboard.backend.events.Event
 import com.obd2dashboard.backend.events.EventRules
 import com.obd2dashboard.backend.events.Part
@@ -49,12 +52,13 @@ fun Route.raceRoutes(
     onChanged: () -> Unit = {},
 ) {
     put("/api/admin/events/{id}/race") {
-        val email = call.admin(adminAuth, config, change = true) ?: return@put
+        // The event's creator and editors, or a master admin (M23).
+        val email = call.may(Action.EDIT, Thing(Kind.EVENT, call.parameters["id"].orEmpty()))?.email ?: return@put
         call.flags(stores, clock, onChanged, call.parameters["id"].orEmpty(), null, email)
     }
 
     put("/api/admin/events/{id}/race/stints/{car}") {
-        val email = call.admin(adminAuth, config, change = true) ?: return@put
+        val email = call.may(Action.EDIT, Thing(Kind.EVENT, call.parameters["id"].orEmpty()))?.email ?: return@put
         call.stints(stores, clock, onChanged, call.parameters["id"].orEmpty(), call.parameters["car"].orEmpty(), email)
     }
 

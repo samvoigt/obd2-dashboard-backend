@@ -6,6 +6,7 @@
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
   import { signin } from './lib/signin'
+  import { allowedFor, NOTHING, type Allowed } from './lib/access'
   import { lapLink } from './lib/laps'
   import type { LapPick } from './lib/comparePick'
   import ComparePick from './ComparePick.svelte'
@@ -42,6 +43,13 @@
   })
   const carName = (slug: string) => results?.event.cars.find((c) => c.slug === slug)?.name ?? slug
   const heard = (s: SessionResult) => new Date(s.heardFrom).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+
+  // Edit only for an event you may edit (M23): the admin list has only those.
+  let may: Allowed = $state(NOTHING)
+  $effect(() => {
+    if ($signin.state === 'in') void allowedFor('event', id).then((m) => (may = m))
+    else may = NOTHING
+  })
 </script>
 
 <main>
@@ -53,7 +61,7 @@
   {:else if results}
     {@const e = results.event}
     <h1>{e.name}</h1>
-    {#if $signin.state === 'in'}<p><a class="button" href={`/events/${id}/edit`}>Edit</a></p>{/if}
+    {#if may.edit}<p><a class="button" href={`/events/${id}/edit`}>Edit</a></p>{/if}
     <p class="muted">{e.date} · <a href={`/courses/${e.course}`}>{e.courseName}</a>, {e.layoutName} · {e.cars.map((c) => c.name).join(', ')}</p>
 
     {#if results.parts.some((p) => p.part.kind === 'practice')}

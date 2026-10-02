@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte'
   import CourseMap from './CourseMap.svelte'
   import { signin } from './lib/signin'
+  import { allowedFor, NOTHING, type Allowed } from './lib/access'
   import { day, type CourseVersion, type CourseView } from './lib/admin'
   import { fromGeoJSON, metres, sectorsOf, type EditCourse } from './lib/courseEdit'
 
@@ -31,6 +32,13 @@
   })
 
   const lengthOf = (path: [number, number][]) => Math.round(path.slice(1).reduce((s, p, i) => s + metres(path[i]!, p), 0))
+
+  // Edit only for a course you may edit (M23): the admin list has only those.
+  let may: Allowed = $state(NOTHING)
+  $effect(() => {
+    if ($signin.state === 'in') void allowedFor('course', id).then((m) => (may = m))
+    else may = NOTHING
+  })
 </script>
 
 <main>
@@ -39,7 +47,7 @@
     <h1>No such course</h1>
   {:else if view && course}
     <h1>{view.name}</h1>
-    {#if $signin.state === 'in'}<p><a class="button" href={`/courses/${id}/edit`}>Edit</a></p>{/if}
+    {#if may.edit}<p><a class="button" href={`/courses/${id}/edit`}>Edit</a></p>{/if}
     <p class="muted">
       Version {view.version}{view.version !== latest ? ` (the latest is ${latest})` : ''}, {day(view.saved)}
       {#if course.startFinish.some((s) => s.extra.guess === true)} · <span class="guess">start/finish not yet checked at the track</span>{/if}

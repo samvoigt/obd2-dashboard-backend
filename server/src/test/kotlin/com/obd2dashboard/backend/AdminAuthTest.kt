@@ -173,13 +173,13 @@ class AdminAuthTest {
     @Test
     fun `config tells the page what to show`() = testApplication {
         app()
-        client.get("/api/admin/config").bodyAsText() shouldBe """{"enabled":true,"googleClientId":"client-id","dev":false}"""
+        client.get("/api/admin/config").bodyAsText() shouldBe """{"enabled":true,"googleClientId":"client-id","dev":false,"devUser":false}"""
     }
 
     @Test
     fun `off by default, the page says so and sign-in is 503`() = testApplication {
         app(AdminConfig.DISABLED)
-        client.get("/api/admin/config").bodyAsText() shouldBe """{"enabled":false,"googleClientId":null,"dev":false}"""
+        client.get("/api/admin/config").bodyAsText() shouldBe """{"enabled":false,"googleClientId":null,"dev":false,"devUser":false}"""
         signIn("good").status shouldBe HttpStatusCode.ServiceUnavailable
     }
 

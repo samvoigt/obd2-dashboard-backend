@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { signin } from './lib/signin'
+  import { allowedFor, NOTHING, type Allowed } from './lib/access'
+  import EditorsPanel from './EditorsPanel.svelte'
   import { api, AdminError, type AdminCar, type CourseSummary } from './lib/admin'
   import { idFrom } from './lib/courseEdit'
   import {
@@ -124,6 +126,13 @@
     parts = [...parts, newPart(parts, kind, date)]
   }
 
+  // Who may share or remove this event (M23): its maker or a master admin; its editors change it.
+  let may: Allowed = $state(NOTHING)
+  $effect(() => {
+    if ($signin.state === 'in' && !isNew) void allowedFor('event', pathId).then((m) => (may = m))
+    else may = NOTHING
+  })
+
   async function remove() {
     if (!confirm(`Remove ${name}? Its sessions stay.`)) return
     await api('DELETE', `/events/${pathId}`)
@@ -192,7 +201,7 @@
       <button class="primary" onclick={save} disabled={busy || !changed}>{isNew ? 'Create the event' : 'Save'}</button>
       {#if changed && !isNew}<span class="muted">Unsaved changes</span>{/if}
       {#if message}<span class="message">{message}</span>{/if}
-      {#if !isNew}<button class="danger right" onclick={remove}>Remove the event</button>{/if}
+      {#if !isNew && may.delete}<button class="danger right" onclick={remove}>Remove the event</button>{/if}
     </p>
 
     {#if page}
@@ -228,6 +237,7 @@
         {/if}
       </section>
     {/if}
+    {#if may.share}<EditorsPanel kind="event" id={pathId} />{/if}
   {/if}
 </main>
 

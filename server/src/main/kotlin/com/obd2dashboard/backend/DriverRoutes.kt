@@ -1,5 +1,8 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Action
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.events.DriverStore
@@ -36,11 +39,13 @@ fun Route.driverRoutes(
         call.respond(drivers.list().map { it.view() })
     }
 
+    // A car's sessions are its editors' to name and set who drove (M23): asked once the session's car is known.
     put("/api/admin/sessions/{id}/driver") {
-        val email = call.admin(adminAuth, config, change = true) ?: return@put
+        call.signedIn(change = true) ?: return@put
         val record = archive.session(call.parameters["id"].orEmpty().lowercase())
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
-        call.setDriver(record, drivers, archive, email, onChanged)
+        val who = call.may(Action.EDIT, Thing(Kind.CAR, record.car)) ?: return@put
+        call.setDriver(record, drivers, archive, who.email, onChanged)
     }
 
     put("/api/cars/{slug}/sessions/{id}/driver") {
@@ -54,10 +59,11 @@ fun Route.driverRoutes(
 
     // Names (M18.3): the same two sign-ins, the same rule for whose session it is.
     put("/api/admin/sessions/{id}/name") {
-        val email = call.admin(adminAuth, config, change = true) ?: return@put
+        call.signedIn(change = true) ?: return@put
         val record = archive.session(call.parameters["id"].orEmpty().lowercase())
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
-        call.setName(record, archive, email, onChanged)
+        val who = call.may(Action.EDIT, Thing(Kind.CAR, record.car)) ?: return@put
+        call.setName(record, archive, who.email, onChanged)
     }
 
     put("/api/cars/{slug}/sessions/{id}/name") {

@@ -3,6 +3,9 @@ package com.obd2dashboard.backend
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.Json
 import java.time.Instant
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.User
+import com.obd2dashboard.backend.admin.UserStore
 import com.obd2dashboard.backend.courses.InMemoryCourseStore
 import com.obd2dashboard.backend.events.InMemoryDriverStore
 import com.obd2dashboard.backend.events.InMemoryEventStore
@@ -52,24 +55,38 @@ fun main() {
             courses = devCourses(),
             events = EventStores(InMemoryDriverStore(), InMemoryEventStore()),
             watchRetiming = true,
+            users = devUsers(),
         )
     }.start(wait = true)
 }
 
 /**
- * The admin page without Google (M6.3): the page shows a dev sign-in, whose
- * credential `dev` signs in as `dev@localhost`. Only this dev source set builds
- * it; `main` has no way to.
+ * Signing in without Google (M6.3): the page shows dev sign-ins, whose
+ * credential `dev` signs in `dev@localhost`, a master admin, and `dev-user`
+ * signs in `dev-user@localhost`, an invited user (M23). Only this dev source
+ * set builds it; `main` has no way to.
  */
 private fun devAdmin(): AdminConfig {
-    val email = "dev@localhost"
+    val master = "dev@localhost"
     return AdminConfig(
         googleClientId = null,
-        allowlist = Allowlist(listOf(email)),
-        identity = IdentityVerifier { if (it == "dev") SignIn.Allowed(email) else SignIn.Refused(Refusal.Malformed) },
+        allowlist = Allowlist(listOf(master)),
+        identity = IdentityVerifier {
+            when (it) {
+                "dev" -> SignIn.Allowed(master)
+                "dev-user" -> SignIn.Allowed(DEV_USER)
+                else -> SignIn.Refused(Refusal.Malformed)
+            }
+        },
         dev = true,
+        devUser = true,
     )
 }
+
+private const val DEV_USER = "dev-user@localhost"
+
+/** The invited users (M23): `dev-user@localhost`, invited by the dev master admin. */
+private fun devUsers(): UserStore = InMemoryUserStore().also { runBlocking { it.add(User(DEV_USER, "dev@localhost", Instant.now())) } }
 
 /** Courses in memory, with NHMS from its seed (M12.2) so the editor has one to open. */
 private fun devCourses(): CourseStore = InMemoryCourseStore().also { store ->

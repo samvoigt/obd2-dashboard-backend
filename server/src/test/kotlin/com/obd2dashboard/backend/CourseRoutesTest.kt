@@ -1,5 +1,11 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Access
+import com.obd2dashboard.backend.admin.InMemoryAccessStore
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
+import com.obd2dashboard.backend.admin.User
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
@@ -16,6 +22,7 @@ import com.obd2dashboard.backend.registry.Slug
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.request
@@ -61,6 +68,15 @@ class CourseRoutesTest {
     private val logger = (LoggerFactory.getLogger("admin") as Logger).apply { addAppender(log) }
     private val nhms = Json.parseToJsonElement(File("../courses/seed/nhms.geojson").readText()).jsonObject
 
+    // M23: three invited users beside the master admin (sam@): Ann makes things, Ed is added to them, Olga to nothing.
+    private val users = InMemoryUserStore().apply {
+        runBlocking { for (e in listOf("ann", "ed", "olga")) add(User("$e@example.com", "sam@example.com", Instant.EPOCH)) }
+    }
+    private val access = InMemoryAccessStore()
+
+    /** A signed-in cookie for [email], as the login would set it. */
+    private fun cookieOf(email: String) = "${AdminAuth.COOKIE}=${AdminAuth(testCrewKey()).issue(email)}"
+
     @After
     fun detach() {
         logger.detachAppender(log)
@@ -69,7 +85,8 @@ class CourseRoutesTest {
     private fun ApplicationTestBuilder.app() {
         application {
             module(registry, ArchiveService(sessions, InMemorySegmentStore()), InMemoryLiveHub(),
-                messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = testEvents())
+                messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = testEvents(),
+                users = users, access = access)
         }
     }
 
@@ -271,5 +288,54 @@ class CourseRoutesTest {
         }
         after.status shouldBe HttpStatusCode.OK // the old ETag is stale now
     }
-}
 
+    @Test
+    fun `a user makes a course and it's theirs, an editor changes it but can't remove it, and nobody else touches it (M23)`() = testApplication {
+        app()
+        val sam = signIn()
+        courses.save("nhms", 0, "NHMS", nhms, Instant.EPOCH) // as before M23: no access record
+        val (ann, ed, olga) = listOf("ann", "ed", "olga").map { cookieOf("$it@example.com") }
+        // Sam's course, made before anyone shared it, is his alone.
+        call(HttpMethod.Get, "/api/admin/courses", olga).bodyAsText() shouldBe "[]"
+        call(HttpMethod.Get, "/api/admin/courses/nhms", olga).status shouldBe HttpStatusCode.Forbidden
+        call(HttpMethod.Put, "/api/admin/courses/nhms", olga, save(1, "Mine now")).status shouldBe HttpStatusCode.Forbidden
+        call(HttpMethod.Delete, "/api/admin/courses/nhms", olga).status shouldBe HttpStatusCode.Forbidden
+        call(HttpMethod.Post, "/api/admin/courses/check", olga, buildJsonObject { put("name", "Any"); put("geojson", nhms) }.toString()).status shouldBe HttpStatusCode.OK // any user may check a drawing
+
+        // Ann makes one: she's its creator, and may share and delete it.
+        call(HttpMethod.Put, "/api/admin/courses/ann-loop", ann, save(0, "Ann's loop")).status shouldBe HttpStatusCode.Created
+        access.get(Thing(Kind.COURSE, "ann-loop")) shouldBe Access("ann@example.com")
+        val annList = Json.parseToJsonElement(call(HttpMethod.Get, "/api/admin/courses", ann).bodyAsText()).jsonArray
+        annList.map { it.jsonObject["id"]!!.jsonPrimitive.content } shouldBe listOf("ann-loop")
+        annList.single().jsonObject["access"]!!.jsonObject.let {
+            it["creator"]!!.jsonPrimitive.content shouldBe "ann@example.com"
+            it["canShare"]!!.jsonPrimitive.content shouldBe "true"
+            it["canDelete"]!!.jsonPrimitive.content shouldBe "true"
+        }
+        call(HttpMethod.Get, "/api/admin/courses", olga).bodyAsText() shouldBe "[]"
+
+        // Ed, added by Ann, saves a new version, but can't remove it.
+        access.set(Thing(Kind.COURSE, "ann-loop"), Access("ann@example.com", setOf("ed@example.com")))
+        Json.parseToJsonElement(call(HttpMethod.Get, "/api/admin/courses", ed).bodyAsText()).jsonArray.single().jsonObject["access"]!!.jsonObject.let {
+            it["canShare"]!!.jsonPrimitive.content shouldBe "false"
+            it["canDelete"]!!.jsonPrimitive.content shouldBe "false"
+        }
+        call(HttpMethod.Put, "/api/admin/courses/ann-loop", ed, save(1, "Ann's loop, v2")).status shouldBe HttpStatusCode.OK
+        call(HttpMethod.Delete, "/api/admin/courses/ann-loop", ed).let {
+            it.status shouldBe HttpStatusCode.Forbidden
+            it.bodyAsText() shouldContain "Only whoever made course ann-loop"
+        }
+        call(HttpMethod.Put, "/api/admin/courses/ann-loop", olga, save(2, "Olga's")).status shouldBe HttpStatusCode.Forbidden
+
+        // Sam sees everything, his own with no creator; the public list carries no access at all.
+        val samList = Json.parseToJsonElement(call(HttpMethod.Get, "/api/admin/courses", sam).bodyAsText()).jsonArray
+        samList.map { it.jsonObject["id"]!!.jsonPrimitive.content }.toSet() shouldBe setOf("nhms", "ann-loop")
+        samList.first { it.jsonObject["id"]!!.jsonPrimitive.content == "nhms" }.jsonObject["access"]!!.jsonObject["creator"].toString() shouldBe "null"
+        client.get("/api/courses").bodyAsText().contains("access") shouldBe false
+
+        // Ann removes hers, and its record goes with it.
+        call(HttpMethod.Delete, "/api/admin/courses/ann-loop", ann).status shouldBe HttpStatusCode.NoContent
+        access.get(Thing(Kind.COURSE, "ann-loop")) shouldBe null
+        log.list.map { it.formattedMessage } shouldContain "course removed: ann-loop by ann@example.com"
+    }
+}

@@ -5,6 +5,8 @@
     type AdminCar, type CarWithToken,
   } from './lib/admin'
   import TokenOnce from './TokenOnce.svelte'
+  import EditorsPanel from './EditorsPanel.svelte'
+  import { accessOf, allowed } from './lib/access'
 
   // A car's management (M21.5): what the admin page did for one car, signed in only, from `/api/admin/cars`.
   let { slug }: { slug: string } = $props()
@@ -27,6 +29,8 @@
   let shown: string | null = $state(null)
 
   const signedIn = $derived($signin.state === 'in')
+  // What you may do to it (M23): it's in your list only if you may edit it; deleting and sharing are its maker's.
+  const may = $derived(car ? allowed(accessOf(car)) : allowed(null))
 
   // Loaded when signed in, and forgotten when signed out, with no reload either way.
   $effect(() => {
@@ -96,7 +100,7 @@
   {#if !signedIn}
     <p class="muted">Sign in (top right) to manage this car.</p>
   {:else if missing}
-    <p class="muted">No car “{slug}”.</p>
+    <p class="muted">“{slug}” isn’t a car you can manage. Ask whoever made it to add you as an editor.</p>
   {:else if car}
     <p class="links"><a href={`/cars/${slug}`}>Live</a> <a href={`/cars/${slug}/sessions`}>Sessions ({car.sessions})</a></p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -116,7 +120,7 @@
         <button onclick={() => begin('rename')}>Rename</button>
         <button onclick={() => begin('token')}>Replace token</button>
         <button onclick={() => begin('passcode')}>{car.passcodeSet ? 'Change passcode' : 'Set passcode'}</button>
-        <button class="danger" onclick={() => begin('remove')}>Remove</button>
+        {#if may.delete}<button class="danger" onclick={() => begin('remove')}>Remove</button>{/if}
       </div>
 
       {#if open}
@@ -164,6 +168,7 @@
         </div>
       {/if}
     </section>
+    {#if may.share}<EditorsPanel kind="car" id={slug} />{/if}
   {:else if error}
     <p class="error" role="alert">{error}</p>
   {:else}

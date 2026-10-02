@@ -35,10 +35,11 @@ fun interface IdentityVerifier {
  * A Google ID token from "Sign in with Google", checked with Google's own
  * `TokenVerifier` for its signature and expiry, and here for the rest, so each
  * refusal can say why (the library throws one exception for everything).
+ * Who may then sign in (a master admin or an invited user) is the login's
+ * question (M23), not this one's.
  */
 class GoogleIdentity(
     private val clientId: String,
-    private val allowlist: Allowlist,
     private val clock: Clock = Clock.systemUTC(),
     certificatesLocation: String? = null,
 ) : IdentityVerifier {
@@ -69,7 +70,6 @@ class GoogleIdentity(
         if (payload.issuer !in ISSUERS) return SignIn.Refused(Refusal.WrongIssuer)
         val email = payload["email"] as? String
         if (email == null || !isTrue(payload["email_verified"])) return SignIn.Refused(Refusal.EmailNotVerified)
-        if (!allowlist.allows(email)) return SignIn.Refused(Refusal.NotAllowed)
         return SignIn.Allowed(email.lowercase())
     }
 

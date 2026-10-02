@@ -12,12 +12,22 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
+import com.obd2dashboard.backend.admin.Access
+import com.obd2dashboard.backend.admin.AccessStore
 import com.obd2dashboard.backend.admin.CarAdmin
+import com.obd2dashboard.backend.admin.InMemoryAccessStore
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
+import com.obd2dashboard.backend.admin.User
+import com.obd2dashboard.backend.admin.UserStore
+import com.obd2dashboard.backend.admin.normalEmail
 import com.obd2dashboard.backend.admin.CarHasSessions
 import com.obd2dashboard.backend.admin.NoSuchSession
 import com.obd2dashboard.backend.admin.SessionBusy
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionIndex
+import com.obd2dashboard.backend.archive.gcp.FirestoreAccessStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
@@ -34,6 +44,7 @@ import java.security.SecureRandom
 import com.obd2dashboard.backend.events.EventStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
+import com.obd2dashboard.backend.archive.gcp.FirestoreUserStore
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.courses.CourseCheck
 import com.obd2dashboard.backend.courses.CourseRules
@@ -75,6 +86,8 @@ fun main(args: Array<String>) {
                 courses = FirestoreCourseStore.connect(project),
                 drivers = FirestoreDriverStore.connect(project),
                 events = FirestoreEventStore.connect(project),
+                users = FirestoreUserStore.connect(project),
+                access = FirestoreAccessStore.connect(project),
             )
         },
         io = ConsoleIo,
@@ -95,6 +108,7 @@ class Admin(
         subcommands(
             AddCar(io), RotateToken(io), SetToken(io), SetPasscode(io), Rename(), ListCars(), RemoveCar(io),
             ListSessions(), ShowSession(), DeleteSession(io), ImportCourse(), RemoveCourse(io), ListDrivers(), ListEvents(), AddDriver(), RemoveDriver(io), ImportEvent(), RemoveEvent(io),
+            ListUsers(), AddUser(), RemoveUser(io), Share(), Unshare(),
         )
     }
 
@@ -114,6 +128,10 @@ class Tools(
     val courses: CourseStore,
     val drivers: DriverStore,
     val events: EventStore,
+    /** Invited users (M23). */
+    val users: UserStore = InMemoryUserStore(),
+    /** Each thing's creator and editors (M23). */
+    val access: AccessStore = InMemoryAccessStore(),
 ) {
     /** The rules shared with the admin page (M6.1). */
     val admin: CarAdmin = CarAdmin(registry, archive, Messages(messages))
@@ -287,13 +305,15 @@ class ListCars : RegistryCommand("list", "List cars. Never shows a token or a ha
             echo("No cars registered.")
             return
         }
-        val rows = listOf(listOf("SLUG", "NAME", "TOKEN", "ISSUED", "PASSCODE")) + cars.map {
+        val access = tools.access.all()
+        val rows = listOf(listOf("SLUG", "NAME", "TOKEN", "ISSUED", "PASSCODE", "CREATOR")) + cars.map {
             listOf(
                 it.slug.value,
                 it.name,
                 "…${it.tokenHint}",
                 issued.format(it.tokenIssued),
                 if (it.passcodeHash != null) "set" else "not set",
+                creatorOf(access[Thing(Kind.CAR, it.slug.value)]),
             )
         }
         val widths = rows.first().indices.map { col -> rows.maxOf { it[col].length } }
@@ -312,6 +332,7 @@ class RemoveCar(private val io: AdminIo) :
             val typed = io.readLine("Type the slug again to remove $car: ")
             if (typed?.trim() != car.value) throw CliktError("Not removed.")
             val messages = tools.admin.removeCar(car)
+            tools.access.remove(Thing(Kind.CAR, car.value))
             echo("Removed $car, and its $messages message(s).")
         } catch (e: CarHasSessions) {
             throw CliktError("$car has ${e.count} session(s). Delete them first (admin.sh sessions $car, then delete-session).")
@@ -439,6 +460,7 @@ class RemoveCourse(private val io: AdminIo) : CliktCommand(name = "remove-course
         val typed = io.readLine("Type the course id again to remove it (${course.name}, version ${course.version}): ")
         if (typed?.trim() != course.id) throw CliktError("Not removed.")
         tools.courses.delete(course.id)
+        tools.access.remove(Thing(Kind.COURSE, course.id))
         val removed = tools.archive.removeTimings(all.map { it.id }, course.id)
         echo("Removed ${course.id}, and $removed re-timing(s).")
     }
@@ -503,6 +525,7 @@ class RemoveDriver(private val io: AdminIo) : CliktCommand(name = "remove-driver
         val typed = io.readLine("Type the code again to remove ${driver.name}: ")
         if (typed?.trim()?.uppercase() != driver.code) throw CliktError("Not removed.")
         tools.drivers.delete(driver.id)
+        tools.access.remove(Thing(Kind.DRIVER, driver.id))
         echo("Removed ${driver.name} (${driver.code}).")
     }
 }
@@ -574,6 +597,119 @@ class RemoveEvent(private val io: AdminIo) : CliktCommand(name = "remove-event")
         val typed = io.readLine("Type the event id again to remove it (${event.name}): ")
         if (typed?.trim() != event.id) throw CliktError("Not removed.")
         tools.events.delete(event.id)
+        tools.access.remove(Thing(Kind.EVENT, event.id))
         echo("Removed ${event.id}.")
     }
 }
+
+
+/** Who made a thing, as `list` and `users` say it: a thing with no record is a master admin's (M23). */
+internal fun creatorOf(access: Access?): String = access?.creator?.takeIf { it.isNotBlank() } ?: "(master)"
+
+/** The invited users (M23), each with who invited them, when, and what they created. */
+class ListUsers : CliktCommand(name = "users") {
+    private val tools: Tools by requireObject<Tools>()
+    private val day = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneOffset.UTC)
+
+    override fun help(context: Context) = "List invited users: who invited them, when, and what they created."
+
+    override fun run() = runBlocking {
+        val users = tools.users.list()
+        if (users.isEmpty()) return@runBlocking echo("No users. Master admins are the admin-emails secret.")
+        val access = tools.access.all()
+        for (u in users) {
+            val made = access.filterValues { it.creator == u.email }.keys.map { it.key }.sorted()
+            val editing = access.filterValues { u.email in it.editors }.keys.map { it.key }.sorted()
+            echo("${u.email}  invited by ${u.invitedBy.ifBlank { "?" }} on ${day.format(u.invited)}")
+            echo("  created: ${made.joinToString(", ").ifEmpty { "nothing" }}")
+            if (editing.isNotEmpty()) echo("  edits: ${editing.joinToString(", ")}")
+        }
+    }
+}
+
+/** Invites a user (M23), as a master admin does on the site's Users page. */
+class AddUser : CliktCommand(name = "add-user") {
+    private val tools: Tools by requireObject<Tools>()
+    private val email by argument(help = "their Google account's email")
+
+    override fun help(context: Context) = "Invite a user. They sign in with Google and can create cars, events, courses and drivers."
+
+    override fun run() = runBlocking {
+        val address = email.normalEmail()
+        if (!EMAIL.matches(address)) throw CliktError("$email isn't an email address.")
+        if (!tools.users.add(User(address, "admin.sh", Instant.now()))) throw CliktError("$address is already a user.")
+        echo("Invited $address. They sign in with Google, top right of any page.")
+    }
+}
+
+/** Removes a user (M23): their sign-in ends at once; what they made stays, theirs. */
+class RemoveUser(private val io: AdminIo) : CliktCommand(name = "remove-user") {
+    private val tools: Tools by requireObject<Tools>()
+    private val email by argument()
+
+    override fun help(context: Context) = "Remove a user. Their sign-in ends at once; what they created stays."
+
+    override fun run() = runBlocking {
+        val address = email.normalEmail()
+        tools.users.get(address) ?: throw CliktError("No user $address.")
+        val typed = io.readLine("Type the email again to remove $address: ")
+        if (typed?.normalEmail() != address) throw CliktError("Not removed.")
+        tools.users.remove(address)
+        echo("Removed $address. What they created stays, and a master admin can still delete it.")
+    }
+}
+
+/** A thing to share, read from its kind and id, checked to exist. */
+private suspend fun Tools.thingOf(kind: String, id: String): Thing {
+    val k = Kind.of(kind.lowercase()) ?: throw CliktError("A kind is car, event, course or driver, not $kind.")
+    val exists = when (k) {
+        Kind.CAR -> runCatching { registry.get(Slug.parse(id)) }.getOrNull() != null
+        Kind.EVENT -> events.get(id) != null
+        Kind.COURSE -> courses.get(id) != null
+        Kind.DRIVER -> drivers.get(id) != null
+    }
+    if (!exists) throw CliktError("No ${k.key} $id.")
+    return Thing(k, id)
+}
+
+/** Adds an editor to a thing (M23), as its creator does on the site. Only invited users. */
+class Share : CliktCommand(name = "share") {
+    private val tools: Tools by requireObject<Tools>()
+    private val kind by argument(help = "car, event, course or driver")
+    private val id by argument()
+    private val email by argument()
+
+    override fun help(context: Context) = "Let an invited user edit a car, event, course or driver."
+
+    override fun run() = runBlocking {
+        val thing = tools.thingOf(kind, id)
+        val address = email.normalEmail()
+        tools.users.get(address) ?: throw CliktError("$address isn't a user. Invite them first (add-user).")
+        val current = tools.access.get(thing) ?: Access("")
+        if (current.creator == address) throw CliktError("$address made $thing, so already edits it.")
+        tools.access.set(thing, current.withEditor(address))
+        echo("$address can now edit $thing.")
+    }
+}
+
+/** Takes an editor off a thing (M23). */
+class Unshare : CliktCommand(name = "unshare") {
+    private val tools: Tools by requireObject<Tools>()
+    private val kind by argument(help = "car, event, course or driver")
+    private val id by argument()
+    private val email by argument()
+
+    override fun help(context: Context) = "Stop a user editing a car, event, course or driver."
+
+    override fun run() = runBlocking {
+        val thing = tools.thingOf(kind, id)
+        val address = email.normalEmail()
+        val current = tools.access.get(thing)
+        if (current == null || address !in current.editors) throw CliktError("$address doesn't edit $thing.")
+        tools.access.set(thing, current.withoutEditor(address))
+        echo("$address no longer edits $thing.")
+    }
+}
+
+/** Enough of an email to catch a slip: something@something.something. */
+private val EMAIL = Regex("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")

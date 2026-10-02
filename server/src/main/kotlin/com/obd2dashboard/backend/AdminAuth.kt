@@ -21,6 +21,8 @@ class AdminConfig(
     val identity: IdentityVerifier?,
     /** The page shows a dev sign-in button instead of Google's. */
     val dev: Boolean = false,
+    /** The dev server signs in an invited user too (M23), as `dev-user`. */
+    val devUser: Boolean = false,
 ) {
     val enabled: Boolean get() = identity != null
 
@@ -34,7 +36,7 @@ class AdminConfig(
         fun fromEnvironment(env: (String) -> String?, clock: Clock = Clock.systemUTC()): AdminConfig {
             val clientId = env("GOOGLE_CLIENT_ID")?.trim()?.takeIf { it.isNotEmpty() } ?: return DISABLED
             val allowlist = Allowlist.parse(env("ADMIN_EMAILS"))
-            return AdminConfig(clientId, allowlist, GoogleIdentity(clientId, allowlist, clock))
+            return AdminConfig(clientId, allowlist, GoogleIdentity(clientId, clock))
         }
     }
 }

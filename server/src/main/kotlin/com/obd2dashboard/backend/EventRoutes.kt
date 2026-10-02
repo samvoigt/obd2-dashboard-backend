@@ -1,5 +1,8 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Action
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.courses.CourseCheck
@@ -30,13 +33,22 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /** Drivers and events (M14), passed into the module together. */
 class EventStores(val drivers: DriverStore, val events: EventStore)
 
 @Serializable
-data class DriverView(val id: String, val name: String, val code: String)
+data class DriverView(
+    val id: String,
+    val name: String,
+    val code: String,
+    /** Signed in only (M23); public lists never carry it. */
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val access: AccessView? = null,
+)
 
 @Serializable
 data class SaveDriver(val name: String, val code: String)
@@ -65,6 +77,9 @@ data class EventView(
     val cars: List<String>,
     val parts: List<PartView>,
     val revision: Int,
+    /** Signed in only (M23); public lists never carry it. */
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val access: AccessView? = null,
 )
 
 /** A save: the revision it replaces (0 for a new event), so two editors can't both win. */
@@ -140,45 +155,50 @@ fun Route.adminEventRoutes(
     val events = stores.events
 
     get("/api/admin/drivers") {
-        call.admin(auth, config, change = false) ?: return@get
-        call.respond(drivers.list().map { it.view() })
+        val who = call.signedIn(change = false) ?: return@get
+        val records = call.application.gate.access.all()
+        call.respond(drivers.list().mapNotNull { d -> accessFor(who, Thing(Kind.DRIVER, d.id), records)?.let { d.view().copy(access = it) } })
     }
 
     post("/api/admin/drivers") {
-        val email = call.admin(auth, config, change = true) ?: return@post
+        // Any user adds a driver, and is its creator (M23).
+        val who = call.may(Action.CREATE, null) ?: return@post
         val request = call.receive<SaveDriver>()
         val driver = Driver(newDriverId(), request.name.trim(), request.code.trim())
-        call.saveDriver(drivers, driver, email, HttpStatusCode.Created)
+        call.saveDriver(drivers, driver, who.email, HttpStatusCode.Created) { call.application.gate.created(Thing(Kind.DRIVER, it.id), who) }
     }
 
     put("/api/admin/drivers/{id}") {
-        val email = call.admin(auth, config, change = true) ?: return@put
         val id = call.parameters["id"].orEmpty()
+        val email = call.may(Action.EDIT, Thing(Kind.DRIVER, id))?.email ?: return@put
         drivers.get(id) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such driver."))
         val request = call.receive<SaveDriver>()
         call.saveDriver(drivers, Driver(id, request.name.trim(), request.code.trim()), email, HttpStatusCode.OK)
     }
 
     delete("/api/admin/drivers/{id}") {
-        val email = call.admin(auth, config, change = true) ?: return@delete
         val id = call.parameters["id"].orEmpty()
+        val email = call.may(Action.DELETE, Thing(Kind.DRIVER, id))?.email ?: return@delete
         val driver = drivers.get(id) ?: return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such driver."))
         if (archive.sessionsOfCars(registry.list().map { it.slug.value }).any { it.driver == id }) {
             return@delete call.respond(HttpStatusCode.Conflict, ApiError("in_use", "${driver.name} drove sessions, so stays. Rename instead."))
         }
         drivers.delete(id)
+        call.application.gate.deleted(Thing(Kind.DRIVER, id))
         adminLog.info("driver removed: {} ({}) by {}", driver.name, driver.code, email)
         call.respond(HttpStatusCode.NoContent)
     }
 
     get("/api/admin/events") {
-        call.admin(auth, config, change = false) ?: return@get
-        call.respond(events.list().map { it.view() })
+        val who = call.signedIn(change = false) ?: return@get
+        val records = call.application.gate.access.all()
+        call.respond(events.list().mapNotNull { e -> accessFor(who, Thing(Kind.EVENT, e.id), records)?.let { e.view().copy(access = it) } })
     }
 
     get("/api/admin/events/{id}") {
-        call.admin(auth, config, change = false) ?: return@get
-        val event = events.get(call.parameters["id"].orEmpty())
+        val id = call.parameters["id"].orEmpty()
+        call.may(Action.EDIT, Thing(Kind.EVENT, id)) ?: return@get
+        val event = events.get(id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
         val sessions = archive.sessionsOfCars(event.cars)
         val inParts = EventRules.sessionsIn(event, sessions.map { it.heard() })
@@ -194,10 +214,13 @@ fun Route.adminEventRoutes(
     }
 
     put("/api/admin/events/{id}") {
-        val email = call.admin(auth, config, change = true) ?: return@put
         val id = call.parameters["id"].orEmpty()
-        val request = call.receive<SaveEvent>()
+        val thing = Thing(Kind.EVENT, id)
         val current = events.get(id)
+        // A new event is anyone's to make, with anyone's cars and course (Sam); an existing one, its creator's and editors' (M23).
+        val who = call.may(if (current == null) Action.CREATE else Action.EDIT, if (current == null) null else thing) ?: return@put
+        val email = who.email
+        val request = call.receive<SaveEvent>()
         // The race's flags and stints are set by their own routes (M15.3): kept, never sent from here.
         val event = request.toEvent(id, current).keepingRaceEdits(current)
         val problems = EventRules.eventProblems(event) + existenceProblems(event, courses, registry)
@@ -209,26 +232,36 @@ fun Route.adminEventRoutes(
                 HttpStatusCode.Conflict,
                 ApiError("conflict", if (request.expected == 0) "An event already has that id." else "Someone saved this event since you opened it. Reload it, and make your change again."),
             )
+        if (saved.revision == 1) call.application.gate.created(thing, who)
         adminLog.info("event saved: {} r{} by {}", id, saved.revision, email)
         onChanged()
         call.respond(if (saved.revision == 1) HttpStatusCode.Created else HttpStatusCode.OK, saved.view())
     }
 
     delete("/api/admin/events/{id}") {
-        val email = call.admin(auth, config, change = true) ?: return@delete
         val id = call.parameters["id"].orEmpty()
+        val email = call.may(Action.DELETE, Thing(Kind.EVENT, id))?.email ?: return@delete
         if (!events.delete(id)) return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
+        call.application.gate.deleted(Thing(Kind.EVENT, id))
         adminLog.info("event removed: {} by {}", id, email)
         onChanged()
         call.respond(HttpStatusCode.NoContent)
     }
 }
 
-private suspend fun ApplicationCall.saveDriver(drivers: DriverStore, driver: Driver, email: String, created: HttpStatusCode) {
+private suspend fun ApplicationCall.saveDriver(
+    drivers: DriverStore,
+    driver: Driver,
+    email: String,
+    created: HttpStatusCode,
+    /** Told of the driver as stored, before the answer goes: a new one's creator is recorded (M23). */
+    onSaved: suspend (Driver) -> Unit = {},
+) {
     val problems = EventRules.driverProblems(driver, drivers.list())
     if (problems.isNotEmpty()) return respond(HttpStatusCode.BadRequest, EventRefused("invalid", "The driver can't be saved as they are.", problems))
     val saved = drivers.put(driver)
         ?: return respond(HttpStatusCode.Conflict, ApiError("conflict", "Another driver took the code ${driver.code} just now."))
+    onSaved(saved)
     adminLog.info("driver saved: {} ({}) by {}", saved.name, saved.code, email)
     respond(created, saved.view())
 }

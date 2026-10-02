@@ -158,7 +158,7 @@ they're added to another thing, they can edit but not delete)."
   place of `call.admin(...)`. Both return `Who` or answer `401`/`403`
   themselves.
 
-### M23.1 — Who may do what (not validated)
+### M23.1 — Who may do what ✅
 
 Pure Kotlin in `:admin` (the owner's rules, shared with `admin.sh`): `Role`
 (master, user), `Thing` (car, event, course, driver, and its id), `Access`
@@ -167,21 +167,53 @@ Pure Kotlin in `:admin` (the owner's rules, shared with `admin.sh`): `Role`
 record means a master admin made it. Tests for every cell of the table, a
 removed user, and a missing record.
 
-### M23.2 — Users and access records, stored (not validated)
+**Built, 2026-10-01** (by me, first, as the parallel steps' footing).
+`admin/…/Access.kt`: `Role`, `Who`, `Kind`, `Thing` (`car:outback`),
+`Access`, `Action`, `Permissions.may`, `UserStore`, `AccessStore`, and the
+in-memory stores. `AccessTest` covers every cell of the table, a missing
+record and keys. The server's one check is `Gate.kt`
+(`call.may(action, thing)`, `call.signedIn(change)`), set on the application's
+attributes so no route's parameters changed. `AdminAuth.emailOf` reads a
+cookie without the allowlist; the gate decides the role.
+
+### M23.2 — Users and access records, stored ✅
 
 `UserStore` (email, invited by, when) and `AccessStore` (one record per
 thing: creator, editors), each in memory (tests, dev server) and in
 Firestore. `scripts/user-smoke.sh` through the real Firestore with
 throwaway users and records, deleted after.
 
-### M23.3 — Signing in as a user (not validated)
+**Validated and built, 2026-10-01** (by a subagent). Beside the course,
+event and driver stores in `archive-gcp`:
+- **`FirestoreUserStore`:** `users/{email}`; `add` is a create-if-absent
+  transaction.
+- **`FirestoreAccessStore`:** `access/{kind}:{id}`. A colon is legal in a
+  document id, so keys aren't encoded. It holds `creator` and a flat, sorted
+  `editors` list.
+- **Wiring:** `main()` passes both stores to `module`.
+- **`scripts/user-smoke.sh`** ran against the real Firestore: 9 checks,
+  everything removed.
+- **No creator is `""`**, since `Access.creator` isn't nullable. That's a
+  pre-M23 thing that got a record when it was shared. Every API answer shows
+  it as `null`.
+
+### M23.3 — Signing in as a user ✅
 
 The login lets in the allowlist **or** a stored user (`GoogleIdentity` no
 longer refuses by the allowlist alone). The cookie is unchanged, and every
 request checks the role again. `GET /api/admin/me` returns `{ email, role }`.
 Tests: a master, a user, a removed user (refused at once), a stranger.
 
-### M23.4 — Every change checks its thing (not validated)
+**Validated and built, 2026-10-01** (by a subagent).
+- **`GoogleIdentity` now only proves who someone is.** The login lets in the
+  allowlist as `master` or an invited user as `user`, and anyone else gets
+  `401` "That Google account can't use this page." (`401`, as before, not
+  the plan's `403`).
+- **`me`** and the login answer `{ email, role }`.
+- **The dev server** invites `dev-user@localhost` at start and signs it in as
+  `dev-user`; `config` has `devUser`.
+
+### M23.4 — Every change checks its thing ✅
 
 All 24 routes move from "is admin" to `may(...)`:
 - **Creating** stores the access record, with the creator.
@@ -198,7 +230,21 @@ but can't delete or share; the creator does all three; a master admin does
 anything; a thing with no record is the master admin's. `PublicWithSignInTest`
 gains a user's cookie.
 
-### M23.5 — Sharing and users, over the API (not validated)
+**Validated and built, 2026-10-01** (two subagents in parallel: cars,
+sessions and session names and drivers; and courses, events, drivers and
+race).
+- **Every `call.admin` is gone**, and the function was deleted at
+  integration.
+- **Lists** need a sign-in and hold what you may edit, each with `access`.
+  The field is never written when null, so public answers don't carry it.
+- **Creating** a course or event is a `PUT` of a new id, and records the
+  creator on version or revision 1.
+- **A session's car is learned from the session**, then checked.
+- Every refusal, message and log line is kept, now naming the email.
+- **Fixed at integration:** the course agent's `ThingAccess` was the sharing
+  file's `AccessView` twice, so it's now `AccessView` alone.
+
+### M23.5 — Sharing and users, over the API ✅
 
 - **Sharing:** `GET` and `PUT /api/admin/access/{kind}/{id}` (editors;
   creator or master admin). Only invited users can be added, and the creator
@@ -207,7 +253,16 @@ gains a user's cookie.
   only).
 Every change is logged with who made it, as now.
 
-### M23.6 — The site (not validated)
+**Validated and built, 2026-10-01** (by a subagent), as the API says.
+Editors must be invited users: the creator, a master admin or a stranger is
+a `400` naming each problem. **Found in the browser at integration:** the
+gate counted any action but EDIT as a change, so reading a thing's editors
+(SHARE, a `GET`) or the users (INVITE) demanded an `Origin`. Browsers send
+none on a same-origin `GET`, so the Editors panel said "Changes must come
+from this site." A change is now anything but a `GET`, pinned by a test
+reading without an `Origin`.
+
+### M23.6 — The site ✅
 
 - **The sign-in store** holds the role.
 - **Pages show what you can act on:** "New …" for any user; Edit, Delete
@@ -219,12 +274,57 @@ Every change is logged with who made it, as now.
 - Tests for the store and the flags. Proven by hand on the dev server with
   both dev sign-ins.
 
-### M23.7 — `admin.sh` (not validated)
+**Validated and built, 2026-10-01** (by a subagent).
+- **The sign-in store** holds `role` (`isMaster`), and the header shows it,
+  with **Users** for a master and "Dev sign-in as a user" on the dev server.
+- **`lib/access.ts`** (tested) reads the admin lists into per-item
+  `{ edit, share, delete }`.
+- **"New …"** shows for any user. Manage and Edit show only for your things.
+  Delete and remove show where `canDelete`, including a new **Remove course…**
+  in the course editor.
+- **`EditorsPanel`** is on a car's Manage, both editors and a driver's row.
+- **`/users`** is for a master only.
+- **`whoCanSet`** gives `admin` only to a master, or to a user holding that
+  car (or that event, for the race).
+- **An item without `access`** (a pre-M23 server) reads as allowed, so the
+  site works across the deploy.
+
+### M23.7 — `admin.sh` ✅
 
 `users`, `add-user`, `remove-user`, `share`, `unshare`, and the creator in
 `list`. Tests in `:tools`, as the other commands have.
 
-### M23.8 — Proven, deployed, recorded (not validated)
+**Validated and built, 2026-10-01** (by a subagent).
+- **New commands:** `users`, `add-user`, `remove-user` (typed again), and
+  `share` / `unshare` (only invited users, never to the creator).
+- **`list`** has a CREATOR column, showing `(master)` when there's no
+  record.
+- **Creating commands** record nothing, so what they make is a master
+  admin's.
+- **The `remove-*` commands** also delete the thing's record, as the
+  server does.
+- 34 `AdminTest`s, 5 new.
+
+### M23.8 — Proven, deployed, recorded
+
+**Proven locally, 2026-10-01**, after all modules' tests and 224 site tests
+passed, through Chrome against the dev server:
+- **As the user:**
+  - your car showed no Manage, and a `PATCH` of it was `403`;
+  - "Add a car" made `user-car`, with Manage and an Editors panel ("Made by
+    dev-user@localhost…");
+  - as an editor of your car: rename `200`; sharing, deleting and the users
+    list `403`. Delete said "Only whoever made car dev-car, or a master
+    admin, can delete it.", and the Manage page showed no Remove and no
+    Editors.
+- **As the master:**
+  - `/users` listed the user and their car;
+  - invited `ed@example.com` through the form;
+  - shared your pre-M23 car with the user from its Editors panel ("Made
+    before users existed, by a master admin"), giving a record with creator
+    `null`.
+- **The header** read "email· role", so the space is now kept (`&nbsp;`).
+
 
 - **On the dev server**, as the dev user: create a car, an event, a course
   and a driver; add the master as an editor and back; fail to edit or delete

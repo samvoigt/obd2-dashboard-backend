@@ -5,6 +5,7 @@
   import { signin } from './lib/signin'
   import { AdminError, api, slugProblem, tokenProblem, twiceProblem, type CarWithToken } from './lib/admin'
   import TokenOnce from './TokenOnce.svelte'
+  import { mine, type ItemAccess } from './lib/access'
 
   // Every car (M21.5): its live feed, its sessions and, signed in, its management. Signed in, a car can be added here.
   let cars: CarSummary[] = $state([])
@@ -24,6 +25,13 @@
   let shown: { slug: string; token: string } | null = $state(null)
 
   const signedIn = $derived($signin.state === 'in')
+  // The cars you may manage (M23): the admin list has only those. Any user may add one.
+  let yours: Map<string, ItemAccess> = $state.raw(new Map())
+  const loadYours = () => mine('car').then((m) => (yours = m)).catch(() => (yours = new Map()))
+  $effect(() => {
+    if (signedIn) void loadYours()
+    else yours = new Map()
+  })
   const addProblem = $derived(
     slugProblem(newSlug.trim()) ??
       (newName.trim() === '' ? 'A car needs a name' : null) ??
@@ -64,7 +72,7 @@
       adding = false
       newSlug = newName = newToken = newToken2 = ''
       newChoose = false
-      await refresh()
+      await Promise.all([refresh(), loadYours()])
     } catch (e) {
       addError = e instanceof AdminError || e instanceof Error ? e.message : String(e)
     } finally {
@@ -95,7 +103,7 @@
         <div class="links">
           <a href={`/cars/${car.slug}`}>Live</a>
           <a href={`/cars/${car.slug}/sessions`}>Sessions</a>
-          {#if signedIn}<a href={`/cars/${car.slug}/manage`}>Manage</a>{/if}
+          {#if yours.has(car.slug)}<a href={`/cars/${car.slug}/manage`}>Manage</a>{/if}
         </div>
       </li>
     {/each}

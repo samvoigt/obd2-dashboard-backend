@@ -1,5 +1,11 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Access
+import com.obd2dashboard.backend.admin.InMemoryAccessStore
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
+import com.obd2dashboard.backend.admin.User
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
@@ -36,6 +42,9 @@ import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import io.ktor.client.request.get
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Test
 import org.slf4j.LoggerFactory
@@ -57,6 +66,15 @@ class EventRoutesTest {
     private val t0 = Instant.parse("2026-10-04T13:00:00Z")
     private fun ms(minutes: Long) = t0.plusSeconds(minutes * 60).toEpochMilli()
 
+    // M23: three invited users beside the master admin (sam@): Ann makes things, Ed is added to them, Olga to nothing.
+    private val users = InMemoryUserStore().apply {
+        runBlocking { for (e in listOf("ann", "ed", "olga")) add(User("$e@example.com", "sam@example.com", Instant.EPOCH)) }
+    }
+    private val access = InMemoryAccessStore()
+
+    /** A signed-in cookie for [email], as the login would set it. */
+    private fun cookieOf(email: String) = "${AdminAuth.COOKIE}=${AdminAuth(testCrewKey()).issue(email)}"
+
     init {
         runBlocking {
             registry.addCar(Slug.parse("outback"), "Outback")
@@ -73,7 +91,8 @@ class EventRoutesTest {
     private fun ApplicationTestBuilder.app() {
         application {
             module(registry, ArchiveService(sessions, InMemorySegmentStore()), InMemoryLiveHub(),
-                messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = stores)
+                messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = stores,
+                users = users, access = access)
         }
     }
 
@@ -227,5 +246,64 @@ class EventRoutesTest {
         call(HttpMethod.Delete, "/api/admin/events/nhms-october", cookie).status shouldBe HttpStatusCode.NotFound
         sessions.get("s") shouldBe before
         stores.events.list() shouldBe emptyList()
+    }
+
+    private fun ids(response: HttpResponse) = runBlocking {
+        json.parseToJsonElement(response.bodyAsText()).jsonArray.map { it.jsonObject["id"]!!.jsonPrimitive.content }
+    }
+
+    @Test
+    fun `a user makes an event with anyone's cars and course, an editor changes it, and only she removes it (M23)`() = testApplication {
+        app()
+        val sam = signIn()
+        val (ann, ed, olga) = listOf("ann", "ed", "olga").map { cookieOf("$it@example.com") }
+        // Sam's cars and course: Ann's event may use them (Sam, 2026-10-01).
+        call(HttpMethod.Put, "/api/admin/events/ann-day", ann, event(0, "[]")).status shouldBe HttpStatusCode.Created
+        access.get(Thing(Kind.EVENT, "ann-day")) shouldBe Access("ann@example.com")
+        ids(call(HttpMethod.Get, "/api/admin/events", ann)) shouldBe listOf("ann-day")
+        ids(call(HttpMethod.Get, "/api/admin/events", olga)) shouldBe emptyList()
+        call(HttpMethod.Get, "/api/admin/events/ann-day", olga).status shouldBe HttpStatusCode.Forbidden
+        call(HttpMethod.Put, "/api/admin/events/ann-day", olga, event(1, "[]")).status shouldBe HttpStatusCode.Forbidden
+        call(HttpMethod.Delete, "/api/admin/events/ann-day", olga).status shouldBe HttpStatusCode.Forbidden
+
+        access.set(Thing(Kind.EVENT, "ann-day"), Access("ann@example.com", setOf("ed@example.com")))
+        call(HttpMethod.Get, "/api/admin/events/ann-day", ed).status shouldBe HttpStatusCode.OK
+        call(HttpMethod.Put, "/api/admin/events/ann-day", ed, event(1, "[]", cars = """["outback","yaris"]""")).status shouldBe HttpStatusCode.OK
+        call(HttpMethod.Delete, "/api/admin/events/ann-day", ed).status shouldBe HttpStatusCode.Forbidden
+
+        // An event made before M23 (no record) is Sam's alone; he sees and may delete everything.
+        stores.events.save(com.obd2dashboard.backend.events.Event("old-day", "Old day", "2026-09-01", "nhms", "road", listOf("outback"), emptyList()), 0, t0)
+        call(HttpMethod.Put, "/api/admin/events/old-day", ann, event(1, "[]")).status shouldBe HttpStatusCode.Forbidden
+        ids(call(HttpMethod.Get, "/api/admin/events", sam)).toSet() shouldBe setOf("ann-day", "old-day")
+        client.get("/api/events").bodyAsText().contains("\"access\"") shouldBe false
+
+        call(HttpMethod.Delete, "/api/admin/events/ann-day", ann).status shouldBe HttpStatusCode.NoContent
+        access.get(Thing(Kind.EVENT, "ann-day")) shouldBe null
+        call(HttpMethod.Delete, "/api/admin/events/old-day", sam).status shouldBe HttpStatusCode.NoContent
+    }
+
+    @Test
+    fun `any user adds a driver and is its creator, an editor renames, and only the creator or Sam removes (M23)`() = testApplication {
+        app()
+        val sam = signIn()
+        val (ann, ed, olga) = listOf("ann", "ed", "olga").map { cookieOf("$it@example.com") }
+        val id = json.parseToJsonElement(call(HttpMethod.Post, "/api/admin/drivers", ann, """{"name":"Ann Lee","code":"ANN"}""").also {
+            it.status shouldBe HttpStatusCode.Created
+        }.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        access.get(Thing(Kind.DRIVER, id)) shouldBe Access("ann@example.com")
+        ids(call(HttpMethod.Get, "/api/admin/drivers", ann)) shouldBe listOf(id)
+        ids(call(HttpMethod.Get, "/api/admin/drivers", olga)) shouldBe emptyList()
+        call(HttpMethod.Put, "/api/admin/drivers/$id", olga, """{"name":"Olga","code":"OLG"}""").status shouldBe HttpStatusCode.Forbidden
+        call(HttpMethod.Delete, "/api/admin/drivers/$id", olga).status shouldBe HttpStatusCode.Forbidden
+
+        access.set(Thing(Kind.DRIVER, id), Access("ann@example.com", setOf("ed@example.com")))
+        call(HttpMethod.Put, "/api/admin/drivers/$id", ed, """{"name":"Ann Lee-Smith","code":"ANN"}""").status shouldBe HttpStatusCode.OK
+        call(HttpMethod.Delete, "/api/admin/drivers/$id", ed).status shouldBe HttpStatusCode.Forbidden
+        ids(call(HttpMethod.Get, "/api/admin/drivers", sam)) shouldBe listOf(id)
+        client.get("/api/drivers").bodyAsText().contains("\"access\"") shouldBe false
+
+        call(HttpMethod.Delete, "/api/admin/drivers/$id", ann).status shouldBe HttpStatusCode.NoContent
+        access.get(Thing(Kind.DRIVER, id)) shouldBe null
+        log.list.map { it.formattedMessage }.any { it == "driver removed: Ann Lee-Smith (ANN) by ann@example.com" } shouldBe true
     }
 }

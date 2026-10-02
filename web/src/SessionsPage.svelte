@@ -3,6 +3,7 @@
   import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type Drive } from './lib/sessions'
   import { signin } from './lib/signin'
   import { AdminError, api, confirmed, deleteBlocked, sessionConfirmation, sessionStateText, type AdminSession } from './lib/admin'
+  import { allowed, mine, NOTHING, type Allowed } from './lib/access'
 
   let { slug }: { slug: string } = $props()
 
@@ -28,20 +29,26 @@
   let typed = $state('')
   let busy = $state(false)
   let adminError: string | null = $state(null)
+  // What you may do to this car's sessions (M23): download if you edit the car; delete only if you made it.
+  let may: Allowed = $state(NOTHING)
 
   async function refreshAdmin() {
     if (!signedIn) return
     try {
+      const yours = await mine('car')
+      may = allowed(yours.get(slug), yours.has(slug))
+      if (!may.edit) { admin = new Map(); return }
       const list = await api<AdminSession[]>('GET', `/cars/${slug}/sessions`)
       admin = new Map(list.map((s) => [s.id, s]))
     } catch (e) {
-      if (!(e instanceof AdminError && e.status === 404)) adminError = e instanceof Error ? e.message : String(e)
+      // Not yours (403) or gone (404): the public page, as signed out.
+      if (!(e instanceof AdminError && (e.status === 404 || e.status === 403))) adminError = e instanceof Error ? e.message : String(e)
     }
   }
 
   $effect(() => {
     if (signedIn) void refreshAdmin()
-    else { admin = new Map(); deleting = null; adminError = null }
+    else { admin = new Map(); deleting = null; adminError = null; may = NOTHING }
   })
 
   async function remove(s: AdminSession) {
@@ -67,7 +74,7 @@
 </script>
 
 <main>
-  <p class="back"><a href={`/cars/${slug}`}>← {slug}, live</a>{#if signedIn}<a href={`/cars/${slug}/manage`}>Manage {slug} →</a>{/if}</p>
+  <p class="back"><a href={`/cars/${slug}`}>← {slug}, live</a>{#if may.edit}<a href={`/cars/${slug}/manage`}>Manage {slug} →</a>{/if}</p>
   <h1>Past sessions</h1>
   {#if adminError}<p class="error" role="alert">{adminError}</p>{/if}
 
@@ -113,7 +120,7 @@
               <div class="manage">
                 <span class="muted small">{sessionStateText(a.state)}</span>
                 {#if a.lines > 0}<a class="small" href={`/api/admin/sessions/${s.id}/download`} download>Download</a>{/if}
-                <button class="danger small" onclick={() => { deleting = deleting === s.id ? null : s.id; typed = '' }}>Delete</button>
+                {#if may.delete}<button class="danger small" onclick={() => { deleting = deleting === s.id ? null : s.id; typed = '' }}>Delete</button>{/if}
               </div>
               {#if deleting === s.id}
                 {@const blocked = deleteBlocked(a)}

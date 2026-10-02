@@ -4,6 +4,7 @@
  * tested without a browser.
  */
 import { signin } from './signin'
+import type { ItemAccess } from './access'
 import { isState, stateLabel, type State } from './state'
 
 export interface AdminConfig {
@@ -25,6 +26,8 @@ export interface AdminCar {
   liveSession: string | null
   /** How far its tablet's clock is behind the server's, ms (ahead if negative), from live batches (M11). */
   clockOffsetMs?: number | null
+  /** Who made it and who edits it, and whether you may share or delete it (M23). */
+  access?: ItemAccess
 }
 
 /** A tablet clock this far off is worth saying (M11); under it, network delay and drift. */
@@ -189,6 +192,8 @@ export interface CourseSummary {
   /** Epoch milliseconds. */
   saved: number
   layouts: { id: string; name: string; default: boolean; sectors: number }[]
+  /** In the admin list only (M23). */
+  access?: ItemAccess
 }
 
 /** One version of a course, whole. */

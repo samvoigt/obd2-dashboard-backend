@@ -36,7 +36,9 @@ class AdminTest {
     private val courses = com.obd2dashboard.backend.courses.InMemoryCourseStore()
     private val drivers = com.obd2dashboard.backend.events.InMemoryDriverStore()
     private val events = com.obd2dashboard.backend.events.InMemoryEventStore()
-    private val tools = Tools(registry, sessions, archive, messages, courses, drivers, events)
+    private val users = com.obd2dashboard.backend.admin.InMemoryUserStore()
+    private val access = com.obd2dashboard.backend.admin.InMemoryAccessStore()
+    private val tools = Tools(registry, sessions, archive, messages, courses, drivers, events, users, access)
 
     private fun message(id: String, car: String) = runBlocking {
         messages.create(Message(id, car, "PIT NOW", "pit", Instant.EPOCH, Instant.EPOCH.plusSeconds(60), MessageState.Cleared))
@@ -506,5 +508,65 @@ class AdminTest {
         run("remove-event nhms-october", FakeIo(lines = listOf("nhms-october"))).output shouldContain "Removed nhms-october."
         runBlocking { events.list() } shouldBe emptyList()
         run("remove-event nhms-october").statusCode shouldBe 1
+    }
+
+    // Users (M23): invited by a master admin, and given things to edit.
+    private val car = com.obd2dashboard.backend.admin.Thing(com.obd2dashboard.backend.admin.Kind.CAR, "yaris")
+
+    @Test
+    fun `add-user invites once, refuses a non-address, and users lists them`() {
+        run("add-user Ann@Example.com").let { it.statusCode shouldBe 0; it.stdout shouldContain "Invited ann@example.com" }
+        run("add-user ann@example.com").let { it.statusCode shouldBe 1; it.stderr shouldContain "already a user" }
+        run("add-user not-an-email").statusCode shouldBe 1
+        val listed = run("users").stdout
+        listed shouldContain "ann@example.com  invited by admin.sh"
+        listed shouldContain "created: nothing"
+        run("users").let { runBlocking { users.remove("ann@example.com") }; it.statusCode shouldBe 0 }
+        run("users").stdout shouldContain "No users."
+    }
+
+    @Test
+    fun `share lets an invited user edit a thing, and unshare takes it back`() {
+        run("add-car yaris --name Yaris").statusCode shouldBe 0
+        run("share car yaris ann@example.com").let { it.statusCode shouldBe 1; it.stderr shouldContain "isn't a user" }
+        run("add-user ann@example.com")
+        run("share car nope ann@example.com").let { it.statusCode shouldBe 1; it.stderr shouldContain "No car nope" }
+        run("share boat yaris ann@example.com").let { it.statusCode shouldBe 1; it.stderr shouldContain "car, event, course or driver" }
+        run("share car yaris Ann@Example.com").let { it.statusCode shouldBe 0; it.stdout shouldContain "ann@example.com can now edit car:yaris" }
+        runBlocking { access.get(car) } shouldBe com.obd2dashboard.backend.admin.Access("", setOf("ann@example.com"))
+        run("users").stdout shouldContain "edits: car:yaris"
+        run("unshare car yaris ann@example.com").statusCode shouldBe 0
+        runBlocking { access.get(car)?.editors } shouldBe emptySet()
+        run("unshare car yaris ann@example.com").let { it.statusCode shouldBe 1; it.stderr shouldContain "doesn't edit" }
+    }
+
+    @Test
+    fun `list shows each car's creator, a car with no record being a master admin's`() {
+        run("add-car yaris --name Yaris")
+        run("list").stdout.lines().first { it.startsWith("yaris") } shouldContain "(master)"
+        runBlocking { access.set(car, com.obd2dashboard.backend.admin.Access("ann@example.com")) }
+        run("list").stdout.lines().first { it.startsWith("yaris") } shouldContain "ann@example.com"
+        run("users").let { runBlocking { users.add(com.obd2dashboard.backend.admin.User("ann@example.com", "sam@example.com", Instant.EPOCH)) }; it.statusCode shouldBe 0 }
+        run("users").stdout shouldContain "created: car:yaris"
+    }
+
+    @Test
+    fun `remove-user asks for the email again, and what they made stays`() {
+        run("add-user ann@example.com")
+        runBlocking { access.set(car, com.obd2dashboard.backend.admin.Access("ann@example.com")) }
+        run("remove-user ann@example.com", FakeIo(listOf("bob@example.com"))).statusCode shouldBe 1
+        runBlocking { users.get("ann@example.com") }.shouldNotBeNull()
+        run("remove-user ann@example.com", FakeIo(listOf(" ANN@example.com "))).statusCode shouldBe 0
+        runBlocking { users.get("ann@example.com") }.shouldBeNull()
+        runBlocking { access.get(car)?.creator } shouldBe "ann@example.com"
+        run("remove-user ann@example.com").let { it.statusCode shouldBe 1; it.stderr shouldContain "No user" }
+    }
+
+    @Test
+    fun `removing a car takes its access record with it`() {
+        run("add-car yaris --name Yaris")
+        runBlocking { access.set(car, com.obd2dashboard.backend.admin.Access("ann@example.com")) }
+        run("remove-car yaris", FakeIo(listOf("yaris"))).statusCode shouldBe 0
+        runBlocking { access.get(car) }.shouldBeNull()
     }
 }

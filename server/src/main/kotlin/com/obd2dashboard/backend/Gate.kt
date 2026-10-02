@@ -10,6 +10,7 @@ import com.obd2dashboard.backend.admin.UserStore
 import com.obd2dashboard.backend.admin.Who
 import com.obd2dashboard.backend.admin.normalEmail
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
@@ -74,12 +75,13 @@ suspend fun ApplicationCall.signedIn(change: Boolean): Who? {
 
 /**
  * Who's signed in, if they may do [action] to [thing] (null: creating
- * something new); else null having answered: `403` "not yours" (or the
- * origin), `401` without a sign-in. Reads are [Action.EDIT] too: what's not
- * yours to change isn't yours to see through the admin API.
+ * something new); else null having answered: `403` "not yours" (or, for
+ * anything but a `GET`, the origin), `401` without a sign-in. What's not yours
+ * to change isn't yours to read through the admin API either.
  */
 suspend fun ApplicationCall.may(action: Action, thing: Thing?): Who? {
-    val who = signedIn(change = action != Action.EDIT || request.local.method.value != "GET") ?: return null
+    // A change is anything but a read, whatever it asks: reading a thing's editors (SHARE) or the users (INVITE) is a GET.
+    val who = signedIn(change = request.local.method != HttpMethod.Get) ?: return null
     if (!application.gate.may(who, action, thing)) {
         respond(HttpStatusCode.Forbidden, ApiError("not_allowed", notAllowed(action, thing)))
         return null

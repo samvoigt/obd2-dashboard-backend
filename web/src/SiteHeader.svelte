@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { signin } from './lib/signin'
+  import { isMaster, signin } from './lib/signin'
+  import { roleText } from './lib/access'
   import logo from './assets/logo.webp'
 
   // Every page's header (M21.1): home, the site's pages, and the one sign-in that turns on each page's edits.
@@ -83,10 +84,12 @@
   </nav>
   <div class="who">
     {#if $signin.state === 'in'}
-      <span class="email muted" title="Signed in: every page shows its edits">{$signin.email}</span>
+      {#if isMaster($signin)}<a class="users" class:here={page === 'users'} href="/users">Users</a>{/if}
+      <span class="email muted" title={`Signed in as a ${roleText($signin.role)}: pages show what you may change`}>{$signin.email}<span class="role">&nbsp;· {roleText($signin.role)}</span></span>
       <button onclick={signOut} disabled={busy}>Sign out</button>
     {:else if $signin.state === 'out' && $signin.config?.enabled}
       <button onclick={start} disabled={busy}>{$signin.config.dev ? 'Dev sign-in' : 'Sign in'}</button>
+      {#if $signin.config.dev && $signin.config.devUser}<button onclick={() => void signIn('dev-user')} disabled={busy}>Dev sign-in as a user</button>{/if}
     {/if}
   </div>
   {#if open && $signin.state === 'out'}
@@ -110,6 +113,9 @@
   nav a:hover, nav a.here { color: var(--text); }
   nav a.here { text-decoration: underline; text-underline-offset: 4px; }
   .who { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .users { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+  .users.here { text-decoration: underline; text-underline-offset: 4px; }
+  .role { font-size: 0.8rem; }
   .email { font-size: 0.85rem; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   button { background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
   button:disabled { opacity: 0.5; cursor: default; }

@@ -15,6 +15,7 @@ export type Route =
   | { page: 'drivers' }
   | { page: 'driver'; id: string }
   | { page: 'compare' }
+  | { page: 'users' }
   | { page: 'preview'; slug: string }
 
 const ID = '([a-z][a-z0-9-]{1,31})'
@@ -32,6 +33,7 @@ const EVENT_EDIT = new RegExp(`^/events/${ID}/edit/?$`)
 const DRIVERS = /^\/drivers\/?$/
 const DRIVER = /^\/drivers\/(d-[0-9a-f]{8})\/?$/
 const COMPARE = /^\/compare\/?$/
+const USERS = /^\/users\/?$/
 
 export function route(path: string): Route {
   // Courses (M12.5); edited where they're shown when signed in (M21.3), `new` for one not yet saved.
@@ -54,6 +56,8 @@ export function route(path: string): Route {
   if (driver?.[1]) return { page: 'driver', id: driver[1] }
   // Two laps compared (M16.4); the laps are in the query.
   if (COMPARE.test(path)) return { page: 'compare' }
+  // The invited users (M23), for a master admin.
+  if (USERS.test(path)) return { page: 'users' }
   // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.
   const preview = import.meta.env.DEV ? /^\/dev\/widgets\/([a-z][a-z0-9-]{1,31})\/?$/.exec(path) : null
   if (preview?.[1]) return { page: 'preview', slug: preview[1] }

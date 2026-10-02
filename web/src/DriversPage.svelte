@@ -3,6 +3,8 @@
   import { api } from './lib/admin'
   import { codeFrom, type Driver } from './lib/events'
   import { signin } from './lib/signin'
+  import { allowed, mine, type ItemAccess } from './lib/access'
+  import EditorsPanel from './EditorsPanel.svelte'
 
   // Drivers, public (M15.5); added, renamed and removed here when signed in (M21.4).
   let drivers: Driver[] | null = $state(null)
@@ -16,6 +18,15 @@
   let editCode = $state('')
   let busy = $state(false)
   const signedIn = $derived($signin.state === 'in')
+  // The drivers you may change (M23): any user adds one; its maker and their editors rename it; its maker removes it.
+  let yours: Map<string, ItemAccess> = $state.raw(new Map())
+  let sharing: string | null = $state(null) // a driver whose editors are open
+  const loadYours = () => mine('driver').then((m) => (yours = m)).catch(() => (yours = new Map()))
+  $effect(() => {
+    if (signedIn) void loadYours()
+    else { yours = new Map(); sharing = null }
+  })
+  const may = (id: string) => allowed(yours.get(id), yours.has(id))
 
   // A new driver's code follows their name until you type one.
   $effect(() => {
@@ -51,7 +62,7 @@
     editError = null
     try {
       await action()
-      await load()
+      await Promise.all([load(), loadYours()])
       return true
     } catch (e) {
       editError = e instanceof Error ? e.message : String(e)
@@ -95,7 +106,7 @@
     <p class="error">Could not load the drivers: {error}</p>
   {:else if drivers}
     {#if signedIn}
-      <p class="muted">Who drove each session is set on its page, by you or the car's crew. A driver who drove stays; rename them instead.</p>
+      <p class="muted">Who drove each session is set on its page, by whoever edits the car or by its crew. A driver who drove stays; rename them instead.</p>
       <form class="row" onsubmit={add}>
         <label><span>Name</span><input bind:value={name} placeholder="Sam Voigt" /></label>
         <label><span>Code</span><input class="code" bind:value={code} oninput={() => { codeTouched = true; code = code.toUpperCase() }} maxlength="4" /></label>
@@ -118,13 +129,15 @@
               </form>
             {:else}
               <a href={`/drivers/${d.id}`}><strong>{d.name}</strong></a> <span class="muted">{d.code}</span>
-              {#if signedIn}
+              {#if may(d.id).edit}
                 <span class="actions">
                   <button onclick={() => edit(d)}>Rename</button>
-                  <button class="danger" onclick={() => remove(d)} disabled={busy}>Remove</button>
+                  {#if may(d.id).share}<button onclick={() => (sharing = sharing === d.id ? null : d.id)}>Editors</button>{/if}
+                  {#if may(d.id).delete}<button class="danger" onclick={() => remove(d)} disabled={busy}>Remove</button>{/if}
                 </span>
               {/if}
             {/if}
+            {#if sharing === d.id && may(d.id).share}<div class="share"><EditorsPanel kind="driver" id={d.id} /></div>{/if}
           </li>
         {/each}
       </ul>
@@ -149,4 +162,5 @@
   button.danger { color: var(--critical); border-color: var(--critical); }
   button:disabled { opacity: 0.4; cursor: default; }
   .error { color: var(--critical); }
+  .share { flex-basis: 100%; }
 </style>

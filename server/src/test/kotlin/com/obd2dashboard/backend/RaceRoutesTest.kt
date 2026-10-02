@@ -1,5 +1,11 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.Access
+import com.obd2dashboard.backend.admin.InMemoryAccessStore
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.Kind
+import com.obd2dashboard.backend.admin.Thing
+import com.obd2dashboard.backend.admin.User
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
@@ -52,6 +58,15 @@ class RaceRoutesTest {
     private val logger = (LoggerFactory.getLogger("admin") as Logger).apply { addAppender(log) }
     private val t0 = Instant.parse("2026-10-04T13:00:00Z")
 
+    // M23: three invited users beside the master admin (sam@): Ann makes things, Ed is added to them, Olga to nothing.
+    private val users = InMemoryUserStore().apply {
+        runBlocking { for (e in listOf("ann", "ed", "olga")) add(User("$e@example.com", "sam@example.com", Instant.EPOCH)) }
+    }
+    private val access = InMemoryAccessStore()
+
+    /** A signed-in cookie for [email], as the login would set it. */
+    private fun cookieOf(email: String) = "${AdminAuth.COOKIE}=${AdminAuth(testCrewKey()).issue(email)}"
+
     init {
         runBlocking {
             for ((slug, pass) in listOf("outback" to "outback-crew", "yaris" to "pit-lane", "miata" to "miata-crew")) {
@@ -76,7 +91,8 @@ class RaceRoutesTest {
 
     private fun ApplicationTestBuilder.app() {
         application {
-            module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = stores)
+            module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = stores,
+                users = users, access = access)
         }
     }
 
@@ -159,5 +175,21 @@ class RaceRoutesTest {
         race().name shouldBe "The 6 hours"
         race().stints shouldBe mapOf("yaris" to listOf(Stint(5, "d-sam")))
         race().green shouldBe Instant.ofEpochMilli(t + 3_700_000)
+    }
+
+    @Test
+    fun `a race's flags and stints are set by the event's creator and editors, nobody else (M23)`() = testApplication {
+        app()
+        val (ann, ed, olga) = listOf("ann", "ed", "olga").map { cookieOf("$it@example.com") }
+        val green = t0.plusSeconds(3700).toEpochMilli()
+        // race-day was made before M23: Sam's alone until Ann is given it.
+        put("/api/admin/events/race-day/race", ann, """{"expected":1,"green":$green}""").status shouldBe HttpStatusCode.Forbidden
+        access.set(Thing(Kind.EVENT, "race-day"), Access("ann@example.com", setOf("ed@example.com")))
+        put("/api/admin/events/race-day/race", ann, """{"expected":1,"green":$green}""").status shouldBe HttpStatusCode.OK
+        put("/api/admin/events/race-day/race/stints/outback", ed, """{"expected":2,"stints":[{"start":$green,"driver":"d-sam"}]}""").status shouldBe HttpStatusCode.OK
+        put("/api/admin/events/race-day/race", olga, """{"expected":3,"green":$green}""").status shouldBe HttpStatusCode.Forbidden
+        put("/api/admin/events/race-day/race/stints/outback", olga, """{"expected":3}""").status shouldBe HttpStatusCode.Forbidden
+        race().green shouldBe Instant.ofEpochMilli(green)
+        log.list.map { it.formattedMessage }.any { it.startsWith("race of race-day set") && it.endsWith("by ed@example.com") } shouldBe true
     }
 }

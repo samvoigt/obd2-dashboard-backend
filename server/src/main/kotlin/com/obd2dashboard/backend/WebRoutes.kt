@@ -44,6 +44,8 @@ fun Route.webRoutes() {
     for (path in listOf("/drivers", "/drivers/", "/drivers/{id}", "/drivers/{id}/")) get(path) { call.page() }
     // Two laps compared (M16.4), public.
     for (path in listOf("/compare", "/compare/")) get(path) { call.page() }
+    // The invited users (M23), for a master admin; the page asks the admin API, which decides.
+    for (path in listOf("/users", "/users/")) get(path) { call.page() }
     // The cars (M21.5), each one's live feed, and its management.
     for (path in listOf("/cars", "/cars/", "/cars/{slug}", "/cars/{slug}/", "/cars/{slug}/manage", "/cars/{slug}/manage/")) get(path) { call.page() }
     // Past sessions (M7.4, M7.5).

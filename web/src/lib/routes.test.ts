@@ -28,6 +28,10 @@ describe('route', () => {
     expect(route('/events/nhms-october/edit')).toEqual({ page: 'event-edit', id: 'nhms-october' })
     expect(route('/events/Bad/edit')).toEqual({ page: 'landing' })
   })
+  it('reads the users page (M23)', () => {
+    expect(route('/users')).toEqual({ page: 'users' })
+    expect(route('/users/')).toEqual({ page: 'users' })
+  })
   it('reads the compare page (M16.4)', () => {
     expect(route('/compare')).toEqual({ page: 'compare' })
   })

@@ -37,7 +37,6 @@ class GoogleIdentityTest {
     }
     private val identity = GoogleIdentity(
         CLIENT_ID,
-        Allowlist.parse(" Sam@Example.com , crew@example.com"),
         clock,
         "http://127.0.0.1:${server.address.port}/certs",
     )
@@ -88,7 +87,8 @@ class GoogleIdentityTest {
         verify(token(verified = false)) shouldBe SignIn.Refused(Refusal.EmailNotVerified)
         verify(token(verified = null)) shouldBe SignIn.Refused(Refusal.EmailNotVerified)
         verify(token(email = null)) shouldBe SignIn.Refused(Refusal.EmailNotVerified)
-        verify(token(email = "someone@example.com")) shouldBe SignIn.Refused(Refusal.NotAllowed)
+        // Who may sign in is the login's question (M23): any verified Google account gets this far.
+        verify(token(email = "someone@example.com")) shouldBe SignIn.Allowed("someone@example.com")
     }
 
     @Test

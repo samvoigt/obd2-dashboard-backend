@@ -5,6 +5,8 @@
   import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
   import { untrack } from 'svelte'
   import { signin } from './lib/signin'
+  import { allowedFor, NOTHING, type Allowed } from './lib/access'
+  import EditorsPanel from './EditorsPanel.svelte'
   import { api, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
   import {
     across, addSector, arrows, assignLayout, assignPitLane, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector,
@@ -30,6 +32,23 @@
   let message: string | null = $state(null)
   // Signed in (M21.3): the editor shows, and loads, only then; a 401 signs the page out (`api`).
   const signedIn = $derived($signin.state === 'in')
+  // Who may share or remove this course (M23): its maker or a master admin. A new course is yours once saved.
+  let may: Allowed = $state(NOTHING)
+  let removing = $state(false)
+  let typedId = $state('')
+  $effect(() => {
+    if (signedIn && !isNew) void allowedFor('course', pathId).then((m) => (may = m))
+    else may = NOTHING
+  })
+
+  async function removeCourse() {
+    try {
+      await api('DELETE', `/courses/${pathId}`)
+      window.location.assign('/courses')
+    } catch (e) {
+      message = e instanceof Error ? e.message : String(e)
+    }
+  }
   let saving = $state(false)
   let dirty = $state(false) // the drawing changed since it was loaded or saved
   let savedName = $state('') // the name as loaded or saved; '' for a new course
@@ -586,6 +605,17 @@
             </select>
           {/if}
         </div>
+
+        {#if may.share}<EditorsPanel kind="course" id={pathId} />{/if}
+        {#if may.delete && !readOnly}
+          {#if removing}
+            <p class="warn small">Every version goes, and tablets stop timing on it. A course a tablet timed laps on stays.</p>
+            <label><span>Type <strong>{pathId}</strong> to remove it</span><input bind:value={typedId} autocapitalize="off" autocomplete="off" /></label>
+            <div class="row"><button class="danger" disabled={typedId.trim() !== pathId} onclick={removeCourse}>Remove course</button><button onclick={() => (removing = false)}>Cancel</button></div>
+          {:else}
+            <p><button class="danger small" onclick={() => { removing = true; typedId = '' }}>Remove course…</button></p>
+          {/if}
+        {/if}
 
         {#if versions.length > 1}
           <h2>Versions</h2>

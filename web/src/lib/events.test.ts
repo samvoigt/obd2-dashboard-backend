@@ -89,7 +89,13 @@ describe('who drove (M14.4)', () => {
       const fetcher = answering({ '/api/admin/config': [200, { enabled: true, googleClientId: null, dev: true }], ...answers })
       return whoCanSet('outback', fetcher, createSignIn(fetcher))
     }
-    expect(await ask({ '/api/admin/me': [200, { email: 'a' }] })).toBe('admin')
+    expect(await ask({ '/api/admin/me': [200, { email: 'a', role: 'master' }] })).toBe('admin')
+    // A user (M23): through the admin API only for a car they may edit; else as its crew, or not at all.
+    const access = { creator: 'a', editors: [], canShare: true, canDelete: true }
+    const user: Record<string, [number, unknown?]> = { '/api/admin/me': [200, { email: 'a', role: 'user' }] }
+    expect(await ask({ ...user, '/api/admin/cars': [200, [{ slug: 'outback', access }]] })).toBe('admin')
+    expect(await ask({ ...user, '/api/admin/cars': [200, []], '/api/cars/outback/crew': [200, { crew: true }] })).toBe('crew')
+    expect(await ask({ ...user, '/api/admin/cars': [200, []], '/api/cars/outback/crew': [200, { crew: false }] })).toBeNull()
     expect(await ask({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: true }] })).toBe('crew')
     expect(await ask({ '/api/admin/me': [401], '/api/cars/outback/crew': [200, { crew: false }] })).toBeNull()
   })

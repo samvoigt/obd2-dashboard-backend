@@ -12,6 +12,8 @@ dependencies {
     api(project(":live"))
     api(project(":courses"))
     api(project(":events"))
+    // Users and access records (M23): their interfaces are the owner's rules'.
+    api(project(":admin"))
     api(platform(libs.google.cloud.bom))
     api(libs.google.cloud.firestore)
     api(libs.google.cloud.storage)
@@ -62,6 +64,14 @@ tasks.register<JavaExec>("eventSmoke") {
     outputs.upToDateWhen { false }
 }
 
+tasks.register<JavaExec>("userSmoke") {
+    description = "Stores, reads and deletes a throwaway user and access record against the real Firestore."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("com.obd2dashboard.backend.archive.gcp.UserSmokeKt")
+    args(providers.gradleProperty("gcpProject").orNull ?: "")
+    outputs.upToDateWhen { false }
+}
 
 // The course mapping test reads the NHMS seed: a changed seed must re-run it (M12.3).
 tasks.test {

@@ -6,11 +6,13 @@ import com.obd2dashboard.backend.admin.InMemoryAccessStore
 import com.obd2dashboard.backend.admin.InMemoryUserStore
 import com.obd2dashboard.backend.admin.UserStore
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.gcp.FirestoreAccessStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
+import com.obd2dashboard.backend.archive.gcp.FirestoreUserStore
 import com.obd2dashboard.backend.archive.gcp.GcsSegmentStore
 import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.live.InMemoryLiveHub
@@ -77,6 +79,9 @@ fun main() {
             courses = FirestoreCourseStore.connect(project),
             events = EventStores(FirestoreDriverStore.connect(project), FirestoreEventStore.connect(project)),
             watchRetiming = true,
+            // Invited users and who may edit what (M23).
+            users = FirestoreUserStore.connect(project),
+            access = FirestoreAccessStore.connect(project),
         )
     }
     server.start(wait = true)

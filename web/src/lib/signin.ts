@@ -9,12 +9,17 @@ export interface SignInConfig {
   enabled: boolean
   googleClientId: string | null
   dev: boolean
+  /** The dev server signs in a user too (M23), as `dev-user`. */
+  devUser?: boolean
 }
+
+/** A master admin (the allowlist) or an invited user (M23). */
+export type Role = 'master' | 'user'
 
 export type SignInState =
   | { state: 'unknown' }
   | { state: 'out'; config: SignInConfig | null }
-  | { state: 'in'; email: string; config: SignInConfig | null }
+  | { state: 'in'; email: string; role: Role; config: SignInConfig | null }
 
 export interface SignIn extends Readable<SignInState> {
   /** Asks the server once: its sign-in setup, and whether this browser is signed in. */
@@ -24,6 +29,12 @@ export interface SignIn extends Readable<SignInState> {
   signOut(): Promise<void>
   /** A call answered `401`: the sign-in lapsed, or was taken off the allowlist. */
   lapsed(): void
+}
+
+/** `GET /api/admin/me` (M23): the role, which an older server leaves out. */
+interface Me {
+  email: string
+  role?: string
 }
 
 async function json<T>(response: Response | null): Promise<T | null> {
@@ -36,12 +47,13 @@ export function createSignIn(fetcher: typeof fetch = (...a) => fetch(...a)): Sig
   let checking: Promise<void> | null = null
 
   const out = () => store.set({ state: 'out', config })
+  const signedIn = (me: Me): SignInState => ({ state: 'in', email: me.email, role: me.role === 'master' ? 'master' : 'user', config })
 
   async function check() {
     checking ??= (async () => {
       config = await json<SignInConfig>(await fetcher('/api/admin/config').catch(() => null))
-      const me = config?.enabled ? await json<{ email: string }>(await fetcher('/api/admin/me').catch(() => null)) : null
-      store.set(me ? { state: 'in', email: me.email, config } : { state: 'out', config })
+      const me = config?.enabled ? await json<Me>(await fetcher('/api/admin/me').catch(() => null)) : null
+      store.set(me ? signedIn(me) : { state: 'out', config })
     })()
     return checking
   }
@@ -52,12 +64,14 @@ export function createSignIn(fetcher: typeof fetch = (...a) => fetch(...a)): Sig
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
     })
-    const me = await json<{ email: string }>(response)
-    if (!me) {
+    const loggedIn = await json<{ email: string }>(response)
+    if (!loggedIn) {
       const body = (await response.json().catch(() => ({}))) as { message?: string }
       throw new Error(body.message || `The server answered ${response.status}.`)
     }
-    store.set({ state: 'in', email: me.email, config })
+    // The role comes from `me`, which every request answers afresh.
+    const me = await json<Me>(await fetcher('/api/admin/me').catch(() => null))
+    store.set(signedIn(me ?? { email: loggedIn.email }))
   }
 
   async function signOut() {
@@ -78,4 +92,9 @@ export const signin = createSignIn()
 /** Whether [s] is signed in: what pages ask before showing an edit. */
 export function isSignedIn(s: SignInState): s is Extract<SignInState, { state: 'in' }> {
   return s.state === 'in'
+}
+
+/** Whether [s] is a master admin, who may do anything and manage users. */
+export function isMaster(s: SignInState): boolean {
+  return s.state === 'in' && s.role === 'master'
 }

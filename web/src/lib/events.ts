@@ -4,7 +4,8 @@
  */
 
 import { get } from 'svelte/store'
-import { isSignedIn, signin, type SignIn } from './signin'
+import { isMaster, isSignedIn, signin, type SignIn } from './signin'
+import { allowedFor, type Kind } from './access'
 export interface Driver {
   id: string
   name: string
@@ -149,12 +150,20 @@ export async function setSessionName(who: 'admin' | 'crew', slug: string, id: st
 }
 
 /**
- * Whether whoever is looking may set who drove: the admin first (the page's
- * one sign-in, M21.1), else this car's crew.
+ * Whether whoever is looking may set who drove: through the admin API first
+ * (the page's one sign-in, M21.1) if they're a master admin or may edit
+ * [through] (M23: the car, or for a race the event), else as this car's crew.
  */
-export async function whoCanSet(slug: string, fetcher: typeof fetch = fetch, from: SignIn = signin): Promise<DriverSetter> {
+export async function whoCanSet(
+  slug: string,
+  fetcher: typeof fetch = fetch,
+  from: SignIn = signin,
+  through: { kind: Kind; id: string } = { kind: 'car', id: slug },
+): Promise<DriverSetter> {
   await from.check()
-  if (isSignedIn(get(from))) return 'admin'
+  const s = get(from)
+  if (isMaster(s)) return 'admin'
+  if (isSignedIn(s) && (await allowedFor(through.kind, through.id, fetcher)).edit) return 'admin'
   const crew = await fetcher(`/api/cars/${slug}/crew`).catch(() => null)
   const body = crew?.ok ? ((await crew.json().catch(() => ({}))) as { crew?: boolean }) : {}
   return body.crew === true ? 'crew' : null
