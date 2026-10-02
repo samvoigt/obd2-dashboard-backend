@@ -83,7 +83,7 @@ line is drawn changes.
 
 ## The steps
 
-### M22.1 — A line square across a path (not validated)
+### M22.1 — A line square across a path ✅
 
 Pure functions in `web/src/lib/courseEdit.ts`:
 - `nearestOn(path, p)`: the nearest point on a path to `p`, its distance,
@@ -102,7 +102,28 @@ Tests:
 - a layout that passes close to itself;
 - a click 31 m away is refused.
 
-### M22.2 — The editor makes lines in one click (not validated)
+**Validated and built, 2026-10-01.** NHMS's three layouts share its front
+straight exactly (0.0 m from the start/finish's middle), and its pit lane is
+22 m away, so a 12 m half never reaches it there. Layouts drawn separately
+over the same track could be a few metres apart, though, so **another
+layout's crossing within 5 m of the click counts as the same track** and
+doesn't shorten a line. The pit lane, the track (for a pit line) and the
+line's own path coming back past always count, beyond 0.5 m. **Done** in
+`courseEdit.ts`:
+- `across(path, click, half, others)`, worked in flat metres around the
+  click. The direction is taken from the points 10 m either way along the
+  path, wrapping round a closed layout and held at an open path's ends. Each
+  half stops 1 m short of the first obstacle it would cross.
+- It returns `{ a, b, shortened }`, `{ tooFar }` or `{ tooTight: name }`,
+  where `name` is the path that cut that side.
+- `TRACK_HALF_METRES` 12, `PIT_HALF_METRES` 8, `CLICK_REACH_METRES` 30.
+Tests (`courseLines.test.ts`, 8): square and 24 m on a straight; a 1 m jog
+every 4 m skews it under 5°; an open path's end and a closed one's first
+point; shortened by a pit lane beside it, and a pit line by the track; too
+tight; too far; another layout 2 m off ignored and 9 m off shortening; a
+hairpin's own return.
+
+### M22.2 — The editor makes lines in one click ✅
 
 `clicked` in `CourseEditor.svelte`: for each line tool, the path it crosses
 (the chosen layout, or the pit lane) and what it must stop short of. A pit
@@ -112,7 +133,14 @@ that layout. Messages for "shortened", "too far" and "too tight" go in the
 existing `message` line, and the hints change. `firstPoint` and its marker
 go.
 
-### M22.3 — Proven, deployed, recorded (not validated)
+**Done, 2026-10-01**, as sketched. The start/finish tool also needs a layout
+("Draw a layout first: the start/finish is made across it."), and the pit
+tools need the pit lane. A track line stops short of its own layout coming
+back past, other layouts (beyond 5 m), and the pit lane. A pit line stops
+short of the pit lane coming back past and the track. The hints say where to
+click and that ends can be dragged.
+
+### M22.3 — Proven, deployed, recorded
 
 Through the dev server:
 - NHMS: a start/finish on the front straight (shortened short of the pit
@@ -121,6 +149,23 @@ Through the dev server:
 - the made lines compared with NHMS's own;
 - saved, and `GET /v1/courses` sends them;
 - a click off the track refused.
+
+**Proven locally, 2026-10-01**, through Chrome against the dev server, on
+NHMS (all modules' tests and 212 site tests passing):
+- **Start/finish:** one click on the front straight made a 24.0 m line at
+  exactly the angle of NHMS's own (160.9°), 44 m from it, where the click
+  was. Redrawing drops the old line's `guess` and `note`, since it's a new
+  line.
+- **Pit line:** one click made 16.0 m with nothing shortened (the lane is
+  clear there, as the JOURNAL measured).
+- **Pit in:** placed near the lane's top, 16.0 m. That spot still had room;
+  shortening and "too tight" are covered by the tests, not chased with pixel
+  clicks.
+- **Refused:** a click far off the pit lane said "Click on the pit lane."
+  and kept the tool.
+- **Saved** as version 2, and `GET /v1/courses` (the dev token in a
+  variable, never printed) sent it with `pit_in`, `pit_line` and the new
+  `start_finish`.
 
 Then deployed with a live connection open, and Sam draws Palmer's
 start/finish. Then a decision (lines made square to their path in one click,

@@ -321,3 +321,134 @@ export function keepClosed(before: readonly Pt[], after: readonly Pt[]): Pt[] {
 export function unsaved(drawn: boolean, name: string, savedName: string): boolean {
   return drawn || name.trim() !== savedName.trim()
 }
+
+/** How far each side of its path a made line reaches (M22, Sam): NHMS's widths. */
+export const TRACK_HALF_METRES = 12
+export const PIT_HALF_METRES = 8
+/** A click further than this from the path makes nothing. */
+export const CLICK_REACH_METRES = 30
+/** A made line stops this far short of another path. */
+const CLEARANCE_METRES = 1
+/** The path's direction at a click, from this far along it each way: one kinked segment doesn't skew it. */
+const DIRECTION_METRES = 10
+
+/** Another path a made line must stop short of: crossings within [sameWithin] metres of the click are the same track. */
+export interface Obstacle {
+  path: readonly Pt[]
+  /** What the editor calls it: "the pit lane", "another layout". */
+  name: string
+  sameWithin: number
+}
+
+export type Across = { a: Pt; b: Pt; shortened: string[] } | { tooFar: number } | { tooTight: string }
+
+type Xy = [number, number]
+
+/** Flat metres around a point: plenty over a few hundred metres. */
+function frame(origin: Pt) {
+  const kx = 111_320 * Math.cos((origin[1] * Math.PI) / 180)
+  const ky = 110_574
+  return {
+    xy: (p: Pt): Xy => [(p[0] - origin[0]) * kx, (p[1] - origin[1]) * ky],
+    pt: ([x, y]: Xy): Pt => [origin[0] + x / kx, origin[1] + y / ky],
+  }
+}
+
+/** The nearest point on [path] to [p]: where, how far, and how far along the path (all in [xy]'s metres). */
+function nearest(path: readonly Xy[], p: Xy): { at: Xy; distance: number; along: number } {
+  let best = { at: path[0]!, distance: Infinity, along: 0 }
+  let run = 0
+  for (let i = 0; i + 1 < path.length; i++) {
+    const [ax, ay] = path[i]!
+    const [bx, by] = path[i + 1]!
+    const dx = bx - ax
+    const dy = by - ay
+    const len = Math.hypot(dx, dy)
+    const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (len * len)))
+    const at: Xy = [ax + t * dx, ay + t * dy]
+    const distance = Math.hypot(p[0] - at[0], p[1] - at[1])
+    if (distance < best.distance) best = { at, distance, along: run + t * len }
+    run += len
+  }
+  return best
+}
+
+/** The point [s] metres along [path]: wrapping round a closed one, held at the ends of an open one. */
+function pointAlong(path: readonly Xy[], s: number, total: number, loop: boolean): Xy {
+  let d = loop && total > 0 ? ((s % total) + total) % total : Math.max(0, Math.min(total, s))
+  for (let i = 0; i + 1 < path.length; i++) {
+    const [ax, ay] = path[i]!
+    const [bx, by] = path[i + 1]!
+    const len = Math.hypot(bx - ax, by - ay)
+    if (d <= len) return len === 0 ? [ax, ay] : [ax + ((bx - ax) * d) / len, ay + ((by - ay) * d) / len]
+    d -= len
+  }
+  return path[path.length - 1]!
+}
+
+/** How far along the ray from [o] in direction [u] it first crosses [path], beyond [from] metres; null if never. */
+function firstCrossing(path: readonly Xy[], o: Xy, u: Xy, from: number): number | null {
+  let first: number | null = null
+  for (let i = 0; i + 1 < path.length; i++) {
+    const [ax, ay] = path[i]!
+    const [bx, by] = path[i + 1]!
+    const ex = bx - ax
+    const ey = by - ay
+    const denom = u[0] * ey - u[1] * ex
+    if (Math.abs(denom) < 1e-12) continue // parallel
+    const wx = ax - o[0]
+    const wy = ay - o[1]
+    const s = (wx * ey - wy * ex) / denom // along the ray
+    const t = (wx * u[1] - wy * u[0]) / denom // along the segment
+    if (t >= 0 && t <= 1 && s > from && (first === null || s < first)) first = s
+  }
+  return first
+}
+
+/**
+ * A timing line made from one click (M22): square across [path] at its
+ * nearest point to [click], [half] metres each side, each half cut
+ * [CLEARANCE_METRES] short of the first of [others] it would cross. A click
+ * over [CLICK_REACH_METRES] away, or a spot with no room, makes nothing.
+ */
+export function across(path: readonly Pt[], click: Pt, half: number, others: readonly Obstacle[] = []): Across {
+  if (path.length < 2) return { tooFar: Infinity }
+  const f = frame(click)
+  const xy = path.map(f.xy)
+  const near = nearest(xy, [0, 0])
+  if (near.distance > CLICK_REACH_METRES) return { tooFar: near.distance }
+  let total = 0
+  for (let i = 0; i + 1 < xy.length; i++) total += Math.hypot(xy[i + 1]![0] - xy[i]![0], xy[i + 1]![1] - xy[i]![1])
+  const first = path[0]!
+  const last = path[path.length - 1]!
+  const loop = first[0] === last[0] && first[1] === last[1]
+  const ahead = pointAlong(xy, near.along + DIRECTION_METRES, total, loop)
+  const behind = pointAlong(xy, near.along - DIRECTION_METRES, total, loop)
+  const dLen = Math.hypot(ahead[0] - behind[0], ahead[1] - behind[1])
+  if (dLen === 0) return { tooFar: near.distance }
+  const dir: Xy = [(ahead[0] - behind[0]) / dLen, (ahead[1] - behind[1]) / dLen]
+  const sides: Xy[] = [[-dir[1], dir[0]], [dir[1], -dir[0]]] // left of the way cars go, then right
+  const c = near.at
+  const shortened = new Set<string>()
+  const ends = sides.map((u) => {
+    let reach = half
+    let by: string | null = null // what cut this side short
+    for (const o of others) {
+      const hit = firstCrossing(o.path.map(f.xy), c, u, o.sameWithin)
+      if (hit !== null && hit - CLEARANCE_METRES < reach) {
+        reach = hit - CLEARANCE_METRES
+        by = o.name
+      }
+    }
+    if (by) shortened.add(by)
+    return { u, reach, by }
+  })
+  const tight = ends.find((e) => e.reach < 1)
+  if (tight) return { tooTight: tight.by ?? 'another path' }
+  const [l, r] = ends
+  return {
+    a: f.pt([c[0] + l!.u[0] * l!.reach, c[1] + l!.u[1] * l!.reach]),
+    b: f.pt([c[0] + r!.u[0] * r!.reach, c[1] + r!.u[1] * r!.reach]),
+    shortened: [...shortened],
+  }
+}

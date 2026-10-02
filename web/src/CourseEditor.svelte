@@ -7,8 +7,9 @@
   import { signin } from './lib/signin'
   import { api, day, retimingText, type CourseVersion, type CourseView, type RetimingProgress } from './lib/admin'
   import {
-    addSector, arrows, assignLayout, assignPitLane, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector,
-    removeLayout, removeSector, removeUnassigned, reverse, sectorsOf, toGeoJSON, unsaved, type EditCourse, type Pt,
+    across, addSector, arrows, assignLayout, assignPitLane, closed, emptyCourse, fromGeoJSON, idFrom, keepClosed, makeDefault, metres, moveSector,
+    PIT_HALF_METRES, removeLayout, removeSector, removeUnassigned, reverse, sectorsOf, toGeoJSON, TRACK_HALF_METRES, unsaved,
+    type EditCourse, type Obstacle, type Pt,
   } from './lib/courseEdit'
   import { contents, length, MAX_FILE_BYTES, readCourseFile } from './lib/courseFile'
   import { fetchSeries } from './lib/sessionPage'
@@ -45,7 +46,6 @@
 
   type Tool = 'layout' | 'pit_lane' | 'start_finish' | 'sector' | 'pit_in' | 'pit_out' | 'pit_line'
   let tool: Tool | null = $state(null)
-  let firstPoint: Pt | null = $state(null)
   let selected: string | null = $state(null) // a layout's id
   // Which many-point line's points are draggable: one at a time, or a hundred handles bury the course.
   let editing: 'layout' | 'pit_lane' | null = $state(null)
@@ -248,15 +248,15 @@
       drawn!.addLayer(L.polyline(u.path.map(latlng), { color: color('caution'), weight: lit === i ? 6 : 3, dashArray: '6 6', interactive: false }))
       for (const head of arrows(u.path)) drawn!.addLayer(L.polyline(head.map(latlng), { color: color('caution'), weight: 2, opacity: lit === i ? 1 : 0.6, interactive: false }))
     })
-    if (firstPoint) drawn.addLayer(L.circleMarker(latlng(firstPoint), { radius: 6, color: color('caution'), weight: 3 }))
   })
 
   function start(t: Tool) {
     if (readOnly) return
-    firstPoint = null
     map?.pm.disableDraw()
     if (t === 'layout' && !newLayoutName.trim()) { message = 'Name the layout first.'; return }
     if (t === 'sector' && !selected) { message = 'Choose a layout for the sector.'; return }
+    if (t === 'start_finish' && !selected) { message = 'Draw a layout first: the start/finish is made across it.'; return }
+    if ((t === 'pit_in' || t === 'pit_out' || t === 'pit_line') && !course.pitLane) { message = 'Draw the pit lane first: the line is made across it.'; return }
     message = null
     tool = t
     if (t === 'layout' || t === 'pit_lane') map?.pm.enableDraw('Line', { templineStyle: { color: color('caution') }, hintlineStyle: { color: color('caution'), dashArray: '4 4' } })
@@ -264,25 +264,40 @@
 
   function stop() {
     tool = null
-    firstPoint = null
     map?.pm.disableDraw()
   }
 
-  /** A two-click line: the first click, then the second makes it. */
+  /**
+   * A timing line in one click (M22): square across the path it crosses at the click, NHMS's widths, stopping
+   * short of any other path. Its ends are dragged after for anything odd.
+   */
   function clicked(p: Pt) {
     const t = tool
     if (!t || t === 'layout' || t === 'pit_lane') return
-    if (!firstPoint) { firstPoint = p; return }
-    const a = firstPoint
-    const b = p
-    firstPoint = null
     const c = course
+    const onPit = t === 'pit_in' || t === 'pit_out' || t === 'pit_line'
+    const own = onPit ? c.pitLane?.path : c.layouts.find((l) => l.id === selected)?.path
+    if (!own) return
+    // What it mustn't reach: for a track line, the pit lane and any other stretch of track (a layout sharing
+    // this stretch, drawn a few metres off, is the same track); for a pit line, the track.
+    const others: Obstacle[] = onPit
+      ? [{ path: own, name: 'another stretch of the pit lane', sameWithin: 0.5 }, ...c.layouts.map((l) => ({ path: l.path, name: 'the track', sameWithin: 0.5 }))]
+      : [
+          { path: own, name: 'another stretch of this layout', sameWithin: 0.5 },
+          ...c.layouts.filter((l) => l.id !== selected).map((l) => ({ path: l.path, name: 'another layout', sameWithin: 5 })),
+          ...(c.pitLane ? [{ path: c.pitLane.path, name: 'the pit lane', sameWithin: 0.5 }] : []),
+        ]
+    const made = across(own, p, onPit ? PIT_HALF_METRES : TRACK_HALF_METRES, others)
+    if ('tooFar' in made) { message = onPit ? 'Click on the pit lane.' : 'Click on the track.'; return }
+    if ('tooTight' in made) { message = `Too close to ${made.tooTight} here.`; return }
+    const { a, b } = made
+    message = made.shortened.length ? `Shortened: it would have crossed ${made.shortened.join(' and ')}.` : null
     if (t === 'start_finish') {
       const layout = ownStartFinish ? selected : null
       change({ ...c, startFinish: [...c.startFinish.filter((s) => s.layout !== layout), { a, b, extra: {}, layout }] })
     } else if (t === 'sector' && selected) {
       change(addSector(c, selected, a, b))
-    } else if (t === 'pit_in' || t === 'pit_out' || t === 'pit_line') {
+    } else if (onPit) {
       const key = t === 'pit_in' ? 'pitIn' : t === 'pit_out' ? 'pitOut' : 'pitLine'
       change({ ...c, [key]: { a, b, extra: c[key]?.extra ?? {} } })
     }
@@ -403,11 +418,11 @@
   const hint: Record<Tool, string> = {
     layout: 'Click along the line cars take, in the direction they go; click the last point again to finish.',
     pit_lane: 'Click along the pit lane, in the direction cars go; click the last point again to finish.',
-    start_finish: 'Click one side of the track, then the other.',
-    sector: 'Click one side of the track, then the other, for each sector line in order. Stop when done.',
-    pit_in: 'Click across the pit lane where it begins.',
-    pit_out: 'Click across the pit lane where it ends.',
-    pit_line: 'Click across the pit lane, level with the start/finish.',
+    start_finish: 'Click on the track where the start/finish goes. Drag its ends after, if needed.',
+    sector: 'Click on the track at each sector line, in order. Stop when done.',
+    pit_in: 'Click on the pit lane where it begins.',
+    pit_out: 'Click on the pit lane where it ends.',
+    pit_line: 'Click on the pit lane, level with the start/finish.',
   }
 </script>
 
