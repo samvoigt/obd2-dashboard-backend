@@ -325,6 +325,17 @@ passed, through Chrome against the dev server:
     `null`.
 - **The header** read "email· role", so the space is now kept (`&nbsp;`).
 
+**Deployed, 2026-10-01**, as revision `00037` (`a84627d`), with a live
+stream open across it: a throwaway `smoke-m23` car, the scratch-copy replay
+as before. It got `1012`, reconnected at once, and took "courses:
+unchanged" (now NHMS and Palmer). Checked in production: `config` has
+`devUser: false`, `/users` is served, and `/api/admin/users` without a
+sign-in is `401`. The car and its session were removed after.
+
+**Still to do:** Sam switches Google's sign-in to production and invites
+the first user on `/users`. Then decision 25 amended, a new decision,
+`COMPLETED`, `JOURNAL`, `PLAN`, README and `CLAUDE.md`, and the plan deleted.
+
 
 - **On the dev server**, as the dev user: create a car, an event, a course
   and a driver; add the master as an editor and back; fail to edit or delete
