@@ -95,7 +95,7 @@
   {#if open && $signin.state === 'out'}
     <div class="panel">
       <div bind:this={googleButton}></div>
-      <p class="muted small">Signing in turns on the edits on every page. Only the allowlisted admin can.</p>
+      <p class="muted small">Sign in for edit capability. Must be an invited user.</p>
     </div>
   {/if}
   {#if error}<p class="error small">{error}</p>{/if}

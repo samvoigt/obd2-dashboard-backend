@@ -80,7 +80,7 @@ fun Route.adminSignInRoutes(auth: AdminAuth, config: AdminConfig) {
                 }
                 if (role == null) {
                     adminLog.info("sign-in refused: {}", Refusal.NotAllowed)
-                    return@post call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "That Google account can't use this page."))
+                    return@post call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "That Google account isn't a user here yet. Ask the site's admin to add it."))
                 }
                 adminLog.info("sign-in: {} ({})", email, role.wire)
                 call.response.cookies.append(cookie(auth.issue(email), AdminAuth.LIFETIME.seconds.toInt()))
@@ -89,7 +89,7 @@ fun Route.adminSignInRoutes(auth: AdminAuth, config: AdminConfig) {
             is SignIn.Refused -> {
                 adminLog.info("sign-in refused: {}", result.reason)
                 val message = if (result.reason == Refusal.NotAllowed) {
-                    "That Google account can't use this page."
+                    "That Google account isn't a user here yet. Ask the site's admin to add it."
                 } else {
                     "Google's sign-in could not be checked; try again."
                 }

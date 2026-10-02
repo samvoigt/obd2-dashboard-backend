@@ -144,7 +144,7 @@ class AdminAuthTest {
         app()
         signIn("stranger").let {
             it.status shouldBe HttpStatusCode.Unauthorized
-            it.bodyAsText() shouldContain "That Google account can't use this page."
+            it.bodyAsText() shouldContain "That Google account isn't a user here yet."
             it.headers[HttpHeaders.SetCookie] shouldBe null
         }
         signIn("forged").let {
