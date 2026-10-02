@@ -1,6 +1,10 @@
 package com.obd2dashboard.backend
 
+import com.obd2dashboard.backend.admin.AccessStore
 import com.obd2dashboard.backend.admin.CarAdmin
+import com.obd2dashboard.backend.admin.InMemoryAccessStore
+import com.obd2dashboard.backend.admin.InMemoryUserStore
+import com.obd2dashboard.backend.admin.UserStore
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
@@ -101,6 +105,10 @@ fun Application.module(
     events: EventStores,
     /** Catch up on courses' re-timing, on start and every minute (M18.2): production's and the dev server's, not tests'. */
     watchRetiming: Boolean = false,
+    /** Invited users (M23). In memory unless given; production names Firestore's. */
+    users: UserStore = InMemoryUserStore(),
+    /** Every car's, event's, course's and driver's creator and editors (M23); as for users. */
+    access: AccessStore = InMemoryAccessStore(),
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
@@ -144,7 +152,10 @@ fun Application.module(
         browserRoutes(registry, hub, clock, crewAuth, crew)
         crewRoutes(registry, crewAuth, loginLimiter)
         val adminAuth = AdminAuth(crewKey, clock)
+        // Who may do what (M23): every signed-in route asks it, through `call.may` and `call.signedIn`.
+        this@module.attributes.put(Gate.KEY, Gate(adminAuth, admin, users, access))
         adminSignInRoutes(adminAuth, admin)
+        adminAccessRoutes()
         adminCarRoutes(registry, CarAdmin(registry, archive, messages, clock), archive, hub, clock, adminAuth, admin)
         // A course is in use once any session's laps were timed at it (its summary's track, M12.3).
         val courseInUse: suspend (String) -> Boolean = { id ->

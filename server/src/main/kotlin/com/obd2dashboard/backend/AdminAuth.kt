@@ -58,15 +58,17 @@ class AdminAuth(private val key: ByteArray, private val clock: Clock = Clock.sys
     }
 
     /** The email [cookie] was issued to, if it is unaltered, unexpired, and still allowed. */
-    fun verify(cookie: String?, allowlist: Allowlist): String? {
+    fun verify(cookie: String?, allowlist: Allowlist): String? = emailOf(cookie)?.takeIf { allowlist.allows(it) }
+
+    /** The email [cookie] was issued to, if it is unaltered and unexpired; who that is now is the [Gate]'s question (M23). */
+    fun emailOf(cookie: String?): String? {
         val parts = cookie?.split('.') ?: return null
         if (parts.size != 4 || parts[0] != TAG) return null
         val body = parts.take(3).joinToString(".")
         if (!MessageDigest.isEqual(sign(body).toByteArray(), parts[3].toByteArray())) return null
         val expiry = parts[2].toLongOrNull() ?: return null
         if (!clock.instant().isBefore(Instant.ofEpochSecond(expiry))) return null
-        val email = runCatching { String(Base64.getUrlDecoder().decode(parts[1])) }.getOrNull() ?: return null
-        return email.takeIf { allowlist.allows(it) }
+        return runCatching { String(Base64.getUrlDecoder().decode(parts[1])) }.getOrNull()
     }
 
     private fun sign(body: String): String {

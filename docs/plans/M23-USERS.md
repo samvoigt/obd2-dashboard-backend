@@ -121,6 +121,43 @@ they're added to another thing, they can edit but not delete)."
 
 ## The steps
 
+### The API every step builds against (fixed 2026-10-01, before the parallel steps)
+
+- **`GET /api/admin/me`**: `{ email, role: "master" | "user" }`.
+- **`GET /api/admin/config`** gains `devUser: true` on the dev server only.
+  There, `POST /api/admin/login` with credential `dev-user` signs in
+  `dev-user@localhost`, a user invited at start (`dev` stays the master).
+- **Lists** (`GET /api/admin/cars`, `/courses`, `/events`, `/drivers`)
+  return only what the caller may edit. Each item gains
+  `access: { creator: string | null, editors: string[], canShare: boolean, canDelete: boolean }`.
+  A `null` creator means made before M23, by a master admin.
+- **Creating** (`POST /api/admin/cars`, `POST /api/admin/drivers`, and
+  `PUT` of a course or event id that doesn't exist yet) asks `CREATE`, then
+  `gate.created(thing, who)`. `PUT` of an existing one asks `EDIT`.
+  **Deleting** asks `DELETE`, then `gate.deleted(thing)`.
+- **A car's sessions** (list, download, name, driver) ask `EDIT` of the
+  car; deleting one asks `DELETE` of the car. **The race routes** ask
+  `EDIT` of the event. **`POST /api/admin/courses/check`** only needs a
+  sign-in.
+- **Sharing:**
+  - `GET /api/admin/access/{kind}/{id}` (`SHARE`) →
+    `{ creator, editors, invitable: string[] }`, where `invitable` is every
+    invited user but the creator.
+  - `PUT /api/admin/access/{kind}/{id}` `{ editors: string[] }` (`SHARE`),
+    each an invited user; refused `400` otherwise. A thing with no record
+    gets one, its creator `null`.
+  - `kind` is `car`, `event`, `course` or `driver`.
+- **Users** (`INVITE`, master admins only):
+  - `GET /api/admin/users` → `[{ email, invitedBy, invited (epoch ms), created: string[] }]`,
+    where `created` holds thing keys like `car:outback`;
+  - `POST /api/admin/users` `{ email }` → `201`, or `409` if already a user,
+    or `400` if it's a master admin;
+  - `DELETE /api/admin/users/{email}` → `204`.
+- **In the server**, a route asks `call.may(Action.X, Thing(Kind.Y, id))`
+  (or `null` to create), or `call.signedIn(change)`, from `Gate.kt`, in
+  place of `call.admin(...)`. Both return `Who` or answer `401`/`403`
+  themselves.
+
 ### M23.1 — Who may do what (not validated)
 
 Pure Kotlin in `:admin` (the owner's rules, shared with `admin.sh`): `Role`
