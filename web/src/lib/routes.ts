@@ -15,6 +15,8 @@ export type Route =
   | { page: 'drivers' }
   | { page: 'driver'; id: string }
   | { page: 'compare' }
+  | { page: 'privacy' }
+  | { page: 'terms' }
   | { page: 'users' }
   | { page: 'preview'; slug: string }
 
@@ -33,6 +35,8 @@ const EVENT_EDIT = new RegExp(`^/events/${ID}/edit/?$`)
 const DRIVERS = /^\/drivers\/?$/
 const DRIVER = /^\/drivers\/(d-[0-9a-f]{8})\/?$/
 const COMPARE = /^\/compare\/?$/
+const PRIVACY = /^\/privacy\/?$/
+const TERMS = /^\/terms\/?$/
 const USERS = /^\/users\/?$/
 
 export function route(path: string): Route {
@@ -56,6 +60,9 @@ export function route(path: string): Route {
   if (driver?.[1]) return { page: 'driver', id: driver[1] }
   // Two laps compared (M16.4); the laps are in the query.
   if (COMPARE.test(path)) return { page: 'compare' }
+  // The privacy policy and terms (Sam, 2026-10-01), which Google's sign-in links.
+  if (PRIVACY.test(path)) return { page: 'privacy' }
+  if (TERMS.test(path)) return { page: 'terms' }
   // The invited users (M23), for a master admin.
   if (USERS.test(path)) return { page: 'users' }
   // Every dashboard widget on one page (M8.2), in the dev server only: the build drops it.

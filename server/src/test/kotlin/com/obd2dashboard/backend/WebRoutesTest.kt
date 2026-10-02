@@ -23,7 +23,7 @@ class WebRoutesTest {
         application { module(registry, testArchive(), InMemoryLiveHub(), messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey()) }
         for (path in listOf("/", "/cars/yaris", "/cars/yaris/", "/cars/yaris/sessions", "/cars/yaris/sessions/", "/cars/yaris/sessions/7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f", "/courses", "/courses/nhms",
             // M21: the Cars page, a car's management, and the editors where courses and events are shown.
-            "/cars", "/cars/", "/cars/yaris/manage", "/courses/new", "/courses/nhms/edit", "/events", "/events/new", "/events/box-day/edit", "/drivers",
+            "/cars", "/cars/", "/cars/yaris/manage", "/courses/new", "/courses/nhms/edit", "/events", "/events/new", "/events/box-day/edit", "/drivers", "/privacy", "/terms/",
             "/users", "/users/")) {
             val response = client.get(path)
             response.status shouldBe HttpStatusCode.OK

@@ -32,6 +32,10 @@ describe('route', () => {
     expect(route('/users')).toEqual({ page: 'users' })
     expect(route('/users/')).toEqual({ page: 'users' })
   })
+  it('reads the privacy policy and the terms', () => {
+    expect(route('/privacy')).toEqual({ page: 'privacy' })
+    expect(route('/terms/')).toEqual({ page: 'terms' })
+  })
   it('reads the compare page (M16.4)', () => {
     expect(route('/compare')).toEqual({ page: 'compare' })
   })

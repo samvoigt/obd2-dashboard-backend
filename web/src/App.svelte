@@ -4,6 +4,7 @@
   import SessionsPage from './SessionsPage.svelte'
   import SessionPage from './SessionPage.svelte'
   import SiteHeader from './SiteHeader.svelte'
+  import SiteFooter from './SiteFooter.svelte'
   import { route } from './lib/routes'
 
   // Pages are separate URLs served by the server (`/`, `/cars/{slug}`, …), so links are plain links.
@@ -44,6 +45,11 @@
   {#await import('./UsersPage.svelte') then m}<m.default />{/await}
 {:else if current.page === 'compare'}
   {#await import('./ComparePage.svelte') then m}<m.default />{/await}
+{:else if current.page === 'privacy'}
+  {#await import('./PrivacyPage.svelte') then m}<m.default />{/await}
+{:else if current.page === 'terms'}
+  {#await import('./TermsPage.svelte') then m}<m.default />{/await}
 {:else}
   <Landing />
 {/if}
+<SiteFooter />

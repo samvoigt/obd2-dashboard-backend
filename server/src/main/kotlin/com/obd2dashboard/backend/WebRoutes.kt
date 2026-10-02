@@ -44,6 +44,8 @@ fun Route.webRoutes() {
     for (path in listOf("/drivers", "/drivers/", "/drivers/{id}", "/drivers/{id}/")) get(path) { call.page() }
     // Two laps compared (M16.4), public.
     for (path in listOf("/compare", "/compare/")) get(path) { call.page() }
+    // The privacy policy and terms, which Google's sign-in links (Sam, 2026-10-01).
+    for (path in listOf("/privacy", "/privacy/", "/terms", "/terms/")) get(path) { call.page() }
     // The invited users (M23), for a master admin; the page asks the admin API, which decides.
     for (path in listOf("/users", "/users/")) get(path) { call.page() }
     // The cars (M21.5), each one's live feed, and its management.
