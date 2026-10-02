@@ -342,7 +342,7 @@ the first user on `/users`. Then decision 25 amended, a new decision,
   the master's things; get nothing from another user's. As the master:
   everything.
 - **Deployed** with a live connection open.
-- **Sam** invites the first user (`henxing@gmail.com`, asked 2026-10-01)
+- **Sam** invites the first user (asked 2026-10-01)
   and, per question 1, switches the Google sign-in to production or adds them
   as a test user.
 - **Recorded:** decision 25 amended (master admins and users), a new
