@@ -167,7 +167,12 @@ NHMS (all modules' tests and 212 site tests passing):
   variable, never printed) sent it with `pit_in`, `pit_line` and the new
   `start_finish`.
 
-Then deployed with a live connection open, and Sam draws Palmer's
-start/finish. Then a decision (lines made square to their path in one click,
+**Deployed, 2026-10-01**, as revision `00036` (`ea548df`), with a live
+stream open across it: a throwaway `smoke-m22` car, the same scratch-copy
+replay as M20 and M21. It got `1012`, reconnected at once, and took
+"courses: unchanged". The deployed `CourseEditor` chunk carries the
+one-click hints. The car and its session were removed after.
+
+**Still to do:** Sam draws Palmer's start/finish with it. Then a decision (lines made square to their path in one click,
 the widths, shortening), `COMPLETED.md`, `JOURNAL.md`, `PLAN.md`, and the
 plan deleted.
