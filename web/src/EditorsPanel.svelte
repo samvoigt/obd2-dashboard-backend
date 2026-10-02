@@ -79,7 +79,7 @@
       </div>
       {#if problem}<p class="hint small">{problem}</p>{/if}
     {:else}
-      <p class="muted small">No other invited users to add. A master admin invites them on Users.</p>
+      <p class="muted small">No other users to add. A master admin adds them on Users.</p>
     {/if}
     <div class="row">
       <button class="primary" onclick={save} disabled={busy || !changed}>Save editors</button>

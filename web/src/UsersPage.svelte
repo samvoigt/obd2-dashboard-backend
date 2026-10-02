@@ -63,12 +63,13 @@
   {:else if !master}
     <p class="muted">Only a master admin can manage users.</p>
   {:else}
-    <p class="muted">An invited user signs in with that Google account. They can create cars, events, courses and drivers, and choose who else edits them; they delete only what they made. A removed user loses access at once. What they made stays, with them as its maker, and a master admin can still delete it.</p>
+    <p class="muted">A user signs in with the Google account you add here. They can create cars, events, courses and drivers, and choose who else edits them; they delete only what they made. A removed user loses access at once. What they made stays, with them as its maker, and a master admin can still delete it.</p>
 
     <form class="row panel" onsubmit={invite}>
-      <label><span>Invite by email</span><input bind:value={email} type="email" placeholder="someone@example.com" autocapitalize="off" autocomplete="off" spellcheck="false" /></label>
-      <button class="primary" disabled={busy || !email.trim() || !!problem}>Invite</button>
+      <label><span>Their Google account's email</span><input bind:value={email} type="email" placeholder="someone@example.com" autocapitalize="off" autocomplete="off" spellcheck="false" /></label>
+      <button class="primary" disabled={busy || !email.trim() || !!problem}>Add user</button>
     </form>
+    <p class="muted small">Adding someone lets them sign in; it doesn't email them. Tell them to sign in at badnewsbears.live with that Google account.</p>
     {#if problem}<p class="hint">{problem}</p>{/if}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 
@@ -80,7 +81,7 @@
           <li>
             <div class="head">
               <strong>{u.email}</strong>
-              <span class="muted small">invited by {u.invitedBy}, {when(u.invited)}</span>
+              <span class="muted small">added by {u.invitedBy}, {when(u.invited)}</span>
             </div>
             {#if u.created.length > 0}
               <p class="small">Made:

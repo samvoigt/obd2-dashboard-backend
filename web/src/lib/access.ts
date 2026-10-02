@@ -78,7 +78,7 @@ export function editorProblem(sharing: Sharing, editors: readonly string[], emai
   if (!e) return 'Choose a user'
   if (sharing.creator !== null && e === normal(sharing.creator)) return 'They made it: they can already edit it'
   if (editors.some((x) => normal(x) === e)) return 'Already an editor'
-  if (!sharing.invitable.some((x) => normal(x) === e)) return 'Only invited users can edit; a master admin invites them on Users'
+  if (!sharing.invitable.some((x) => normal(x) === e)) return 'Only users can edit; a master admin adds them on Users'
   return null
 }
 

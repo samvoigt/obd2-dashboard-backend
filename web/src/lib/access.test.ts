@@ -52,7 +52,7 @@ describe('the editors panel (M23)', () => {
     expect(editorProblem(sharing, ['ed@x.com'], 'Fay@X.com ')).toBeNull()
     expect(editorProblem(sharing, ['ed@x.com'], 'ED@x.com')).toBe('Already an editor')
     expect(editorProblem(sharing, ['ed@x.com'], 'ann@x.com')).toContain('made it')
-    expect(editorProblem(sharing, ['ed@x.com'], 'zed@x.com')).toContain('invited')
+    expect(editorProblem(sharing, ['ed@x.com'], 'zed@x.com')).toContain('Users')
     expect(editorProblem(sharing, [], '  ')).toBe('Choose a user')
     expect(editorProblem({ ...sharing, creator: null }, [], 'fay@x.com')).toBeNull()
   })
