@@ -34,8 +34,9 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M17** | Live: the `timing` frame to the tablet, the car page's driver, stint and race, the event page counting the stint being driven | ✅ (`plans/COMPLETED.md`) |
 | **M18** | The candidates and leftovers: every signal on the dashboard, session names, crew messages beside a session, each session's clock offset stored, re-timing that survives a restart | ✅ (`plans/COMPLETED.md`) |
 | **M19** | Long sessions: two 8-hour stints in a race without anyone waiting (compaction, `complete` at once, the car page and live timing without rebuilding) | ✅ (`plans/COMPLETED.md`) |
-| **M20** | Courses from a `.geojson` file into the editor (our format, or plain lines to label), and downloaded as one; Palmer the test | **planned**: [`plans/M20-COURSE-FILES.md`](plans/M20-COURSE-FILES.md) |
-| **M21** | One site: the landing page shows every page in short; sign in and out on every page turns on each page's edits; the admin page goes | **planned**: [`plans/M21-ONE-SITE.md`](plans/M21-ONE-SITE.md) |
+| **M20** | Courses from a `.geojson` file into the editor (our format, or plain lines to label), and downloaded as one; Palmer the test | **deployed** (00034); waiting on Sam's Palmer upload: [`plans/M20-COURSE-FILES.md`](plans/M20-COURSE-FILES.md) |
+| **M21** | One site: the landing page shows every page in short; sign in and out on every page turns on each page's edits; the admin page goes | **deployed** (00035); waiting on Sam's sign-in: [`plans/M21-ONE-SITE.md`](plans/M21-ONE-SITE.md) |
+| **M22** | Timing lines in one click: square across the path at the click, ends draggable, stopping short of other paths | **planned**: [`plans/M22-ONE-CLICK-LINES.md`](plans/M22-ONE-CLICK-LINES.md) |
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
