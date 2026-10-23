@@ -39,8 +39,11 @@ who's driving, then this.
   completing (`archiveRoutes`' `completed` callback in `Application.kt`
   calls `liveTimings.completed` and `liveSeries.completed` only); a session's
   re-timing stored (`RetimingJobs.sessionPrepared` → `retime`, and a course
-  save's job in `courseSaved`); a session deleted (`CarAdmin.deleteSession`).
-  With a 10 s hold these don't matter; with a long one they must clear it.
+  save's job in `courseSaved`); a session deleted (`CarAdmin.deleteSession`,
+  in `adminCarRoutes`). With a 10 s hold these don't matter; with a long one
+  they must clear it. **M38.3 (built before this)** gave `adminCarRoutes` an
+  `onChanged` (`edited`) and calls it on every merge, extension, unmerge and
+  a merged session's delete; a plain session's delete doesn't call it yet.
 - **Live parts:** while a session in the event isn't complete, its laps are
   provisional (`LiveTimings`), changing every lap. The event page re-asks
   every 30 s while a part is on (`partOn`, `REFRESH_MS` in
@@ -49,7 +52,8 @@ who's driving, then this.
   every event, so it waits on all of them; held results make it fast too.
 - **The session page** (`SessionPage.svelte`, `onMount`, line 202): fetches
   `/api/sessions/{id}`, then (not awaited) drivers and messages, then
-  **awaits the series** (thinned first for sessions over an hour, M19.6),
+  **awaits the series** (thinned first for sessions over an hour, M19.6;
+  for a merged session, each member's, joined by `fetchMergedSeries`, M38.7),
   and only then `fetchLaps(id)` (`/api/sessions/{id}/laps`, a few kB). The
   laps table and lap speeds are derived from `standing` or the series
   (`laps` at line 166), so the laps could show first, without speeds, and
@@ -66,9 +70,9 @@ who's driving, then this.
   the event's id and revision **and the cars the viewer sees** (sorted,
   joined). An entry for an event with a session still live is held 10 s, as
   now; the page's 30 s refresh then sees new laps.
-- **What clears the hold:** everything that calls `edited` today, plus a
-  session completing, a session's re-timing stored, a course's re-timing job
-  finishing, and a session deleted. One `resultsHold.clear()` each; no
+- **What clears the hold:** everything that calls `edited` today (since
+  M38, merges included), plus a session completing, a session's re-timing
+  stored, a course's re-timing job finishing, and a plain session deleted. One `resultsHold.clear()` each; no
   finer invalidation (events are few; recomputing one on the next visit is
   fine).
 - **The 202-with-progress idea is deferred.** Measure first: with the hold,
@@ -91,9 +95,9 @@ who's driving, then this.
 `ResultsHold.get`'s key becomes `"${event.id}@${event.revision}:${event.cars.sorted().joinToString(",")}"`
 (`seen` already removes hidden cars, so the cars are what's seen).
 
-Test (`LiveResultsTest` or `HiddenTest`): an event with a hidden car; ask
-signed in, then signed out within 10 s; the second answer doesn't name the
-hidden car or its sessions. Fails before the change, passes after.
+Test (`HiddenTest`, whose `open-day` event already has `secret-car` and
+`open-car`): ask it signed in, then signed out within 10 s; the second
+answer doesn't name the hidden car or its sessions. Fails before the change, passes after.
 
 Deploy on its own (with a replay streaming), since it's a leak today.
 
@@ -106,12 +110,14 @@ back with the results (or compute it before) so the service can choose.
 
 Clear the hold also in `Application.kt`: in the `completed` callback; from
 `RetimingJobs` (a new `onRetimed: () -> Unit` constructor parameter, called
-after `retime` stores and after a course job finishes); in
-`CarAdmin.deleteSession`'s caller in `adminCarRoutes` (after a delete).
+after `retime` stores and after a course job finishes); and after a plain
+session's delete in `adminCarRoutes` (`DELETE /api/admin/sessions/{id}`),
+through the `onChanged` M38.3 gave it.
 
 Tests: a held entry outlives 10 s when nothing is live (fixed clock); a live
 one doesn't; each new clearing path empties it (`LiveResultsTest`,
-`RetimingJobsTest` with the callback counted).
+`RetimingJobsTest` with the callback counted); a merge (M38's route) still
+empties it.
 
 Measure (JOURNAL): on production after deploy, the NHMS event page twice in
 a row and after an edit, from the logs' `GET /api/events/… in Nms`; the
@@ -119,15 +125,21 @@ driver page the same.
 
 ### M32.3 — The session page: laps first
 
-In `SessionPage.svelte`'s `onMount`, start `fetchLaps(id)` right after the
-detail arrives (for a complete session), not after the series; render the
-laps panel as soon as `standing` is set, speeds blank until the series
-comes (`speedOf` already returns nothing without one). The chart and map
-panels show skeletons until the series arrives.
+Move the order of loading out of `SessionPage.svelte`'s `onMount` into a
+`loadSession(id, fetcher, { detail, laps, series })` in
+`lib/sessionPage.ts` that calls each callback as its part arrives: the
+detail, then at once `fetchLaps(id)` (a complete or merged session; a
+merge's id answers its laps through, M38.5), then the series
+(`fetchSeries`, or `fetchMergedSeries` for a merge). The page renders the
+laps panel, lifted out of the `{#if !view}` gate, as soon as `standing` is
+set, speeds blank until the series comes (`speedOf` already returns nothing
+without one). The chart and map panels show skeletons until the series
+arrives.
 
 Test (`sessionPage.test.ts`, a fake fetcher recording order): for a complete
-session, `/laps` is asked before `/series`. Check on the dev server with
-the M29 synthetic 3 h session: the laps table appears before the chart.
+session, `/laps` is asked before `/series`; for a merged one, its `/laps`
+before any member's `/series`. Check on the dev server with the M29
+synthetic 3 h session: the laps table appears before the chart.
 
 ### M32.4 — Skeletons
 
@@ -144,7 +156,8 @@ a line when the data lands.
 
 `lib/title.ts`: `setTitle(...parts)` → `document.title = [...parts, 'Bad
 News Bears'].join(' · ')`. Each page calls it once its name is known (and
-with the list name at once). Test: the function's output; a check in the
+with the list name at once); a merged session's page uses the merge's name
+or first start. Test: the function's output; a check in the
 phone script (M30) that each route's title isn't the default.
 
 ### M32.6 — Deployed, and measured
@@ -158,11 +171,3 @@ whether the first-visit progress line is still wanted.
 ## Open questions
 
 None.
-
-## Merged sessions (M38, planned 2026-10-22)
-
-Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
-plan must account for:
-
-- **The results hold is also cleared on every merge, extend, unmerge and
-  delete** (M38's routes call `edited`).

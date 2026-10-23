@@ -8,7 +8,7 @@ code as usual. Every phase is sized to be built by an Opus-level model or
 lower: concrete files, concrete acceptance checks, no open-ended design.
 
 > **Corrected 2026-10-22, by the milestone plans (M30–M37), which checked
-> each step against the code.** Four corrections:
+> each step against the code.** Four corrections, and one addition:
 > - **Phones (§2.1, §3.A):** the 390 px screenshots were probably laid out
 >   at about 500 px and cropped: desktop Chrome won't lay a window out
 >   narrower, and a landing card's text was cut mid-word rather than
@@ -25,6 +25,9 @@ lower: concrete files, concrete acceptance checks, no open-ended design.
 >   (M10); **removes in the course editor (§3.G)** get Undo, not a
 >   confirm, since nothing is saved until Save.
 > - **The compare pick (§3.F)** is shared across pages; M35 keeps that.
+> - **Merged sessions (M38)**, asked for after the review, are built right
+>   after M31a; M31b and M32–M36 account for them in their steps. The
+>   cross-cutting glossary (below) is in no milestone yet.
 
 > **Reviewed 2026-10-22.** The live site (public pages, read-only, signed in
 > as Sam in his own browser) and the dev server (crew login, the driver

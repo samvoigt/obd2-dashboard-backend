@@ -26,7 +26,7 @@ M31b, M34 and M35, so those build on it instead of being reworked.
   **So a merged session gets a UUID id of its own**: every route, regex and
   link shape works unchanged.
 - **Nothing groups sessions today except views of them:**
-  - `drives()` (`SessionRoutes.kt:281`) groups a car's list by a 10-minute
+  - `drives()` (`SessionRoutes.kt:301`) groups a car's list by a 10-minute
     gap, for display only;
   - `runs()` (`timing/.../SessionTrace.kt:147`) joins a car's sessions into
     one run of the app: same device, each one's first `at` above the last's
@@ -47,14 +47,25 @@ M31b, M34 and M35, so those build on it instead of being reworked.
   driver pages (`DriverRecord`) and the download (`EventDownload.kt`, whose
   `MergedLog` already writes several sessions back to back) read the same
   placement.
-- **A session's page reads four public routes**, all through
+- **A session's page reads four public routes** (a fifth, `/live-laps`, is
+  for a live session only), all through
   `sessionRecord()` (`SessionRoutes.kt`), which also hides a hidden car's
   sessions (M25): `/api/sessions/{id}`, `/laps` (complete sessions only,
   timed on the event's course, else its own: `laps(car, id, on)`),
   `/series` (the prepared series, or `?thin=1` for a long one; the page opens
   thinned at `LONG_SESSION_MS` = 1 h and loads full detail under a 30-minute
   view, `web/src/lib/sessionPage.ts:313–320`), and `/messages`. They are all
-  in `HiddenTest`'s list of public reads (lines 129–133).
+  in `HiddenTest`'s list of public reads (lines 129–133). A lap link
+  (`lib/laps.ts` `lapLink`) is `?from=&to=` on the tablet's clock, so it
+  names a moment, not an offset into one session's series.
+- **The list never names a device:** `SessionItem` (`SessionRoutes.kt:65`)
+  has no `device`, and `drives()` works on items. Whatever needs the device
+  is worked out on the server.
+- **`web/src/lib/merge.ts` already exists:** it merges the archive's series
+  with the live lane's (M7.6). The new code says *join* for series and
+  keeps out of that file.
+- **`adminCarRoutes`** (`AdminRoutes.kt:196`, which has the delete) is given
+  no `onChanged` today: a session's delete doesn't clear the results' hold.
 - **Deleting** is `DELETE /api/admin/sessions/{id}` (`AdminRoutes.kt:324`),
   the car's creator or a master admin (M23), refused while live or uploading
   (`CarAdmin.checkDeletable`, `UPLOAD_QUIET` 5 min). **Naming** is
@@ -100,8 +111,11 @@ M31b, M34 and M35, so those build on it instead of being reworked.
     own URL still answers, and its detail carries `mergedInto`, so the page
     moves to the merged one (lap links, which name a member and a window,
     keep working);
-  - **event results:** one practice row per merged session, its stretches
-    over the whole merged timeline (M31a's rule); the race is unchanged;
+  - **event results:** one session row (per stretch, as now) per merged
+    session in every part, practice and race alike, with the merge's id,
+    its stretches over the whole merged timeline (M31a's rule), and
+    `merged` (member id → merged session id) so a race lap's session can be
+    linked to the merged page; the race itself is unchanged;
   - **driver pages** follow the results; **the download** writes members in
     order as now and names the merge in `sessions.json`.
 - **The merged page's data:**
@@ -112,7 +126,8 @@ M31b, M34 and M35, so those build on it instead of being reworked.
     on one course: the event's if the merge is in one, else the first member
     with laps' course (`laps(car, id, on)` re-times the others on it).
     Numbered 1, 2, 3… through the merge, known by when they ended as always
-    (decision 44). A lap across a join exists only within one run of the
+    (decision 44), each carrying its member's id (`session`), so lap links
+    and compare picks name the member and its window as they do now. A lap across a join exists only within one run of the
     app, where re-timing already gives it; across a restart there's a gap,
     not the race's `restart` lap;
   - **series:** joined in the browser from the members' own series (a new
@@ -130,9 +145,12 @@ M31b, M34 and M35, so those build on it instead of being reworked.
   complete sessions **in the same drive** (`drives()`'s 10 minutes), from the
   same device, unmerged, in the same part or none, show "These look like one
   drive — Merge" to whoever may edit the car. Restarts (a new run) and
-  adapter reconnects (the same run) are both suggested.
-- **Results' hold** (M32) is cleared on every merge, extension, unmerge and
-  delete (`onChanged` → `edited`).
+  adapter reconnects (the same run) are both suggested. The server works
+  them out (it knows the device) and sends each drive's `suggested` lists
+  of ids; the list never carries a device.
+- **Results' hold** (`ResultsHold`, M17.6; made long-lived in M32) is
+  cleared on every merge, extension, unmerge and delete: the merge routes
+  and `adminCarRoutes` take `onChanged = edited`.
 
 **Decision 48 (drafted, written in the same commit as M38.3):**
 
@@ -165,36 +183,41 @@ point count. On the dev server, a page joining five synthetic series of the
 same sizes, measured with `web/scripts/measure.mjs` at 4× CPU slowdown.
 **Gate:** if it isn't usable (long tasks, a heap past the M8 budget), the
 merged page opens on the members' thinned series only and the plan says so
-before M38.6. The overlap found sets the tolerance in M38.2. Recorded here
+before M38.7. The overlap found sets the tolerance in M38.2. Recorded here
 and in JOURNAL.
 
-### M38.2 — The store and the rules (pure and in memory, tested)
+### M38.2 — The store and the rules (tested; in memory and Firestore)
 
 `:archive`: `MergedSession`, `MergeStore` (`create`, `extend`, `split`,
-`get`, `ofCar`, `mergeOf(sessionId)`), `InMemoryMergeStore`. `:events` or
-`:archive`: `MergeRules.check(members, records, partOf)` returning the
+`get`, `ofCar`, `mergeOf(sessionId)`), `InMemoryMergeStore`, and
+`MergeRules.check(members: List<SessionRecord>, partOf: (String) -> String?,
+mergedAlready: Set<String>, overlapMs: Long)` (pure) returning the
 problems in Sam's words ("Session 12:00 is still uploading", "These are in
 different parts: Practice and Race session 1", "15:18 overlaps 15:23 by
-3 min").
+3 min"). `:archive-gcp`: `FirestoreMergeStore` (`merges`, `mergeMembers`,
+one transaction per change).
 
 Tests: every rule above, each alone; extending keeps the id; a session in
 two merges refused at the store; split marks `split` and frees the members.
+`scripts/merge-smoke.sh`, in `archive-smoke.sh`'s style, for the Firestore
+store: two throwaway sessions merged, a second merge of one refused, split,
+removed (a line for it in CLAUDE.md's Build block).
 
-### M38.3 — Firestore, and the routes to merge
+### M38.3 — The routes to merge, unmerge, name and delete
 
-`:archive-gcp`: `FirestoreMergeStore` (`merges`, `mergeMembers`, one
-transaction per change). Server: `POST /api/admin/cars/{slug}/merges`
-(`{ members }`, or `{ into, add }` to extend), `POST
-/api/admin/merges/{id}/split`, both `Action.EDIT` on the car, logged by
-`adminLog`, `onChanged`. `DELETE /api/admin/sessions/{mergeId}` deletes the
-members then the merge (`Action.DELETE`). Decision 48 in `DECISIONS.md`.
+In `adminCarRoutes` (which gains `merges: MergeStore` and `onChanged: () ->
+Unit`, wired to `edited` in `Application.kt`): `POST
+/api/admin/cars/{slug}/merges` (`{ members }`, or `{ into, add }` to
+extend), `POST /api/admin/merges/{id}/split`, both `Action.EDIT` on the car,
+logged by `adminLog`, then `onChanged`. `DELETE /api/admin/sessions/{mergeId}`
+deletes the members then the merge (`Action.DELETE`), then `onChanged`.
+The name routes (`DriverRoutes.kt:90`, `:98`) accept a merge id and name
+the merge; the driver routes don't (a merge id isn't a session: 404, since
+drivers are stored on members). Decision 48 in `DECISIONS.md`.
 
-Tests (`MergeRoutesTest`, in memory): merge, extend, split, delete;
+Tests (`MergeRoutesTest`, in memory): merge, extend, split, delete, name;
 refusals (not yours, live member, different parts, overlap, already
-merged); a hidden car's merge answers 404 signed out (`HiddenTest` gains the
-merged id in its existing `/api/sessions/{id}…` rows; no new public route).
-A Firestore smoke in `scripts/archive-smoke.sh`'s style for the
-two-collection transaction.
+merged); each change empties the results' hold.
 
 ### M38.4 — Placement as one unit
 
@@ -204,84 +227,89 @@ emptyList())`, and the six callers pass the car's merges. Tests
 it overlaps most; a member added by hand brings the others; a member removed
 takes the others out; without merges, every existing test unchanged.
 
-### M38.5 — What the API answers for a merged session
+### M38.5 — What the session routes answer for a merged session
 
 `SessionRoutes.kt`: `sessionRecord()` resolves a merge id (and a `split`
 one to its first member); the car's list folds members into one
-`SessionItem` (`members`); `/api/sessions/{id}` answers the folded detail
-with `members`, and a member's detail carries `mergedInto`; `/laps` and
-`/messages` for a merge as decided; `/series` for a merge id answers 404
-(the page joins the members'). `EventResults`: one practice row per merge.
-`EventDownload`: `sessions.json` names the merge. Admin download of a merge
-id: `MergedLog` of its members, gzipped.
+`SessionItem` (`members`), and each `Drive` gains `suggested:
+List<List<String>>` from a pure `suggestMerges(records, partOf, merged)`
+(the rule in Decided here); `/api/sessions/{id}` answers the folded detail
+with `members` (id, start, end, driver, driver changes), and a member's
+detail carries `mergedInto`; `/laps` (each lap with its member's
+`session`) and `/messages` for a merge as decided; `/series` and
+`/live-laps` for a merge id answer 404 (the page joins the members'). Admin
+download of a merge id: `MergedLog` of its members, gzipped.
 
-Tests (`SessionRoutesTest`, `EventResultsTest`, `EventDownloadTest`): the
-list shows one row with summed laps and the best of all; laps numbered
-through, a lap spanning a same-run join present, none across a restart;
-practice results count the merge once; the download unchanged but for the
-name.
+Tests (`SessionRoutesTest`, `HiddenTest`): a hidden car's merged id answers
+404 signed out (added to `HiddenTest`'s existing `/api/sessions/{id}…`
+rows; no new public route); the list shows one row with summed laps and
+the best of all; laps numbered through, each naming its member, a lap
+spanning a same-run join present, none across a restart; `suggestMerges`:
+same device and drive suggested, a live or uploading one breaks the run,
+another part breaks it, another device breaks it, already merged skipped.
 
-### M38.6 — The merged page
+### M38.6 — Event results and the download count a merge once
 
-`web/src/lib/`: `joinSeries(members: { t0, series }[])` (pure, tested:
-times shifted to the first member's `t0`, a `null` break at each join,
-positions and events carried, `dropped` summed). `SessionPage.svelte`: a
-`mergedInto` detail moves to the merged page (`history.replaceState`); a
-merged detail fetches each member's series by the rule above and joins
-them, marks each join on the chart (`markers`) and lists the members under
-the facts ("3 sessions: 09:23, 11:55, 12:00").
+`EventResults.kt`: a merge's rows in every part as decided (its laps from
+M38.5's merged laps, `Results.stretches` over its members' drivers), and
+`merged` (member → merge) on `EventResults`; driver pages follow.
+`EventDownload`: `sessions.json` names the merge.
+
+Tests (`EventResultsTest`, `EventDownloadTest`): practice and race-session
+rows count the merge once, with the same bests as unmerged; `merged` maps
+each member; the race's laps and stints unchanged; the download unchanged
+but for the name.
+
+### M38.7 — The merged page
+
+`web/src/lib/sessionPage.ts` (not `merge.ts`, which is the live lane's):
+`joinSeries(members: { t0, series }[])` (pure, tested: times shifted to the
+first member's `t0`, a `null` break at each join, positions and events
+carried, `dropped` summed) and `fetchMergedSeries(members, fetcher, thin)`
+(each member's `fetchSeries`, then `joinSeries`; M33.7 reuses it).
+`SessionPage.svelte`: a `mergedInto` detail moves to the merged page
+(`history.replaceState`, keeping `?from=&to=`); a merged detail fetches
+each member's series by the rule above and joins them, marks each join on
+the chart (`markers`) and lists the members under the facts ("3 sessions:
+09:23, 11:55, 12:00").
 
 Check on the dev server: three replayed sessions merged; one chart and map
 across them, a break at each join, laps numbered through, a member's URL
-lands on the merged page.
+lands on the merged page, and a member's lap link lands on the merged page
+focused on that lap.
 
-### M38.7 — The sessions list: merge, unmerge, suggestions
+### M38.8 — The sessions list: merge, unmerge, suggestions
 
-`SessionsPage.svelte`, for whoever may edit the car: a checkbox per row
-(merged rows too, to extend), a **Merge** bar when two or more are ticked
-("Merge 3 sessions"), the server's refusal shown as it says it; on a merged
-row, **Unmerge** beside Download and Delete (Delete's confirmation lists the
-members). The suggestion line above a drive's rows, from a pure
-`suggestMerges(drive, canEdit)` in `web/src/lib/sessions.ts` (tested: same
-device and drive suggested; a live or uploading one breaks the run; another
-part breaks it; already merged skipped).
+`SessionsPage.svelte`, for whoever may edit the car (`may.edit`): a
+checkbox per row labelled **Select** (`aria-label="Select 12:00 to
+merge"`; merged rows too, to extend), a **Merge** bar when two or more are
+ticked ("Merge 3 sessions"), the server's refusal shown as it says it; on a
+merged row, **Unmerge** beside Download and Delete (Delete's confirmation
+lists the members). The suggestion line ("These look like one drive —
+Merge") above each of the drive's `suggested` runs; its Merge posts those
+ids. A pure `mergeBar(selected, items)` in `web/src/lib/sessions.ts`
+(tested: under two → none; a merged row and plain ones → extend it; two
+merged rows → "Unmerge one first").
 
 Check on the dev server: the suggestion appears for replayed back-to-back
 sessions; one click merges them; Unmerge restores three rows.
 
-### M38.8 — Deployed
+### M38.9 — Deployed
 
 With a replay streaming across it. Then Sam merges NHMS Saturday's sessions
 (race session 1) on production and checks: the race results and laps per
 driver unchanged (SAM 122, HUG 118, PAU 113, DRE 107); the merged page
 loads within M38.1's budget; the event page lists one session for the day.
 
-## What M31b, M34 and M35 must account for
+## Where the later plans use this
 
-- **M31b (the screens):** the session page's Drivers block works over a
-  merged session's whole timeline (`members` in the detail): "From the
-  start" is the first member's driver; a later member's start driver shows
-  as an entry ("From 12:00, carried over"); a change at merged lap N is
-  turned into a moment and stored on the member that moment falls in
-  (`PUT /api/admin/sessions/{memberId}/driver-changes`). The live page is
-  unaffected: a live session is never merged.
-- **M34 (the event page):** the Sessions panel lists one row per merged
-  session (results already fold it, M38.5); a stint's Session link goes to
-  the merged page (a member's id moves there by itself, or results carry the
-  merge id: prefer the latter, one hop fewer).
-- **M35 (the session page and list):**
-  - the list's checkboxes for comparing laps (on the session page) and for
-    merging (on the list) are different pages; keep them apart in wording
-    ("Choose" vs "Pick to merge");
-  - the panels' new order applies to the merged page; the chart shows the
-    joins;
-  - "50 laps · best 1:30.200" and the trouble-code line are worked out over
-    the merge;
-  - the compare pick names a member and a window (`lapLink`), which still
-    lands on the merged page.
-- **Also M36 (the event editor):** "Take out" and "Add to" act on the whole
-  merged session, which shows as one row; and **M32:** clear the results'
-  hold on merge, extend, unmerge and delete.
+Folded into their steps (2026-10-22): M31b.4–5 (the Drivers block over a
+merged timeline; a change stored on the member its moment falls in), M32.2
+and M32.3 (the hold's clearing; laps first for a merge), M33.7 (an offline
+car's last route from a merged session), M34.1 and M34.3 (one row per
+merged session; stint links through `merged`), M35 (the order, compare
+picks naming members, the list's two kinds of checkbox) and M36.1–M36.4
+(placement and Take out / Add to on the whole merge).
 
 ## Open questions
 

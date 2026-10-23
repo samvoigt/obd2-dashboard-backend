@@ -30,7 +30,7 @@ header" (built in M31b; M30 leaves its place).
   Chrome with a throwaway profile and drives it over the DevTools protocol
   (Node's built-in WebSocket, nothing installed), with
   `Emulation.setDeviceMetricsOverride { width: 390, height: 844,
-  deviceScaleFactor: 2, mobile: true }` (`measure.mjs:58`). A phone check can
+  deviceScaleFactor: 2, mobile: true }` (`measure.mjs:61`). A phone check can
   reuse that start-up code as it is.
 - **The dev server** (`server/src/dev/.../DevServer.kt`) seeds one car,
   `dev-car` (passcode in `server/build/dev-passcode`), and the course
@@ -95,8 +95,8 @@ header" (built in M31b; M30 leaves its place).
   does.
 - **Tables:** a shared `.table-scroll` wrapper in `app.css`
   (`overflow-x: auto; max-width: 100%`), with the first column sticky. The
-  laps and stints tables use it. Stacking tables into cards is phase 5's and
-  6's job, when those pages are reordered; M30 only makes sure nothing
+  laps and stints tables use it. The event page's sessions become rows that
+  wrap in M34.6, when that page is reordered; M30 only makes sure nothing
   escapes its panel. The exception is the sessions list, whose rows already
   wrap.
 - **Touch targets:** at under 600 px, `button`, `select`, `input` (not
@@ -132,7 +132,9 @@ the shared part (start Chrome, `target()`, `send()`) into
   - Defaults: every route that exists on a fresh dev server: `/`, `/cars`,
     `/cars/dev-car`, `/cars/dev-car/sessions`, `/cars/dev-car/manage`,
     `/events`, `/drivers`, `/courses`, `/courses/nhms`, `/compare`,
-    `/privacy`, `/terms`.
+    `/privacy`, `/terms`; then, signed in with the dev sign-in (`POST
+    /api/admin/login` `{"credential":"dev"}` from the page), `/courses/nhms/edit`,
+    `/courses/new`, `/events/new` and `/users`.
   - Any extra paths given as arguments, such as an event or a session once a
     replay has made one.
 - **For each path**, at 390 × 844 with `mobile: true`:
@@ -221,9 +223,10 @@ phone width:
 Also move the four copies of `.button` into `app.css` as one, and delete
 them from the components.
 
-**Check:** with a new pure helper in `lib/` that the script can call, the
-phone check also reports every visible button, select or input under 44 px
-tall, and passes only with none on the car page and the session page.
+**Check:** the phone check also reports every visible button, select or
+input under 44 px tall (a function it evaluates in the page through
+`Runtime.evaluate`, reading each element's `getBoundingClientRect()`), and
+passes only with none on the car page and the session page.
 Everything else is reported but not failed, since the editors are phase 7's.
 
 ### M30.6 — Bright mode (§3.I, §6.3)
@@ -269,7 +272,9 @@ survives a reload. Run the phone check again in bright mode (it sets
 
 ### M30.7 — Deployed, and looked at on a phone
 
-Deploy as usual: a smoke car streaming across the deploy. Then Sam opens
+Before deploying, the review's three walk-throughs (§5) are timed on a
+phone against the current site, as the baseline M31b.6 and M33 compare
+with; the times go to JOURNAL. Then deploy as usual: a smoke car streaming across the deploy. Then Sam opens
 badnewsbears.live on his phone:
 - the landing page;
 - the car page, live if a car is out, otherwise the dev car through a

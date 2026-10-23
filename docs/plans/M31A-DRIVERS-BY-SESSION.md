@@ -46,10 +46,12 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M31b.
   carries them through the event editor's saves; `EventRules.eventProblems`
   checks them (`EventRulesTest`, "only the race has flags and stints…").
 - **Readers of edited stints:**
-  - `EventResults.kt:331` (`RaceSessionInput.edited`) and `:112–120`
-    (`RaceSessionResults.edited`, sent to the page);
+  - `EventResults.kt:331` (`RaceSessionInput.edited`), `:112–120`
+    (`RaceSessionResults.edited`, sent to the page) and `:271` (`seen`, which
+    drops a hidden car's stints);
   - `CarTimings.kt:71` (the live standing and the tablet's `timing` frame);
-  - `Standings.kt:69` and **`Standings.kt:106`, the two precedence rules**:
+  - `Standings.kt:69`, `:92` (`driverNow`'s `edited` argument) and
+    **`Standings.kt:106`, the two precedence rules**:
     with edited stints the stint's driver wins over the session's; without,
     the session's driver wins over the stint's;
   - `EventDownload.kt` (M29): `ExportPart.stints` in `event.json`, and
@@ -69,9 +71,17 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M31b.
   `reopen` → `setLine0`). **Only `open` knows the device**, and it's called
   for every archived session, a streamed one within one upload of its start.
 - **Runs of the app** (`:timing`'s `runs`, `SessionTrace.kt:147`): same car,
-  same `device`, `at` rising (`firstAt > prev.lastAt`), within 12 h. `at`
-  starts again when the app restarts. `SessionHeader` (`Records.kt:56`)
-  doesn't keep line 0's `at` today.
+  same `device`, this session's first `at` above the previous one's last
+  (`SessionSummary.firstAt`/`lastAt`, known only once a session is complete
+  and prepared), and starting at most 12 h after the previous one ended.
+  `at` starts again when the app restarts, so **a restart is always a new
+  run**. `SessionHeader` (`Records.kt:56`) has `device` and `started` (ISO,
+  the tablet's clock) but not line 0's `at`.
+- **Modules:** `:events` depends on nothing, so a rule over `DriverChange`
+  (`:archive`) can't live there; `:archive` (beside `DriverChange`) can.
+  `:tools` (`admin.sh`) has no `:server`, so it can't work out a race: the
+  race's inputs (`RetimingJobs.sessionLaps`, `EventResultsService`) are in
+  `:server`.
 - **Laps for a session, server side:** `retiming.sessionLaps(car, id)`
   (complete sessions) and `liveTimings.laps(car, id)` (live), as
   `sessionRoutes` is already wired in `Application.kt`.
@@ -96,8 +106,12 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M31b.
   - **A session following straight on carries its driver over:** when a
     session's line 0 arrives and nobody has set its driver, it's given the
     driver the car's previous session ended with, if that session was on
-    the same device, earlier in the same run of the app (its line 0's `at`
-    lower), and began within 12 h.
+    the same device and was last heard at most 12 h before this one was
+    first heard (`updated` → `created`), **restarts of the app included**
+    (§7: "needed now for restarts too; nobody has to set the driver again
+    after a restart"). **Sam to confirm before M31a.4** (open question):
+    §7 also says "in the same run of the app", which would exclude
+    restarts, since `at` starts again.
   - Hand-edited stints, the stint editor's split and merge, and both
     precedence rules go. **Why:** the same fact had several addresses and
     rules decided silently between them (2026-10-19, "why won't the current
@@ -136,14 +150,18 @@ Tests (`RaceTest`), rewritten:
 
 ### M31a.2 — The correction rule (pure, tested)
 
-`events/.../DriverRules.kt`: `normalise(start: Long, driver: String?,
+`archive/.../DriverRules.kt` (beside `DriverChange`; `:events` can't see
+it): `normalise(start: Long?, driver: String?,
 changes: List<DriverChange>, lapEnds: List<Long>): Normalised(driver,
 changes, replaced: List<DriverChange>)`. Walks in order from the session's
 start: a change under 60 s after the one before, or with no lap end between,
 replaces it (a change replacing the start changes the session's driver).
+`start` is the session's `header.started` (the tablet's clock, ISO, parsed
+to ms); null (a live session the live lane announced, no line 0 yet) means
+no change can replace the start.
 
-Tests (`DriverRulesTest`): 30 s apart → replaced; 5 min apart with no lap
-between → replaced; 5 min with a lap between → both kept; replacing the
+Tests (`:archive`'s `DriverRulesTest`): 30 s apart → replaced; 5 min
+apart with no lap between → replaced; 5 min with a lap between → both kept; replacing the
 start sets the driver; three in a row collapse to the last; already
 normal → unchanged and nothing reported.
 
@@ -161,23 +179,28 @@ answer names the replaced one; the existing `driver changes within a session
 
 ### M31a.4 — The carry-over
 
-`SessionHeader` gains `firstAt: Long?` (line 0's `at`; nullable, so old
-records read as before; the Firestore mapping in `:archive-gcp` adds the
-field). The server, on `Open.Created` in `ArchiveRoutes.kt`, calls
-`carryDriver(car, id)`: finds the car's previous session as decided, works
-out the driver it ended with (its last change's, else its own), and sets it
-**only if still unset** (a new `index.setDriverIfUnset`, conditional like
-every write, so a crew's set in the meantime wins).
+`archiveRoutes` gains an `opened: suspend (car, id) -> Unit` callback,
+called on `Open.Created` (a new session's line 0, or an announced one's
+line 0 arriving: both answer `Created`). `Application.kt` wires it to
+`carryDriver(car, id)` (in `DriverRoutes.kt`): the car's latest session
+created before this one (`listByCar`), as decided; the driver it ended with
+(its last change's, else its own); set **only if still unset** through a
+new `SessionIndex.setDriverIfUnset(id, driver)`, in memory and in
+`FirestoreSessionIndex` (a transaction, as every write), so a crew's set in
+the meantime wins. `onChanged` after a carry.
 
-Tests: `ArchiveServiceTest` (header keeps `firstAt`); `DriverCarryTest`:
-same device and run → carried; another device → not; `at` lower (a
-restart) → not; over 12 h → not; already set → untouched; previous ended
-with a change → that driver.
+Tests (`DriverCarryTest`, in memory): same device, 5 min apart → carried;
+a restart (same device, `at` begun again) → carried, as decided; another
+device → not; over 12 h → not; already set → untouched; previous ended
+with a change → that driver; test data (`fake`) on either side → not.
 
 ### M31a.5 — Readers switched, the editor and its routes removed
 
-- `EventResults.kt`, `CarTimings.kt`, `Standings.kt`: no `edited`;
+- `EventResults.kt` (`RaceSessionInput`, `RaceSessionResults.edited`,
+  `seen`'s stints filter), `CarTimings.kt`, `Standings.kt`: no `edited`;
   `driverNow` in a race is the last stint's driver, one rule.
+  `Event.keepingRaceEdits` and `eventProblems` keep carrying and checking
+  `Part.stints` until M31a.6 clears it.
 - `RaceRoutes.kt`: both stints routes go (404, as any unknown path).
   `RaceSessionResults.edited` goes.
 - `EventDownload.kt`: `ExportPart.stints` and the `edited` column go; README
@@ -185,7 +208,9 @@ with a change → that driver.
 - `RaceSection.svelte`: the stint editor, "Edit … stints", "Back to
   splitting at every stop" and the "as set by hand" line go; the stints
   table stays (M34 links each stint to its session). `lib/race.ts` loses
-  `stintsEdited`, `edited` and the stint-editing helpers.
+  `CarRace.stintsEdited`, `RaceSessionResults.edited`, `StintMark`,
+  `marksOf`, `mergeWithPrevious`, `splitAt` and `setDriver`; `racePath`
+  keeps only `'flags'`.
 
 Tests changed: `RaceRoutesTest` (`a car's crew sets its stints…`, the
 stints halves of `the admin sets any car's stints…`, `a race's flags and
@@ -199,9 +224,20 @@ flags). Every other test passes unchanged.
 
 ### M31a.6 — The migration (Sam runs it)
 
-`scripts/admin.sh migrate-stints [--apply]` (`:tools`): for each event,
-each race part, each car with `Part.stints`, works out the race both ways
-(edited, then from the drivers it would write) and writes, per mark: inside
+The race can only be worked out in `:server` (see What exists), so the
+migration is a second entry point there: `server/src/main/.../MigrateStints.kt`,
+building the same stores `module` does from `GCP_PROJECT` and
+`SESSIONS_BUCKET` (Firestore, the bucket, `RetimingJobs`,
+`EventResultsService`) without serving, run as `./gradlew
+:server:migrateStints --args="[--apply | --clear]"` through a
+`scripts/migrate-stints.sh` that sources `scripts/env.sh`. The mapping from
+marks to session drivers is a pure `StintMigration.plan(marks, sessions)`
+in the same file, tested. For each event, each race part, each car with
+`Part.stints`, it works out each race lap's driver both ways: **before**,
+by the edited marks (the last mark that began before the lap ended, today's
+rule at `Race.kt:141`, kept in `StintMigration` since `Race` no longer
+takes marks after M31a.1); **after**, by `Race.sessions` on the session
+drivers it would write. It writes, per mark: inside
 a session's laps → a driver change at `start`; at or before a session's
 first lap → that session's driver. Marks with no laps are dropped. Each
 mark is written even when its driver is the one before, so a stint the
@@ -212,9 +248,10 @@ they match. `--apply` writes the sessions' drivers and changes only;
 checked. Writing first is safe on the old server: there, edited stints still
 win, so the new session changes change nothing anyone sees.
 
-Check: on the dev server against a copy of NHMS's shape (a test fixture);
-then Sam's dry run on production shows SAM 122, HUG 118, PAU 113, DRE 107
-both sides.
+Check: `StintMigrationTest` on a fixture of NHMS's shape (marks inside
+sessions, at a session's start, empty ones, a same-driver split at a stop):
+laps per driver equal both ways; then Sam's dry run on production shows
+SAM 122, HUG 118, PAU 113, DRE 107 both sides.
 
 ### M31a.7 — Deployed, then migrated
 
@@ -231,4 +268,9 @@ JOURNAL records the dry run's table and the check.
 
 ## Open questions
 
-None for building; the rules are Sam's choices of 2026-10-22.
+- **The carry-over across a restart** (M31a.4): §7 says both "in the same
+  run of the app" and "needed now for restarts too". A restart is always a
+  new run (`at` starts again), so the two can't both hold. This plan
+  carries over restarts (same device, at most 12 h between); the other
+  reading carries only within a run (adapter reconnects), and needs
+  `SessionHeader` to keep line 0's `at`. Sam to choose before M31a.4.

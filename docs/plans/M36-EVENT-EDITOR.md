@@ -8,7 +8,9 @@ part, or in none, and you only find out after saving. **Sam, 2026-10-22,**
 named the admin editors as one of the three places people get lost, and
 kept this phase last (§6.5 of the review): phones first, editors after.
 
-> **Planned 2026-10-22**, checked against the code.
+> **Planned 2026-10-22**, checked against the code. Built after M38, which
+> places a merged session as one unit (`EventRules.sessionsIn(event,
+> sessions, merges)`, M38.4).
 
 ---
 
@@ -44,7 +46,9 @@ kept this phase last (§6.5 of the review): phones first, editors after.
   session added by hand goes to that part; otherwise to the part whose
   window overlaps its heard time most (later part on a tie), unless removed
   there. It needs only the event's cars and parts, and each session's car,
-  heard times and source.
+  heard times and source. After M38.4 it also takes the cars' merges: a
+  merged session is placed whole, by its span, and a member named in
+  `added` or `removed` moves them all; it still answers member ids.
 - **Saving** is `PUT /api/admin/events/{id}` with `SaveEvent`; `toEvent` gives
   new parts ids `p<n>` in order (`nextPartId`), and `eventProblems` refuses a
   part that doesn't end after it starts, or runs over 30 hours.
@@ -82,13 +86,19 @@ must answer by the parts' position in the request, not by id.
 ### M36.1 — Placement as one function (server, tested)
 
 Move the body of `GET /api/admin/events/{id}` after its permission check into
-`fun placement(event: Event, sessions: List<SessionRecord>): AdminPlacement`
-in `EventRoutes.kt`, where `AdminPlacement(byPart: Map<String,
-List<SessionBrief>>, others: List<SessionBrief>)`. The GET route calls it and
-answers `AdminEvent(event.view(), byPart, others)` as before.
+`fun placement(event: Event, sessions: List<SessionRecord>, merges:
+List<MergedSession>): AdminPlacement` in `EventRoutes.kt`, where
+`AdminPlacement(byPart: Map<String, List<SessionBrief>>, others:
+List<SessionBrief>)`. It passes the merges to `sessionsIn` (as M38.4 already
+made this route do) and folds a merged session's members into one
+`SessionBrief` (the merge's id and name, first heard to last heard, and
+`members: List<String>`, a new optional field), in placed lists and
+`others` alike. The GET route calls it and answers `AdminEvent(event.view(),
+byPart, others)` as before.
 
 **Check:** `EventRoutesTest`'s "an event's page lists each part's sessions…"
-passes unchanged. No new behaviour.
+passes unchanged; a new case: two sessions merged list as one brief with
+both members.
 
 ### M36.2 — `POST /api/admin/events/{id}/placement` (server, tested)
 
@@ -99,7 +109,7 @@ In `adminEventRoutes`:
    `toEvent(id, current)` the PUT uses, so new parts get the ids they'd get.
 3. Keep only cars the registry has (unknown ones would place nothing anyway,
    and must not be looked up).
-4. `placement(draft, archive.sessionsOfCars(cars))`; answer
+4. `placement(draft, archive.sessionsOfCars(cars), the cars' merges)`; answer
    `{ parts: draft.parts.map { byPart[it.id].orEmpty() }, others }`, in the
    request's order.
 5. Never call `events.save`, `onChanged` or the gate's `created`.
@@ -112,6 +122,8 @@ In `adminEventRoutes`:
 - a new part with no id, after a saved one: placed at its position;
 - a part that ends before it starts: empty list, the rest still placed;
 - `added` in the body moves a session; `removed` sends it to `others`;
+- a merged session is one brief, placed whole; a window moved so it
+  straddles two parts keeps it whole;
 - not signed in: 401; from another site: 403; an existing event someone
   else made, a user not its editor: 403 (as the M23 test does);
 - the event store's revision is unchanged after any number of previews.
@@ -137,14 +149,17 @@ The Sessions section shows always (a new event included), reading
 - **Take out** and **Add to** change `parts` with `removeSession` /
   `addSession` and do **not** save. Since a new part has no id yet, they
   need it: extend both helpers to take a part's index as well as an id
-  (`partAt: number`), and test them.
+  (`partAt: number`), and test them. On a merged session's row they write
+  every member's id (`brief.members`), so an unmerge later leaves each
+  member where it was.
 - the warning "Save your changes first" goes; "Unsaved changes" by Save
   covers it.
 
-**Check:** vitest for the index form of both helpers; on the dev server, a
-new event with two practices shows the dev car's sessions in each before
-it's saved, a session taken out moves to "others", and one Save stores it
-all (the event page then agrees).
+**Check:** vitest for the index form of both helpers and for a merged
+brief (every member written); on the dev server, a new event with two
+practices shows the dev car's sessions in each before it's saved (a merged
+one as one row), a session taken out moves to "others", and one Save stores
+it all (the event page then agrees).
 
 ### M36.5 — Three sections, and the schedule by day (web)
 
@@ -178,12 +193,3 @@ page is unchanged.
   days.
 - Phone layout of the editor: phase 1 (M30) makes every page fit; this page
   is used at a desk.
-
-## Merged sessions (M38, planned 2026-10-22)
-
-Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
-plan must account for:
-
-- **"Take out" and "Add to" move a merged session whole** (M38.4 places a
-  merge as one unit); the preview lists it as one row with its members'
-  times.

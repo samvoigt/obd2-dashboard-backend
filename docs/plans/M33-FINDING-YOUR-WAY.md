@@ -91,7 +91,10 @@ live or stale. `lib/api.ts`'s `CarSummary` gains `standing?: Standing` (the
 type the car page already uses for the frame).
 
 Tests (`CarsApiTest`): a car with a held standing lists it; an offline car
-doesn't; a hidden car is still left out to someone signed out (M25).
+doesn't; a hidden car is still left out to someone signed out (M25). The
+test "each car is exactly its slug and name…" still passes (its car is
+offline), but its comment says a new public field is a decision: a line
+added to decision 37 (the standing is already public on the car's stream).
 
 ### M33.2 — The "Now" card's choice (pure, tested)
 
@@ -133,12 +136,15 @@ in the URL only. Checked: dev car shows "Dev car".
 `CarPage`, when no session is live: fetch the car's drives once
 (`fetchDrives`, `latestSession`), show "Offline · last seen …" in the banner
 and the latest session's line with its two links; fetch that session's
-thinned series (`fetchSeries(id, true)`) and give its positions to
-`SessionMap` without `follow`, so it fits the route. When a session starts,
+thinned series (`fetchSeries(id, fetch, true)`; for a merged session, whose
+own `/series` is 404, `fetchMergedSeries(members, fetch, true)` from M38.7)
+and give its positions to `SessionMap` without `follow`, so it fits the
+route. When a session starts,
 the live view takes over as now. A pure `lastSeenText(session)` in
 `lib/landing.ts`, tested. Checked on the dev server: a car with past
-sessions and none live; a car with no sessions at all ("No sessions yet",
-the world map as before); a replay starting while the page is open.
+sessions and none live; a car whose latest is a merged session (its whole
+route); a car with no sessions at all ("No sessions yet", the world map as
+before); a replay starting while the page is open.
 
 ### M33.8 — The Hidden badge where it's managed
 
@@ -153,4 +159,10 @@ it on its manage page.
 From the landing, one tap to the live car while one streams, with who's
 driving visible before the tap; every car-related page names the car; an
 offline car's page shows when it last ran and its last route. Deployed with
-a live stream across it.
+a live stream across it. Then the review's walk-throughs 1 and 3 (§5) are
+timed again on a phone, against M30.7's baseline, into JOURNAL.
+
+## Not in this milestone
+
+- The review's cross-cutting glossary (`docs/GLOSSARY.md`, `lib/terms.ts`,
+  one date format) is in no milestone yet: Sam to place it.

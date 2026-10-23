@@ -17,7 +17,9 @@ is M31a, which comes first.
 
 > **Planned 2026-10-22**, checked against the code. Builds on M31a (who
 > drove belongs to the session; the server normalises corrections and
-> answers what it replaced) and M30 (the header's empty Crew slot).
+> answers what it replaced), M38 (a merged session's detail lists its
+> `members`, each with its driver and changes; its laps are numbered through
+> and name their member) and M30 (the header's empty Crew slot).
 
 ---
 
@@ -82,8 +84,16 @@ is M31a, which comes first.
   the message panel says "Crew? Log in with the Crew button, top right" and
   the Driver panel says "Not set · the crew sets it here".
 - **The session page is the one editor of the past**, for every session,
-  race or not. The event page's stints and the driver pages only read (M34
-  links each stint to its session).
+  race or not, merged or not. The event page's stints and the driver pages
+  only read (M34 links each stint to its session).
+- **A merged session's Drivers block covers its whole timeline** (decision
+  48, M38): "From the start" is the first member's driver; a later member's
+  start shows as an entry ("From 12:00 (next session): Drew Blouch") only
+  when its driver differs from the one in force before it; a change is
+  stored on the member its moment falls in, as a change inside it, or as
+  its driver when the moment is at or before its first lap. A plain session
+  is the same code with one member. The live page is unaffected: a live
+  session is never merged.
 
 ## The steps
 
@@ -103,13 +113,15 @@ in words.
 ### M31b.2 — The Driver panel sets the driver
 
 `StandingPanel.svelte` gains the button and the two-step picker, as decided;
-the confirmation line for 10 s. `DriverPicker.svelte` and its line in
-`CarPage.svelte` go.
+the confirmation line for 10 s. Without the crew login, an unset driver
+reads "Not set · the crew sets it here". `DriverPicker.svelte` and its line
+in `CarPage.svelte` go.
 
 Check: on the dev server with a replay streaming, logged in as crew at
 390 px wide: set a driver now in three taps (Set driver, the driver, Now)
 and at the last stop in three; the panel confirms; within one timing update
-the standing names them; setting another driver 20 s later shows "replaced".
+the standing names them; setting another driver 20 s later shows "replaced";
+logged out, "Not set · the crew sets it here".
 
 ### M31b.3 — The crew login in the header
 
@@ -130,22 +142,43 @@ Check: log in from the landing page; open the car page; the message panel
 and Set driver are there without reloading. Log out from the header on the
 car page; both disappear.
 
-### M31b.4 — The session page's Drivers block
+### M31b.4 — A session's drivers as one timeline (pure, tested)
 
-`SessionPage.svelte`'s three controls become one **Drivers** block: a list of
-stretches ("From the start: Sam Voigt", "From lap 48: Drew Blouch"), each
-with **Change** (an inline select) and, except the first, **Remove**; and one
-row "Add a change at lap [ ] to [driver] [Add]". Same calls as now
-(`chooseDriver`, `saveChanges`). After a save, a `replaced` answer shows
-under the block ("Replaced the change at 14:05: under a minute after the
-one before"). For viewers who can't edit, the line "Driven by Sam, then
-Drew" stays.
+`lib/driverChanges.ts`, over `members: { id, start, end, driver, changes }[]`
+(a plain session's detail as one member; a merged one's `members`, M38.5)
+and the page's laps (each naming its member's `session`):
+- `driverTimeline(members, laps)` → entries `{ from, lap: number | null,
+  driver, member, kind: 'start' | 'change' }`, as decided (a later
+  member's start only when its driver differs);
+- `changeTarget(members, laps, lap)` → `{ member, kind: 'driver' |
+  'change', from }`: lap N's start, on the member it falls in; at or
+  before that member's first lap → its driver.
+
+Tests: one member, no changes; one member, two changes; three members, the
+second carrying the same driver (no entry) and the third another (an
+entry); a change at a later member's first lap → that member's driver; a
+change mid-member → a change on it; Remove on a later member's start entry
+is that member's driver set to the one in force before it.
+
+### M31b.5 — The session page's Drivers block
+
+`SessionPage.svelte`'s three controls become one **Drivers** block, from
+`driverTimeline`: a list of stretches ("From the start: Sam Voigt", "From
+lap 48: Drew Blouch"), each with **Change** (an inline select) and, except
+the first, **Remove**; and one row "Add a change at lap [ ] to [driver]
+[Add]". Each save goes, through `changeTarget`, to the member's `/driver`
+(`setSessionDriver`) or `/driver-changes` (`saveDriverChanges`, the
+member's whole list), as `chooseDriver` and `saveChanges` do now. After a
+save, a `replaced` answer shows under the block ("Replaced the change at
+14:05: under a minute after the one before"). For viewers who can't edit,
+the line "Driven by Sam, then Drew" stays.
 
 Check: on a race session with two changes, each can be changed or removed;
-the laps table's Driver column and the event page's stints follow after a
-reload.
+on three replayed sessions merged (M38.7's check), a change at a lap in the
+second is stored on the second (its own page, unmerged, shows it); the laps
+table's Driver column and the event page's stints follow after a reload.
 
-### M31b.5 — Deployed
+### M31b.6 — Deployed
 
 With a replay streaming across the deploy. Then on the dev server, the
 review's walk-through 2 timed: "Drew just got in the car. Set it." (crew, at
@@ -155,14 +188,3 @@ JOURNAL.
 ## Open questions
 
 None.
-
-## Merged sessions (M38, planned 2026-10-22)
-
-Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
-plan must account for:
-
-- **The Drivers block covers a merged session's whole timeline.** A later
-  member's starting driver shows as a "carried over" entry; a change at
-  merged lap N is stored on the member whose time that moment falls in
-  (decision 48, drafted in M38). Building after M38, the block reads the
-  merged session's laps and members from its detail.
