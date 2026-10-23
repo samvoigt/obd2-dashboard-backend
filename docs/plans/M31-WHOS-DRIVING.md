@@ -72,10 +72,13 @@ was annoying"; and, for the login, "A Crew button in the header".
   edited stints adds a stint there too.** When the car's driver is set or
   changed on a session that is in a race part whose stints for that car were
   edited by hand, the server also adds a stint to that part, from the same
-  moment (the change's `from`; for a session's driver, the session's first
-  record's `wall`, else its start), naming the same driver. If a stint
-  already starts within 60 s of that moment, its driver is replaced instead
-  of adding another. Without edited stints nothing else happens: default
+  moment (the change's `from`: the moment the crew chose, below; for a
+  session's driver set before it has any laps, the session's first
+  record's `wall`, else its start), naming the same driver. **A stint
+  shorter than 60 s or one lap is a correction** (Sam, 2026-10-22): if the
+  stint in force at that moment started less than 60 s before it, or has no
+  lap ending between its start and that moment, its driver is replaced
+  instead of adding another. Without edited stints nothing else happens: default
   stints already split at each change (decision 44). **Why:** edited stints
   win (decision 35), so the crew's change was silently ignored by the
   standing, the live page and the race's results (2026-10-19, "why won't
@@ -83,6 +86,22 @@ was annoying"; and, for the login, "A Crew button in the header".
   reader already uses, and an editor sees it in the stint editor as any
   other. The race's revision moves, so a stint editor open elsewhere is told
   to reload, as for any other edit.
+- **The crew says when the swap happened** (Sam, 2026-10-22: "setting a
+  driver on an in-progress session should probably be a special case where
+  you can pick at which actual point the swap happened (either time or
+  lap)"). Once the live session has laps, every set is a driver change at a
+  chosen moment, never the session's driver from its start:
+  - **Now** (the tablet's newest `wall`, as today);
+  - **At the last stop**, when the session has one: the start of its latest
+    out-lap (`pitOut`), so the in-lap stays the old driver's and the out-lap
+    is the new one's (`driverAt` gives a lap to the change before its end);
+  - **From lap N**: the start of lap N, as the session page's change at a lap
+    already does;
+  - **At a time** (hh:mm on the viewer's clock), turned into the tablet's
+    `wall` with the live page's clock offset (`live.offsetMs`).
+
+  Before the session has any laps, the choice is just the driver, set as the
+  session's driver, as today.
 - **Where the rule lives:** a pure function in `:events`
   (`EventRules.withDriverStint(part, car, at, driver): Part`), tested there;
   the server calls it from `setDriver` and `setDriverChanges` after the
@@ -107,11 +126,15 @@ was annoying"; and, for the login, "A Crew button in the header".
 `events/.../EventRules.kt`: `withDriverStint(part: Part, car: String, at:
 Long, driver: String?): Part`. Returns `part` unchanged when it isn't a race
 part or the car has no edited stints; else adds `Stint(at, driver)` in order,
-or replaces the driver of a stint starting within 60 s of `at`.
+or replaces the driver of the stint in force at `at` when that stint is a
+correction: it started less than 60 s before `at`, or no lap ended between
+its start and `at` (the part's laps for that car are passed in, as lap end
+times: `withDriverStint(part, car, at, driver, lapEnds: List<Long>)`).
 
 Tests (`EventRulesTest`): no edited stints → unchanged; a practice part →
-unchanged; added in order between two stints; within 60 s → replaced, not
-added; `driver = null` (Not set) is a stint naming nobody; another car's
+unchanged; added in order between two stints; started under 60 s before →
+replaced, not added; started 5 min before with no lap ended since →
+replaced; started 5 min before with a lap ended since → added; `driver = null` (Not set) is a stint naming nobody; another car's
 stints untouched.
 
 ### M31.2 — The server follows it
@@ -119,7 +142,9 @@ stints untouched.
 In `DriverRoutes.kt`, after `archive.setDriver` / `archive.setDriverChanges`
 succeed: find the session's race part (`eventOf`, as `CarTimings` does; pass
 the event store into `driverRoutes`), apply `withDriverStint` for the newest
-change (or the session's start, for `setDriver`), and save through the same
+change (or the session's start, for `setDriver` before any laps), with the
+car's lap end times in that part from the race results already computed for
+the event, and save through the same
 path as `editRace` (revision checked, logged as "race of … set, stint at …
 from a driver change by …", `onChanged`). Retry once on a conflict; on a
 second, answer 200 with a `note`.
@@ -137,16 +162,23 @@ conflict the first time → retried and saved; test data → refused as now.
 
 `StandingPanel.svelte` gains, when `crew` is true, a **Set driver** button
 (**Change driver** once someone is set) inside the Driver box. It opens an
-inline picker: one button per driver (name and code, at least 44 px tall),
-**Not set**, **Cancel**. Choosing one calls the same logic as today's
-`DriverPicker.set` (move it to `lib/driverChanges.ts` as `setDriverNow(slug,
-session, driverId, hasLaps, nowWall)`, tested with a fake fetcher), then
-shows for 10 s: "Drew Blouch · from 14:05" (the tablet's clock, as
+inline picker in two steps. **Who:** one button per driver (name and code,
+at least 44 px tall), **Not set**, **Cancel**. **When** (only once the
+session has laps): **Now**, **At the last stop (lap 59, 14:02)** when there
+is one, **From lap [ ]**, **At [hh:mm]**, then **Set**. The moment is worked
+out by a pure `swapMoment(choice, laps, nowWall, offsetMs)` in
+`lib/driverChanges.ts` (tested: now; last stop is the latest out-lap's
+start; lap N is lap N's start, an unknown lap refused; a time on the
+viewer's clock to the tablet's `wall`; a time in the future or before the
+session refused), and sent by `setDriverAt(slug, session, driverId,
+moment)` (today's `DriverPicker.set`, moved and tested with a fake
+fetcher). Then it shows for 10 s: "Drew Blouch · from 14:05" (the tablet's clock, as
 `StandingPanel` already formats stints), or the server's `note`, or the
 error. `DriverPicker.svelte` and its line in `CarPage.svelte` go.
 
 Check: on the dev server with a replay streaming, logged in as crew at
-390 px wide, two taps set a driver; the panel confirms; within one timing
+390 px wide, set a driver now in three taps (Set driver, the driver, Now)
+and at the last stop in three; the panel confirms; within one timing
 update the standing names them.
 
 ### M31.4 — The crew login in the header
@@ -186,5 +218,5 @@ The numbers go to JOURNAL.
 
 ## Open questions
 
-None: the stint rule's details (60 s, newest change only, retry once) are
-choices Sam can change on reading; they don't block building.
+- **An older change edited on the session page** (decision 47's "newest
+  change only"): asked of Sam 2026-10-22, answer to be recorded here.
