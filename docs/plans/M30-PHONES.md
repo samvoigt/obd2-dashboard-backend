@@ -322,6 +322,45 @@ banner, gauges, chart and map all change without a reload, and the choice
 survives a reload. Run the phone check again in bright mode (it sets
 `localStorage.theme` first).
 
+**Built 2026-10-22.**
+- **The palette,** `:root[data-theme="bright"]` in `app.css`:
+  - `bg #f7f8fa`, `panel #ffffff`, `line #d5dbe3`, `text #0a0b0d`,
+    `muted #4a5560`, `no-data #9aa3ae`;
+  - `accent #0077b3`, `in-range #00897f`, `caution #a8559b`,
+    `critical #e0005c`; every foreground at 4:1 or better on both grounds;
+  - `color-scheme: light`.
+
+  **Differs from the plan's starting values:** caution `#c2408f` and critical
+  `#d6007f` were only 18 apart in Lab (25 needed), so caution became an
+  orchid (`#a8559b`) and critical a deeper hot pink (`#e0005c`); both stay
+  in the logo's pink family, no amber.
+- **The test** (`lib/theme.test.ts`) reads either palette's block; the
+  contrast and Lab checks run for both; "bright defines exactly the ten
+  roles dark does" is new; the logo's exact four stay dark-only; and
+  `loadTheme` is tested as `loadSystem` is (nothing saved, a value, storage
+  refused).
+- **The choice:** `loadTheme`, `saveTheme` and `applyTheme` in `lib/theme.ts`
+  (key `theme`, try/catch); `lib/themeState.svelte.ts` with `setTheme`;
+  `main.ts` applies it before `mount`.
+- **The switch:** `widgets/ThemeSwitch.svelte` (Dark | Bright, as
+  `UnitsSwitch`), beside the units switch on the car page and the session
+  page. The header's account menu adds it in M30.2 (a TODO in the file).
+- **Canvas, drawn again on a change of theme:**
+  - `Chart`, `LapChart`, `DistanceChart`: an effect rebuilds the uPlot when
+    the theme differs from the one it was drawn in;
+  - `CourseMap` and `CourseEditor`: their drawing effects read the theme, so
+    they redraw;
+  - `SessionMap`: the theme is part of the trace's key, and the dot is
+    restyled;
+  - `GMeter` is SVG styled by CSS variables, so it changes by itself;
+  - the session page's chart markers and live bands are derived with the
+    theme, so the rebuilt chart gets them in the new colours.
+
+  **Not re-themed:** `ComparePage`'s map markers, drawn once; a reload fixes
+  them. The car page's live bands recolour on the next live update.
+- **Not yet checked by eye:** the switch on the dev server with a replay
+  streaming, and the phone check in bright mode (the plan's check).
+
 ### M30.7 — Deployed, and looked at on a phone
 
 Before deploying, the review's three walk-throughs (§5) are timed on a

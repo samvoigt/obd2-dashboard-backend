@@ -21,7 +21,9 @@
   import { lapSpeeds, seriesSamples } from './lib/lapSpeeds'
   import { units } from './lib/unitsState.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
+  import ThemeSwitch from './widgets/ThemeSwitch.svelte'
   import { color, translucent } from './lib/theme'
+  import { themeState } from './lib/themeState.svelte'
 
   let { slug, id }: { slug: string; id: string } = $props()
 
@@ -154,8 +156,9 @@
     // In the viewer's units (M8.3), as the car's page is.
     return [x, ...ys.map((y, i) => columnShown(y, unitOf(view!, names[i] ?? ''), units.system))] as [number[], ...(number | null | undefined)[][]]
   })
+  // Coloured in the theme's colours (M30.6): read here, so a change of theme colours them again.
   const bands = $derived(
-    merged.provisionalFrom !== null && data && data[0].length > 0
+    themeState.theme && merged.provisionalFrom !== null && data && data[0].length > 0
       ? [{ from: merged.provisionalFrom / 1000, to: data[0][data[0].length - 1]!, color: translucent(color('caution'), 0.1) }]
       : [],
   )
@@ -189,7 +192,7 @@
     !s.track ? null : courseNames ? `${courseNames.name}${s.layout ? ` · ${courseNames.layouts[s.layout] ?? s.layout}` : ''}` : trackOf(s)
   let messages: SessionMessage[] = $state.raw([])
   const happened = $derived([...(view ? events(view) : []), ...messageMarkers(messages)].sort((a, b) => a.t - b.t))
-  const markers = $derived(happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : m.kind === 'message' ? 'accent' : 'muted') })))
+  const markers = $derived(themeState.theme ? happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : m.kind === 'message' ? 'accent' : 'muted') })) : [])
   const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
   const speeds = $derived(view ? speedsAtPositions(view) : [])
   // The map's stretch (M16.1): the positions inside the window, or all of them.
@@ -333,7 +336,7 @@
       {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
       {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}
       {#if s.state === 'live'}<a href={`/cars/${slug}`}>Watch live →</a>{/if}
-      <span class="spacer"></span><UnitsSwitch />
+      <span class="spacer"></span><span class="switches"><UnitsSwitch /><ThemeSwitch /></span>
     </p>
     {#each gaps as g (g.from)}
       <p class="gps-lost">
@@ -463,6 +466,7 @@
 </main>
 
 <style>
+  .switches { display: inline-flex; gap: 8px; flex-wrap: wrap; }
   .back { margin: 0 0 8px; }
   .back a { color: var(--muted); text-decoration: none; }
   h1 { overflow-wrap: anywhere; }

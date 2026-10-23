@@ -2,6 +2,7 @@
   import uPlot from 'uplot'
   import 'uplot/dist/uPlot.min.css'
   import { onDestroy, onMount } from 'svelte'
+  import { themeState } from './lib/themeState.svelte'
   import { color, seriesColors } from './lib/theme'
 
   // Signals by distance round the lap (M16.4): the two laps overlaid, the cursor's metre passed out.
@@ -80,6 +81,15 @@
   $effect(() => {
     void x
     void ys
+    if (plot) draw()
+  })
+
+  // The theme changed (M30.6): drawn again in its colours, which uPlot only reads when built.
+  let drawnIn = themeState.theme
+  $effect(() => {
+    const theme = themeState.theme
+    if (theme === drawnIn) return
+    drawnIn = theme
     if (plot) draw()
   })
 

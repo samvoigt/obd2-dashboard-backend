@@ -11,6 +11,7 @@
   import Readout from './widgets/Readout.svelte'
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
+  import ThemeSwitch from './widgets/ThemeSwitch.svelte'
   import Bar from './widgets/Bar.svelte'
   import {
     dashboardLayout, fetchLiveLaps, freshnessOf, gTrail, lapsFrom, lapsFromLive, NO_PEAKS, peaks, shownIn, timings, valueOf, type LiveLap, type Peaks,
@@ -234,7 +235,7 @@
           {#if live.session.device} · device {String(live.session.device).slice(0, 8)}{/if}
         </p>
       {/if}
-      <UnitsSwitch />
+      <span class="switches"><UnitsSwitch /><ThemeSwitch /></span>
     </div>
 
     <!-- The dashboard (M8): one fixed layout, Sam's slots (dashboard.ts). -->
@@ -298,6 +299,7 @@
 </main>
 
 <style>
+  .switches { display: inline-flex; gap: 8px; flex-wrap: wrap; }
   .back { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 12px; }
   .sessionline { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 4px; }
   .sessionline .session { margin: 0; }

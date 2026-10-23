@@ -2,6 +2,7 @@
   import uPlot from 'uplot'
   import 'uplot/dist/uPlot.min.css'
   import { onDestroy, onMount } from 'svelte'
+  import { themeState } from './lib/themeState.svelte'
   import { color, seriesColors } from './lib/theme'
 
   let {
@@ -134,6 +135,15 @@
   $effect(() => {
     const r = range
     if (plot && r) plot.setScale('x', { min: r[0], max: r[1] })
+  })
+
+  // The theme changed (M30.6): drawn again in its colours, which uPlot only reads when built.
+  let drawnIn = themeState.theme
+  $effect(() => {
+    const theme = themeState.theme
+    if (theme === drawnIn) return
+    drawnIn = theme
+    if (plot) rebuild()
   })
 
   onDestroy(() => plot?.destroy())

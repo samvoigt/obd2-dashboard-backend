@@ -4,6 +4,35 @@
  * `app.css`, which holds every colour on the site; nothing is written here.
  */
 
+/** Dark, as the site always was, or bright for the pits in sunlight (M30.6). */
+export type Theme = 'dark' | 'bright'
+
+const KEY = 'theme'
+
+/** The viewer's theme, as remembered in their browser; dark with nothing remembered, or storage refused. */
+export function loadTheme(): Theme {
+  try {
+    return globalThis.localStorage?.getItem(KEY) === 'bright' ? 'bright' : 'dark'
+  } catch {
+    return 'dark'
+  }
+}
+
+export function saveTheme(theme: Theme): void {
+  try {
+    globalThis.localStorage?.setItem(KEY, theme)
+  } catch {
+    // Not remembered (a private window, storage refused): it still applies to this page.
+  }
+}
+
+/** Puts [theme] on the page: `app.css` picks the palette by `data-theme` on the root. */
+export function applyTheme(theme: Theme): void {
+  if (typeof document === 'undefined') return
+  if (theme === 'bright') document.documentElement.dataset.theme = 'bright'
+  else delete document.documentElement.dataset.theme
+}
+
 export type Role = 'bg' | 'panel' | 'line' | 'text' | 'muted' | 'no-data' | 'accent' | 'in-range' | 'caution' | 'critical'
 
 /** A role's colour, as `app.css` sets it; empty outside a browser. */
