@@ -218,5 +218,8 @@ The numbers go to JOURNAL.
 
 ## Open questions
 
-- **An older change edited on the session page** (decision 47's "newest
-  change only"): asked of Sam 2026-10-22, answer to be recorded here.
+- **An older change edited later** — Sam, 2026-10-22: "yes, any change to
+  the stint takes place everywhere." That and his wish for one place per
+  edit led to `UX-REVIEW.md` §7, a car's driver log, which would replace
+  decision 47 and split this milestone (M31a, M31b). **On hold until Sam
+  chooses on §7.**

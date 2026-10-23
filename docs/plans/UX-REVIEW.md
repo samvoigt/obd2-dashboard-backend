@@ -568,3 +568,87 @@ be read with these.
   5926ms`, `8293ms`, `4989ms`); browser waits on 2026-10-22.
 - **Code read:** every `.svelte` template (markup only), `app.css`,
   `lib/routes.ts`, `EventResults.kt` (`ResultsHold`), `Standings.kt:106`.
+
+## 7. Who drove: one truth, one place to edit (proposed 2026-10-22)
+
+**Sam, 2026-10-22:** "any change to the stint takes place everywhere. it
+may be worth considering how the stints/sessions/events all work together.
+Ideally, there would only be one place where each edit is possible, and it
+should be a logical place."
+
+Of everything the site lets you edit, only **who drove** is edited in more
+than one place. A session's name, its event part, the flags, courses,
+drivers' names and cars each have exactly one. So this section is about
+drivers.
+
+### Today: three records, four editors, two precedence rules
+
+| Record | Stored on | Edited from | Read by |
+| --- | --- | --- | --- |
+| A session's driver | `SessionRecord.driver` | the session page's select; the live page's "Who's driving" before the session has laps | practice results, the live standing, default stints |
+| A session's driver changes (M27) | `SessionRecord.driverChanges` | the session page ("change at lap"); the live page once the session has laps ("from now") | practice stretches, default stints, the laps tables |
+| A race part's stints as edited | `Part.stints[car]` (`StintMark(start, driver)`) | the event page's stint editor (driver, split at lap, merge) | race results, driver pages, the live standing, the download |
+| Default stints | worked out (`Race.kt:264–276`): the first lap, each stop's exit, each driver change | — | race results when no stint was edited |
+
+What goes wrong:
+- **Precedence decides silently.** When stints were edited, they win and
+  session drivers and changes stop counting (`Standings.kt:106`); when they
+  weren't, the session's driver wins over the stint's. That was the
+  2026-10-19 "why won't the current driver update?".
+- **Stints split at every stop.** A fuel stop with the same driver makes two
+  stints, so the only fix is the stint editor's merge, which flips the
+  race into "edited" mode, which is what makes later driver changes stop
+  counting.
+- **Every new session starts with nobody driving.** A restart of the app, or
+  (proposed) a STREAM toggle, means setting the driver again
+  (`proposals/SESSIONS-WHILE-STREAMING.md`).
+- **The same fact has different addresses:** "Drew from 14:05" is a
+  session's change, or a race stint, depending on where it was typed.
+
+### Proposed: one record, a car's driver log
+
+- **For each car, one list: "from this moment, this driver"** (moment on
+  the tablet's `wall`, as stints and changes are now). Not per session, not
+  per event.
+- **Every entry starts a stint.** A stint is a driver's run. Stops show
+  inside a stint and no longer split it; a double stint after a stop is
+  recorded by entering the same driver again at the stop.
+- **A correction replaces, not adds** (Sam's answer 1 above): an entry made
+  less than 60 s, or less than one lap, after the one before replaces it.
+- **Everything reads the log:** practice stretches, race stints, the live
+  standing, the laps tables, driver pages, the download's `laps.csv` and
+  `stints.csv`.
+- **What goes:** the session's driver, its driver changes, edited stints,
+  default stints, both precedence rules, the stint editor's split and
+  merge, and the new-session problem (a new session continues the car's
+  log).
+- **Migration, once:** an admin tool writes each car's log from what's
+  stored, taking a race part's edited stints where it has them (they're what
+  Sam set by hand for NHMS), and sessions' drivers and changes elsewhere.
+  Checked on NHMS: laps per driver unchanged (SAM 122, HUG 118, PAU 113,
+  DRE 107).
+- **A decision of its own** (amends 34, 35, 43 and 44; replaces the drafted
+  47).
+
+### Where each edit lives
+
+| Edit | The one place | Why |
+| --- | --- | --- |
+| Who's driving now | The live car page, crew logged in (Set driver: who, then when) | Where the crew is during a race |
+| Who drove when, afterwards | **Recommended:** the event page when the session is in an event (its race or practice part); the session page when it isn't. The other page shows the drivers read-only with a link to the one that edits. | Each moment belongs to one or the other, and that's where its results are read |
+| Which part a session is in | The event editor | Already one place |
+| The drivers themselves | The Drivers page | Already one place |
+
+### What this changes in the milestones
+
+- **M31 splits:** M31a, the driver log (store, rules, migration, the
+  decision, the readers switched over), then M31b, the UI (Set driver with
+  "when", the header's Crew button, the editors in their one place).
+  Drafted decision 47 is replaced by the log's decision.
+- **M34:** the stint editor becomes the race's drivers timeline (per car,
+  entries with change and remove); the flags stay under "Edit the race".
+- **M35:** the session page's Drivers block edits only sessions in no event;
+  otherwise it's read-only with "Edit on the event page →".
+- **M29's download** and **the STREAM proposal's carry-over** read the log;
+  the carry-over needs no server change at all.
+
