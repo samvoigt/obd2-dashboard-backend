@@ -3,6 +3,7 @@
   import { isMaster, signin } from './lib/signin'
   import { roleText } from './lib/access'
   import logo from './assets/logo.webp'
+  import ThemeSwitch from './widgets/ThemeSwitch.svelte'
 
   // Every page's header (M21.1): home, the site's pages, and the one sign-in that turns on each page's edits.
   let { page }: { page: string } = $props()
@@ -115,6 +116,7 @@
             <span class="muted">{$signin.email}</span>
             <span class="muted small">{roleText($signin.role)}</span>
             {#if isMaster($signin)}<a class:here={page === 'users'} href="/users">Users</a>{/if}
+            <ThemeSwitch />
             <button onclick={signOut} disabled={busy}>Sign out</button>
           </div>
         </details>

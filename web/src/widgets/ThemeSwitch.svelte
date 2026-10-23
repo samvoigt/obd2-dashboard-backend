@@ -1,6 +1,5 @@
 <script lang="ts">
   import { setTheme, themeState } from '../lib/themeState.svelte'
-  // TODO(M30.2): the header's account menu adds this switch too, so every page can change it.
 </script>
 
 <span class="switch" role="group" aria-label="Theme">

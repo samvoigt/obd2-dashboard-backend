@@ -361,6 +361,13 @@ survives a reload. Run the phone check again in bright mode (it sets
 - **Not yet checked by eye:** the switch on the dev server with a replay
   streaming, and the phone check in bright mode (the plan's check).
 
+**Merged and finished 2026-10-22.** Built in a separate worktree while M30.2 and
+M30.4 were built here, then merged; once the header's menu existed, the
+switch went into it too (signed in, at phone width). **Checked** in a
+390 px headless phone on the session page: Bright repaints the page, the
+chart (re-created) and the map at once, without a reload, and is still
+chosen after one; the event page's lap chart is drawn in the bright palette.
+
 ### M30.7 — Deployed, and looked at on a phone
 
 Before deploying, the review's three walk-throughs (§5) are timed on a
