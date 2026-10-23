@@ -94,7 +94,8 @@ Tests (`CarsApiTest`): a car with a held standing lists it; an offline car
 doesn't; a hidden car is still left out to someone signed out (M25). The
 test "each car is exactly its slug and name…" still passes (its car is
 offline), but its comment says a new public field is a decision: a line
-added to decision 37 (the standing is already public on the car's stream).
+added to decision 37 (the standing is already public on the car's stream;
+Sam agreed, 2026-10-22).
 
 ### M33.2 — The "Now" card's choice (pure, tested)
 
@@ -154,6 +155,23 @@ already loads its access record or can, via `allowedFor`/`mine`). Checked:
 signed in, a hidden car shows no badge on the landing or `/cars`, and shows
 it on its manage page.
 
+### M33.9 — One word for each thing, one date format
+
+From the review's cross-cutting item (§4; Sam, 2026-10-22: "A final step in
+M33"). `docs/GLOSSARY.md`: one line per term the site shows (session, merged
+session, drive, part, race session, stint, stop, in-lap, out-lap, re-timed,
+tablet only, theoretical best, spread, within 1%), each with the words a
+visitor sees and a one-sentence meaning. `web/src/lib/terms.ts`: those words
+as constants, and `dayTime(ms)` → "Sun 18 Oct, 14:14" and `dayRange(a, b)`
+→ "Fri 16 – Sun 18 Oct" as the one date format (tests in `terms.test.ts`).
+Every page's dates switch to them (`grep` for `toLocaleString`,
+`toLocaleDateString`, `dateText` and ISO dates in components; each change a
+line). Jargon gets a `title` and, on the session and event pages, a small
+"?" that shows the glossary line on tap. The error colour (`--critical`) is
+kept for errors, trouble codes and destructive buttons only; a test in the
+colour-roles suite lists its allowed uses. Checked: the phone check's
+screenshots show one date format on every page.
+
 ## Acceptance
 
 From the landing, one tap to the live car while one streams, with who's
@@ -164,5 +182,4 @@ timed again on a phone, against M30.7's baseline, into JOURNAL.
 
 ## Not in this milestone
 
-- The review's cross-cutting glossary (`docs/GLOSSARY.md`, `lib/terms.ts`,
-  one date format) is in no milestone yet: Sam to place it.
+- (The glossary and one date format are M33.9.)

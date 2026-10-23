@@ -106,12 +106,11 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M31b.
   - **A session following straight on carries its driver over:** when a
     session's line 0 arrives and nobody has set its driver, it's given the
     driver the car's previous session ended with, if that session was on
-    the same device and was last heard at most 12 h before this one was
-    first heard (`updated` → `created`), **restarts of the app included**
-    (§7: "needed now for restarts too; nobody has to set the driver again
-    after a restart"). **Sam to confirm before M31a.4** (open question):
-    §7 also says "in the same run of the app", which would exclude
-    restarts, since `at` starts again.
+    the same device and was last heard at most **10 minutes** before this
+    one was first heard (`updated` → `created`): back to back, the same gap
+    the sessions list uses for a drive (`DRIVE_GAP`), **restarts of the app
+    included**. Sam, 2026-10-22: "Same tablet, back to back (10 min)". A
+    session after a longer break starts with nobody set.
   - Hand-edited stints, the stint editor's split and merge, and both
     precedence rules go. **Why:** the same fact had several addresses and
     rules decided silently between them (2026-10-19, "why won't the current
@@ -191,7 +190,7 @@ the meantime wins. `onChanged` after a carry.
 
 Tests (`DriverCarryTest`, in memory): same device, 5 min apart → carried;
 a restart (same device, `at` begun again) → carried, as decided; another
-device → not; over 12 h → not; already set → untouched; previous ended
+device → not; 11 min apart → not; exactly 10 min → carried; already set → untouched; previous ended
 with a change → that driver; test data (`fake`) on either side → not.
 
 ### M31a.5 — Readers switched, the editor and its routes removed
@@ -268,9 +267,5 @@ JOURNAL records the dry run's table and the check.
 
 ## Open questions
 
-- **The carry-over across a restart** (M31a.4): §7 says both "in the same
-  run of the app" and "needed now for restarts too". A restart is always a
-  new run (`at` starts again), so the two can't both hold. This plan
-  carries over restarts (same device, at most 12 h between); the other
-  reading carries only within a run (adapter reconnects), and needs
-  `SessionHeader` to keep line 0's `at`. Sam to choose before M31a.4.
+- **The carry-over across a restart** — answered 2026-10-22: same tablet,
+  back to back (10 min), restarts included (M31a.4).

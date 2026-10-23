@@ -632,9 +632,9 @@ itself." And past corrections are made "Always the session page".
   both precedence rules (`Standings.kt:106`).
 - **A correction replaces, not adds** (answer 1): a change less than 60 s,
   or less than one lap, after the one before it replaces it.
-- **A new session in the same run of the app starts with the driver the
-  previous one ended with** (the same device, back to back, `:timing`'s
-  `runs`), stored on the new session when it's created and editable on its
+- **A new session straight after another starts with the driver the
+  previous one ended with** (the same tablet, at most 10 minutes between
+  them, restarts of the app included; Sam, 2026-10-22), stored on the new session when it's created and editable on its
   page. That's the STREAM proposal's carry-over, needed now for restarts
   too; nobody has to set the driver again after a restart.
 - **Migration, once:** an admin tool turns each race part's edited stints
