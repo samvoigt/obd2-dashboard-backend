@@ -356,6 +356,11 @@ sideways scroll; Sam opens it on his phone at a drive.
 
 ### Phase 2 — Who's driving (M31) · M · crew
 
+> **Superseded in part by §7 (Sam, 2026-10-22):** who drove belongs to the
+> session and is edited on its page; race stints are worked out from it. The
+> phase is built as M31a (the model) and M31b (the screens); step 3 below
+> (a stint mark added on a live change) is replaced by M31a.
+
 **Goal:** from the live page, on a phone, set the driver in two taps and see
 it took.
 

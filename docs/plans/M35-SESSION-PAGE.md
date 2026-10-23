@@ -79,6 +79,10 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
 
 ## Decided here
 
+- **The drivers block is M31b's**, and it is the one place anyone edits who
+  drove, for every session (Sam, 2026-10-22: "Always the session page";
+  `UX-REVIEW.md` §7). This plan only places it; whichever of M31b and M35
+  lands second keeps it second in the order.
 - **The order:** facts → drivers → map → laps → chart → what happened. The
   map's note changes from "The dot follows the chart's cursor" to "The dot
   follows the chart's cursor, below." Choosing a lap still zooms the chart

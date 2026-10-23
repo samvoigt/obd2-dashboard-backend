@@ -7,7 +7,7 @@ The crew, on phones in the pits, are the site's first audience.
 **Sam, 2026-10-22:** "Restructure freely, keep the look", phases in the
 review's order ("Keep: phones first, editors last"), a bright mode as a
 "Minimal version in phase 1", and the crew login as "A Crew button in the
-header" (built in M31; M30 leaves its place).
+header" (built in M31b; M30 leaves its place).
 
 > **Planned 2026-10-22**, checked against the code.
 
@@ -110,7 +110,7 @@ header" (built in M31; M30 leaves its place).
   "Sign in" (on the dev server, its two buttons). Signed in: a button
   showing the first letter of the email, which opens a small panel holding
   the email and role, Users (for a master) and Sign out. **The Crew button
-  goes in `.who`, before the account control,** as an empty slot M31 fills;
+  goes in `.who`, before the account control,** as an empty slot M31b fills;
   M30 adds no Crew control.
 - **Bright mode** (§6.3) is a second palette for the same ten roles, under
   `:root[data-theme="bright"]` in `app.css`. It's chosen by a "Dark / Bright"
@@ -162,7 +162,7 @@ and check the session and event pages with extra paths.
   out. It closes on Escape and on a click outside.
 - Above 600 px nothing changes.
 - An empty `<span class="crew-slot"></span>` goes first in `.who`, with a
-  comment pointing at M31.
+  comment pointing at M31b.
 - On the dev server, signed out, the two dev buttons go into the same menu
   under 600 px.
 

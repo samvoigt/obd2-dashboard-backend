@@ -3,12 +3,17 @@
 Phase 5 of the UX review (`plans/UX-REVIEW.md` §3.E, §4 phase 5). The event
 page reads top to bottom as a visitor wants it: the standings, the lap chart,
 the stints with their stops, every lap, practice, then the sessions. Nothing
-appears twice, no empty rows, and the flags form and stint editor sit behind
-one "Edit the race" button. **Sam, 2026-10-22:** the review's order and scope
-("restructure freely, keep the look").
+appears twice, no empty rows, and the flags form sits behind one "Edit the
+race" button. **Sam, 2026-10-22:** the review's order and scope
+("restructure freely, keep the look"); and who drove belongs to the session,
+edited "Always the session page" (`UX-REVIEW.md` §7), so the event page's
+stints are read-only and link to their sessions.
 
 > **Planned 2026-10-22**, checked against the code. Builds after M30, whose
-> table pattern (`.table-scroll`) the stints and laps tables use on phones.
+> table pattern (`.table-scroll`) the stints and laps tables use on phones,
+> and **after M31a**, which removes hand-edited stints: stints are then worked
+> out from sessions' drivers, and the stint editor and its route are gone.
+> Revised the same day for §7: no stint editor here.
 
 ---
 
@@ -38,8 +43,10 @@ one "Edit the race" button. **Sam, 2026-10-22:** the review's order and scope
   per mark; a lap belongs to the last mark that began before it ended
   (line 141), so two marks with no lap end between them leave the first with
   no laps (`laps = 0`, `firstLap = null`). NHMS stints 6, 8 and 13 are these.
-  They're real stored marks: the editor must still show them; the reading
-  table needn't. `stintsIn` (`lib/race.ts:93`) already skips them, which is
+  They're real stored marks today; M31a turns them into sessions' driver
+  changes and clears them. After it, a stint with no laps can still happen
+  (a session's start driver in a session with no laps, a tablet-only
+  minute), so the reading table still hides them. `stintsIn` (`lib/race.ts:93`) already skips them, which is
   why their Session cell is blank.
 - **Stops:** `CarRace.stops` (`RaceStop(lap, entry, exit?, seconds?)`), the
   stop on `lap` = the in-lap. A stint ends at the stop whose `lap` is its
@@ -66,14 +73,17 @@ one "Edit the race" button. **Sam, 2026-10-22:** the review's order and scope
   sentence goes.
 - **Stints table:** columns Stint, (Session), Driver, Laps, Time, Best,
   Median, Spread, **Stop** (the pit time after it, as `m:ss`, "ended in the
-  pits", or blank). Stints with no laps hidden; under the table, "2 stint
-  marks have no laps" when any are hidden, linking to the editor. The "Stops:
+  pits", or blank). Stints with no laps hidden; under the table, "2 stints
+  with no laps not shown" when any are hidden. **Each stint names its
+  session and links to it**: the Session column reads "Sat 12:00" (the
+  stint's first lap's session) as a link, with the title "Edit drivers on
+  this session". No driver is edited here. The "Stops:
   …" sentence and the chart's stints sentence go; the chart keeps its
   shading, with one caption "Shaded bands are stints; dashed lines are
   stops."
 - **"Edit the race"** (shown to whoever may set the race, as `anyone` now):
-  one button under the standings; pressed, it shows the flags form and each
-  car's "Edit … stints" buttons. The flag/counting sentence moves into that
+  one button under the standings; pressed, it shows the flags form (the
+  stint editor is gone with M31a). The flag/counting sentence moves into that
   panel, except one line kept public: "Laps count before the green flag and
   after the flag."
 - **The chart's idle legend** shows "Hover a lap" for the lap and nothing
@@ -97,16 +107,19 @@ an empty stint (null `lastLap`).
 
 ### M34.3 — The stints table
 
-`RaceSection`: the Stop column from M34.2; empty stints filtered
-(`laps > 0`) with the count line; the stops sentence removed. Checked on the
-dev server with edited stints that include a mark with no laps.
+`RaceSection`: the Stop column from M34.2; the Session column as a link to
+the stint's session (the session of its first lap, `c.laps` by number; the
+car page's slug from `c.car`); empty stints filtered (`laps > 0`) with the
+count line; the stops sentence and "Split at every stop; merge a fuel stop…"
+/ "Stints as set by hand." lines removed (M31a leaves one kind of stint).
+Checked on the dev server: each Session link opens that session's page, and
+a session with no laps gives a hidden empty stint and the count line.
 
 ### M34.4 — "Edit the race"
 
-`RaceSection`: an `editingRace` toggle; the flags form and the per-car
-"Edit stints" buttons render only while it's on; the stint editor opens from
-there as now. Checked: signed out, no form control above "Every lap";
-signed in as the dev master, the button shows and both tools work.
+`RaceSection`: an `editingRace` toggle; the flags form renders only while
+it's on. Checked: signed out, no form control on the page; signed in as the
+dev master, the button shows and the flags save.
 
 ### M34.5 — The chart's words
 
@@ -129,5 +142,6 @@ once, nothing else lost (count the laps and sessions before and after).
 On the NHMS event, signed out: the standings and chart are the first panel;
 the practice table appears once; each session appears once; the stints table
 has no empty rows and shows each stop's time; there's no form control on the
-page; signed in, "Edit the race" shows the flags and stints tools. Deployed
+page; each stint links to its session; signed in, "Edit the race" shows the
+flags. Deployed
 with a live stream across it.
