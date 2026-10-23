@@ -1,6 +1,6 @@
-# M37 — The course editor: a toolbar on the map, the four things a course needs, and undo
+# M39 — The course editor: a toolbar on the map, the four things a course needs, and undo
 
-Phase 7 of the UX review (`docs/plans/UX-REVIEW.md` §3.G and §4, "M37"). The
+Phase 7 of the UX review (`docs/plans/UX-REVIEW.md` §3.G and §4, "M39"). The
 course editor is a map and one tall sidebar of twenty-odd controls: name,
 imagery, file, layouts, timing lines, pit, save, re-timing, a session's
 route, editors, remove, versions. Drawing modes are announced only by a hint
@@ -81,7 +81,7 @@ Save and undo is cheap here. Remove course keeps its typed confirmation.
 
 ## The steps
 
-### M37.1 — The checklist (pure, tested)
+### M39.1 — The checklist (pure, tested)
 
 `courseChecklist(course: EditCourse, selected: string | null)` in
 `lib/courseEdit.ts`, returning
@@ -93,7 +93,7 @@ start/finish; a shared start/finish (layout null) counts for every layout; a
 layout's own start/finish counts only for it; sectors counted for the
 chosen layout only; pit lane without in/out; all of it.
 
-### M37.2 — Undo and redo (pure, tested; then wired)
+### M39.2 — Undo and redo (pure, tested; then wired)
 
 `lib/history.ts`: `History<T>` with `push(previous)`, `undo(current)`,
 `redo(current)`, `canUndo`, `canRedo`, `clear()`, a 50-deep limit, redo
@@ -107,7 +107,7 @@ pushing; `show()`, `view()` and a successful `save()` clear it.
 server: remove a sector, Undo brings it back, Redo takes it away again;
 after Save, Undo is disabled.
 
-### M37.3 — The toolbar and the keyboard (web)
+### M39.3 — The toolbar and the keyboard (web)
 
 A `MapToolbar.svelte` placed in `.mapwrap`, absolutely at top left (beside
 Leaflet's zoom, `z-index` above the map as the hint's 1000): the mode pill
@@ -122,7 +122,7 @@ target is an `input`, `select` or `textarea`.
 says "Choose what to draw" and a click on the map adds nothing; start
 drawing the pit lane with Geoman, Esc stops it with no line made.
 
-### M37.4 — The sidebar in four groups with done marks (web)
+### M39.4 — The sidebar in four groups with done marks (web)
 
 Rearrange the sidebar's existing controls, no new behaviour:
 - **Layouts** ✓ (count): the layout list, make default, remove, reverse, move
@@ -140,7 +140,7 @@ click (Undo covers them) and keep the `danger` style.
 **Check** on the dev server, on a new course: the four marks go from "–" to
 "✓" as each is drawn; on NHMS, all four show done.
 
-### M37.5 — The Save bar and "More" (web)
+### M39.5 — The Save bar and "More" (web)
 
 - A Save bar fixed at the bottom of the sidebar (`position: sticky;
   bottom: 0` inside `aside`; under 900 px, fixed to the viewport's bottom):
@@ -157,7 +157,7 @@ click (Undo covers them) and keep the `danger` style.
 stays in view; with a problem (a layout with no start/finish) the bar says
 "1 problem" and Save is disabled; a new course shows Name and Id first.
 
-### M37.6 — Deployed
+### M39.6 — Deployed
 
 Deployed with a live stream across it. On the live site, Sam opens NHMS's
 editor, removes and undoes a sector, and leaves without saving; the course

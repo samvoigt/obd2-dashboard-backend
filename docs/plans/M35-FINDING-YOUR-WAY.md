@@ -1,4 +1,4 @@
-# M33 — Finding your way: "now" first, names not slugs, a useful offline car
+# M35 — Finding your way: "now" first, names not slugs, a useful offline car
 
 Phase 4 of the UX review (`plans/UX-REVIEW.md` §3.D, §4 phase 4, §6.1 and
 §6.4). A visitor lands and sees what's happening now; every page says which
@@ -82,7 +82,7 @@ badge "only on manage/edit pages".
 
 ## The steps
 
-### M33.1 — `standing` on `/api/cars` (server, tested)
+### M35.1 — `standing` on `/api/cars` (server, tested)
 
 `TimingPage` gains `fun held(car): JsonObject?` (reads `last`).
 `browserRoutes` takes `timingPage` and adds `standing = timingPage.held(slug)`
@@ -97,7 +97,7 @@ offline), but its comment says a new public field is a decision: a line
 added to decision 37 (the standing is already public on the car's stream;
 Sam agreed, 2026-10-22).
 
-### M33.2 — The "Now" card's choice (pure, tested)
+### M35.2 — The "Now" card's choice (pure, tested)
 
 `lib/landing.ts`: `nowCard(cars, latest, events, now)` returns
 `{ kind: 'live', cars } | { kind: 'event', event } | { kind: 'last', car, session } | null`
@@ -105,20 +105,20 @@ by the rule above. Tests: one live car; two; stale counts as live; an event
 under way with no car live; neither, the latest session over cars; nothing
 at all.
 
-### M33.3 — The card on the landing
+### M35.3 — The card on the landing
 
 `Landing.svelte` renders it above the sections, with the existing
 `sessionLine` and `lapTime`; "Watch live" is a button-styled link. Checked on
 the dev server: a replay streaming (live card with driver once set), the
 replay stopped (last-out card), an event part covering now (event card).
 
-### M33.4 — Nav words and headings
+### M35.4 — Nav words and headings
 
 `SiteHeader` labels; `CarsPage` h1 "Live"; `EventsPage` h1 "Results";
 `Landing` section headings. Checked by eye at desktop and 390 px (after
 M30's header).
 
-### M33.5 — Breadcrumbs
+### M35.5 — Breadcrumbs
 
 `Breadcrumbs.svelte` (`items: {href?, label}[]`, the last unlinked, `›`
 between, `nav aria-label="Breadcrumb"`), replacing `.back` on the pages
@@ -127,18 +127,18 @@ load); the session page uses `detail.carName` and its start time. A pure
 `crumbs(route, names)` in `lib/routes.ts` builds the items, tested in
 `routes.test.ts` for each route.
 
-### M33.6 — The car page by name
+### M35.6 — The car page by name
 
-`CarPage` fetches the name (M33.5's helper) for its `<h1>`; the slug stays
+`CarPage` fetches the name (M35.5's helper) for its `<h1>`; the slug stays
 in the URL only. Checked: dev car shows "Dev car".
 
-### M33.7 — The offline car page
+### M35.7 — The offline car page
 
 `CarPage`, when no session is live: fetch the car's drives once
 (`fetchDrives`, `latestSession`), show "Offline · last seen …" in the banner
 and the latest session's line with its two links; fetch that session's
 thinned series (`fetchSeries(id, fetch, true)`; for a merged session, whose
-own `/series` is 404, `fetchMergedSeries(members, fetch, true)` from M38.7)
+own `/series` is 404, `fetchMergedSeries(members, fetch, true)` from M32.7)
 and give its positions to `SessionMap` without `follow`, so it fits the
 route. When a session starts,
 the live view takes over as now. A pure `lastSeenText(session)` in
@@ -147,7 +147,7 @@ sessions and none live; a car whose latest is a merged session (its whole
 route); a car with no sessions at all ("No sessions yet", the world map as
 before); a replay starting while the page is open.
 
-### M33.8 — The Hidden badge where it's managed
+### M35.8 — The Hidden badge where it's managed
 
 Remove `HiddenBadge` from the 8 places listed; add it beside the title on
 `CarManage`, `EventEditor` and `CourseEditor` when the thing is hidden (each
@@ -155,10 +155,10 @@ already loads its access record or can, via `allowedFor`/`mine`). Checked:
 signed in, a hidden car shows no badge on the landing or `/cars`, and shows
 it on its manage page.
 
-### M33.9 — One word for each thing, one date format
+### M35.9 — One word for each thing, one date format
 
 From the review's cross-cutting item (§4; Sam, 2026-10-22: "A final step in
-M33"). `docs/GLOSSARY.md`: one line per term the site shows (session, merged
+M35"). `docs/GLOSSARY.md`: one line per term the site shows (session, merged
 session, drive, part, race session, stint, stop, in-lap, out-lap, re-timed,
 tablet only, theoretical best, spread, within 1%), each with the words a
 visitor sees and a one-sentence meaning. `web/src/lib/terms.ts`: those words
@@ -182,4 +182,4 @@ timed again on a phone, against M30.7's baseline, into JOURNAL.
 
 ## Not in this milestone
 
-- (The glossary and one date format are M33.9.)
+- (The glossary and one date format are M35.9.)

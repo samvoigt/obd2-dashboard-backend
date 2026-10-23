@@ -1,4 +1,4 @@
-# M38 — Merged sessions: several stored sessions, one session everywhere you look
+# M32 — Merged sessions: several stored sessions, one session everywhere you look
 
 **Sam, 2026-10-22:** "i'd like for something on the session list page to
 allow me to merge sessions. they could be separate as data items under the
@@ -6,10 +6,10 @@ hood, but treated as one session in the UI and for all other practical
 purposes." Asked how far it goes, he chose: sessions that look like one
 drive are **suggested** for merging ("These look like one drive — merge?"),
 merged only on a click; sessions in **different event parts can't be
-merged** (same part, or none); and it's built **right after M31a**, before
-M31b, M34 and M35, so those build on it instead of being reworked.
+merged** (same part, or none); and it's built **right after M31**, before
+M33, M36 and M37, so those build on it instead of being reworked.
 
-> **Planned 2026-10-22**, checked against the code. Builds on M31a (who
+> **Planned 2026-10-22**, checked against the code. Builds on M31 (who
 > drove belongs to the session; race stints worked out from sessions'
 > drivers), whose timeline rule a merged session's drivers use.
 
@@ -75,7 +75,7 @@ M31b, M34 and M35, so those build on it instead of being reworked.
   (2 h 31), 11:55 (5 min, tablet only), 12:00 (3 h 17), 15:18 (5 min,
   tablet only), 15:23 (1 h 59). Tablet-only sessions sit between car
   sessions at each restart; whether they touch or overlap their neighbours
-  is measured in M38.1, because "no overlap" depends on it.
+  is measured in M32.1, because "no overlap" depends on it.
 
 ## Decided here
 
@@ -94,7 +94,7 @@ M31b, M34 and M35, so those build on it instead of being reworked.
 - **Rules for a merge**, checked on the server, each refusal saying why:
   one car; at least two sessions; every member complete; in time order with
   no overlap (touching is fine; how much overlap to tolerate is set from
-  M38.1's measurement); none already in another merge; **all in the same
+  M32.1's measurement); none already in another merge; **all in the same
   event part, or in none**; the merger may edit the car (`Action.EDIT`, as
   setting a driver). A merge may be **extended** with more plain sessions,
   keeping its id; two merged sessions can't be merged ("Unmerge one first").
@@ -113,7 +113,7 @@ M31b, M34 and M35, so those build on it instead of being reworked.
     keep working);
   - **event results:** one session row (per stretch, as now) per merged
     session in every part, practice and race alike, with the merge's id,
-    its stretches over the whole merged timeline (M31a's rule), and
+    its stretches over the whole merged timeline (M31's rule), and
     `merged` (member id → merged session id) so a race lap's session can be
     linked to the merged page; the race itself is unchanged;
   - **driver pages** follow the results; **the download** writes members in
@@ -121,7 +121,7 @@ M31b, M34 and M35, so those build on it instead of being reworked.
 - **The merged page's data:**
   - **detail:** `/api/sessions/{mergeId}` answers the folded `SessionItem`,
     the signals of all members, and `members` (each with its id, start, end,
-    driver and driver changes) for M31b's Drivers block;
+    driver and driver changes) for M33's Drivers block;
   - **laps:** `/api/sessions/{mergeId}/laps` concatenates the members' laps
     on one course: the event's if the merge is in one, else the first member
     with laps' course (`laps(car, id, on)` re-times the others on it).
@@ -148,14 +148,14 @@ M31b, M34 and M35, so those build on it instead of being reworked.
   adapter reconnects (the same run) are both suggested. The server works
   them out (it knows the device) and sends each drive's `suggested` lists
   of ids; the list never carries a device.
-- **Results' hold** (`ResultsHold`, M17.6; made long-lived in M32) is
+- **Results' hold** (`ResultsHold`, M17.6; made long-lived in M34) is
   cleared on every merge, extension, unmerge and delete: the merge routes
   and `adminCarRoutes` take `onChanged = edited`.
 
-**Decision 48 (drafted, written in the same commit as M38.3):**
+**Decision 48 (drafted, written in the same commit as M32.3):**
 
 > **A merged session: several stored sessions, one session on the site.**
-> (M38; Sam, 2026-10-22.) A car's editors can merge two or more of its
+> (M32; Sam, 2026-10-22.) A car's editors can merge two or more of its
 > complete sessions, in time order without overlap, in the same event part
 > or in none, into one merged session, with an id, a name and a page of its
 > own. The members stay as stored, untouched: the archive, re-timing and the
@@ -174,7 +174,7 @@ M31b, M34 and M35, so those build on it instead of being reworked.
 
 ## The steps
 
-### M38.1 — Measure first (no code)
+### M32.1 — Measure first (no code)
 
 On production's data, by Sam or with the public APIs: NHMS Saturday's five
 sessions' starts and ends (do the tablet-only ones overlap their
@@ -183,10 +183,10 @@ point count. On the dev server, a page joining five synthetic series of the
 same sizes, measured with `web/scripts/measure.mjs` at 4× CPU slowdown.
 **Gate:** if it isn't usable (long tasks, a heap past the M8 budget), the
 merged page opens on the members' thinned series only and the plan says so
-before M38.7. The overlap found sets the tolerance in M38.2. Recorded here
+before M32.7. The overlap found sets the tolerance in M32.2. Recorded here
 and in JOURNAL.
 
-### M38.2 — The store and the rules (tested; in memory and Firestore)
+### M32.2 — The store and the rules (tested; in memory and Firestore)
 
 `:archive`: `MergedSession`, `MergeStore` (`create`, `extend`, `split`,
 `get`, `ofCar`, `mergeOf(sessionId)`), `InMemoryMergeStore`, and
@@ -203,7 +203,7 @@ two merges refused at the store; split marks `split` and frees the members.
 store: two throwaway sessions merged, a second merge of one refused, split,
 removed (a line for it in CLAUDE.md's Build block).
 
-### M38.3 — The routes to merge, unmerge, name and delete
+### M32.3 — The routes to merge, unmerge, name and delete
 
 In `adminCarRoutes` (which gains `merges: MergeStore` and `onChanged: () ->
 Unit`, wired to `edited` in `Application.kt`): `POST
@@ -219,7 +219,7 @@ Tests (`MergeRoutesTest`, in memory): merge, extend, split, delete, name;
 refusals (not yours, live member, different parts, overlap, already
 merged); each change empties the results' hold.
 
-### M38.4 — Placement as one unit
+### M32.4 — Placement as one unit
 
 `EventRules.sessionsIn(event, sessions, merges: List<List<String>> =
 emptyList())`, and the six callers pass the car's merges. Tests
@@ -227,7 +227,7 @@ emptyList())`, and the six callers pass the car's merges. Tests
 it overlaps most; a member added by hand brings the others; a member removed
 takes the others out; without merges, every existing test unchanged.
 
-### M38.5 — What the session routes answer for a merged session
+### M32.5 — What the session routes answer for a merged session
 
 `SessionRoutes.kt`: `sessionRecord()` resolves a merge id (and a `split`
 one to its first member); the car's list folds members into one
@@ -248,10 +248,10 @@ spanning a same-run join present, none across a restart; `suggestMerges`:
 same device and drive suggested, a live or uploading one breaks the run,
 another part breaks it, another device breaks it, already merged skipped.
 
-### M38.6 — Event results and the download count a merge once
+### M32.6 — Event results and the download count a merge once
 
 `EventResults.kt`: a merge's rows in every part as decided (its laps from
-M38.5's merged laps, `Results.stretches` over its members' drivers), and
+M32.5's merged laps, `Results.stretches` over its members' drivers), and
 `merged` (member → merge) on `EventResults`; driver pages follow.
 `EventDownload`: `sessions.json` names the merge.
 
@@ -260,13 +260,13 @@ rows count the merge once, with the same bests as unmerged; `merged` maps
 each member; the race's laps and stints unchanged; the download unchanged
 but for the name.
 
-### M38.7 — The merged page
+### M32.7 — The merged page
 
 `web/src/lib/sessionPage.ts` (not `merge.ts`, which is the live lane's):
 `joinSeries(members: { t0, series }[])` (pure, tested: times shifted to the
 first member's `t0`, a `null` break at each join, positions and events
 carried, `dropped` summed) and `fetchMergedSeries(members, fetcher, thin)`
-(each member's `fetchSeries`, then `joinSeries`; M33.7 reuses it).
+(each member's `fetchSeries`, then `joinSeries`; M35.7 reuses it).
 `SessionPage.svelte`: a `mergedInto` detail moves to the merged page
 (`history.replaceState`, keeping `?from=&to=`); a merged detail fetches
 each member's series by the rule above and joins them, marks each join on
@@ -278,7 +278,7 @@ across them, a break at each join, laps numbered through, a member's URL
 lands on the merged page, and a member's lap link lands on the merged page
 focused on that lap.
 
-### M38.8 — The sessions list: merge, unmerge, suggestions
+### M32.8 — The sessions list: merge, unmerge, suggestions
 
 `SessionsPage.svelte`, for whoever may edit the car (`may.edit`): a
 checkbox per row labelled **Select** (`aria-label="Select 12:00 to
@@ -294,24 +294,24 @@ merged rows → "Unmerge one first").
 Check on the dev server: the suggestion appears for replayed back-to-back
 sessions; one click merges them; Unmerge restores three rows.
 
-### M38.9 — Deployed
+### M32.9 — Deployed
 
 With a replay streaming across it. Then Sam merges NHMS Saturday's sessions
 (race session 1) on production and checks: the race results and laps per
 driver unchanged (SAM 122, HUG 118, PAU 113, DRE 107); the merged page
-loads within M38.1's budget; the event page lists one session for the day.
+loads within M32.1's budget; the event page lists one session for the day.
 
 ## Where the later plans use this
 
-Folded into their steps (2026-10-22): M31b.4–5 (the Drivers block over a
-merged timeline; a change stored on the member its moment falls in), M32.2
-and M32.3 (the hold's clearing; laps first for a merge), M33.7 (an offline
-car's last route from a merged session), M34.1 and M34.3 (one row per
-merged session; stint links through `merged`), M35 (the order, compare
-picks naming members, the list's two kinds of checkbox) and M36.1–M36.4
+Folded into their steps (2026-10-22): M33.4–5 (the Drivers block over a
+merged timeline; a change stored on the member its moment falls in), M34.2
+and M34.3 (the hold's clearing; laps first for a merge), M35.7 (an offline
+car's last route from a merged session), M36.1 and M36.3 (one row per
+merged session; stint links through `merged`), M37 (the order, compare
+picks naming members, the list's two kinds of checkbox) and M38.1–M38.4
 (placement and Take out / Add to on the whole merge).
 
 ## Open questions
 
 - None blocking. The overlap tolerance and the page-weight gate are set by
-  M38.1's measurement, before anything is built on them.
+  M32.1's measurement, before anything is built on them.

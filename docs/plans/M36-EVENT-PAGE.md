@@ -1,4 +1,4 @@
-# M34 — The event page: results first, each thing once, admin tools tucked away
+# M36 — The event page: results first, each thing once, admin tools tucked away
 
 Phase 5 of the UX review (`plans/UX-REVIEW.md` §3.E, §4 phase 5). The event
 page reads top to bottom as a visitor wants it: the standings, the lap chart,
@@ -11,9 +11,9 @@ stints are read-only and link to their sessions.
 
 > **Planned 2026-10-22**, checked against the code. Builds after M30, whose
 > table pattern (`.table-scroll`) the stints and laps tables use on phones;
-> **after M31a**, which removes hand-edited stints (stints are then worked
+> **after M31**, which removes hand-edited stints (stints are then worked
 > out from sessions' drivers, and the stint editor and its route are gone);
-> and **after M38**, whose results send a merged session's rows under the
+> and **after M32**, whose results send a merged session's rows under the
 > merge's id, and `merged` (member id → merged session id). Revised the
 > same day for §7: no stint editor here.
 
@@ -33,7 +33,7 @@ stints are read-only and link to their sessions.
   `Results.stretches`), keyed on the page by `${s.id}-${s.stretch}`. Bests,
   sector rows and consistency are computed **on the server** from those rows,
   so folding them into one row per session on the page changes only the
-  display. Client-side grouping by `id` is enough. Since M38.6 a merged
+  display. Client-side grouping by `id` is enough. Since M32.6 a merged
   session's rows carry the merge's id, so they fold into one row too.
 - **`RaceSection.svelte`**, in order: a sentence about flags and counting;
   the standings table; `LapChart`; **the flags form** (`{#if anyone}`, line
@@ -46,7 +46,7 @@ stints are read-only and link to their sessions.
   per mark; a lap belongs to the last mark that began before it ended
   (line 141), so two marks with no lap end between them leave the first with
   no laps (`laps = 0`, `firstLap = null`). NHMS stints 6, 8 and 13 are these.
-  They're real stored marks today; M31a turns them into sessions' driver
+  They're real stored marks today; M31 turns them into sessions' driver
   changes and clears them. After it, a stint with no laps can still happen
   (a session's start driver in a session with no laps, a tablet-only
   minute), so the reading table still hides them. `stintsIn` (`lib/race.ts:93`) already skips them, which is
@@ -87,7 +87,7 @@ stints are read-only and link to their sessions.
   alternates two tints, not one per driver.)
 - **"Edit the race"** (shown to whoever may set the race, as `anyone` now):
   one button under the standings; pressed, it shows the flags form (the
-  stint editor is gone with M31a). The flag/counting sentence moves into that
+  stint editor is gone with M31). The flag/counting sentence moves into that
   panel, except one line kept public: "Laps count before the green flag and
   after the flag."
 - **The chart's idle legend** shows "Hover a lap" for the lap and nothing
@@ -95,7 +95,7 @@ stints are read-only and link to their sessions.
 
 ## The steps
 
-### M34.1 — Sessions folded per session (pure, tested)
+### M36.1 — Sessions folded per session (pure, tested)
 
 `lib/eventResults.ts`: `sessionRows(rows: SessionResult[])` →
 `{ id, car, name, heardFrom, live, otherLayout, stretches: {driver, laps, best}[] }[]`,
@@ -103,42 +103,42 @@ in first-heard order. Tests: a session without changes (one stretch), one
 with three stretches, a merged session's rows (the merge's id, stretches
 across members) as one row, live and other-layout flags carried.
 
-### M34.2 — Stops per stint (pure, tested)
+### M36.2 — Stops per stint (pure, tested)
 
 `lib/race.ts`: `stopAfter(car, stint)` → `RaceStop | null` (the stop whose
 `lap` is the stint's `lastLap`), and `pitTime(seconds)` → `"5:57"`. Tests:
 stints ending at a stop, at the race's end in the pits, and with no stop;
 an empty stint (null `lastLap`).
 
-### M34.3 — The stints table
+### M36.3 — The stints table
 
-`RaceSection`: the Stop column from M34.2; the Session column as a link to
+`RaceSection`: the Stop column from M36.2; the Session column as a link to
 the stint's session: its first lap's `session` (`c.laps` by number), mapped
 through `results.merged` to the merged session when it's a member, so the
 link needs no redirect (the car's slug from `c.car`); a pure
 `stintSession(car, stint, merged)` in `lib/race.ts`, tested (plain, merged
 member, empty stint → null); empty stints filtered (`laps > 0`) with the
 count line; the stops sentence and "Split at every stop; merge a fuel stop…"
-/ "Stints as set by hand." lines removed (M31a leaves one kind of stint).
+/ "Stints as set by hand." lines removed (M31 leaves one kind of stint).
 Checked on the dev server: each Session link opens that session's page, and
 a session with no laps gives a hidden empty stint and the count line; with
-two of the race's sessions merged (M38.8), their stints link to the merged
+two of the race's sessions merged (M32.8), their stints link to the merged
 page.
 
-### M34.4 — "Edit the race"
+### M36.4 — "Edit the race"
 
 `RaceSection`: an `editingRace` toggle; the flags form renders only while
 it's on. Checked: signed out, no form control on the page; signed in as the
 dev master, the button shows and the flags save.
 
-### M34.5 — The chart's words
+### M36.5 — The chart's words
 
 `LapChart`: series values return `''`/"Hover a lap" when null; the stints
 sentence replaced by the one caption. A `lapChart.test.ts` case for the
 legend's value function if it's extracted (it's a one-liner; else checked by
 eye).
 
-### M34.6 — The page's order, practice once, one sessions panel
+### M36.6 — The page's order, practice once, one sessions panel
 
 `EventPage`: reorder; render "Practice, every part" only when there are two
 or more practice parts; part panels show bests/analysis only (practice) and

@@ -7,7 +7,7 @@ IT MYSELF FIRST"). Once agreed, each phase below becomes a milestone row in
 code as usual. Every phase is sized to be built by an Opus-level model or
 lower: concrete files, concrete acceptance checks, no open-ended design.
 
-> **Corrected 2026-10-22, by the milestone plans (M30–M37), which checked
+> **Corrected 2026-10-22, by the milestone plans (M30–M39), which checked
 > each step against the code.** Four corrections, and one addition:
 > - **Phones (§2.1, §3.A):** the 390 px screenshots were probably laid out
 >   at about 500 px and cropped: desktop Chrome won't lay a window out
@@ -19,14 +19,14 @@ lower: concrete files, concrete acceptance checks, no open-ended design.
 >   the event's id and revision only (`EventResults.kt:413`), not by which
 >   cars the viewer may see. For up to 10 s after someone signed in opens an
 >   event, a signed-out visitor can be sent results that include a hidden
->   car (decision 42 says they never should). M32.1 fixes it, first.
+>   car (decision 42 says they never should). M34.1 fixes it, first.
 > - **Empty stints (§3.E)** are real stored marks from hand edits, not a
 >   display bug; **the G-meter (§3.D)** stays on an offline car's page
 >   (M10); **removes in the course editor (§3.G)** get Undo, not a
 >   confirm, since nothing is saved until Save.
-> - **The compare pick (§3.F)** is shared across pages; M35 keeps that.
-> - **Merged sessions (M38)**, asked for after the review, are built right
->   after M31a; M31b and M32–M36 account for them in their steps. The
+> - **The compare pick (§3.F)** is shared across pages; M37 keeps that.
+> - **Merged sessions (M32)**, asked for after the review, are built right
+>   after M31; M33 and M34–M38 account for them in their steps. The
 >   cross-cutting glossary (below) is in no milestone yet.
 
 > **Reviewed 2026-10-22.** The live site (public pages, read-only, signed in
@@ -357,12 +357,12 @@ to four.
 banner, gauges, driver, laps and message panel are all reachable without
 sideways scroll; Sam opens it on his phone at a drive.
 
-### Phase 2 — Who's driving (M31) · M · crew
+### Phase 2 — Who's driving (M31, M33) · M · crew
 
 > **Superseded in part by §7 (Sam, 2026-10-22):** who drove belongs to the
 > session and is edited on its page; race stints are worked out from it. The
-> phase is built as M31a (the model) and M31b (the screens); step 3 below
-> (a stint mark added on a live change) is replaced by M31a.
+> phase is built as M31 (the model) and M33 (the screens); step 3 below
+> (a stint mark added on a live change) is replaced by M31.
 
 **Goal:** from the live page, on a phone, set the driver in two taps and see
 it took.
@@ -396,7 +396,7 @@ it took.
 phone-width window in two taps; the standings, the laps panel and the event
 page agree within 30 s; with edited stints, the same.
 
-### Phase 3 — Nothing waits in silence (M32) · M · family, drivers
+### Phase 3 — Nothing waits in silence (M34) · M · family, drivers
 
 1. **Results hold:** `ResultsHold` keeps results until `edited()` clears them
    (already wired), and uses the 10 s hold only while a part of that event is
@@ -423,7 +423,7 @@ page agree within 30 s; with edited stints, the same.
 visit; the session page shows laps within 2 s on the 3 h 17 min session;
 JOURNAL records before/after timings from the logs.
 
-### Phase 4 — Finding your way (M33) · M · family, crew
+### Phase 4 — Finding your way (M35) · M · family, crew
 
 1. **Landing "Now":** above the lists, one card: a car streaming (driver,
    race lap, last lap, best, a "Watch live" button), or the latest session
@@ -447,7 +447,7 @@ JOURNAL records before/after timings from the logs.
 streaming; a visitor can say which car page they're on without reading the
 URL.
 
-### Phase 5 — The event page (M34) · M · family, drivers
+### Phase 5 — The event page (M36) · M · family, drivers
 
 1. Reorder as in §3.E; practice rendered once when there's one practice.
 2. Stints: one table with a Stops column (m:ss); empty marks hidden unless
@@ -463,7 +463,7 @@ URL.
 **Acceptance:** the NHMS page, signed out, has no form controls above "Every
 lap"; the stints table has no empty rows; each session appears once.
 
-### Phase 6 — The session page and the sessions list (M35) · M · drivers
+### Phase 6 — The session page and the sessions list (M37) · M · drivers
 
 1. Order: facts → drivers → map → laps → chart → what happened.
 2. Laps table: units in headers ("Top mph"), one "Compare" checkbox per row
@@ -482,9 +482,9 @@ lap"; the stints table has no empty rows; each session appears once.
 the map without scrolling past the chart; comparing two laps takes two taps
 and one button.
 
-### Phase 7 — The editors (M36, M37) · L · Sam
+### Phase 7 — The editors (M38, M39) · L · Sam
 
-**M36, the event editor:**
+**M38, the event editor:**
 1. Three sections on one page: The event (name, dates, course, layout, cars),
    The schedule (parts as a day-by-day list: day, kind, from–to, with
    sensible defaults when adding), The sessions.
@@ -496,7 +496,7 @@ and one button.
    select, in that preview.
 4. One paragraph, at the top, says what a part is and how sessions join it.
 
-**M37, the course editor:**
+**M39, the course editor:**
 1. A toolbar over the map: the current mode as a pill ("Drawing the pit
    lane · click to add points · Esc to stop"), Undo, Stop.
 2. The sidebar in four groups with a done mark: Layout ✓, Start/finish ✓,
@@ -656,15 +656,15 @@ itself." And past corrections are made "Always the session page".
 
 ### What this changes in the milestones
 
-- **M31 splits:** M31a, the model (stints from session drivers; stops inside
+- **Phase 2 splits:** M31, the model (stints from session drivers; stops inside
   stints; the correction rule; the carry-over at session creation; the
   migration; the decision; the race, standing, driver pages and download
-  read the result), then M31b, the UI (Set driver with "when", the header's
+  read the result), then M33, the UI (Set driver with "when", the header's
   Crew button, the session page's Drivers block).
-- **M34:** the stint editor and "Back to splitting at every stop" go; the
+- **M36:** the stint editor and "Back to splitting at every stop" go; the
   stints table links each stint to its session. "Edit the race" keeps the
   flags only.
-- **M35:** the session page's Drivers block (M31b) is the one editor for
+- **M37:** the session page's Drivers block (M33) is the one editor for
   the past, for every session.
-- **The STREAM proposal:** its carry-over is built in M31a, for restarts
+- **The STREAM proposal:** its carry-over is built in M31, for restarts
   now and STREAM toggles later.

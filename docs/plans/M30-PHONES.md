@@ -7,7 +7,7 @@ The crew, on phones in the pits, are the site's first audience.
 **Sam, 2026-10-22:** "Restructure freely, keep the look", phases in the
 review's order ("Keep: phones first, editors last"), a bright mode as a
 "Minimal version in phase 1", and the crew login as "A Crew button in the
-header" (built in M31b; M30 leaves its place).
+header" (built in M33; M30 leaves its place).
 
 > **Planned 2026-10-22**, checked against the code.
 
@@ -96,7 +96,7 @@ header" (built in M31b; M30 leaves its place).
 - **Tables:** a shared `.table-scroll` wrapper in `app.css`
   (`overflow-x: auto; max-width: 100%`), with the first column sticky. The
   laps and stints tables use it. The event page's sessions become rows that
-  wrap in M34.6, when that page is reordered; M30 only makes sure nothing
+  wrap in M36.6, when that page is reordered; M30 only makes sure nothing
   escapes its panel. The exception is the sessions list, whose rows already
   wrap.
 - **Touch targets:** at under 600 px, `button`, `select`, `input` (not
@@ -110,7 +110,7 @@ header" (built in M31b; M30 leaves its place).
   "Sign in" (on the dev server, its two buttons). Signed in: a button
   showing the first letter of the email, which opens a small panel holding
   the email and role, Users (for a master) and Sign out. **The Crew button
-  goes in `.who`, before the account control,** as an empty slot M31b fills;
+  goes in `.who`, before the account control,** as an empty slot M33 fills;
   M30 adds no Crew control.
 - **Bright mode** (§6.3) is a second palette for the same ten roles, under
   `:root[data-theme="bright"]` in `app.css`. It's chosen by a "Dark / Bright"
@@ -164,7 +164,7 @@ and check the session and event pages with extra paths.
   out. It closes on Escape and on a click outside.
 - Above 600 px nothing changes.
 - An empty `<span class="crew-slot"></span>` goes first in `.who`, with a
-  comment pointing at M31b.
+  comment pointing at M33.
 - On the dev server, signed out, the two dev buttons go into the same menu
   under 600 px.
 
@@ -273,7 +273,7 @@ survives a reload. Run the phone check again in bright mode (it sets
 ### M30.7 — Deployed, and looked at on a phone
 
 Before deploying, the review's three walk-throughs (§5) are timed on a
-phone against the current site, as the baseline M31b.6 and M33 compare
+phone against the current site, as the baseline M33.6 and M35 compare
 with; the times go to JOURNAL. Then deploy as usual: a smoke car streaming across the deploy. Then Sam opens
 badnewsbears.live on his phone:
 - the landing page;

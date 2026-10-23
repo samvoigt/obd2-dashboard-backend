@@ -1,4 +1,4 @@
-# M35 — The session page and the sessions list
+# M37 — The session page and the sessions list
 
 A session's page leads with what happened (who drove, the laps, the best,
 the route) instead of a chart of two raw signals; comparing laps is "tick
@@ -9,9 +9,9 @@ list says "50 laps · best 1:30.200" instead of "Best 1:30.200 (lap 214 of
 get lost, and chose "pick two laps" for comparing (review §6, answer 6: a
 checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
 
-> **Planned 2026-10-22**, checked against the code. Built after M31b (the
-> Drivers block), M32 (laps load before the series), M33 (breadcrumbs) and
-> M38 (merged sessions: one page, laps numbered through, each naming its
+> **Planned 2026-10-22**, checked against the code. Built after M33 (the
+> Drivers block), M34 (laps load before the series), M35 (breadcrumbs) and
+> M32 (merged sessions: one page, laps numbered through, each naming its
 > member; the list's Select checkboxes and Merge bar), so it builds on
 > those as they stand.
 
@@ -20,21 +20,21 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
 ## What exists, and what it means for this (checked 2026-10-22)
 
 - **The page's order** (`web/src/SessionPage.svelte`, template from line
-  ~300, as checked before M31b–M33 and M38; re-read it before building):
-  back link (breadcrumbs after M33), title, "Name this session" (a
+  ~300, as checked before M33–M35 and M32; re-read it before building):
+  back link (breadcrumbs after M35), title, "Name this session" (a
   `button.link` on its own line), the facts line (with the units switch at
-  its right), GPS-lost notes, the driver controls (M31b's Drivers block),
+  its right), GPS-lost notes, the driver controls (M33's Drivers block),
   the state note; then, behind `{#if !view}` ("Loading the session's
   data…"), the chart panel, "Where it went" (map), "Laps", "What happened".
-  **M32.3 lifts the laps panel out of that gate**; the rest waits for the
-  series (`view`). A merged session (M38.7) is the same page, its members
+  **M34.3 lifts the laps panel out of that gate**; the rest waits for the
+  series (`view`). A merged session (M32.7) is the same page, its members
   listed under the facts and its joins marked on the chart.
 - **Where the laps come from:** `laps` is `standingRows(standing)` (the
   server's laps, `fetchLaps`, `/api/sessions/{id}/laps`) else `lapRows(view)`
   (the series' own `lap` records) (`SessionPage.svelte:165–166`). `standing`
   is fetched **after** the series, and **only for a complete session**
-  (`:227`). The speeds (`speedOf`, `:170`) need the series. M32.3 moves the
-  loading into `loadSession` (laps before the series). Since M38.5 each lap
+  (`:227`). The speeds (`speedOf`, `:170`) need the series. M34.3 moves the
+  loading into `loadSession` (laps before the series). Since M32.5 each lap
   of a merged session names its member (`session`), which is what a compare
   pick and a lap link must name.
 - **The chart's signal pickers** show the raw dotted names
@@ -59,7 +59,7 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
   (`RaceSection.svelte:235`) and the driver page (`DriverPage.svelte:56`,
   `best={null}`). **This plan changes the session page only**; the other
   three keep `ComparePick` as it is, and the cross-page pick keeps working in
-  both directions (see M35.3).
+  both directions (see M37.3).
 - **A lap row is clickable:** `onclick={() => showLap(lap)}` zooms the chart
   and focuses the map on that lap (`:273`). The compare cell stops the click
   from reaching the row (`onclick={(e) => e.stopPropagation()}`); a checkbox
@@ -85,7 +85,7 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
 
 ## Decided here
 
-- **The drivers block is M31b's**, and it is the one place anyone edits who
+- **The drivers block is M33's**, and it is the one place anyone edits who
   drove, for every session, merged or not (Sam, 2026-10-22: "Always the
   session page"; `UX-REVIEW.md` §7). This plan only places it, second.
 - **The order:** facts → drivers → map → laps → chart → what happened, on
@@ -109,7 +109,7 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
   page), so the compare page and lap links work as now.
 - **Two kinds of checkbox, worded apart:** laps here are ticked to
   **Compare** (`aria-label="Compare lap 72"`); sessions on the list are
-  ticked to **Select** for merging (M38.8). Neither page has both.
+  ticked to **Select** for merging (M32.8). Neither page has both.
 - **Signal names** through `label()` in the session page's pickers and in
   every chart's legend (a `labels` prop on `Chart`; the car page gets it too,
   so the two pages agree). The values stay the dotted names.
@@ -127,7 +127,7 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
 
 ## The steps
 
-### M35.1 — The rule for the compare bar (pure, tested)
+### M37.1 — The rule for the compare bar (pure, tested)
 
 `web/src/lib/lapCompare.ts`:
 - `toggleTick(ticked, lap)`: add or remove a lap (by `end`); at most two, a
@@ -143,7 +143,7 @@ start order (A the earlier lap); a held pick on another course → not
 offered; a held pick that is the ticked lap → not offered; a third tick
 drops the oldest.
 
-### M35.2 — The laps table
+### M37.2 — The laps table
 
 In `SessionPage.svelte`'s laps panel:
 - a first column of checkboxes (`aria-label="Compare lap 72"`), the click
@@ -164,7 +164,7 @@ with …"; clicking a row (not the box) still zooms. On a merged session,
 tick a lap from each of two members: the compare page opens both. `npm run
 check` and `npm test` pass.
 
-### M35.3 — The cross-page pick, both ways
+### M37.3 — The cross-page pick, both ways
 
 When a pick is held from another page (`picking.pending`), the bar shows it
 even with nothing ticked: "Held: Tha Bearmobile lap 107, 1:29.044 · tick a
@@ -174,19 +174,19 @@ lap to compare with it · Let go". Ticking one lap adds "Compare lap 72 with
 Check: hold a lap on the event page ("Compare…"), open another session at
 the same course, tick a lap, compare opens with both.
 
-### M35.4 — The order of the panels
+### M37.4 — The order of the panels
 
 Move the panels to facts → drivers → map → laps → chart → what happened,
-keeping the laps panel outside the `view` gate as M32.3 left it (the map
+keeping the laps panel outside the `view` gate as M34.3 left it (the map
 and chart skeletons stay where their panels go). Update the map's note
 (Decided here).
 
 Check: the 3 h 17 min NHMS session on the dev server's copy or a long
-synthetic session, and a merged one (M38.7's check); the map and the laps
+synthetic session, and a merged one (M32.7's check); the map and the laps
 are above the chart; the chart's cursor still moves the map's dot; a lap
 link (`?from=&to=`) still focuses both.
 
-### M35.5 — Readable signal names
+### M37.5 — Readable signal names
 
 - `Chart.svelte`: an optional `labels: string[]` prop used for the series'
   legend labels instead of `names` (names stay for the scales and the shape
@@ -198,7 +198,7 @@ Check: both pages' pickers and legends read "engine · rpm"; switching
 signals still works; `npm test` (no chart tests exist; `live.test.ts` covers
 `label`).
 
-### M35.6 — The title line
+### M37.6 — The title line
 
 "Name this session" moves beside the title as a small button ("Name" /
 "Rename"); the form opens in place as now. The units switch stays at the end
@@ -206,9 +206,9 @@ of the facts line.
 
 Check: as the dev master admin, name and rename; signed out, no button.
 
-### M35.7 — The sessions list
+### M37.7 — The sessions list
 
-In `SessionsPage.svelte` (M38.8's Select boxes, Merge bar and suggestion
+In `SessionsPage.svelte` (M32.8's Select boxes, Merge bar and suggestion
 lines stay as they are):
 - the best lap as "50 laps · best **1:30.200**" (a `lapsLine(s)` in
   `lib/sessions.ts`, tested, sharing its wording with `sessionLine`);
@@ -220,7 +220,7 @@ Tests in `sessions.test.ts` for both. Check on the dev server signed out
 (no lines, no slug, no Select boxes) and as the dev master admin (all
 shown), and at 390 px with the phone check (M30).
 
-### M35.8 — Deployed, and looked at
+### M37.8 — Deployed, and looked at
 
 Deployed with a live stream across it, as usual. Sam opens Sunday 12:56 and
 says whether the best lap, who drove and the route are found without
@@ -238,6 +238,6 @@ buttons. What he says goes to JOURNAL.
   server laps (`standing`), not for every session the review looked at; the
   plan keeps that condition.
 - The pick is shared across pages through `localStorage`; the review didn't
-  mention it, and M35.3 exists to keep it.
+  mention it, and M37.3 exists to keep it.
 - Trouble codes are named inline ("Trouble code P0037"), not "1 trouble
   code" with the code on hover: a tap target for one code isn't worth it.

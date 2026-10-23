@@ -1,11 +1,11 @@
-# M31b — Who's driving, on screen: set it from the Driver panel, correct it on the session page
+# M33 — Who's driving, on screen: set it from the Driver panel, correct it on the session page
 
 The crew sets who's driving from the car's live page, on a phone, saying
 when the swap happened, and sees that it took. The crew login moves to a
 **Crew** button in the header. Afterwards, who drove is corrected in one
 place, the session page, for every session. This is the screen half of UX
 review phase 2 (`UX-REVIEW.md` §3.C, §4 phase 2, §6 answer 2, §7); the model
-is M31a, which comes first.
+is M31, which comes first.
 
 **Sam, 2026-10-22:**
 - "updating who is currently driving is a use case that was annoying".
@@ -15,9 +15,9 @@ is M31a, which comes first.
 - For the login: "A Crew button in the header".
 - Past corrections: "Always the session page".
 
-> **Planned 2026-10-22**, checked against the code. Builds on M31a (who
+> **Planned 2026-10-22**, checked against the code. Builds on M31 (who
 > drove belongs to the session; the server normalises corrections and
-> answers what it replaced), M38 (a merged session's detail lists its
+> answers what it replaced), M32 (a merged session's detail lists its
 > `members`, each with its driver and changes; its laps are numbered through
 > and name their member) and M30 (the header's empty Crew slot).
 
@@ -51,7 +51,7 @@ is M31a, which comes first.
   "Driver" / "Driver from the start" select, each change as "From lap N:
   name [Remove]", and "Driver change at lap [ ] to [select] [Add]". Who may
   edit (`setter`): the car's editors, a master admin, its crew.
-- **After M31a**, the driver routes answer the stored list and `replaced`
+- **After M31**, the driver routes answer the stored list and `replaced`
   (changes the 60 s / one-lap rule replaced), and race stints follow the
   session's drivers, so these two places are the only editors.
 - **Tests to extend:** `web/src/lib/driverChanges.test.ts`.
@@ -85,9 +85,9 @@ is M31a, which comes first.
   the Driver panel says "Not set · the crew sets it here".
 - **The session page is the one editor of the past**, for every session,
   race or not, merged or not. The event page's stints and the driver pages
-  only read (M34 links each stint to its session).
+  only read (M36 links each stint to its session).
 - **A merged session's Drivers block covers its whole timeline** (decision
-  48, M38): "From the start" is the first member's driver; a later member's
+  48, M32): "From the start" is the first member's driver; a later member's
   start shows as an entry ("From 12:00 (next session): Drew Blouch") only
   when its driver differs from the one in force before it; a change is
   stored on the member its moment falls in, as a change inside it, or as
@@ -97,7 +97,7 @@ is M31a, which comes first.
 
 ## The steps
 
-### M31b.1 — When the swap happened (pure, tested)
+### M33.1 — When the swap happened (pure, tested)
 
 `lib/driverChanges.ts`: `swapMoment(choice, laps, nowWall, offsetMs)` →
 the moment on the tablet's `wall`, or why not. `setDriverAt(slug, session,
@@ -110,7 +110,7 @@ start, an unknown lap refused; a time on the viewer's clock to the tablet's
 session's driver is set; the paths for crew and admin; a `replaced` answer
 in words.
 
-### M31b.2 — The Driver panel sets the driver
+### M33.2 — The Driver panel sets the driver
 
 `StandingPanel.svelte` gains the button and the two-step picker, as decided;
 the confirmation line for 10 s. Without the crew login, an unset driver
@@ -123,7 +123,7 @@ and at the last stop in three; the panel confirms; within one timing update
 the standing names them; setting another driver 20 s later shows "replaced";
 logged out, "Not set · the crew sets it here".
 
-### M31b.3 — The crew login in the header
+### M33.3 — The crew login in the header
 
 A `lib/crew.ts` store: `{ cars: Record<slug, boolean> }`, with
 `check(slugs)`, `login(slug, passcode)`, `logout(slug)` (the three existing
@@ -142,10 +142,10 @@ Check: log in from the landing page; open the car page; the message panel
 and Set driver are there without reloading. Log out from the header on the
 car page; both disappear.
 
-### M31b.4 — A session's drivers as one timeline (pure, tested)
+### M33.4 — A session's drivers as one timeline (pure, tested)
 
 `lib/driverChanges.ts`, over `members: { id, start, end, driver, changes }[]`
-(a plain session's detail as one member; a merged one's `members`, M38.5)
+(a plain session's detail as one member; a merged one's `members`, M32.5)
 and the page's laps (each naming its member's `session`):
 - `driverTimeline(members, laps)` → entries `{ from, lap: number | null,
   driver, member, kind: 'start' | 'change' }`, as decided (a later
@@ -160,7 +160,7 @@ entry); a change at a later member's first lap → that member's driver; a
 change mid-member → a change on it; Remove on a later member's start entry
 is that member's driver set to the one in force before it.
 
-### M31b.5 — The session page's Drivers block
+### M33.5 — The session page's Drivers block
 
 `SessionPage.svelte`'s three controls become one **Drivers** block, from
 `driverTimeline`: a list of stretches ("From the start: Sam Voigt", "From
@@ -174,11 +174,11 @@ save, a `replaced` answer shows under the block ("Replaced the change at
 the line "Driven by Sam, then Drew" stays.
 
 Check: on a race session with two changes, each can be changed or removed;
-on three replayed sessions merged (M38.7's check), a change at a lap in the
+on three replayed sessions merged (M32.7's check), a change at a lap in the
 second is stored on the second (its own page, unmerged, shows it); the laps
 table's Driver column and the event page's stints follow after a reload.
 
-### M31b.6 — Deployed
+### M33.6 — Deployed
 
 With a replay streaming across the deploy. Then on the dev server, the
 review's walk-through 2 timed: "Drew just got in the car. Set it." (crew, at
