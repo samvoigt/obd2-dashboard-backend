@@ -326,6 +326,10 @@ to four.
 6. **Type:** a 0.95rem floor on phones for anything that must be read in a
    hurry (banner, standing panel, laps panel, message panel); `.small` stays
    for metadata.
+7. **Bright mode, minimal** (§6.3): a switch beside the units switch,
+   remembered in `localStorage`; a second palette for the same roles in
+   `app.css` under `:root[data-theme="bright"]`; the colour-roles test
+   stays green. No component changes colour on its own.
 
 **Acceptance:** the check script passes for every route; the car page's
 banner, gauges, driver, laps and message panel are all reachable without
@@ -355,6 +359,11 @@ it took.
 5. **Without the crew login:** the Driver panel says who's driving and, if
    nobody is set, "Not set · the crew sets it here" so family know it isn't
    broken.
+6. **The crew login moves to the header** (§6.2): a "Crew" button opens a
+   small panel (which car, the passcode); the crew cookie is per car as now,
+   so the panel lists the cars and marks the ones logged in. The passcode
+   field leaves the car page; "Message the driver" and "Set driver" appear
+   there when logged in, as now.
 
 **Acceptance:** on the dev server with a stream running, set a driver from a
 phone-width window in two taps; the standings, the laps panel and the event
@@ -403,8 +412,9 @@ JOURNAL records before/after timings from the logs.
    map shows the latest session's route (static) instead of the world; the
    G-meter is hidden until there's data (M10 kept it visible to show nothing
    has come; with the "last seen" line that job is done).
-5. **Nav labels:** keep the four pages, but the header's first link is
-   "Live" (the cars) and "Events" becomes "Results" if Sam agrees (§6).
+5. **Nav labels:** the four pages stay; the header reads "Live · Results ·
+   Drivers · Courses" (§6.1). The "Hidden" badge leaves the landing page and
+   the lists, and stays on manage and edit pages (§6.4).
 
 **Acceptance:** from the landing, one tap to the live car when one is
 streaming; a visitor can say which car page they're on without reading the
@@ -499,21 +509,28 @@ reading the plan.
   3. "What was my best lap on Saturday afternoon?" (a driver)
 - The next race weekend's JOURNAL entry says what the crew asked for.
 
-## 6. Questions for Sam
+## 6. Sam's answers (2026-10-22)
 
-1. **Nav labels:** keep Cars · Events · Drivers · Courses, or "Live ·
-   Results · Drivers · Courses"? (Phase 4.)
-2. **The crew login:** stay a passcode on the car page, or move to a
-   "Crew" button in the header that remembers the car? Password managers
-   pop up on the field now (seen in the review), which may help or confuse.
-3. **A "bright" mode for the pits** (§3.I): worth a phase of its own, or
-   fold a minimal version into phase 1?
-4. **Family's view of hidden things:** should the "Hidden" badge show only
-   on the manage/edit pages, not on the landing and lists?
-5. **Phase order:** this plan does phones first and editors last. If the
-   editors are what's blocking you day to day, swap phase 7 forward.
-6. **Compare:** keep per-row "Compare…" (phase 6 replaces it with pick-two);
-   anyone attached to the current way?
+Asked and answered the day the review was written; each phase above is to
+be read with these.
+
+1. **Nav labels:** "Live · Results · Drivers · Courses". Only the words
+   change: "Live" is `/cars` (every car and its state), and each car's page
+   stays at `/cars/<slug>` with its live view, its past sessions and, for its
+   editors, Manage. "Results" is `/events`. (Sam: "I like #1, but where does
+   the car info page go?" — it doesn't move.) Phase 4.
+2. **The crew login** moves to a **Crew button in the header** that
+   remembers the car; the passcode field leaves the live page. Phase 1 lays
+   out the header; phase 2 moves the login, since it's the crew's.
+3. **A bright mode for the pits:** a **minimal version in phase 1**: a
+   switch, and a lighter palette for the same colour roles in `app.css`
+   (decision 29 kept). A fuller design can follow if it's used.
+4. **The "Hidden" badge** shows **only on manage and edit pages**, not on
+   the landing page or the lists. Phase 4.
+5. **Phase order stays:** phones first, the editors last.
+6. **Comparing laps:** **pick two laps** (a checkbox per row, one "Compare
+   lap 72 with lap 107" bar; "vs best" once, on the best lap). The per-row
+   buttons go. Phase 6.
 
 ## Appendix: method and evidence
 
