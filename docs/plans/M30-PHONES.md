@@ -193,6 +193,17 @@ keep every page passing.
 with the dev sign-in in the check's profile: `POST /api/admin/login`
 `{"credential":"dev"}` before navigating). Desktop unchanged, by eye.
 
+**Built 2026-10-22.** In `SiteHeader.svelte`: the account controls sit in a
+`.wide` group (unchanged above 600 px) and a `.narrow` one (under 600 px). The
+narrow one is a `<details>` menu, its summary the email's first letter signed
+in (email, role, Users for a master, Sign out inside), or "Sign in" on the dev
+server signed out (its two dev buttons inside); production's single Sign in
+button stays a button. The menu closes on Escape and on a click outside. An
+empty `.crew-slot` goes first in `.who` for M33. The 520 px rule became the
+600 px one. **Checked** at 390 and 360 px, signed out and in: the header is
+one row (38 px; it was two), the menu opens wholly on screen and Escape
+closes it; at 1280 px the header is as before; the phone check passes.
+
 ### M30.3 — Page-level overflow, page by page (§3.A)
 
 Fix what M30.1 found, one page per commit, until every default path passes.

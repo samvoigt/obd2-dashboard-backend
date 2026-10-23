@@ -13,7 +13,18 @@
   let googleButton: HTMLDivElement | undefined = $state()
   let googleLoaded = false
 
-  onMount(() => void signin.check())
+  // Under 600 px the account controls fold into one menu (M30.2); it closes on Escape and on a click outside.
+  let menu: HTMLDetailsElement | undefined = $state()
+  onMount(() => {
+    void signin.check()
+    const close = (e: Event) => {
+      if (!menu?.open) return
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu.contains(e.target as Node)) menu.open = false
+    }
+    window.addEventListener('keydown', close)
+    window.addEventListener('click', close)
+    return () => { window.removeEventListener('keydown', close); window.removeEventListener('click', close) }
+  })
 
   const links = [
     { href: '/cars', label: 'Cars', pages: ['cars', 'car', 'manage', 'sessions', 'session'] },
@@ -83,6 +94,9 @@
     {/each}
   </nav>
   <div class="who">
+    <!-- The crew's login goes here, before the account control (M33). -->
+    <span class="crew-slot"></span>
+    <div class="wide">
     {#if $signin.state === 'in'}
       {#if isMaster($signin)}<a class="users" class:here={page === 'users'} href="/users">Users</a>{/if}
       <span class="email muted" title={`Signed in as a ${roleText($signin.role)}: pages show what you may change`}>{$signin.email}<span class="role">&nbsp;· {roleText($signin.role)}</span></span>
@@ -91,6 +105,33 @@
       <button onclick={start} disabled={busy}>{$signin.config.dev ? 'Dev sign-in' : 'Sign in'}</button>
       {#if $signin.config.dev && $signin.config.devUser}<button onclick={() => void signIn('dev-user')} disabled={busy}>Dev sign-in as a user</button>{/if}
     {/if}
+    </div>
+    <!-- At phone width: one control. Signed in, the email's first letter opens the account's menu; signed out, Sign in. -->
+    <div class="narrow">
+      {#if $signin.state === 'in'}
+        <details class="account" bind:this={menu}>
+          <summary aria-label={`Account: ${$signin.email}`}>{$signin.email.slice(0, 1).toUpperCase()}</summary>
+          <div class="menu">
+            <span class="muted">{$signin.email}</span>
+            <span class="muted small">{roleText($signin.role)}</span>
+            {#if isMaster($signin)}<a class:here={page === 'users'} href="/users">Users</a>{/if}
+            <button onclick={signOut} disabled={busy}>Sign out</button>
+          </div>
+        </details>
+      {:else if $signin.state === 'out' && $signin.config?.enabled}
+        {#if $signin.config.dev}
+          <details class="account" bind:this={menu}>
+            <summary>Sign in</summary>
+            <div class="menu">
+              <button onclick={start} disabled={busy}>Dev sign-in</button>
+              {#if $signin.config.devUser}<button onclick={() => void signIn('dev-user')} disabled={busy}>Dev sign-in as a user</button>{/if}
+            </div>
+          </details>
+        {:else}
+          <button onclick={start} disabled={busy}>Sign in</button>
+        {/if}
+      {/if}
+    </div>
   </div>
   {#if open && $signin.state === 'out'}
     <div class="panel">
@@ -123,8 +164,25 @@
   .panel p { margin: 0; }
   .small { font-size: 0.85rem; }
   .error { flex-basis: 100%; text-align: right; color: var(--critical); margin: 0; }
-  @media (max-width: 520px) {
+  .wide { display: flex; align-items: center; gap: 8px; }
+  .narrow { display: none; }
+  .account { position: relative; }
+  .account summary {
+    list-style: none; cursor: pointer; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 4px 10px; min-width: 2.2em; text-align: center;
+  }
+  .account summary::-webkit-details-marker { display: none; }
+  .menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 1000; min-width: 200px;
+    display: grid; gap: 8px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  }
+  .menu a { color: var(--accent); text-decoration: none; }
+  /* A phone (M30.2): one row, the site's name dropped, the account in one control. */
+  @media (max-width: 600px) {
+    header { flex-wrap: nowrap; gap: 10px; }
     .home span { display: none; }
-    nav { gap: 10px; font-size: 0.95rem; }
+    nav { gap: 10px; font-size: 0.95rem; flex-wrap: nowrap; min-width: 0; }
+    .wide { display: none; }
+    .narrow { display: block; }
   }
 </style>
