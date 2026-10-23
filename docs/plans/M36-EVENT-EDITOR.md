@@ -178,3 +178,12 @@ page is unchanged.
   days.
 - Phone layout of the editor: phase 1 (M30) makes every page fit; this page
   is used at a desk.
+
+## Merged sessions (M38, planned 2026-10-22)
+
+Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
+plan must account for:
+
+- **"Take out" and "Add to" move a merged session whole** (M38.4 places a
+  merge as one unit); the preview lists it as one row with its members'
+  times.

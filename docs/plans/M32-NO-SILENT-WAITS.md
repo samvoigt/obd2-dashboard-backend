@@ -158,3 +158,11 @@ whether the first-visit progress line is still wanted.
 ## Open questions
 
 None.
+
+## Merged sessions (M38, planned 2026-10-22)
+
+Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
+plan must account for:
+
+- **The results hold is also cleared on every merge, extend, unmerge and
+  delete** (M38's routes call `edited`).

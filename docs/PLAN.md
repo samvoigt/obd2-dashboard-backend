@@ -53,6 +53,9 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M35** | The session page and the sessions list: pick two laps to compare, units in the headers, readable signal names, map and laps before the chart, "50 laps · best 1:30.200" (phase 6) | **planned**: [`plans/M35-SESSION-PAGE.md`](plans/M35-SESSION-PAGE.md) |
 | **M36** | The event editor: which sessions each part will catch, shown before saving (a dry-run placement), the schedule by day (phase 7) | **planned**: [`plans/M36-EVENT-EDITOR.md`](plans/M36-EVENT-EDITOR.md) |
 | **M37** | The course editor: a toolbar on the map with the mode, Esc, Undo and Redo; the sidebar in four groups with done marks; a sticky save bar (phase 7) | **planned**: [`plans/M37-COURSE-EDITOR.md`](plans/M37-COURSE-EDITOR.md) |
+| **M38** | Merged sessions: pick sessions on the list and merge them into one session the whole site shows as one (members stay as stored; same part or none; restart-split ones suggested, never merged without a click; decision 48, drafted). **Built right after M31a**, before M31b, M34 and M35 | **planned**: [`plans/M38-MERGED-SESSIONS.md`](plans/M38-MERGED-SESSIONS.md) |
+
+**Build order for the UX work (Sam, 2026-10-22):** M30 → M31a → M38 → M31b → M32 → M33 → M34 → M35 → M36 → M37.
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.

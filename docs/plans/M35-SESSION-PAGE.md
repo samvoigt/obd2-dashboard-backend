@@ -223,3 +223,14 @@ buttons. What he says goes to JOURNAL.
   plan keeps that condition.
 - The pick is shared across pages through `localStorage`; the review didn't
   mention it, and M35.3 exists to keep it.
+
+## Merged sessions (M38, planned 2026-10-22)
+
+Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
+plan must account for:
+
+- **The session page may be a merged session** (laps numbered through, joins
+  marked on the chart). The new panel order and the "50 laps · best …" line
+  apply to the merge as a whole; compare links land on the merged page.
+- **Two kinds of checkbox, worded apart:** "Compare" ticks laps on the
+  session page; "Select" ticks sessions to merge on the list (M38.7).

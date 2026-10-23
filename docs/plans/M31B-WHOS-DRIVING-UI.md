@@ -155,3 +155,14 @@ JOURNAL.
 ## Open questions
 
 None.
+
+## Merged sessions (M38, planned 2026-10-22)
+
+Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
+plan must account for:
+
+- **The Drivers block covers a merged session's whole timeline.** A later
+  member's starting driver shows as a "carried over" entry; a change at
+  merged lap N is stored on the member whose time that moment falls in
+  (decision 48, drafted in M38). Building after M38, the block reads the
+  merged session's laps and members from its detail.

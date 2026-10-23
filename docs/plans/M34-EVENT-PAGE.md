@@ -145,3 +145,13 @@ has no empty rows and shows each stop's time; there's no form control on the
 page; each stint links to its session; signed in, "Edit the race" shows the
 flags. Deployed
 with a live stream across it.
+
+## Merged sessions (M38, planned 2026-10-22)
+
+Built after M38, which comes right after M31a (Sam, 2026-10-22). What this
+plan must account for:
+
+- **One Sessions row per merged session** (`sessionRows` folds a merge's
+  members with its stretches). **Stint links go to the merged page:** the
+  results carry the merge id (M38.5) rather than relying on a member URL's
+  redirect.
