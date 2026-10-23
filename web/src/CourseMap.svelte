@@ -4,6 +4,7 @@
   import { onMount } from 'svelte'
   import { arrows, sectorsOf, type EditCourse, type Pt } from './lib/courseEdit'
   import { color } from './lib/theme'
+  import { themeState } from './lib/themeState.svelte'
 
   // A course, read-only (M12.5): its layouts and their direction, the start/finish,
   // the chosen layout's sectors numbered, the pit lines.
@@ -32,6 +33,7 @@
     const m = map
     const c = course
     const sel = layout
+    void themeState.theme // drawn again in the theme's colours (M30.6)
     if (!m || !drawn) return
     drawn.clearLayers()
     const points = c.layouts.flatMap((l) => l.path)

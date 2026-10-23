@@ -23,6 +23,25 @@
   background: var(--bg);
   color: var(--text);
 }
+/*
+ * Bright, for the pits in sunlight (M30.6, Sam 2026-10-22): the same ten roles,
+ * lighter. The logo's four are darkened only as far as 3:1 on white needs, and
+ * kept 25 apart in Lab; light pink becomes an orchid so it stays apart from the
+ * hot pink. The same test checks both palettes.
+ */
+:root[data-theme="bright"] {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --line: #d5dbe3;
+  --text: #0a0b0d;
+  --muted: #4a5560;
+  --no-data: #9aa3ae;
+  --accent: #0077b3;
+  --in-range: #00897f;
+  --caution: #a8559b;
+  --critical: #e0005c;
+  color-scheme: light;
+}
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; background: var(--bg); }
 a { color: inherit; }

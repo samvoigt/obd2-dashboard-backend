@@ -7,17 +7,31 @@
  */
 import { describe, expect, it } from 'vitest'
 import css from '../app.css?raw'
-import { translucent } from './theme'
+import { loadTheme, translucent } from './theme'
 
 /** Every component and script, as text, through Vite (no Node APIs in the site's types). */
 const sources = import.meta.glob(['../**/*.svelte', '../**/*.ts', '!../**/*.test.ts', '!../assets/**'], {
   query: '?raw', import: 'default', eager: true,
 }) as Record<string, string>
 
-function role(name: string): string {
-  const m = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)
-  if (!m) throw new Error(`app.css has no --${name}`)
+type Palette = 'dark' | 'bright'
+
+/** A palette's block: dark is `:root { … }`, bright `:root[data-theme="bright"] { … }` (M30.6). */
+function block(palette: Palette): string {
+  const m = (palette === 'dark' ? /:root\s*\{([^}]*)\}/ : /:root\[data-theme="bright"\]\s*\{([^}]*)\}/).exec(css)
+  if (!m) throw new Error(`app.css has no ${palette} palette`)
+  return m[1]!
+}
+
+function role(name: string, palette: Palette = 'dark'): string {
+  const m = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block(palette))
+  if (!m) throw new Error(`app.css's ${palette} palette has no --${name}`)
   return m[1]!.toLowerCase()
+}
+
+/** The roles a palette defines, by name. */
+function roles(palette: Palette): string[] {
+  return [...block(palette).matchAll(/--([a-z-]+):/g)].map((m) => m[1]!).sort()
 }
 
 function rgb(hex: string): [number, number, number] {
@@ -65,23 +79,29 @@ describe('the colours are the logo’s', () => {
   })
 })
 
-describe('every colour reads', () => {
+describe('every colour reads, dark and bright (M30.6)', () => {
   const grounds = ['bg', 'panel']
   const foregrounds = ['text', 'muted', 'accent', 'in-range', 'caution', 'critical']
-  for (const ground of grounds) {
-    for (const fg of foregrounds) {
-      it(`${fg} on ${ground}: 3:1 or more`, () => {
-        expect(contrast(role(fg), role(ground))).toBeGreaterThanOrEqual(3)
-      })
-    }
-  }
-  it('the colours that mean something are 25 or more apart in Lab', () => {
-    const meaningful = ['accent', 'in-range', 'caution', 'critical']
-    for (const a of meaningful) {
-      for (const b of meaningful) {
-        if (a < b) expect(deltaE(role(a), role(b)), `${a} and ${b}`).toBeGreaterThanOrEqual(25)
+  for (const palette of ['dark', 'bright'] as const) {
+    for (const ground of grounds) {
+      for (const fg of foregrounds) {
+        it(`${palette}: ${fg} on ${ground}, 3:1 or more`, () => {
+          expect(contrast(role(fg, palette), role(ground, palette))).toBeGreaterThanOrEqual(3)
+        })
       }
     }
+    it(`${palette}: the colours that mean something are 25 or more apart in Lab`, () => {
+      const meaningful = ['accent', 'in-range', 'caution', 'critical']
+      for (const a of meaningful) {
+        for (const b of meaningful) {
+          if (a < b) expect(deltaE(role(a, palette), role(b, palette)), `${a} and ${b}`).toBeGreaterThanOrEqual(25)
+        }
+      }
+    })
+  }
+  it('bright defines exactly the roles dark does', () => {
+    expect(roles('bright')).toEqual(roles('dark'))
+    expect(roles('dark')).toHaveLength(10)
   })
   it('the checks themselves are right: black on white is 21:1, and a colour is 0 from itself', () => {
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5)
@@ -105,5 +125,27 @@ describe('shading', () => {
   it('is a role made translucent', () => {
     expect(translucent('#ffa9de', 0.1)).toBe('rgba(255, 169, 222, 0.1)')
     expect(translucent('not a colour', 0.5)).toBe('not a colour')
+  })
+})
+
+describe('the theme, remembered (M30.6)', () => {
+  it('is dark with nothing remembered, or storage refused; bright once chosen', () => {
+    const was = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    const store = (value: string | null) => Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => value } })
+    try {
+      store(null)
+      expect(loadTheme()).toBe('dark')
+      store('dark')
+      expect(loadTheme()).toBe('dark')
+      store('bright')
+      expect(loadTheme()).toBe('bright')
+      store('purple')
+      expect(loadTheme()).toBe('dark')
+      Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new Error('refused') } })
+      expect(loadTheme()).toBe('dark')
+    } finally {
+      if (was) Object.defineProperty(globalThis, 'localStorage', was)
+      else delete (globalThis as { localStorage?: unknown }).localStorage
+    }
   })
 })

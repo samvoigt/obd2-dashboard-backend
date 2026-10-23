@@ -16,6 +16,7 @@
   import { contents, length, MAX_FILE_BYTES, readCourseFile } from './lib/courseFile'
   import { fetchSeries } from './lib/sessionPage'
   import { color } from './lib/theme'
+  import { themeState } from './lib/themeState.svelte'
 
   let { id: pathId }: { id: string } = $props()
   const isNew = untrack(() => pathId === 'new')
@@ -237,6 +238,7 @@
     const pointsOf = editing
     const lit = hovered
     void readOnly
+    void themeState.theme // drawn again in the theme's colours (M30.6)
     if (!m || !drawn) return
     drawn.clearLayers()
     if (guide.length > 1) drawn.addLayer(L.polyline(guide.map(latlng), { color: color('muted'), weight: 3, opacity: 0.6, dashArray: '4 6', interactive: false }))

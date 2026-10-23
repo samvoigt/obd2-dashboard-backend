@@ -5,6 +5,7 @@
   import { lapChartData } from './lib/lapChart'
   import type { CarRace } from './lib/race'
   import { lapTime } from './lib/sessions'
+  import { themeState } from './lib/themeState.svelte'
   import { color, seriesColors, translucent } from './lib/theme'
 
   // The race's lap times (M16.3): by lap number, a line per car; stints shaded, stops and flags marked.
@@ -83,6 +84,15 @@
 
   $effect(() => {
     void chart
+    if (plot) draw()
+  })
+
+  // The theme changed (M30.6): drawn again in its colours, which uPlot only reads when built.
+  let drawnIn = themeState.theme
+  $effect(() => {
+    const theme = themeState.theme
+    if (theme === drawnIn) return
+    drawnIn = theme
     if (plot) draw()
   })
 

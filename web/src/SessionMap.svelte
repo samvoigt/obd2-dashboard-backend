@@ -4,6 +4,7 @@
   import { onMount } from 'svelte'
   import { nearest, speedColor } from './lib/sessionPage'
   import { color, speedStops } from './lib/theme'
+  import { themeState } from './lib/themeState.svelte'
 
   let {
     t,
@@ -115,7 +116,7 @@
 
     // Live, a batch comes 5 times a second but a position about once: the trace is drawn
     // again only when it changed, the map's largest cost per batch otherwise (M8.4).
-    const key = `${t.length}:${t[0]}:${t[t.length - 1]}:${speeds[speeds.length - 1]}`
+    const key = `${t.length}:${t[0]}:${t[t.length - 1]}:${speeds[speeds.length - 1]}:${themeState.theme}`
     if (key === drawn) return
     drawn = key
 
@@ -147,6 +148,12 @@
       dot.setLatLng(car)
       if (!m.hasLayer(dot)) dot.addTo(m)
     }
+  })
+
+  // The theme changed (M30.6): the dot in its colours; the trace follows through its key above.
+  $effect(() => {
+    void themeState.theme
+    dot?.setStyle({ color: color('text'), fillColor: color('bg') })
   })
 
   $effect(() => {
