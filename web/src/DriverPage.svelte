@@ -48,7 +48,8 @@
     {#if record.courses.length > 0}
       <section class="panel">
         <h2>Best at each course</h2>
-        <table>
+        <div class="table-scroll">
+          <table>
           <tbody>
             {#each record.courses as c (c.course)}
               <tr><td>{c.courseName}</td><td class="time"><a href={lapLink(c.best.car, c.best.session, c.best.lap.start, c.best.lap.end)}>{lapTime(c.best.lap.time)}</a></td>
@@ -57,6 +58,7 @@
             {/each}
           </tbody>
         </table>
+        </div>
       </section>
     {/if}
 
@@ -70,7 +72,8 @@
           <p>{p.part}: best <strong>{lapTime(p.best.lap.time)}</strong></p>
         {/each}
         {#if e.stints.length > 0}
-          <table>
+          <div class="table-scroll">
+            <table>
             <thead><tr><th>Stint</th><th>Car</th><th>Laps</th><th>Time</th><th>Best</th></tr></thead>
             <tbody>
               {#each e.stints as s (s.car + s.stint.number)}
@@ -80,6 +83,7 @@
               {/each}
             </tbody>
           </table>
+          </div>
         {/if}
       </section>
     {/each}
@@ -94,7 +98,7 @@
   h1 { margin: 0; }
   h2 { margin: 0 0 8px; }
   h2 .small { font-size: 0.9rem; font-weight: 400; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
   table { border-collapse: collapse; }
   th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.85rem; padding: 4px 8px; }
   td { padding: 5px 8px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }

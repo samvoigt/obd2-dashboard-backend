@@ -121,7 +121,8 @@
   {#if race.cars.length === 0}
     <p class="muted">No laps yet.</p>
   {:else}
-    <table class="results">
+    <div class="table-scroll">
+      <table class="results">
       <thead><tr><th></th><th>Car</th><th>Laps</th><th>Time</th><th>Best</th><th>Stops</th></tr></thead>
       <tbody>
         {#each race.cars as c, i (c.car)}
@@ -130,6 +131,7 @@
         {/each}
       </tbody>
     </table>
+    </div>
     <LapChart cars={race.cars} {carName} driverName={(id) => driverName(id)} />
   {/if}
 
@@ -156,7 +158,8 @@
     {@const offset = race.tabletOffset[c.car]}
     {@const who = setters[c.car]}
     <h3>{carName(c.car)}</h3>
-    <table class="stints">
+    <div class="table-scroll">
+      <table class="stints">
       <thead><tr><th>Stint</th>{#if inSessions}<th>Session</th>{/if}<th>Driver</th><th>Laps</th><th>Time</th><th>Best</th><th>Median</th><th>Spread</th></tr></thead>
       <tbody>
         {#each c.stints as s (s.number)}
@@ -167,6 +170,7 @@
         {/each}
       </tbody>
     </table>
+    </div>
     {#if c.theoretical}<p class="small">Theoretical best <strong>{lapTime(c.theoretical)}</strong> <span class="muted">(the race's best of each sector added up)</span></p>{/if}
     <p class="muted small">{c.stintsEdited ? 'Stints as set by hand.' : 'Split at every stop; merge a fuel stop, or split where drivers changed without one.'}</p>
     {#if c.stops.length > 0}
@@ -211,7 +215,8 @@
 
     <details>
       <summary>Every lap ({c.laps.length})</summary>
-      <table class="laps">
+      <div class="table-scroll">
+        <table class="laps">
         <thead><tr><th>Lap</th><th>Time</th><th>Driver</th><th>Time of day</th><th></th></tr></thead>
         <tbody>
           {#each c.laps as l (l.number)}
@@ -237,12 +242,13 @@
           {/each}
         </tbody>
       </table>
+      </div>
     </details>
   {/each}
 </section>
 
 <style>
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
   h2 { margin: 0 0 4px; }
   h3 { margin: 16px 0 6px; }
   table { border-collapse: collapse; }

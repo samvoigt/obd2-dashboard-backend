@@ -409,7 +409,7 @@
       {#if laps.length > 0}
         <section class="panel">
           <h2>Laps</h2>
-          <div class="lapswide">
+          <div class="table-scroll">
           <table class="laps">
             <thead><tr><th>Lap</th>{#if changes.length > 0}<th>Driver</th>{/if}<th>Time</th>{#each sectorBests as _, i (i)}<th>S{i + 1}</th>{/each}{#if hasSpeeds}{@const u = shownUnit('km/h', units.system)}<th title="Top speed, {u}">Top</th><th title="Lowest speed, {u}">Low</th><th title="Average speed, {u}">Avg</th>{/if}<th></th></tr></thead>
             <tbody>
@@ -472,7 +472,6 @@
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 16px 0; }
   .pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
   select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 0.95rem; max-width: 100%; }
-  .lapswide { overflow-x: auto; }
   .laps { border-collapse: collapse; width: 100%; max-width: 760px; }
   .laps th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.85rem; padding: 4px 8px; }
   .laps td { padding: 6px 8px; border-top: 1px solid var(--line); }

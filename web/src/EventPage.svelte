@@ -140,7 +140,8 @@
   {#if rows.length > 1 && rows[0]!.sectors.length > 0}
     <details>
       <summary>Sectors, driver by driver</summary>
-      <table class="bests">
+      <div class="table-scroll">
+        <table class="bests">
         <thead><tr><th>Driver</th>{#each rows[0]!.sectors as _, i (i)}<th>S{i + 1}</th>{/each}<th>Theoretical</th></tr></thead>
         <tbody>
           {#each rows as r (r.driver?.id ?? 'none')}
@@ -150,12 +151,14 @@
           {/each}
         </tbody>
       </table>
+      </div>
     </details>
   {/if}
   {#if consistency.length > 0}
     <details>
       <summary>Consistency (laps on track)</summary>
-      <table class="bests">
+      <div class="table-scroll">
+        <table class="bests">
         <thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Median</th><th>Spread</th><th>Within 1%</th></tr></thead>
         <tbody>
           {#each consistency as c (c.driver?.id ?? 'none')}
@@ -164,6 +167,7 @@
           {/each}
         </tbody>
       </table>
+      </div>
     </details>
   {/if}
 {/snippet}
@@ -173,7 +177,8 @@
     <p class="muted small">No laps on track yet.</p>
   {:else}
     {@const fastest = list[0]!.lap.time}
-    <table class="bests">
+    <div class="table-scroll">
+      <table class="bests">
       <thead><tr><th></th><th>Driver</th><th>Best</th><th></th>{#each sectors as _, i (i)}<th>S{i + 1}</th>{/each}<th>Car</th></tr></thead>
       <tbody>
         {#each list as b, i (b.session + b.lap.lap)}
@@ -192,6 +197,7 @@
         {/each}
       </tbody>
     </table>
+    </div>
     {#if sectors.length > 0}
       <p class="muted small">Best of each sector: {sectors.map((s) => (s === null ? '—' : s.toFixed(3))).join(' · ')}</p>
     {/if}
@@ -202,7 +208,7 @@
   main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
   .back { margin: 0; }
   h1 { margin: 0; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
   h2 { margin: 0 0 8px; }
   h2 .small { font-size: 0.9rem; font-weight: 400; }
   .bests { border-collapse: collapse; }

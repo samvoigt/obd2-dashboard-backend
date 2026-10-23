@@ -27,6 +27,9 @@
 body { margin: 0; min-height: 100vh; background: var(--bg); }
 a { color: inherit; }
 main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+/* A page's parts may shrink to the screen (M30.4): in a grid page, a part would otherwise be as wide as its widest
+   content, and a chart, drawn at its column's width, would then hold the whole page wider than a phone. */
+main > * { min-width: 0; }
 h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
 .muted { color: var(--muted); }
 .dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.45em; vertical-align: 0.05em; }
@@ -34,3 +37,8 @@ h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
 .dot.stale { background: var(--caution); }
 .dot.no_session { background: var(--accent); }
 .dot.offline { background: var(--no-data); }
+
+/* A table wider than its panel scrolls inside it, never the page (M30.4); its first column stays put. */
+.table-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+.table-scroll :is(th, td):first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); }
+

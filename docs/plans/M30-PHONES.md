@@ -175,6 +175,12 @@ indeed laid out wider and cropped. Seen in the screenshots instead:
 So **M30.3 has nothing to fix**; it stays as a check that the later steps
 keep every page passing.
 
+**Corrected the same day (during M30.4):** the first version compared
+`scrollWidth` with `innerWidth`, which a mobile page wider than its screen
+grows to match (it's zoomed out to fit), so a wide page passed. It now
+compares with the phone's 390 px. Re-measured, the event page **was** 603 px
+wide (fixed in M30.4); every other page did fit.
+
 ### M30.2 — The header at phone width (§3.A, §6.2)
 
 `SiteHeader.svelte`:
@@ -238,6 +244,20 @@ tests (`npm test && npm run check`) after each page.
 **Check:** the phone check passes with an event and a session that have 5
 sectors and speeds (the replay from M30.1). In the screenshots each table
 starts at the panel's left edge, with the lap number visible while scrolling.
+
+**Built 2026-10-22.** `.table-scroll` in `app.css` (scrolls on its own,
+first column sticky on the panel's colour) wraps the race's results, stints
+and every-lap tables, the event page's three practice tables and the driver
+page's two; the session page's `.lapswide` became it. `RaceSection`,
+`EventPage` and `DriverPage` dropped `overflow-x: auto` from the whole panel.
+**Found on the way:** the event page laid out at 603 px on a phone. Its
+`main` is a grid (as are the driver, compare and event-editor pages), a grid
+column is as wide as its widest content, and the lap chart, drawn at its
+column's width, then held the column there. One rule in `app.css`,
+`main > * { min-width: 0 }`, lets every page's parts shrink to the screen.
+**Checked:** the phone check (corrected, above) passes for all 26 paths,
+with the event page at 390 px across three loads, its tables scrolling
+inside their panels.
 
 ### M30.5 — Touch targets and the type floor (§3.A)
 

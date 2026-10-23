@@ -16,6 +16,7 @@ import { sleep, startChrome } from './chrome.mjs'
 
 const base = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '')
 const extra = process.argv.slice(3)
+const WIDTH = 390
 const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'build', 'phone')
 mkdirSync(out, { recursive: true })
 
@@ -27,7 +28,7 @@ const signedIn = ['/', '/cars/dev-car/manage', '/courses/nhms/edit', '/courses/n
 const { send, on, close } = await startChrome('phone-')
 await send('Page.enable')
 await send('Network.enable')
-await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
+await send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 844, deviceScaleFactor: 2, mobile: true })
 
 // "Quiet": no new request for 2 s. Not "nothing open": a live page keeps its stream open.
 let lastRequest = Date.now()
@@ -39,8 +40,10 @@ async function settle() {
 }
 
 /** Measured in the page: whether it scrolls sideways, and what pokes past its right edge. */
+// Against the phone's width, not innerWidth: a mobile page wider than its screen is zoomed out
+// to fit, and innerWidth then grows with it, so it would always "fit".
 const MEASURE = `(() => {
-  const width = innerWidth
+  const width = ${WIDTH}
   const scrolls = (el) => { for (let p = el.parentElement; p; p = p.parentElement) {
     const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden') return true } return false }
   const out = []
