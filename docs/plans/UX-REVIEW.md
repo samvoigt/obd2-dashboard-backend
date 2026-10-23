@@ -605,50 +605,58 @@ What goes wrong:
 - **The same fact has different addresses:** "Drew from 14:05" is a
   session's change, or a race stint, depending on where it was typed.
 
-### Proposed: one record, a car's driver log
+### Decided (Sam, 2026-10-22): who drove belongs to the session
 
-- **For each car, one list: "from this moment, this driver"** (moment on
-  the tablet's `wall`, as stints and changes are now). Not per session, not
-  per event.
-- **Every entry starts a stint.** A stint is a driver's run. Stops show
-  inside a stint and no longer split it; a double stint after a stop is
-  recorded by entering the same driver again at the stop.
-- **A correction replaces, not adds** (Sam's answer 1 above): an entry made
-  less than 60 s, or less than one lap, after the one before replaces it.
-- **Everything reads the log:** practice stretches, race stints, the live
-  standing, the laps tables, driver pages, the download's `laps.csv` and
-  `stints.csv`.
-- **What goes:** the session's driver, its driver changes, edited stints,
-  default stints, both precedence rules, the stint editor's split and
-  merge, and the new-session problem (a new session continues the car's
-  log).
-- **Migration, once:** an admin tool writes each car's log from what's
-  stored, taking a race part's edited stints where it has them (they're what
-  Sam set by hand for NHMS), and sessions' drivers and changes elsewhere.
-  Checked on NHMS: laps per driver unchanged (SAM 122, HUG 118, PAU 113,
-  DRE 107).
-- **A decision of its own** (amends 34, 35, 43 and 44; replaces the drafted
-  47).
+Sam was offered a per-car driver log and chose otherwise: "Who Drove can be
+a per-session thing, sessions should be tied to cars, but i think the driver
+should mostly be edited by session, there's not a ton needed for the car
+itself." And past corrections are made "Always the session page".
+
+- **One record: the session's drivers.** Its driver from the start, and its
+  driver changes (M27, `from` on the tablet's `wall`), as stored now on
+  `SessionRecord`. Nothing else says who drove.
+- **Race stints are worked out from them, never edited.** A stint is a
+  driver's run: a new stint at each session's start driver and at each
+  driver change, across the race's sessions. **Stops no longer split a
+  stint**; they show inside it. A change to the same driver (entered at a
+  stop, for a double stint) starts a new stint. Hand-edited stints
+  (`Part.stints`) and the stint editor's split and merge go, and with them
+  both precedence rules (`Standings.kt:106`).
+- **A correction replaces, not adds** (answer 1): a change less than 60 s,
+  or less than one lap, after the one before it replaces it.
+- **A new session in the same run of the app starts with the driver the
+  previous one ended with** (the same device, back to back, `:timing`'s
+  `runs`), stored on the new session when it's created and editable on its
+  page. That's the STREAM proposal's carry-over, needed now for restarts
+  too; nobody has to set the driver again after a restart.
+- **Migration, once:** an admin tool turns each race part's edited stints
+  into the drivers and driver changes of the sessions they fall in (a stint
+  starting inside a session becomes a change there; the stint in force at a
+  session's start becomes its driver). Checked on NHMS: laps per driver
+  unchanged (SAM 122, HUG 118, PAU 113, DRE 107), then `Part.stints` is
+  cleared.
+- **A decision of its own** (amends 34, 35, 43 and 44; replaces drafted 47).
 
 ### Where each edit lives
 
-| Edit | The one place | Why |
-| --- | --- | --- |
-| Who's driving now | The live car page, crew logged in (Set driver: who, then when) | Where the crew is during a race |
-| Who drove when, afterwards | **Recommended:** the event page when the session is in an event (its race or practice part); the session page when it isn't. The other page shows the drivers read-only with a link to the one that edits. | Each moment belongs to one or the other, and that's where its results are read |
-| Which part a session is in | The event editor | Already one place |
-| The drivers themselves | The Drivers page | Already one place |
+| Edit | The one place |
+| --- | --- |
+| Who's driving now | The live car page, crew logged in: Set driver, who then when. It writes the live session's drivers, the same record the session page edits. |
+| Who drove when, afterwards | **The session page, always.** The event page's race stints are read-only; each stint names its session and links to it ("Edit drivers on Sat 12:00 →"). Practice and driver pages likewise. |
+| Which part a session is in | The event editor |
+| The drivers themselves | The Drivers page |
 
 ### What this changes in the milestones
 
-- **M31 splits:** M31a, the driver log (store, rules, migration, the
-  decision, the readers switched over), then M31b, the UI (Set driver with
-  "when", the header's Crew button, the editors in their one place).
-  Drafted decision 47 is replaced by the log's decision.
-- **M34:** the stint editor becomes the race's drivers timeline (per car,
-  entries with change and remove); the flags stay under "Edit the race".
-- **M35:** the session page's Drivers block edits only sessions in no event;
-  otherwise it's read-only with "Edit on the event page →".
-- **M29's download** and **the STREAM proposal's carry-over** read the log;
-  the carry-over needs no server change at all.
-
+- **M31 splits:** M31a, the model (stints from session drivers; stops inside
+  stints; the correction rule; the carry-over at session creation; the
+  migration; the decision; the race, standing, driver pages and download
+  read the result), then M31b, the UI (Set driver with "when", the header's
+  Crew button, the session page's Drivers block).
+- **M34:** the stint editor and "Back to splitting at every stop" go; the
+  stints table links each stint to its session. "Edit the race" keeps the
+  flags only.
+- **M35:** the session page's Drivers block (M31b) is the one editor for
+  the past, for every session.
+- **The STREAM proposal:** its carry-over is built in M31a, for restarts
+  now and STREAM toggles later.

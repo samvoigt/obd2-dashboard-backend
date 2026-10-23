@@ -220,6 +220,8 @@ The numbers go to JOURNAL.
 
 - **An older change edited later** — Sam, 2026-10-22: "yes, any change to
   the stint takes place everywhere." That and his wish for one place per
-  edit led to `UX-REVIEW.md` §7, a car's driver log, which would replace
-  decision 47 and split this milestone (M31a, M31b). **On hold until Sam
-  chooses on §7.**
+  edit led to `UX-REVIEW.md` §7. **Sam chose there: who drove belongs to the
+  session, edited on the session page, and race stints are worked out from
+  it, never edited.** That replaces decision 47 as drafted above and splits
+  this milestone into M31a (the model) and M31b (the UI). **This plan is to
+  be rewritten as those two before anything is built.**
