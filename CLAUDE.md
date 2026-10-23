@@ -67,6 +67,9 @@ scripts/replay.sh --help        # the tablet's lanes (--live), faults included
 caffeinate -s node web/scripts/measure.mjs http://localhost:5173/cars/dev-car 30 4
                                 # the page's fps, long tasks and heap a minute,
                                 #   4x slower CPU; a replay streaming into it
+node web/scripts/phone-check.mjs http://localhost:5173 [paths…]
+                                # every page laid out as a 390 px phone; fails on
+                                #   sideways scroll; screenshots in web/build/phone/
 MEASURE=1 MEASURE_HEAP=128m ./gradlew :archive:test --tests '*MeasureSeries*' -i --rerun
                                 # preparing a synthetic 3-hour race, heap as Cloud Run's
 ./gradlew test -PskipWeb        # Kotlin only, without building the site

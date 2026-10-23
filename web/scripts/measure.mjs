@@ -11,50 +11,12 @@
 // Run it (and the replay feeding it) under `caffeinate -s`: the Mac's sleep (a closed
 // lid's too, which `-i` lets through) freezes both, and a frozen minute reads as a slow one. Edit nothing under src/
 // while it runs: a hot reload resets the page's counters.
-import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { sleep, startChrome } from './chrome.mjs'
 
 const url = process.argv[2] ?? 'http://localhost:5173/cars/dev-car'
 const minutes = Number(process.argv[3] ?? 30)
 const slowdown = Number(process.argv[4] ?? 4)
-const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-const profile = mkdtempSync(join(tmpdir(), 'measure-'))
-const port = 9300 + Math.floor(Math.random() * 500)
-
-const proc = spawn(chrome, [
-  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-  '--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling',
-  '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', 'about:blank',
-], { stdio: 'ignore' })
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-async function target() {
-  for (let i = 0; i < 50; i++) {
-    try {
-      const pages = await (await fetch(`http://127.0.0.1:${port}/json`)).json()
-      const page = pages.find((p) => p.type === 'page')
-      if (page) return page.webSocketDebuggerUrl
-    } catch { /* not up yet */ }
-    await sleep(200)
-  }
-  throw new Error('Chrome did not start')
-}
-
-const ws = new WebSocket(await target())
-await new Promise((r) => ws.addEventListener('open', r, { once: true }))
-let id = 0
-const pending = new Map()
-ws.addEventListener('message', (ev) => {
-  const msg = JSON.parse(ev.data)
-  if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id) }
-})
-const send = (method, params = {}) => new Promise((resolve, reject) => {
-  const n = ++id
-  pending.set(n, (msg) => (msg.error ? reject(new Error(`${method}: ${msg.error.message}`)) : resolve(msg.result)))
-  ws.send(JSON.stringify({ id: n, method, params }))
-})
+const { send, close } = await startChrome('measure-')
 
 await send('Page.enable')
 await send('Performance.enable')
@@ -112,7 +74,4 @@ console.log(JSON.stringify({
   longTasks: rows.reduce((a, r) => a + r.longTasks, 0), busiestMinuteLongMs: Math.max(...rows.map((r) => r.longMs)),
   heapFirstMB: rows[0]?.heapMB, heapLastMB: rows[rows.length - 1]?.heapMB, heapMaxMB: Math.max(...heap),
 }))
-ws.close()
-proc.kill()
-await sleep(500)
-rmSync(profile, { recursive: true, force: true })
+await close()

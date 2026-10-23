@@ -154,6 +154,27 @@ Record each page's result in this plan; that list is M30.3's work. Then
 replay a short session with the M29 dev-check approach (a synthetic NHMS log)
 and check the session and event pages with extra paths.
 
+**Built 2026-10-22.** `web/scripts/chrome.mjs` (Chrome's start-up, `send`, and
+now `on` for events) shared by `measure.mjs` and the new `phone-check.mjs`.
+"Quiet" is no *new* request for 2 s (capped at 15 s), since the car page
+keeps its live stream open. An element counts as poking out only if no
+ancestor scrolls or clips it, so a table scrolling inside its panel isn't an
+offender (that's M30.4's look, not a page-level overflow).
+
+**Found:** at 390 × 844 with mobile emulation, **every page fits**: the 12
+signed-out and 6 signed-in default paths, and, with the M29 synthetic NHMS
+sessions and event replayed in, the event page, two session pages and a
+driver's page, signed out and in (26 checks). The review's screenshots were
+indeed laid out wider and cropped. Seen in the screenshots instead:
+- the header takes two rows (M30.2);
+- tables are cut at the panel's right edge, and the whole panel scrolls,
+  headings and all, not just the table (M30.4);
+- small buttons: "Now", "Save the flags", "Compare…", "Remove", "Add",
+  the stint editor's (M30.5).
+
+So **M30.3 has nothing to fix**; it stays as a check that the later steps
+keep every page passing.
+
 ### M30.2 — The header at phone width (§3.A, §6.2)
 
 `SiteHeader.svelte`:
