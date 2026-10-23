@@ -61,3 +61,14 @@ h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
 .table-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
 .table-scroll :is(th, td):first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); }
 
+/* A link that looks like a button (M30.5: once, here, not in four pages). */
+.button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
+
+/* A phone (M30.5): every control big enough for a thumb, 44 px, whatever its own padding. */
+@media (max-width: 600px) {
+  button, select, input:not([type=checkbox]):not([type=radio]), a.button, summary { min-height: 44px; }
+  a.button { display: inline-flex; align-items: center; }
+  summary { display: flex; align-items: center; }
+  label.check { min-height: 44px; display: inline-flex; align-items: center; }
+}
+

@@ -54,7 +54,14 @@ const MEASURE = `(() => {
       right: Math.round(r.right), width: Math.round(r.width), text: (el.textContent ?? '').trim().slice(0, 40) })
   }
   out.sort((a, b) => b.right - a.right)
-  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5) })
+  // Controls under 44 px tall (M30.5), visible ones only.
+  const small = []
+  for (const el of document.querySelectorAll('button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), a.button, summary')) {
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 || r.height === 0 || getComputedStyle(el).visibility === 'hidden') continue
+    if (r.height < 43.5) small.push(el.tagName.toLowerCase() + ' ' + Math.round(r.height) + 'px "' + (el.textContent || el.getAttribute('aria-label') || el.placeholder || '').trim().slice(0, 24) + '"')
+  }
+  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small })
 })()`
 
 async function check(path, tag) {
@@ -69,9 +76,14 @@ async function check(path, tag) {
   })
   const file = `${tag}${path === '/' ? '-home' : path.replaceAll('/', '-')}.png`
   writeFileSync(join(out, file), Buffer.from(shot.data, 'base64'))
-  const ok = m.scrollWidth <= m.width
-  console.log(`${ok ? 'ok  ' : 'WIDE'} ${tag.padEnd(4)} ${path}${ok ? '' : `  (${m.scrollWidth} px wide)`}`)
-  if (!ok) for (const o of m.offenders) console.log(`       ${o.el}  right ${o.right}, width ${o.width}${o.text ? `  "${o.text}"` : ''}`)
+  const wide = m.scrollWidth > m.width
+  // Small controls fail the pages read in the pits (the car's and a session's); elsewhere they're reported.
+  const strict = /^\/cars\/[a-z0-9-]+$/.test(path) || /\/sessions\/[0-9a-f-]{36}$/.test(path)
+  const tooSmall = strict && m.small.length > 0
+  const ok = !wide && !tooSmall
+  console.log(`${ok ? 'ok  ' : wide ? 'WIDE' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
+  if (wide) for (const o of m.offenders) console.log(`       ${o.el}  right ${o.right}, width ${o.width}${o.text ? `  "${o.text}"` : ''}`)
+  if (m.small.length) for (const c of m.small.slice(0, 5)) console.log(`       ${c}`)
   return ok
 }
 
@@ -87,6 +99,6 @@ const { result: login } = await send('Runtime.evaluate', {
 if (login.value !== 200) console.log(`dev sign-in answered ${login.value}: is this the dev server?`)
 else for (const path of signedIn) if (!(await check(path, 'in'))) failed++
 
-console.log(failed === 0 ? 'every page fits' : `${failed} page(s) scroll sideways; screenshots in ${out}`)
+console.log(failed === 0 ? 'every page fits' : `${failed} page(s) scroll sideways or have small controls where they mustn't; screenshots in ${out}`)
 await close()
 process.exit(failed === 0 ? 0 : 1)

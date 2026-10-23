@@ -162,4 +162,8 @@
   .recent li { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-top: 4px; }
   .rtext { font-weight: 600; overflow-wrap: anywhere; }
   .error { color: var(--critical); margin: 0; }
+  /* A phone (M30.5): what the crew reads in a hurry is never under 0.95rem. */
+  @media (max-width: 600px) {
+    .count, .recent { font-size: 0.95rem; }
+  }
 </style>

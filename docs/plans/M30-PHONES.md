@@ -281,6 +281,15 @@ input under 44 px tall (a function it evaluates in the page through
 passes only with none on the car page and the session page.
 Everything else is reported but not failed, since the editors are phase 7's.
 
+**Built 2026-10-22.** In `app.css`, under 600 px: `button`, `select`, text
+inputs, `a.button` and `summary` at least 44 px tall, and `label.check` the
+same; `.button` is defined once there, deleted from the four pages. The type
+floor (0.95rem under 600 px) in `StandingPanel`, `LapsPanel`, `MessagePanel`,
+`Faults` and the car page's session line. The phone check now lists every
+visible control under 44 px and fails the car page and session pages on any.
+**Checked:** all 26 paths pass; on the event page at 390 px all 21 controls
+are 44 px, and at 1280 px they keep their old 18–25 px.
+
 ### M30.6 — Bright mode (§3.I, §6.3)
 
 1. **The palette.** In `app.css`, add `:root[data-theme="bright"] { … }` with

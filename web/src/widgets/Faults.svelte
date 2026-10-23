@@ -13,4 +13,8 @@
   .name { color: var(--muted); font-size: 0.85rem; margin-right: auto; }
   .none { color: var(--in-range); font-weight: 700; }
   .code { color: var(--critical); font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  /* A phone (M30.5): what the crew reads in a hurry is never under 0.95rem. */
+  @media (max-width: 600px) {
+    .name { font-size: 0.95rem; }
+  }
 </style>

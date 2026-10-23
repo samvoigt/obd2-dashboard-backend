@@ -37,4 +37,8 @@
   .value { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
   .value.best { color: var(--in-range); }
   .small { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  /* A phone (M30.5): what the crew reads in a hurry is never under 0.95rem. */
+  @media (max-width: 600px) {
+    .name, .small { font-size: 0.95rem; }
+  }
 </style>

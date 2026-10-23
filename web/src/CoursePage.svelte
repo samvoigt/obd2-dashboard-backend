@@ -93,5 +93,4 @@
   .versions { list-style: none; padding: 0; display: grid; gap: 4px; }
   .guess { color: var(--caution); }
   h2 { font-size: 1rem; margin: 16px 0 6px; }
-  .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 </style>

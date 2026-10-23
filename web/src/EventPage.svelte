@@ -221,5 +221,4 @@
   .sessions li { display: grid; gap: 2px; }
   .error { color: var(--critical); }
   .live { color: var(--in-range); font-weight: 600; font-size: 0.85rem; }
-  .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 </style>

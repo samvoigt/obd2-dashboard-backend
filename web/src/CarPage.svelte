@@ -334,4 +334,8 @@
   @media (max-width: 480px) {
     .banner { font-size: 1.3rem; }
   }
+  /* A phone (M30.5): what the crew reads in a hurry is never under 0.95rem. */
+  @media (max-width: 600px) {
+    .small, .source, .session { font-size: 0.95rem; }
+  }
 </style>

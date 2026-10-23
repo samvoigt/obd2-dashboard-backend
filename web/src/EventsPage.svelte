@@ -48,5 +48,4 @@
   .list { list-style: none; padding: 0; display: grid; gap: 8px; }
   .list li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; }
   .error { color: var(--critical); }
-  .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 </style>

@@ -64,4 +64,8 @@
   .v { font-variant-numeric: tabular-nums; font-size: 0.85rem; }
   .unit { color: var(--muted); font-size: 0.75rem; margin: 6px 0 0; }
   .s.sbest { color: var(--in-range); font-weight: 600; }
+  /* A phone (M30.5): what the crew reads in a hurry is never under 0.95rem. */
+  @media (max-width: 600px) {
+    .name, .s, .v, th, .unit { font-size: 0.95rem; }
+  }
 </style>
