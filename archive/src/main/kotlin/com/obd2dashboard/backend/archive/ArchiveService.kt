@@ -380,15 +380,15 @@ public class ArchiveService(
     public suspend fun prepare(id: String): String? {
         val record = index.get(id) ?: return null
         if (record.ackedThrough < 0) return null
-        val key = seriesKey(id, if (record.complete) null else record.ackedThrough)
-        val thin = thinSeriesKey(id).takeIf { record.complete }
+        val key = seriesKey(id, if (record.complete) null else record.ackedThrough, record.gpsLatencyMs)
+        val thin = thinSeriesKey(id, record.gpsLatencyMs).takeIf { record.complete }
         if (key in store.list(key)) return key
         // One full build at a time (M19.6): an 8-hour session's peaks at ~178 MiB of a 384 MiB heap, two ~356.
         return building.withLock {
             if (key in store.list(key)) return@withLock key
-            val builder = SeriesBuilder()
+            val builder = SeriesBuilder(record.gpsLatencyMs ?: 0)
             // A complete session's thinned series, in the same pass (M19.6): what its page opens on.
-            val thinned = thin?.let { ThinSeries() }
+            val thinned = thin?.let { ThinSeries(SeriesBuilder(record.gpsLatencyMs ?: 0)) }
             val reader = SessionReader(also = { builder.record(it); thinned?.record(it) })
             read(record) { reader.read(it) }
             val summary = reader.summary()
@@ -410,13 +410,13 @@ public class ArchiveService(
     public suspend fun prepareThin(id: String): String? {
         val record = index.get(id) ?: return null
         if (!record.complete) return null
-        val thin = thinSeriesKey(id)
+        val thin = thinSeriesKey(id, record.gpsLatencyMs)
         if (thin in store.list(thin)) return thin
         prepare(id) ?: return null
         if (thin in store.list(thin)) return thin
         return building.withLock {
             if (thin in store.list(thin)) return@withLock thin
-            val thinned = ThinSeries()
+            val thinned = ThinSeries(SeriesBuilder(record.gpsLatencyMs ?: 0))
             val reader = SessionReader(also = thinned::record)
             read(record) { reader.read(it) }
             store.write(thin) { thinned.write(it, reader.summary().started, reader.summary().signals, final = true) }
@@ -457,6 +457,12 @@ public class ArchiveService(
 
     /** The session's clock offset as the live lane measured it (M18.1); the smaller is kept. */
     public suspend fun setClockOffset(id: String, offsetMs: Long): Boolean = index.setClockOffset(id, offsetMs)
+
+    /** Sets (or with null clears) the session's measured GPS latency (M30.2); its series is built again when next asked for. */
+    public suspend fun setGpsLatency(id: String, latencyMs: Long?): Boolean = index.setGpsLatency(id, latencyMs)
+
+    /** Sets the session's videos (M30.3), the whole list. */
+    public suspend fun setVideos(id: String, videos: List<SessionVideo>): Boolean = index.setVideos(id, videos)
 
     /** A car's sessions, as the index holds them (the admin page, M6). */
     public suspend fun sessionsOf(car: String): List<SessionRecord> = index.listByCar(car)
@@ -535,14 +541,20 @@ public class ArchiveService(
         }
         public fun sessionKey(id: String): String = "sessions/$id/session.jsonl.gz"
 
-        /** The prepared series (M7.2); versioned in its name, and per `ackedThrough` while uploading. */
-        public fun seriesKey(id: String, ackedThrough: Long?): String =
-            "${seriesPrefix(id)}v${SeriesBuilder.VERSION}${ackedThrough?.let { "-$it" } ?: ""}.json.gz"
+        /**
+         * The prepared series (M7.2); versioned in its name, per `ackedThrough` while uploading, and per GPS latency
+         * (M30.2), so setting one builds it again and the old one goes.
+         */
+        public fun seriesKey(id: String, ackedThrough: Long?, gpsLatencyMs: Long? = null): String =
+            "${seriesPrefix(id)}v${SeriesBuilder.VERSION}${latencyTag(gpsLatencyMs)}${ackedThrough?.let { "-$it" } ?: ""}.json.gz"
 
         public fun seriesPrefix(id: String): String = "sessions/$id/series-"
 
         /** A complete session's thinned series (M19.6), beside its full one. */
-        public fun thinSeriesKey(id: String): String = "${seriesPrefix(id)}v${SeriesBuilder.VERSION}-thin.json.gz"
+        public fun thinSeriesKey(id: String, gpsLatencyMs: Long? = null): String =
+            "${seriesPrefix(id)}v${SeriesBuilder.VERSION}${latencyTag(gpsLatencyMs)}-thin.json.gz"
+
+        private fun latencyTag(gpsLatencyMs: Long?): String = gpsLatencyMs?.takeIf { it != 0L }?.let { "-gps$it" } ?: ""
 
         public fun segmentKey(id: String, first: Long, last: Long): String =
             segmentsPrefix(id) + "%010d-%010d.jsonl.gz".format(first, last)

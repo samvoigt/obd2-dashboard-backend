@@ -35,6 +35,8 @@ public class ThinSeries(
         val wall = (record["wall"] as? JsonPrimitive)?.longOrNull ?: return
         newest = maxOf(newest, wall)
         if (record.str("type") != "sample") return builder.record(record)
+        // Every fix, kept or not: its readings are placed by it (M30.1).
+        builder.fix(record)
         val signal = record.str("signal") ?: return
         val v = numberOf(record)
         when {

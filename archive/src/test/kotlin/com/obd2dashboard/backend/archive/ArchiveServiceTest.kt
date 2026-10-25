@@ -380,12 +380,26 @@ class ArchiveServiceTest {
         completeFixture()
         val key = archive.prepare(id)
         key shouldBe ArchiveService.seriesKey(id, null)
-        key shouldBe "sessions/$id/series-v3.json.gz"
+        key shouldBe "sessions/$id/series-v4.json.gz"
         index.get(id)!!.summary!!.lines shouldBe Fixtures.SESSION_LINES.toLong()
         val first = store.objects.getValue(key!!)
         store.objects.remove(ArchiveService.sessionKey(id)) // a second call must not read the log again
         archive.prepare(id) shouldBe key
         store.objects.getValue(key).contentEquals(first) shouldBe true
+    }
+
+    @Test
+    fun `a GPS latency set builds the series again under its own key, and the old one goes (M30_2)`() = runTest {
+        openFixture()
+        append(1, lines.size - 1)
+        completeFixture()
+        archive.prepare(id) shouldBe "sessions/$id/series-v4.json.gz"
+        archive.setGpsLatency(id, 650) shouldBe true
+        archive.prepare(id) shouldBe "sessions/$id/series-v4-gps650.json.gz"
+        archive.prepareThin(id) shouldBe "sessions/$id/series-v4-gps650-thin.json.gz"
+        seriesKeys() shouldBe listOf("sessions/$id/series-v4-gps650-thin.json.gz", "sessions/$id/series-v4-gps650.json.gz")
+        archive.setGpsLatency(id, null)
+        archive.prepare(id) shouldBe "sessions/$id/series-v4.json.gz"
     }
 
     @Test

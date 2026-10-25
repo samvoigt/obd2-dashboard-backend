@@ -70,6 +70,18 @@ class RetimingTest {
     }
 
     @Test
+    fun `a GPS latency moves where a session's laps go, never the laps or their check (M30_2)`() {
+        val laps = (1..4).map { boxLap(it, version = 1) }
+        val run = listOf("a" to boxTrace(boxLog(0, 40)), "b" to boxTrace(boxLog(41, 300, laps)))
+        val plain = Retiming.retime(boxCourse(1), run)!!
+        val t = Retiming.retime(boxCourse(1), run, mapOf("b" to 650L, "elsewhere" to 100L))!!
+        t.wallOffsets shouldBe mapOf("a" to BOX_WALL0, "b" to BOX_WALL0 - 650)
+        t.gpsLatencies shouldBe mapOf("b" to 650L)
+        t.laps shouldBe plain.laps
+        t.pitCrossings shouldBe plain.pitCrossings
+    }
+
+    @Test
     fun `a tablet lap 3 ms off re-timing is flagged, one 1 ms off is not, and each still stands`() {
         val laps = listOf(boxLap(1, 1), boxLap(2, 1, endOff = 3), boxLap(3, 1, endOff = 1, startOff = 3), boxLap(4, 1, startOff = 1))
         // Lap 2 ends 3 ms late, lap 3 starts 3 ms late: both flagged. Lap 3 ends and lap 4 starts 1 ms late: fine.
@@ -141,6 +153,23 @@ class RetimerTest {
         // The run is found shorter (b removed): rebuilt for a alone.
         retimer.timing(listOf("a"), "box")!!.sessions shouldBe listOf("a")
         retimer.timing(listOf("a"), "box")!!.laps.size shouldNotBe second.laps.size
+    }
+
+    @Test
+    fun `a GPS latency set on one of the run's sessions builds its timing again (M30_2)`() {
+        runBlocking {
+            session("a", boxLog(0, 40))
+            session("b", boxLog(41, 300))
+            courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)
+            retimer.timing(listOf("a", "b"), "box")!!.wallOffsets.getValue("b") shouldBe BOX_WALL0
+            archive.setGpsLatency("b", 650)
+            val moved = retimer.timing(listOf("a", "b"), "box")!!
+            moved.wallOffsets.getValue("b") shouldBe BOX_WALL0 - 650
+            retimer.timing(listOf("a", "b"), "box") shouldBe moved // read back while it stays
+            archive.setGpsLatency("b", null)
+            retimer.timing(listOf("a", "b"), "box")!!.wallOffsets.getValue("b") shouldBe BOX_WALL0
+            built shouldBe listOf(1, 1, 1)
+        }
     }
 
     @Test

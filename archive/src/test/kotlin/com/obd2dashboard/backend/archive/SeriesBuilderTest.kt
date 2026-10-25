@@ -16,8 +16,10 @@ import org.junit.Test
 class SeriesBuilderTest {
     private val t0 = 1_790_000_000_000L
 
-    private fun build(vararg lines: String): JsonObject {
-        val builder = SeriesBuilder()
+    private fun build(vararg lines: String): JsonObject = build(0, *lines)
+
+    private fun build(gpsLatencyMs: Long, vararg lines: String): JsonObject {
+        val builder = SeriesBuilder(gpsLatencyMs)
         lines.forEach { builder.record(Json.parseToJsonElement(it).jsonObject) }
         val out = ByteArrayOutputStream()
         builder.write(out, t0, listOf(SignalInfo("engine.rpm", "rpm", "number")))
@@ -43,7 +45,7 @@ class SeriesBuilderTest {
             rpm(100, 900.5), rpm(300, 1200.0),
             sample("diagnostics.mil", 150, "\"flag\":false"), sample("diagnostics.mil", 350, "\"flag\":true"),
         )
-        s.getValue("version").jsonPrimitive.content shouldBe "3"
+        s.getValue("version").jsonPrimitive.content shouldBe "4"
         s.getValue("lastSeq").jsonPrimitive.content shouldBe "350"
         s.getValue("t0").jsonPrimitive.content shouldBe t0.toString()
         s.getValue("signals").jsonArray.single().jsonObject.getValue("unit").jsonPrimitive.content shouldBe "rpm"
@@ -176,6 +178,36 @@ class SeriesBuilderTest {
         val p = s.getValue("positions").jsonObject
         p.getValue("t").texts() shouldBe listOf("0", "100", "300", "400")
         p.getValue("dropped").jsonPrimitive.content shouldBe "1"
+    }
+
+    /** A reading of the fix heard at [at], in its burst: the same `at`, as the tablet logs them. */
+    private fun reading(signal: String, at: Long, value: Double) =
+        """{"type":"sample","signal":"$signal","value":$value,"seq":$at,"at":$at,"wall":${t0 + at}}"""
+
+    @Test
+    fun `a fix's other readings are placed with its position, when the receiver took it (M30_1)`() {
+        // Two fixes taken at 100 and 200 ms, both heard at 480: the speed and heading after each go with it.
+        val s = build(
+            fix(100, 480), reading("gps.speed", 480, 110.0), reading("gps.heading", 480, 14.0),
+            fix(200, 520, 3.0), reading("gps.speed", 520, 111.0), reading("gps.heading", 520, 15.0),
+        )
+        s.numbers("gps.speed").first shouldBe listOf("100", "200")
+        s.numbers("gps.heading").first shouldBe listOf("100", "200")
+    }
+
+    @Test
+    fun `only the receiver's readings move, and one without a fix stays as heard (M30_1)`() {
+        val s = build(fix(100, 480), rpm(480), reading("gps.speed", 600, 110.0))
+        s.numbers("engine.rpm").first shouldBe listOf("480")
+        s.numbers("gps.speed").first shouldBe listOf("600")
+    }
+
+    @Test
+    fun `a measured GPS latency moves positions and the receiver's readings earlier, nothing else (M30_2)`() {
+        val s = build(400, fix(1100, 1480), reading("gps.speed", 1480, 110.0), rpm(1480))
+        s.getValue("positions").jsonObject.getValue("t").texts() shouldBe listOf("700")
+        s.numbers("gps.speed").first shouldBe listOf("700")
+        s.numbers("engine.rpm").first shouldBe listOf("1480")
     }
 
     @Test

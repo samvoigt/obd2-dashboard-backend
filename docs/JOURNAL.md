@@ -590,3 +590,53 @@ whole drive, the admin page's Download.
   It was the replay, not the server: both lanes stopped together, most likely
   the Mac sleeping (as in M13).
 
+## 2026-10-20 — Race Session 2's GPS against an in-car video (M30)
+
+Measured by Hugh's video overlay (outside this repo) on Tha Bearmobile's
+Race Session 2 log, from the M29 download, against 7.4 hours of GoPro
+footage.
+- **When positions are logged:** a median 391 ms after the receiver's
+  `fixAt` (10th percentile 78 ms, 90th 932 ms, 99th 1.66 s).
+  - The fix's `gps.speed`, `gps.heading`, `gps.altitude` and
+    `gps.satellites` follow it in the same burst, with the same `at`.
+  - M28 moved the positions. Those readings stayed on arrival (M30.1).
+- **The video and the tablet:** the camera's yaw (optical flow) against
+  `motion.acceleration.lateral` agrees in 168 ten-minute windows, scattering
+  by 0.026 s. The clocks drift 0.82 s apart over the race.
+- **Behind the accelerometer:**
+  - GPS, with everything on `fixAt`: about 0.65 s. That's speed × the rate
+    of change of `gps.heading` against lateral acceleration (r = 0.76).
+  - OBD `vehicle.speed`: about 0.55 s, from its rate of change against
+    longitudinal acceleration (r = 0.63).
+  - `gps.speed` against `vehicle.speed`: within 0.05 s (r = 0.98).
+- **The start/finish:** with GPS moved 0.65 s earlier, the lap changed in
+  the frame where the car is on the start/finish band. Without it, it
+  changed late. That's the case for a measured latency (M30.2).
+- **Against the race's own timing:** the transponder loop, as Speedhive
+  publishes it (session 13004327, #55 "The Bad News Bears").
+  - Race day 2 there is laps 233–454. The M29 download's `laps.csv` has
+    223 laps for the day, and 221 match an official crossing within 3 s.
+    The other two are the day's first, 238 and 239, before the timing's
+    first lap.
+  - **The official crossing comes a median 0.554 s before the lap's end
+    here** (interquartile −0.840 to −0.327 s). That's the latency
+    measured against the accelerometer, within its spread, from a clock
+    that never saw the tablet.
+  - The loop needn't be exactly on our start/finish line, so this agrees
+    with the latency rather than measuring it.
+  - **Lap times agree on average but not lap by lap:** the median
+    difference is +0.014 s, the standard deviation 0.40 s, and 18 laps
+    differ by over a second.
+  - So the day's best here, 1:30.200, is 0.47 s quicker than the official
+    1:30.673. That's the receiver's drift (2026-10-19) timing a lap, with
+    no bias in it.
+  - The numbering differs: 238 here against the official 233 for the
+    day's first lap, so the tablet counted five more laps on race day 1.
+- **The accelerometer:** right in scale (lateral against speed × yaw rate,
+  ratio 1.08). Its mount reads a constant +1.95 m/s² longitudinal and
+  −0.46 m/s² lateral while moving, and 0 at rest. That's the car's mount,
+  so it stays in the overlay, not here.
+- **`vehicle.speed` reads 0.9% over GPS** on straights above 100 km/h
+  (0.9915, steady all race): the car's gearing and tires. Also the
+  overlay's, not the server's.
+

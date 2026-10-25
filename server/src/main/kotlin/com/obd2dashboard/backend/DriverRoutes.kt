@@ -6,6 +6,7 @@ import com.obd2dashboard.backend.admin.Thing
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.DriverChange
 import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.SessionVideo
 import com.obd2dashboard.backend.events.DriverStore
 import com.obd2dashboard.backend.registry.CarRegistry
 import io.ktor.http.HttpStatusCode
@@ -103,6 +104,97 @@ fun Route.driverRoutes(
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
         call.setName(record, archive, "the crew of ${car.slug.value}", onChanged)
     }
+
+    // A session's GPS latency and videos (M30): the same two sign-ins, the same rule.
+    put("/api/admin/sessions/{id}/gps-latency") {
+        call.signedIn(change = true) ?: return@put
+        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+            ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        val who = call.may(Action.EDIT, Thing(Kind.CAR, record.car)) ?: return@put
+        call.setGpsLatency(record, archive, who.email, onChanged)
+    }
+
+    put("/api/cars/{slug}/sessions/{id}/gps-latency") {
+        val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
+        if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
+        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+            ?.takeIf { it.car == car.slug.value }
+            ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
+        call.setGpsLatency(record, archive, "the crew of ${car.slug.value}", onChanged)
+    }
+
+    put("/api/admin/sessions/{id}/videos") {
+        call.signedIn(change = true) ?: return@put
+        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+            ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        val who = call.may(Action.EDIT, Thing(Kind.CAR, record.car)) ?: return@put
+        call.setVideos(record, archive, who.email, onChanged)
+    }
+
+    put("/api/cars/{slug}/sessions/{id}/videos") {
+        val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
+        if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
+        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+            ?.takeIf { it.car == car.slug.value }
+            ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
+        call.setVideos(record, archive, "the crew of ${car.slug.value}", onChanged)
+    }
+}
+
+/** How far a session's GPS receiver runs behind (M30.2), milliseconds; null or 0 clears it. */
+@Serializable
+data class SetGpsLatency(val latencyMs: Long? = null)
+
+/** Past any receiver's: a second's worth at most is what's been measured (JOURNAL, M30). */
+const val GPS_LATENCY_MAX_MS: Long = 5_000
+
+/** A video of a session (M30.3): [file]'s first frame at [startWall] on the tablet's `wall`, [durationMs] long. */
+@Serializable
+data class SessionVideoView(val file: String, val startWall: Long, val durationMs: Long)
+
+/** A session's videos, the whole list (M30.3); empty: none. */
+@Serializable
+data class SetVideos(val videos: List<SessionVideoView> = emptyList())
+
+fun SessionVideo.view(): SessionVideoView = SessionVideoView(file, startWall, durationMs)
+
+/** A camera's chapters in one session: far more than a day's racing records. */
+const val VIDEOS_MAX: Int = 200
+const val VIDEO_FILE_MAX: Int = 200
+/** A day: no chapter, nor a session, is longer. */
+const val VIDEO_DURATION_MAX_MS: Long = 86_400_000
+
+/** The videos to store, in order, or why they can't be. */
+fun sessionVideos(raw: List<SessionVideoView>): Result<List<SessionVideo>> {
+    val videos = raw.map { SessionVideo(it.file.trim(), it.startWall, it.durationMs) }.sortedBy { it.startWall }
+    return when {
+        videos.size > VIDEOS_MAX -> Result.failure(IllegalArgumentException("At most $VIDEOS_MAX videos in a session."))
+        videos.any { it.file.isEmpty() || it.file.length > VIDEO_FILE_MAX || it.file.any(Char::isISOControl) } ->
+            Result.failure(IllegalArgumentException("A video's file is one line of up to $VIDEO_FILE_MAX characters."))
+        videos.any { it.startWall <= 0 } -> Result.failure(IllegalArgumentException("A video starts at a moment on the tablet's clock."))
+        videos.any { it.durationMs <= 0 || it.durationMs > VIDEO_DURATION_MAX_MS } ->
+            Result.failure(IllegalArgumentException("A video is longer than nothing and shorter than a day."))
+        else -> Result.success(videos)
+    }
+}
+
+private suspend fun ApplicationCall.setGpsLatency(record: SessionRecord, archive: ArchiveService, who: String, onChanged: () -> Unit) {
+    val latency = receive<SetGpsLatency>().latencyMs?.takeIf { it != 0L }
+    if (latency != null && latency !in 1..GPS_LATENCY_MAX_MS) {
+        return respond(HttpStatusCode.BadRequest, ApiError("invalid", "A GPS latency is between 0 and $GPS_LATENCY_MAX_MS ms."))
+    }
+    if (!archive.setGpsLatency(record.id, latency)) return respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+    adminLog.info("gps latency: session {} of {} to {} by {}", record.id, record.car, latency?.let { "$it ms" } ?: "none", who)
+    onChanged()
+    respond(SetGpsLatency(latency))
+}
+
+private suspend fun ApplicationCall.setVideos(record: SessionRecord, archive: ArchiveService, who: String, onChanged: () -> Unit) {
+    val videos = sessionVideos(receive<SetVideos>().videos).getOrElse { return respond(HttpStatusCode.BadRequest, ApiError("invalid", it.message ?: "Not a video.")) }
+    if (!archive.setVideos(record.id, videos)) return respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+    adminLog.info("videos: session {} of {}, {} by {}", record.id, record.car, videos.size, who)
+    onChanged()
+    respond(SetVideos(videos.map { it.view() }))
 }
 
 /** A session's name (M18.3): trimmed, up to [NAME_MAX] characters, no control characters; empty clears it. */

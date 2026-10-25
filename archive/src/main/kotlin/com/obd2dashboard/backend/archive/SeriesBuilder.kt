@@ -21,9 +21,16 @@ import kotlinx.serialization.json.doubleOrNull
  * readings it counts were missed from its `seq` on (§3.5), which `wall` can't
  * place when it shares a millisecond with a sample.
  *
+ * **A fix's readings go with its position** (M30.1): `gps.speed`,
+ * `gps.heading` and the rest arrive in the same burst as their fix's
+ * `gps.position`, sharing its `at`, so each is placed when the receiver took
+ * the fix, as the position is (M28). And everything from the receiver is
+ * placed [gpsLatencyMs] earlier still (M30.2): what someone measured it runs
+ * behind, zero unless they did.
+ *
  * Holds only plain arrays, and writes its JSON straight to a stream.
  */
-public class SeriesBuilder {
+public class SeriesBuilder(private val gpsLatencyMs: Long = 0) {
     private class Numbers {
         val t = LongList()
         val v = DoubleList()
@@ -48,6 +55,24 @@ public class SeriesBuilder {
     private val gapSeqs = LongList()
     private val laps = mutableListOf<Pair<Long, JsonObject>>()
     private var lastSeq: Long? = null
+    /**
+     * The latest fixes' `at`, each with how long before it the receiver took the fix. Several, not one: a thinned
+     * series (M19.4) hands a bucket's readings on when the bucket closes, after newer fixes.
+     */
+    private val fixDelays = object : LinkedHashMap<Long, Long>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Long>?): Boolean = size > FIXES_HELD
+    }
+
+    /**
+     * Notes a `gps.position` sample's fix (M30.1) without placing it: a thinned series leaves most positions out, but
+     * the readings of their fixes are still placed by them. Anything else is ignored.
+     */
+    public fun fix(record: JsonObject) {
+        if (record.string("type") != "sample" || record.string("signal") != "gps.position") return
+        val at = record.long("at") ?: return
+        val fixAt = record.long("fixAt")?.takeIf { it <= at } ?: return
+        fixDelays[at] = at - fixAt
+    }
 
     /** One parsed record; one without `wall` can't be placed in time and is skipped. */
     public fun record(record: JsonObject) {
@@ -70,14 +95,16 @@ public class SeriesBuilder {
         val signal = record.string("signal") ?: return
         val value = record["value"] as? JsonPrimitive
         val flag = record["flag"] as? JsonPrimitive
+        fix(record)
+        val placed = if (signal.startsWith(GPS)) wall - (record.long("at")?.let { fixDelays[it] } ?: 0) - gpsLatencyMs else wall
         when {
-            value != null && !value.isString -> value.doubleOrNull?.let { number(signal, wall, record.long("seq"), it) }
-            flag != null && !flag.isString -> flag.booleanOrNull?.let { number(signal, wall, record.long("seq"), if (it) 1.0 else 0.0) }
+            value != null && !value.isString -> value.doubleOrNull?.let { number(signal, placed, record.long("seq"), it) }
+            flag != null && !flag.isString -> flag.booleanOrNull?.let { number(signal, placed, record.long("seq"), if (it) 1.0 else 0.0) }
             record["lat"] != null -> {
                 val lat = (record["lat"] as? JsonPrimitive)?.doubleOrNull ?: return
                 val lon = (record["lon"] as? JsonPrimitive)?.doubleOrNull ?: return
                 for (f in fixes.offer(FixFilter.placed(record, wall, lat, lon))) {
-                    positions.first.add(f.t); positions.second.add(f.lat); positions.third.add(f.lon)
+                    positions.first.add(f.t - gpsLatencyMs); positions.second.add(f.lat); positions.third.add(f.lon)
                 }
             }
             record["flags"] is JsonArray -> {
@@ -196,8 +223,15 @@ public class SeriesBuilder {
     }
 
     public companion object {
-        /** 2: `lastSeq` added (M7.6). 3: positions at the receiver's time, those no car could reach dropped (M28). */
-        public const val VERSION: Int = 3
+        /**
+         * 2: `lastSeq` added (M7.6). 3: positions at the receiver's time, those no car could reach dropped (M28).
+         * 4: a fix's other readings at its time too, and the receiver's measured latency taken out (M30).
+         */
+        public const val VERSION: Int = 4
+        /** A reading from the GPS receiver, by its name's prefix. */
+        private const val GPS = "gps."
+        /** About five seconds of a 10 Hz receiver: longer than a thinned series' bucket. */
+        private const val FIXES_HELD = 64
         public const val BREAK_FACTOR: Int = 5
         public const val MIN_BREAK_MS: Long = 1_000
 

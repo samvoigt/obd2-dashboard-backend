@@ -49,6 +49,19 @@ class ThinSeriesTest {
     }
 
     @Test
+    fun `a fix's speed is placed by it though the fix was thinned out and its bucket closed after newer fixes (M30_1)`() {
+        val thin = ThinSeries()
+        // A fix every 100 ms, each taken 400 ms before it was heard, its speed in the same burst; only one position a second is kept.
+        (1000L until 7000L step 100).forEach { at ->
+            thin.record(rec("""{"type":"sample","signal":"gps.position","lat":43.36,"lon":-71.46,"fixAt":${at - 400},"seq":${++seq},"at":$at,"wall":${W + at}}"""))
+            thin.record(rec("""{"type":"sample","signal":"gps.speed","value":${at / 100.0},"seq":${++seq},"at":$at,"wall":${W + at}}"""))
+        }
+        val n = written(thin, final = true)["numbers"]!!.jsonObject["gps.speed"]!!.jsonObject
+        // The first bucket's (1-5 s) minimum and maximum, heard at 1000 and 4900: taken at 600 and 4500.
+        n["t"]!!.jsonArray.map { it.jsonPrimitive.long }.take(2) shouldBe listOf(600L, 4500L)
+    }
+
+    @Test
     fun `a position a second, and a state's every change`() {
         val thin = ThinSeries()
         (0L until 3000L step 250).forEach { thin.record(fix(it)) }

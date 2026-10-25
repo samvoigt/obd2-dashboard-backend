@@ -59,7 +59,10 @@ class CarTimings(
                 changes = records.associate { r -> r.id to r.driverChanges.map { StintMark(it.from, it.driver) } })
         }
         val scope = if (event != null) eventSessions else records.map { it.id }.toSet()
-        val completeRuns = completeRuns(car, course, records.sortedBy { it.created }.map { it.id }.filter { it in scope && it in complete })
+        val completeRuns = completeRuns(
+            car, course, records.sortedBy { it.created }.map { it.id }.filter { it in scope && it in complete },
+            records.associate { it.id to it.gpsLatencyMs },
+        )
         val provisional = live.read(car) { s -> Provisional.runs(course, s.filter { it.id !in complete }) }
         val runs = completeRuns + provisional
         val layout = event?.layout ?: runs.lastOrNull { session in it.sessions }?.layout ?: runs.lastOrNull()?.layout
@@ -77,9 +80,12 @@ class CarTimings(
         )
     }
 
-    /** [car]'s complete runs on [course] among [sessions], in the order the server heard them; held until any of those changes. */
-    private suspend fun completeRuns(car: String, course: Course, sessions: List<String>): List<RunTiming> {
-        val key = listOf(course.id, course.version, sessions)
+    /**
+     * [car]'s complete runs on [course] among [sessions], in the order the server heard them; held until any of those
+     * changes, or a session's GPS latency (M30.2), which moves its laps.
+     */
+    private suspend fun completeRuns(car: String, course: Course, sessions: List<String>, latencies: Map<String, Long?>): List<RunTiming> {
+        val key = listOf(course.id, course.version, sessions, sessions.map { latencies[it] })
         held[car]?.takeIf { it.key == key }?.let { return it.runs }
         val runs = sessions.mapNotNull { retiming.lapsOf(car, it, course.id)?.second }.distinctBy { it.sessions }
         held[car] = Held(key, runs)

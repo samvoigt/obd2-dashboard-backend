@@ -19,6 +19,7 @@ import com.obd2dashboard.backend.archive.SessionHeader
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.archive.SessionSummary
+import com.obd2dashboard.backend.archive.SessionVideo
 import com.obd2dashboard.backend.archive.SignalInfo
 import io.grpc.Status
 import java.time.Instant
@@ -104,6 +105,12 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
     override suspend fun setClockOffset(id: String, offsetMs: Long): Boolean =
         conditional(id) { current -> current.copy(clockOffsetMs = minOf(current.clockOffsetMs ?: offsetMs, offsetMs)) }
 
+    override suspend fun setGpsLatency(id: String, latencyMs: Long?): Boolean =
+        conditional(id) { current -> current.copy(gpsLatencyMs = latencyMs) }
+
+    override suspend fun setVideos(id: String, videos: List<SessionVideo>): Boolean =
+        conditional(id) { current -> current.copy(videos = videos) }
+
     override suspend fun listByCar(car: String): List<SessionRecord> =
         sessions.whereEqualTo(CAR, car).get().await().documents.mapNotNull { it.toRecord() }
 
@@ -183,6 +190,11 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
             // A list of maps (M27), never a list in a list; none written when there are none.
             if (driverChanges.isNotEmpty()) {
                 put("driverChanges", driverChanges.map { c -> buildMap { put("from", c.from); c.driver?.let { put("driver", it) } } })
+            }
+            gpsLatencyMs?.let { put("gpsLatencyMs", it) }
+            // A list of maps (M30.3), as the driver changes; none written when there are none.
+            if (videos.isNotEmpty()) {
+                put("videos", videos.map { v -> mapOf("file" to v.file, "startWall" to v.startWall, "durationMs" to v.durationMs) })
             }
         }
 
@@ -302,6 +314,13 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
                 hashState = string("hashState"),
                 driverChanges = (data["driverChanges"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }.mapNotNull { c ->
                     (c["from"] as? Number)?.toLong()?.let { DriverChange(it, c["driver"] as? String) }
+                },
+                gpsLatencyMs = (data["gpsLatencyMs"] as? Number)?.toLong(),
+                videos = (data["videos"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }.mapNotNull { v ->
+                    val file = v["file"] as? String ?: return@mapNotNull null
+                    val start = (v["startWall"] as? Number)?.toLong() ?: return@mapNotNull null
+                    val duration = (v["durationMs"] as? Number)?.toLong() ?: return@mapNotNull null
+                    SessionVideo(file, start, duration)
                 },
             )
         }

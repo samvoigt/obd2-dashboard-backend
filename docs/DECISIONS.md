@@ -1234,3 +1234,35 @@ to them: re-timings, driver changes, event parts and the live page. It
 would also leave stored logs that the tablet never sent. Merging only in the
 download gives the one file and keeps the store as it is.
 
+
+## 47. A fix's readings at its time; a session's measured GPS latency and its videos
+
+**Decision.** (M30; proposed by Hugh in a pull request, 2026-10-20;
+**accepted by Sam, 2026-10-24**, as it stands: "Merge now, ship it with
+M30".)
+- **A fix's readings go with its position.** In the series, `gps.speed`,
+  `gps.heading` and the rest of a fix's readings are placed when the
+  receiver took the fix, `wall − (at − fixAt)`, as its position has been
+  since decision 45. They're told by sharing the position's `at`.
+- **A session can carry a measured GPS latency**, set by its crew or an
+  editor: 1–5,000 ms.
+  - It moves a complete session's positions, `gps.*` readings, laps and pit
+    crossings that much earlier on its page.
+  - It never moves a lap's time, its sectors, the check against the
+    tablet's laps (decision 33), or anything live (decision 45).
+- **A session can list its videos**: each a file name, the tablet's `wall`
+  at its first frame, and its length. One per camera chapter.
+
+**Why.** Putting Race Session 2's telemetry over in-car video showed two
+things (JOURNAL 2026-10-20, M30):
+- The receiver's readings were still bunched by Bluetooth as M28 found, but
+  only the positions had been moved.
+- The receiver ran about 0.65 s behind the car's own motion. With that
+  taken out, the lap ticked over as the car crossed the start/finish band
+  in the video. Without it, it ticked late.
+- The race's transponder timing (Speedhive) agrees: its crossings come a
+  median 0.55 s before ours, over 221 laps.
+
+The latency is a measurement of one session's GPS, kept on the session
+where it was measured. The server makes no guess of its own and learns
+nothing about the car, so the rule in `CLAUDE.md` holds.

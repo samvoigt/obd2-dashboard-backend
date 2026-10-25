@@ -233,4 +233,59 @@ class DriverRoutesTest {
         changes("/api/cars/outback/sessions/$fake/driver-changes", c, """{"changes":[]}""").status shouldBe HttpStatusCode.Conflict
         sessions.get(s)!!.driverChanges shouldBe emptyList()
     }
+
+    // GPS latency and videos (M30)
+
+    private suspend fun ApplicationTestBuilder.putJson(path: String, cookie: String?, body: String): HttpResponse =
+        client.put(path) {
+            header(HttpHeaders.Host, "localhost")
+            header(HttpHeaders.Origin, "http://localhost")
+            cookie?.let { header(HttpHeaders.Cookie, it) }
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+
+    private suspend fun ApplicationTestBuilder.detailOf(id: String): SessionDetail =
+        json.decodeFromString<SessionDetail>(client.get("/api/sessions/$id").bodyAsText())
+
+    @Test
+    fun `the crew sets its session's GPS latency, shown on its page, and clears it with nothing or 0 (M30_2)`() = testApplication {
+        app()
+        val c = crew("outback", "outback-crew")
+        putJson("/api/cars/outback/sessions/$s/gps-latency", c, """{"latencyMs":650}""").status shouldBe HttpStatusCode.OK
+        detailOf(s).gpsLatencyMs shouldBe 650L
+        log.list.map { it.formattedMessage } shouldContain "gps latency: session $s of outback to 650 ms by the crew of outback"
+        putJson("/api/cars/outback/sessions/$s/gps-latency", c, """{"latencyMs":0}""").status shouldBe HttpStatusCode.OK
+        detailOf(s).gpsLatencyMs shouldBe null
+        putJson("/api/cars/outback/sessions/$s/gps-latency", c, """{"latencyMs":5001}""").status shouldBe HttpStatusCode.BadRequest
+        putJson("/api/cars/outback/sessions/$s/gps-latency", c, """{"latencyMs":-1}""").status shouldBe HttpStatusCode.BadRequest
+        putJson("/api/cars/outback/sessions/$s/gps-latency", null, """{"latencyMs":650}""").status shouldBe HttpStatusCode.Unauthorized
+        putJson("/api/cars/yaris/sessions/$s/gps-latency", crew("yaris", "pit-lane"), """{"latencyMs":650}""").status shouldBe HttpStatusCode.NotFound
+        putJson("/api/admin/sessions/$theirs/gps-latency", admin(), """{"latencyMs":400}""").status shouldBe HttpStatusCode.OK
+        detailOf(theirs).gpsLatencyMs shouldBe 400L
+    }
+
+    @Test
+    fun `the crew sets its session's videos, in order and trimmed, and nothing that can't be placed (M30_3)`() = testApplication {
+        app()
+        val c = crew("outback", "outback-crew")
+        val two = """{"videos":[{"file":" GP020028.MP4 ","startWall":1792328501000,"durationMs":1193726},""" +
+            """{"file":"GP010028.MP4","startWall":1792327307300,"durationMs":1193726}]}"""
+        putJson("/api/cars/outback/sessions/$s/videos", c, two).status shouldBe HttpStatusCode.OK
+        detailOf(s).videos shouldBe listOf(
+            SessionVideoView("GP010028.MP4", 1792327307300, 1193726),
+            SessionVideoView("GP020028.MP4", 1792328501000, 1193726),
+        )
+        log.list.map { it.formattedMessage } shouldContain "videos: session $s of outback, 2 by the crew of outback"
+        for (bad in listOf(
+            """{"videos":[{"file":"","startWall":1,"durationMs":1}]}""",
+            """{"videos":[{"file":"two\nlines","startWall":1,"durationMs":1}]}""",
+            """{"videos":[{"file":"a.mp4","startWall":0,"durationMs":1}]}""",
+            """{"videos":[{"file":"a.mp4","startWall":1,"durationMs":0}]}""",
+            """{"videos":[{"file":"a.mp4","startWall":1,"durationMs":86400001}]}""",
+        )) putJson("/api/cars/outback/sessions/$s/videos", c, bad).status shouldBe HttpStatusCode.BadRequest
+        putJson("/api/cars/outback/sessions/$s/videos", null, two).status shouldBe HttpStatusCode.Unauthorized
+        putJson("/api/cars/outback/sessions/$s/videos", c, """{"videos":[]}""").status shouldBe HttpStatusCode.OK
+        detailOf(s).videos shouldBe emptyList()
+    }
 }

@@ -59,6 +59,13 @@ public data class SessionRecord(
      * throughout.
      */
     val driverChanges: List<DriverChange> = emptyList(),
+    /**
+     * How far the session's GPS receiver runs behind what the car did (M30.2), milliseconds, as someone measured it:
+     * its positions, readings and laps are placed that much earlier. Null: not measured, placed as the fixes say.
+     */
+    val gpsLatencyMs: Long? = null,
+    /** Videos of the session (M30.3), each placed on the tablet's `wall`; none until someone syncs one. */
+    val videos: List<SessionVideo> = emptyList(),
 ) {
     /**
      * Who drove a lap ending at [wall] (the tablet's `wall`, milliseconds): the
@@ -73,6 +80,13 @@ public data class SessionRecord(
 
 /** A driver change within a session (M27): from [from] on the tablet's `wall` (milliseconds), [driver] (null: not set). */
 public data class DriverChange(val from: Long, val driver: String?)
+
+/**
+ * A video of a session (M30.3): the file [file] (its name, wherever it's kept), its first frame at [startWall] on the
+ * tablet's `wall` (milliseconds), [durationMs] long. A camera's chapters are a video each, so its clock's drift
+ * against the tablet's never adds up over more than one.
+ */
+public data class SessionVideo(val file: String, val startWall: Long, val durationMs: Long)
 
 /**
  * Where the archive's facts live (Firestore in production).
@@ -136,6 +150,12 @@ public interface SessionIndex {
 
     /** Stores [offsetMs] as the session's clock offset, or keeps the one stored if smaller (M18.1). */
     public suspend fun setClockOffset(id: String, offsetMs: Long): Boolean
+
+    /** Sets (or with null clears) the session's GPS latency (M30.2), touching nothing else; false if there's no such session. */
+    public suspend fun setGpsLatency(id: String, latencyMs: Long?): Boolean
+
+    /** Sets the session's videos (M30.3), the whole list, touching nothing else; false if there's no such session. */
+    public suspend fun setVideos(id: String, videos: List<SessionVideo>): Boolean
 
     public suspend fun list(): List<SessionRecord>
 
@@ -260,6 +280,12 @@ public class InMemorySessionIndex : SessionIndex {
 
     override suspend fun setClockOffset(id: String, offsetMs: Long): Boolean =
         sessions.computeIfPresent(id) { _, current -> current.copy(clockOffsetMs = minOf(current.clockOffsetMs ?: offsetMs, offsetMs)) } != null
+
+    override suspend fun setGpsLatency(id: String, latencyMs: Long?): Boolean =
+        sessions.computeIfPresent(id) { _, current -> current.copy(gpsLatencyMs = latencyMs) } != null
+
+    override suspend fun setVideos(id: String, videos: List<SessionVideo>): Boolean =
+        sessions.computeIfPresent(id) { _, current -> current.copy(videos = videos) } != null
 
     override suspend fun list(): List<SessionRecord> = sessions.values.toList()
 

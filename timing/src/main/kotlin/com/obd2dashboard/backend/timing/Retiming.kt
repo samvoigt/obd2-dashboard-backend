@@ -52,10 +52,15 @@ public data class RunTiming(
     val laps: List<RunLap>,
     /** Every lap re-timing found, whether it stands or not. */
     val retimed: List<RunLap>,
-    /** Each session's `wall` less `at` ([SessionTrace.wallOffset]): where its laps go on its page. */
+    /**
+     * Each session's `wall` less `at` ([SessionTrace.wallOffset]), less its GPS latency (M30.2): where its laps go on
+     * its page.
+     */
     val wallOffsets: Map<String, Long> = emptyMap(),
     /** Every time the run crossed the pit lane's entry or exit (M15.1), in order: its stops. */
     val pitCrossings: List<PitCrossing> = emptyList(),
+    /** The GPS latencies [wallOffsets] took out, by session (M30.2); a session without one isn't listed. */
+    val gpsLatencies: Map<String, Long> = emptyMap(),
 ) {
     val flagged: List<RunLap> get() = laps.filter { it.flag != null }
 }
@@ -73,8 +78,12 @@ public object Retiming {
     /** The two sides time the same fixes; the tablet on nanoseconds, the log in milliseconds (§22.3). */
     public const val AGREE_MS: Double = 2.0
 
-    /** [run]'s sessions in order, each with its trace, re-timed on [course]; null if it can't be timed. */
-    public fun retime(course: Course, run: List<Pair<String, SessionTrace>>): RunTiming? {
+    /**
+     * [run]'s sessions in order, each with its trace, re-timed on [course]; null if it can't be timed. A session's
+     * [gpsLatencies] (M30.2) only moves where its laps and pit crossings go on its page: the laps themselves, and
+     * the check against the tablet's, are timed on the fixes as sent (decision 33).
+     */
+    public fun retime(course: Course, run: List<Pair<String, SessionTrace>>, gpsLatencies: Map<String, Long> = emptyMap()): RunTiming? {
         val shape = (CourseRules.check(course.geojson) as? CourseCheck.Ok)?.shape ?: return null
         val ours = run.flatMap { (id, trace) -> trace.tabletLaps.filter { it.course == course.id }.map { id to it } }
         val layout = layoutOf(shape, ours.map { it.second })
@@ -92,8 +101,9 @@ public object Retiming {
             .filter { (_, lap) -> lap.courseVersion == course.version && layoutMatches(shape, layout, lap.layout) }
             .mapNotNull { (id, lap) -> tabletLap(id, lap, retimed) }
         val standing = (current + retimed.filter { r -> current.none { it.covers(r) } }).sortedBy { it.endAt }
-        val offsets = run.mapNotNull { (id, trace) -> trace.wallOffset?.let { id to it } }.toMap()
-        return RunTiming(RULE_VERSION, course.id, course.version, layout, run.map { it.first }, standing, retimed, offsets, pitCrossings)
+        val offsets = run.mapNotNull { (id, trace) -> trace.wallOffset?.let { id to it - (gpsLatencies[id] ?: 0) } }.toMap()
+        val latencies = gpsLatencies.filter { (id, ms) -> ms != 0L && run.any { it.first == id } }
+        return RunTiming(RULE_VERSION, course.id, course.version, layout, run.map { it.first }, standing, retimed, offsets, pitCrossings, latencies)
     }
 
     /** The layout the tablet's laps name, by `id` or (before courses came from the website) by name; else the default. */
@@ -144,15 +154,17 @@ public class Retimer(
         val first = run.firstOrNull() ?: return null
         val course = courses.get(courseId) ?: return null
         val name = fileName(course.id, course.version)
+        val records = run.map { id -> archive.session(id) ?: return null }
+        // A latency set or changed since (M30.2) moves the run's laps, so it's built again.
+        val latencies = records.mapNotNull { r -> r.gpsLatencyMs?.takeIf { it != 0L }?.let { r.id to it } }.toMap()
         archive.derived(first, name)
             ?.let { runCatching { json.decodeFromString<RunTiming>(it.decodeToString()) }.getOrNull() }
-            ?.takeIf { it.sessions == run }
+            ?.takeIf { it.sessions == run && it.gpsLatencies == latencies }
             ?.let { return it }
-        val traces = run.map { id ->
-            val record = archive.session(id) ?: return null
-            id to SessionTrace().also { trace -> archive.read(record) { trace.read(it) } }
+        val traces = records.map { record ->
+            record.id to SessionTrace().also { trace -> archive.read(record) { trace.read(it) } }
         }
-        val timing = Retiming.retime(course, traces) ?: return null
+        val timing = Retiming.retime(course, traces, latencies) ?: return null
         archive.putDerived(first, name, json.encodeToString(RunTiming.serializer(), timing).encodeToByteArray())
         built(timing)
         // Only the newest of this course stays: older versions, and any older rule's.

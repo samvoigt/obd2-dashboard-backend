@@ -107,6 +107,10 @@ data class SessionDetail(
     val driver: DriverView? = null,
     /** Where the driver changed within it (M27), in order; none: [driver] throughout. */
     val driverChanges: List<DriverChangeDetail> = emptyList(),
+    /** How far its GPS receiver was measured to run behind (M30.2), milliseconds; null if nobody did. */
+    val gpsLatencyMs: Long? = null,
+    /** Its videos (M30.3), each placed on the tablet's `wall`, in order. */
+    val videos: List<SessionVideoView> = emptyList(),
 )
 
 /** A driver change as a session's page shows it (M27): from [from] on the tablet's `wall`, [driver] (null: not set). */
@@ -198,6 +202,8 @@ fun Route.sessionRoutes(
                 missed = summary?.missed ?: 0,
                 driver = record.driver?.let { drivers?.get(it) }?.view(),
                 driverChanges = record.driverChanges.map { c -> DriverChangeDetail(c.from, c.driver?.let { drivers?.get(it) }?.view()) },
+                gpsLatencyMs = record.gpsLatencyMs,
+                videos = record.videos.map { it.view() },
             ),
         )
     }
