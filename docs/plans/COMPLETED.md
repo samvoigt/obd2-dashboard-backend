@@ -932,3 +932,30 @@ Sam (2026-10-24), merged with the UX work and deployed with M31 (`00052`).
   session page opens at a lap. Nothing on the website sets or shows either
   yet.
 
+## M31 — The site fits a phone  ✅ 2026-10-25
+
+UX review phase 1 (`plans/UX-REVIEW.md`). Deployed as `00052`, with M30.
+
+- **The phone check** (`web/scripts/phone-check.mjs`, Chrome's start-up shared
+  with `measure.mjs` in `chrome.mjs`): every page laid out as a 390 × 844 phone
+  by mobile emulation, signed out and with the dev sign-in; fails on sideways
+  scroll (measured against the phone's width, never `innerWidth`) and on any
+  control under 44 px on the car and session pages; screenshots in
+  `web/build/phone/`. Not in `npm test`: it needs Chrome and a server.
+- **The header** on one row under 600 px; the account in one menu (email,
+  role, Users, Dark/Bright, Sign out); a `.crew-slot` for M34's Crew button.
+- **Pages fit:** `main > * { min-width: 0 }` (a grid page's chart held the
+  event page at 603 px); tables in `.table-scroll`, scrolling inside their
+  panel with the first column held.
+- **Thumbs and type:** 44 px controls and a 0.95rem floor for the crew's
+  readouts under 600 px; `.button` once, in `app.css`.
+- **Bright mode:** a second palette for the same ten roles
+  (`:root[data-theme="bright"]`, tested for contrast and Lab distance like the
+  dark one), a Dark/Bright switch on the car and session pages and in the
+  menu, remembered in the browser; charts and maps redrawn on a change.
+- **Proven:** the dev server's 26 paths and the live site's NHMS pages pass
+  the phone check; deployed with a live stream across it (`1012`, reconnected
+  at once); Sam checked it on his phone ("looks good on phone").
+- **Found:** the review's phone screenshots were laid out wide and cropped,
+  and the first check passed a wide page (JOURNAL 2026-10-24).
+
