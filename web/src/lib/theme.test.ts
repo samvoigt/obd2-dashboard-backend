@@ -16,7 +16,7 @@ const sources = import.meta.glob(['../**/*.svelte', '../**/*.ts', '!../**/*.test
 
 type Palette = 'dark' | 'bright'
 
-/** A palette's block: dark is `:root { … }`, bright `:root[data-theme="bright"] { … }` (M30.6). */
+/** A palette's block: dark is `:root { … }`, bright `:root[data-theme="bright"] { … }` (M31.6). */
 function block(palette: Palette): string {
   const m = (palette === 'dark' ? /:root\s*\{([^}]*)\}/ : /:root\[data-theme="bright"\]\s*\{([^}]*)\}/).exec(css)
   if (!m) throw new Error(`app.css has no ${palette} palette`)
@@ -79,7 +79,7 @@ describe('the colours are the logo’s', () => {
   })
 })
 
-describe('every colour reads, dark and bright (M30.6)', () => {
+describe('every colour reads, dark and bright (M31.6)', () => {
   const grounds = ['bg', 'panel']
   const foregrounds = ['text', 'muted', 'accent', 'in-range', 'caution', 'critical']
   for (const palette of ['dark', 'bright'] as const) {
@@ -128,7 +128,7 @@ describe('shading', () => {
   })
 })
 
-describe('the theme, remembered (M30.6)', () => {
+describe('the theme, remembered (M31.6)', () => {
   it('is dark with nothing remembered, or storage refused; bright once chosen', () => {
     const was = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
     const store = (value: string | null) => Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => value } })

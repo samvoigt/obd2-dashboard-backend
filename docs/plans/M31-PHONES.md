@@ -1,4 +1,4 @@
-# M30 — The site fits a phone
+# M31 — The site fits a phone
 
 Every page usable at 360–430 px wide, one-handed, with no sideways scroll,
 and a bright mode for the pits in sunlight. This is phase 1 of the UX review
@@ -7,7 +7,7 @@ The crew, on phones in the pits, are the site's first audience.
 **Sam, 2026-10-22:** "Restructure freely, keep the look", phases in the
 review's order ("Keep: phones first, editors last"), a bright mode as a
 "Minimal version in phase 1", and the crew login as "A Crew button in the
-header" (built in M33; M30 leaves its place).
+header" (built in M34; M31 leaves its place).
 
 > **Planned 2026-10-22**, checked against the code.
 
@@ -24,7 +24,7 @@ header" (built in M33; M30 leaves its place).
   it: a landing card's "Latest: … · Live n" is cut off mid-word instead of
   wrapping, and the sessions list's rows are cut off although `li a` and
   `.facts` have `flex-wrap: wrap` (`SessionsPage.svelte:153–159`).
-  **So M30.1 measures first, the right way,** and M30.3 fixes only what it
+  **So M31.1 measures first, the right way,** and M31.3 fixes only what it
   finds. The review's list of suspects stands as a starting point.
 - **`web/scripts/measure.mjs` already lays a page out as a phone:** it starts
   Chrome with a throwaway profile and drives it over the DevTools protocol
@@ -96,7 +96,7 @@ header" (built in M33; M30 leaves its place).
 - **Tables:** a shared `.table-scroll` wrapper in `app.css`
   (`overflow-x: auto; max-width: 100%`), with the first column sticky. The
   laps and stints tables use it. The event page's sessions become rows that
-  wrap in M36.6, when that page is reordered; M30 only makes sure nothing
+  wrap in M37.6, when that page is reordered; M31 only makes sure nothing
   escapes its panel. The exception is the sessions list, whose rows already
   wrap.
 - **Touch targets:** at under 600 px, `button`, `select`, `input` (not
@@ -110,8 +110,8 @@ header" (built in M33; M30 leaves its place).
   "Sign in" (on the dev server, its two buttons). Signed in: a button
   showing the first letter of the email, which opens a small panel holding
   the email and role, Users (for a master) and Sign out. **The Crew button
-  goes in `.who`, before the account control,** as an empty slot M33 fills;
-  M30 adds no Crew control.
+  goes in `.who`, before the account control,** as an empty slot M34 fills;
+  M31 adds no Crew control.
 - **Bright mode** (§6.3) is a second palette for the same ten roles, under
   `:root[data-theme="bright"]` in `app.css`. It's chosen by a "Dark / Bright"
   switch beside the units switch, and remembered as the units are.
@@ -122,7 +122,7 @@ header" (built in M33; M30 leaves its place).
 
 ## The steps
 
-### M30.1 — The phone check (script and npm task)
+### M31.1 — The phone check (script and npm task)
 
 `web/scripts/phone-check.mjs`, built on `measure.mjs`'s start-up code. Move
 the shared part (start Chrome, `target()`, `send()`) into
@@ -150,7 +150,7 @@ the shared part (start Chrome, `target()`, `send()`) into
   `node web/scripts/phone-check.mjs [base] [paths…]`.
 
 **Check:** run it against `./gradlew :server:devServer` plus `npm run dev`.
-Record each page's result in this plan; that list is M30.3's work. Then
+Record each page's result in this plan; that list is M31.3's work. Then
 replay a short session with the M29 dev-check approach (a synthetic NHMS log)
 and check the session and event pages with extra paths.
 
@@ -159,29 +159,29 @@ now `on` for events) shared by `measure.mjs` and the new `phone-check.mjs`.
 "Quiet" is no *new* request for 2 s (capped at 15 s), since the car page
 keeps its live stream open. An element counts as poking out only if no
 ancestor scrolls or clips it, so a table scrolling inside its panel isn't an
-offender (that's M30.4's look, not a page-level overflow).
+offender (that's M31.4's look, not a page-level overflow).
 
 **Found:** at 390 × 844 with mobile emulation, **every page fits**: the 12
 signed-out and 6 signed-in default paths, and, with the M29 synthetic NHMS
 sessions and event replayed in, the event page, two session pages and a
 driver's page, signed out and in (26 checks). The review's screenshots were
 indeed laid out wider and cropped. Seen in the screenshots instead:
-- the header takes two rows (M30.2);
+- the header takes two rows (M31.2);
 - tables are cut at the panel's right edge, and the whole panel scrolls,
-  headings and all, not just the table (M30.4);
+  headings and all, not just the table (M31.4);
 - small buttons: "Now", "Save the flags", "Compare…", "Remove", "Add",
-  the stint editor's (M30.5).
+  the stint editor's (M31.5).
 
-So **M30.3 has nothing to fix**; it stays as a check that the later steps
+So **M31.3 has nothing to fix**; it stays as a check that the later steps
 keep every page passing.
 
-**Corrected the same day (during M30.4):** the first version compared
+**Corrected the same day (during M31.4):** the first version compared
 `scrollWidth` with `innerWidth`, which a mobile page wider than its screen
 grows to match (it's zoomed out to fit), so a wide page passed. It now
 compares with the phone's 390 px. Re-measured, the event page **was** 603 px
-wide (fixed in M30.4); every other page did fit.
+wide (fixed in M31.4); every other page did fit.
 
-### M30.2 — The header at phone width (§3.A, §6.2)
+### M31.2 — The header at phone width (§3.A, §6.2)
 
 `SiteHeader.svelte`:
 - Under 600 px, `header` stops wrapping and the four links shrink to fit:
@@ -191,7 +191,7 @@ wide (fixed in M30.4); every other page did fit.
   out. It closes on Escape and on a click outside.
 - Above 600 px nothing changes.
 - An empty `<span class="crew-slot"></span>` goes first in `.who`, with a
-  comment pointing at M33.
+  comment pointing at M34.
 - On the dev server, signed out, the two dev buttons go into the same menu
   under 600 px.
 
@@ -205,14 +205,14 @@ narrow one is a `<details>` menu, its summary the email's first letter signed
 in (email, role, Users for a master, Sign out inside), or "Sign in" on the dev
 server signed out (its two dev buttons inside); production's single Sign in
 button stays a button. The menu closes on Escape and on a click outside. An
-empty `.crew-slot` goes first in `.who` for M33. The 520 px rule became the
+empty `.crew-slot` goes first in `.who` for M34. The 520 px rule became the
 600 px one. **Checked** at 390 and 360 px, signed out and in: the header is
 one row (38 px; it was two), the menu opens wholly on screen and Escape
 closes it; at 1280 px the header is as before; the phone check passes.
 
-### M30.3 — Page-level overflow, page by page (§3.A)
+### M31.3 — Page-level overflow, page by page (§3.A)
 
-Fix what M30.1 found, one page per commit, until every default path passes.
+Fix what M31.1 found, one page per commit, until every default path passes.
 Likely work, from reading the code: the car page's `.back` row (two links,
 no wrap), the crew login row (an input and a button), `Faults`, the gauge
 grid's `minmax(170px, 1fr)` (fine at 390, tight at 360: lower it to 150 px
@@ -225,7 +225,7 @@ business.
 **Check:** the phone check passes for every default path. Run the existing
 tests (`npm test && npm run check`) after each page.
 
-### M30.4 — Tables scroll inside their panel (§3.A)
+### M31.4 — Tables scroll inside their panel (§3.A)
 
 - In `app.css`: `.table-scroll { overflow-x: auto; max-width: 100%;
   -webkit-overflow-scrolling: touch; }`. Its first column gets
@@ -242,7 +242,7 @@ tests (`npm test && npm run check`) after each page.
   don't.
 
 **Check:** the phone check passes with an event and a session that have 5
-sectors and speeds (the replay from M30.1). In the screenshots each table
+sectors and speeds (the replay from M31.1). In the screenshots each table
 starts at the panel's left edge, with the lap number visible while scrolling.
 
 **Built 2026-10-22.** `.table-scroll` in `app.css` (scrolls on its own,
@@ -259,7 +259,7 @@ column's width, then held the column there. One rule in `app.css`,
 with the event page at 390 px across three loads, its tables scrolling
 inside their panels.
 
-### M30.5 — Touch targets and the type floor (§3.A)
+### M31.5 — Touch targets and the type floor (§3.A)
 
 In `app.css`, `@media (max-width: 600px)`:
 - `button, select, input:not([type=checkbox]):not([type=radio]), a.button,
@@ -290,7 +290,7 @@ visible control under 44 px and fails the car page and session pages on any.
 **Checked:** all 26 paths pass; on the event page at 390 px all 21 controls
 are 44 px, and at 1280 px they keep their old 18–25 px.
 
-### M30.6 — Bright mode (§3.I, §6.3)
+### M31.6 — Bright mode (§3.I, §6.3)
 
 1. **The palette.** In `app.css`, add `:root[data-theme="bright"] { … }` with
    all ten roles and `color-scheme: light`. Suggested starting values:
@@ -319,7 +319,7 @@ are 44 px, and at 1280 px they keep their old 18–25 px.
 4. **The switch:** `widgets/ThemeSwitch.svelte`, copying `UnitsSwitch` (Dark
    | Bright). Show it next to `UnitsSwitch` on the car page and the session
    page, the pages read in the pits. Also show it in the header's account
-   menu (M30.2), so every page can change it.
+   menu (M31.2), so every page can change it.
 5. **Canvas:** `Chart`, `LapChart`, `DistanceChart`, `SessionMap`,
    `CourseMap` and `GMeter` read `themeState`. Each rebuilds when it changes:
    uPlot is destroyed and re-created with the same data, and Leaflet layers
@@ -353,7 +353,7 @@ survives a reload. Run the phone check again in bright mode (it sets
   `main.ts` applies it before `mount`.
 - **The switch:** `widgets/ThemeSwitch.svelte` (Dark | Bright, as
   `UnitsSwitch`), beside the units switch on the car page and the session
-  page. The header's account menu adds it in M30.2 (a TODO in the file).
+  page. The header's account menu adds it in M31.2 (a TODO in the file).
 - **Canvas, drawn again on a change of theme:**
   - `Chart`, `LapChart`, `DistanceChart`: an effect rebuilds the uPlot when
     the theme differs from the one it was drawn in;
@@ -370,17 +370,17 @@ survives a reload. Run the phone check again in bright mode (it sets
 - **Not yet checked by eye:** the switch on the dev server with a replay
   streaming, and the phone check in bright mode (the plan's check).
 
-**Merged and finished 2026-10-22.** Built in a separate worktree while M30.2 and
-M30.4 were built here, then merged; once the header's menu existed, the
+**Merged and finished 2026-10-22.** Built in a separate worktree while M31.2 and
+M31.4 were built here, then merged; once the header's menu existed, the
 switch went into it too (signed in, at phone width). **Checked** in a
 390 px headless phone on the session page: Bright repaints the page, the
 chart (re-created) and the map at once, without a reload, and is still
 chosen after one; the event page's lap chart is drawn in the bright palette.
 
-### M30.7 — Deployed, and looked at on a phone
+### M31.7 — Deployed, and looked at on a phone
 
 Before deploying, the review's three walk-throughs (§5) are timed on a
-phone against the current site, as the baseline M33.6 and M35 compare
+phone against the current site, as the baseline M34.6 and M36 compare
 with; the times go to JOURNAL. Then deploy as usual: a smoke car streaming across the deploy. Then Sam opens
 badnewsbears.live on his phone:
 - the landing page;

@@ -24,7 +24,7 @@
   color: var(--text);
 }
 /*
- * Bright, for the pits in sunlight (M30.6, Sam 2026-10-22): the same ten roles,
+ * Bright, for the pits in sunlight (M31.6, Sam 2026-10-22): the same ten roles,
  * lighter. The logo's four are darkened only as far as 3:1 on white needs, and
  * kept 25 apart in Lab; light pink becomes an orchid so it stays apart from the
  * hot pink. The same test checks both palettes.
@@ -46,7 +46,7 @@
 body { margin: 0; min-height: 100vh; background: var(--bg); }
 a { color: inherit; }
 main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-/* A page's parts may shrink to the screen (M30.4): in a grid page, a part would otherwise be as wide as its widest
+/* A page's parts may shrink to the screen (M31.4): in a grid page, a part would otherwise be as wide as its widest
    content, and a chart, drawn at its column's width, would then hold the whole page wider than a phone. */
 main > * { min-width: 0; }
 h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
@@ -57,14 +57,14 @@ h1 { font-size: 1.4rem; margin: 8px 0 16px; letter-spacing: 0.02em; }
 .dot.no_session { background: var(--accent); }
 .dot.offline { background: var(--no-data); }
 
-/* A table wider than its panel scrolls inside it, never the page (M30.4); its first column stays put. */
+/* A table wider than its panel scrolls inside it, never the page (M31.4); its first column stays put. */
 .table-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
 .table-scroll :is(th, td):first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); }
 
-/* A link that looks like a button (M30.5: once, here, not in four pages). */
+/* A link that looks like a button (M31.5: once, here, not in four pages). */
 .button { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-weight: 600; }
 
-/* A phone (M30.5): every control big enough for a thumb, 44 px, whatever its own padding. */
+/* A phone (M31.5): every control big enough for a thumb, 44 px, whatever its own padding. */
 @media (max-width: 600px) {
   button, select, input:not([type=checkbox]):not([type=radio]), a.button, summary { min-height: 44px; }
   a.button { display: inline-flex; align-items: center; }

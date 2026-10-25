@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Does every page fit a phone (M30.1)? Each path laid out as a 390 × 844 phone (mobile
+// Does every page fit a phone (M31.1)? Each path laid out as a 390 × 844 phone (mobile
 // emulation, as measure.mjs does: a desktop window won't lay out that narrow), and a page
 // fails when it scrolls sideways. Tables may scroll inside their panel; the page never does.
 //
@@ -54,7 +54,7 @@ const MEASURE = `(() => {
       right: Math.round(r.right), width: Math.round(r.width), text: (el.textContent ?? '').trim().slice(0, 40) })
   }
   out.sort((a, b) => b.right - a.right)
-  // Controls under 44 px tall (M30.5), visible ones only.
+  // Controls under 44 px tall (M31.5), visible ones only.
   const small = []
   for (const el of document.querySelectorAll('button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), a.button, summary')) {
     const r = el.getBoundingClientRect()

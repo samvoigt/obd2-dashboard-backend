@@ -150,7 +150,7 @@
     }
   })
 
-  // The theme changed (M30.6): the dot in its colours; the trace follows through its key above.
+  // The theme changed (M31.6): the dot in its colours; the trace follows through its key above.
   $effect(() => {
     void themeState.theme
     dot?.setStyle({ color: color('text'), fillColor: color('bg') })

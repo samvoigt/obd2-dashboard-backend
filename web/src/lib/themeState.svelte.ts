@@ -1,5 +1,5 @@
 /**
- * The viewer's theme (M30.6), shared by every page, remembered in their browser.
+ * The viewer's theme (M31.6), shared by every page, remembered in their browser.
  * What draws on a canvas reads [themeState] and draws again when it changes.
  */
 import { applyTheme, loadTheme, saveTheme, type Theme } from './theme'

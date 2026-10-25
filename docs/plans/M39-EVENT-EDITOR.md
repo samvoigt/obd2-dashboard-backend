@@ -1,6 +1,6 @@
-# M38 — The event editor: see which sessions each part catches before saving
+# M39 — The event editor: see which sessions each part catches before saving
 
-Phase 7 of the UX review (`docs/plans/UX-REVIEW.md` §3.G and §4, "M38"). The
+Phase 7 of the UX review (`docs/plans/UX-REVIEW.md` §3.G and §4, "M39"). The
 event editor is one page of fields, then a list of parts as rows of
 date-time inputs, then (only once saved) the sessions each part caught. The
 thing people get wrong is the windows model: a session lands in the wrong
@@ -8,9 +8,9 @@ part, or in none, and you only find out after saving. **Sam, 2026-10-22,**
 named the admin editors as one of the three places people get lost, and
 kept this phase last (§6.5 of the review): phones first, editors after.
 
-> **Planned 2026-10-22**, checked against the code. Built after M32, which
+> **Planned 2026-10-22**, checked against the code. Built after M33, which
 > places a merged session as one unit (`EventRules.sessionsIn(event,
-> sessions, merges)`, M32.4).
+> sessions, merges)`, M33.4).
 
 ---
 
@@ -46,7 +46,7 @@ kept this phase last (§6.5 of the review): phones first, editors after.
   session added by hand goes to that part; otherwise to the part whose
   window overlaps its heard time most (later part on a tie), unless removed
   there. It needs only the event's cars and parts, and each session's car,
-  heard times and source. After M32.4 it also takes the cars' merges: a
+  heard times and source. After M33.4 it also takes the cars' merges: a
   merged session is placed whole, by its span, and a member named in
   `added` or `removed` moves them all; it still answers member ids.
 - **Saving** is `PUT /api/admin/events/{id}` with `SaveEvent`; `toEvent` gives
@@ -83,13 +83,13 @@ must answer by the parts' position in the request, not by id.
 
 ## The steps
 
-### M38.1 — Placement as one function (server, tested)
+### M39.1 — Placement as one function (server, tested)
 
 Move the body of `GET /api/admin/events/{id}` after its permission check into
 `fun placement(event: Event, sessions: List<SessionRecord>, merges:
 List<MergedSession>): AdminPlacement` in `EventRoutes.kt`, where
 `AdminPlacement(byPart: Map<String, List<SessionBrief>>, others:
-List<SessionBrief>)`. It passes the merges to `sessionsIn` (as M32.4 already
+List<SessionBrief>)`. It passes the merges to `sessionsIn` (as M33.4 already
 made this route do) and folds a merged session's members into one
 `SessionBrief` (the merge's id and name, first heard to last heard, and
 `members: List<String>`, a new optional field), in placed lists and
@@ -100,7 +100,7 @@ byPart, others)` as before.
 passes unchanged; a new case: two sessions merged list as one brief with
 both members.
 
-### M38.2 — `POST /api/admin/events/{id}/placement` (server, tested)
+### M39.2 — `POST /api/admin/events/{id}/placement` (server, tested)
 
 In `adminEventRoutes`:
 1. `current = events.get(id)`; `call.may(if (current == null) CREATE else
@@ -128,7 +128,7 @@ In `adminEventRoutes`:
   else made, a user not its editor: 403 (as the M23 test does);
 - the event store's revision is unchanged after any number of previews.
 
-### M38.3 — The page asks as you edit (web)
+### M39.3 — The page asks as you edit (web)
 
 In `lib/events.ts`: `placementBody(draft, revision)` (the same shape
 `saveBody` builds) and an `AdminPlacement` type. In `EventEditor.svelte`: an
@@ -140,7 +140,7 @@ event asks with the id it would get (`newId`).
 same draft. On the dev server: changing a part's end updates its sessions
 within a second.
 
-### M38.4 — Sessions shown before saving, and moved on the draft (web)
+### M39.4 — Sessions shown before saving, and moved on the draft (web)
 
 The Sessions section shows always (a new event included), reading
 `placement` instead of `page`:
@@ -161,7 +161,7 @@ practices shows the dev car's sessions in each before it's saved (a merged
 one as one row), a session taken out moves to "others", and one Save stores
 it all (the event page then agrees).
 
-### M38.5 — Three sections, and the schedule by day (web)
+### M39.5 — Three sections, and the schedule by day (web)
 
 - **The event:** the fields as now, under "The event".
 - **The schedule:** the parts sorted by start, grouped under a heading per
@@ -171,7 +171,7 @@ it all (the event page then agrees).
   heard during its window. Practice parts give each driver's best; race
   parts are one race, its laps adding up across them." The timezone note
   stays, shorter.
-- **The sessions:** as in M38.4.
+- **The sessions:** as in M39.4.
 - Remove the event stays where it is, at the bottom, `may.delete` only.
 
 Keep the existing `.panel` and `.row` styles; no new colours (decision 29).
@@ -179,7 +179,7 @@ Keep the existing `.panel` and `.row` styles; no new colours (decision 29).
 **Check:** on the dev server with the M29 synthetic event (three parts over
 three days): three day headings, counts that match the Sessions section.
 
-### M38.6 — Deployed
+### M39.6 — Deployed
 
 Deployed with a live stream across it, as usual (JOURNAL: M4, M13). On the
 live site, Sam opens NHMS Lemons 2026's editor, moves a window by an hour
@@ -191,5 +191,5 @@ page is unchanged.
 - Changing a part's kind after it's made.
 - Dragging parts on a timeline. A list by day is enough for two or three
   days.
-- Phone layout of the editor: phase 1 (M30) makes every page fit; this page
+- Phone layout of the editor: phase 1 (M31) makes every page fit; this page
   is used at a desk.

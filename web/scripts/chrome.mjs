@@ -1,6 +1,6 @@
 // A headless Chrome of its own (a throwaway profile, never anyone's), driven over the
 // DevTools protocol with Node's built-in WebSocket, so nothing is installed (M8.4).
-// Shared by measure.mjs and phone-check.mjs (M30.1). Needs Google Chrome in /Applications.
+// Shared by measure.mjs and phone-check.mjs (M31.1). Needs Google Chrome in /Applications.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

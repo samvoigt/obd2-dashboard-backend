@@ -156,7 +156,7 @@
     // In the viewer's units (M8.3), as the car's page is.
     return [x, ...ys.map((y, i) => columnShown(y, unitOf(view!, names[i] ?? ''), units.system))] as [number[], ...(number | null | undefined)[][]]
   })
-  // Coloured in the theme's colours (M30.6): read here, so a change of theme colours them again.
+  // Coloured in the theme's colours (M31.6): read here, so a change of theme colours them again.
   const bands = $derived(
     themeState.theme && merged.provisionalFrom !== null && data && data[0].length > 0
       ? [{ from: merged.provisionalFrom / 1000, to: data[0][data[0].length - 1]!, color: translucent(color('caution'), 0.1) }]

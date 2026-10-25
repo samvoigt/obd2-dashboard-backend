@@ -238,7 +238,7 @@
     const pointsOf = editing
     const lit = hovered
     void readOnly
-    void themeState.theme // drawn again in the theme's colours (M30.6)
+    void themeState.theme // drawn again in the theme's colours (M31.6)
     if (!m || !drawn) return
     drawn.clearLayers()
     if (guide.length > 1) drawn.addLayer(L.polyline(guide.map(latlng), { color: color('muted'), weight: 3, opacity: 0.6, dashArray: '4 6', interactive: false }))

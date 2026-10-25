@@ -4,7 +4,7 @@
  * `app.css`, which holds every colour on the site; nothing is written here.
  */
 
-/** Dark, as the site always was, or bright for the pits in sunlight (M30.6). */
+/** Dark, as the site always was, or bright for the pits in sunlight (M31.6). */
 export type Theme = 'dark' | 'bright'
 
 const KEY = 'theme'

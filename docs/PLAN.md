@@ -44,18 +44,18 @@ Where this plan and the contract disagree, the contract wins. Fix the plan.
 | **M27** | Driver changes within a session: split a session where the driver changed, each part's laps its driver's (practice, race stints, live, driver pages) | **deployed** (00045): decision 44, [`plans/COMPLETED.md`](plans/COMPLETED.md) |
 | **M28** | A session's GPS positions at the receiver's time (not when the tablet heard them, which Bluetooth bunches), and positions no car could reach left out of the map and speeds; lap timing unchanged | **deployed** (00049, 00050): decision 45, [`plans/COMPLETED.md`](plans/COMPLETED.md) |
 | **M29** | Download an event's data: a folder per part (practice, race session 1, race session 2), each car's sessions merged into one raw log (every line as the tablet sent it, VIN included, for the car's editors), with drivers, driver changes, laps, stints and flags beside it | **deployed** (00051): decision 46, [`plans/COMPLETED.md`](plans/COMPLETED.md) |
-| **M30** | The site fits a phone: a phone check that fails the build on sideways scroll, the header on one row, tables that scroll inside their panels, 44 px touch targets, a minimal bright mode for the pits (UX review phase 1) | **planned**: [`plans/M30-PHONES.md`](plans/M30-PHONES.md) |
-| **M31** | Who drove belongs to the session: race stints worked out from sessions' drivers and changes, never edited (stops inside stints); a correction replaces; a session straight after another carries its driver over; hand-edited stints migrated into sessions and removed (decision 47, drafted; UX review §7) | **planned**: [`plans/M31-DRIVERS-BY-SESSION.md`](plans/M31-DRIVERS-BY-SESSION.md) |
-| **M32** | Merged sessions: pick sessions on the list and merge them into one session the whole site shows as one (members stay as stored; same part or none; restart-split ones suggested, never merged without a click; decision 48, drafted). | **planned**: [`plans/M32-MERGED-SESSIONS.md`](plans/M32-MERGED-SESSIONS.md) |
-| **M33** | Who's driving, the screens: Set driver in the Driver panel (who, then when: now, the last stop, a lap, a time); the crew login as a header button; the session page's Drivers block, the one place to edit who drove (phase 2) | **planned**: [`plans/M33-WHOS-DRIVING-UI.md`](plans/M33-WHOS-DRIVING-UI.md) |
-| **M34** | Nothing waits in silence: the results hold keyed by what the viewer may see (a privacy fix, first), held until edited, laps before the series, placeholders for "Loading…", a title per page (phase 3) | **planned**: [`plans/M34-NO-SILENT-WAITS.md`](plans/M34-NO-SILENT-WAITS.md) |
-| **M35** | Finding your way: a "Now" card on the landing, "Live · Results" in the nav, breadcrumbs, car names not slugs, an offline car page that says when it was last seen, the Hidden badge on manage pages only (phase 4) | **planned**: [`plans/M35-FINDING-YOUR-WAY.md`](plans/M35-FINDING-YOUR-WAY.md) |
-| **M36** | The event page: one row per session, stops in the stints table, empty stints hidden, admin tools behind "Edit the race", practice shown once (phase 5) | **planned**: [`plans/M36-EVENT-PAGE.md`](plans/M36-EVENT-PAGE.md) |
-| **M37** | The session page and the sessions list: pick two laps to compare, units in the headers, readable signal names, map and laps before the chart, "50 laps · best 1:30.200" (phase 6) | **planned**: [`plans/M37-SESSION-PAGE.md`](plans/M37-SESSION-PAGE.md) |
-| **M38** | The event editor: which sessions each part will catch, shown before saving (a dry-run placement), the schedule by day (phase 7) | **planned**: [`plans/M38-EVENT-EDITOR.md`](plans/M38-EVENT-EDITOR.md) |
-| **M39** | The course editor: a toolbar on the map with the mode, Esc, Undo and Redo; the sidebar in four groups with done marks; a sticky save bar (phase 7) | **planned**: [`plans/M39-COURSE-EDITOR.md`](plans/M39-COURSE-EDITOR.md) |
+| **M31** | The site fits a phone: a phone check that fails the build on sideways scroll, the header on one row, tables that scroll inside their panels, 44 px touch targets, a minimal bright mode for the pits (UX review phase 1) | **planned**: [`plans/M31-PHONES.md`](plans/M31-PHONES.md) |
+| **M32** | Who drove belongs to the session: race stints worked out from sessions' drivers and changes, never edited (stops inside stints); a correction replaces; a session straight after another carries its driver over; hand-edited stints migrated into sessions and removed (decision 48, drafted; UX review §7) | **planned**: [`plans/M32-DRIVERS-BY-SESSION.md`](plans/M32-DRIVERS-BY-SESSION.md) |
+| **M33** | Merged sessions: pick sessions on the list and merge them into one session the whole site shows as one (members stay as stored; same part or none; restart-split ones suggested, never merged without a click; decision 49, drafted). | **planned**: [`plans/M33-MERGED-SESSIONS.md`](plans/M33-MERGED-SESSIONS.md) |
+| **M34** | Who's driving, the screens: Set driver in the Driver panel (who, then when: now, the last stop, a lap, a time); the crew login as a header button; the session page's Drivers block, the one place to edit who drove (phase 2) | **planned**: [`plans/M34-WHOS-DRIVING-UI.md`](plans/M34-WHOS-DRIVING-UI.md) |
+| **M35** | Nothing waits in silence: the results hold keyed by what the viewer may see (a privacy fix, first), held until edited, laps before the series, placeholders for "Loading…", a title per page (phase 3) | **planned**: [`plans/M35-NO-SILENT-WAITS.md`](plans/M35-NO-SILENT-WAITS.md) |
+| **M36** | Finding your way: a "Now" card on the landing, "Live · Results" in the nav, breadcrumbs, car names not slugs, an offline car page that says when it was last seen, the Hidden badge on manage pages only (phase 4) | **planned**: [`plans/M36-FINDING-YOUR-WAY.md`](plans/M36-FINDING-YOUR-WAY.md) |
+| **M37** | The event page: one row per session, stops in the stints table, empty stints hidden, admin tools behind "Edit the race", practice shown once (phase 5) | **planned**: [`plans/M37-EVENT-PAGE.md`](plans/M37-EVENT-PAGE.md) |
+| **M38** | The session page and the sessions list: pick two laps to compare, units in the headers, readable signal names, map and laps before the chart, "50 laps · best 1:30.200" (phase 6) | **planned**: [`plans/M38-SESSION-PAGE.md`](plans/M38-SESSION-PAGE.md) |
+| **M39** | The event editor: which sessions each part will catch, shown before saving (a dry-run placement), the schedule by day (phase 7) | **planned**: [`plans/M39-EVENT-EDITOR.md`](plans/M39-EVENT-EDITOR.md) |
+| **M40** | The course editor: a toolbar on the map with the mode, Esc, Undo and Redo; the sidebar in four groups with done marks; a sticky save bar (phase 7) | **planned**: [`plans/M40-COURSE-EDITOR.md`](plans/M40-COURSE-EDITOR.md) |
 
-**The UX work (M30–M39) is built in numerical order** (Sam, 2026-10-22: renumbered so it is).
+**The UX work (M31–M40) is built in numerical order** (Sam, 2026-10-22: renumbered so it is).
 
 **How a milestone runs**, as in the app:
 - A plan in `docs/plans/` sketches every step.
@@ -200,7 +200,7 @@ The tablet's build order is in contract §10:
 
 The server is ready for each piece before the tablet needs it. M3 lands before
 the shipper, M4 before the live lane, and M5 before the widget. **All three are
-ready**; the widget (the app's M36.5) needs a real car registered with a passcode.
+ready**; the widget (the app's M37.5) needs a real car registered with a passcode.
 
 **Hardware.** The tablet has cellular: a working SIM (the tablet's §23,
 2026-09-28; measured without one on 2026-09-10).

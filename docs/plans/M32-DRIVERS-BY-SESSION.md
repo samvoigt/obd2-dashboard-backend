@@ -1,4 +1,4 @@
-# M31 — Who drove belongs to the session; race stints follow from it
+# M32 — Who drove belongs to the session; race stints follow from it
 
 One record says who drove: each session's driver from its start and its
 driver changes. Race stints are worked out from those and are never edited
@@ -6,7 +6,7 @@ on their own. The stint editor, edited stints and the two precedence rules
 that made a crew's change "not take" go. A new session that follows straight
 on from the last carries its driver over, and a change made by mistake and
 corrected within a minute or a lap replaces the mistake. This is the model
-half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M33.
+half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M34.
 
 **Sam, 2026-10-22:**
 - "yes, any change to the stint takes place everywhere."
@@ -17,8 +17,8 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M33.
 - "a stint shorter than 60s or 1 lap is likely a correction".
 
 > **Planned 2026-10-22**, checked against the code. Replaces the drafted
-> decision 47 in the first M31 plan (replaced by this one and M33, 2026-10-22; renumbered in build order the same day).
-> Buildable and deployable before M33: the live page's picker and the
+> decision 48 in the first M32 plan (replaced by this one and M34, 2026-10-22; renumbered in build order the same day).
+> Buildable and deployable before M34: the live page's picker and the
 > session page keep working as they are, on the new model.
 
 ---
@@ -88,11 +88,11 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M33.
 
 ## Decided here
 
-- **Decision 47 (amends 34, 35, 43 and 44): who drove belongs to the
+- **Decision 48 (amends 34, 35, 43 and 44): who drove belongs to the
   session; race stints follow from it.**
   - A session's driver from its start and its driver changes are the only
     record of who drove. They're edited on the session page, and the live
-    page's crew sets the live session's (M33).
+    page's crew sets the live session's (M34).
   - **A race's stints are worked out, never edited:** within each race part,
     a stint starts at the part's first lap, at each driver change in its
     sessions, and at a session's start when its driver differs from the
@@ -125,7 +125,7 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M33.
 
 ## The steps
 
-### M31.1 — Stints from session drivers (pure, tested)
+### M32.1 — Stints from session drivers (pure, tested)
 
 `timing/.../Race.kt`: `defaultStints` becomes `stintsOf(laps, drivers,
 changes)` as decided (first lap; each change inside the part; a session's
@@ -147,7 +147,7 @@ Tests (`RaceTest`), rewritten:
 - new: three back-to-back sessions with the same driver are one stint; a
   stint never crosses a race part.
 
-### M31.2 — The correction rule (pure, tested)
+### M32.2 — The correction rule (pure, tested)
 
 `archive/.../DriverRules.kt` (beside `DriverChange`; `:events` can't see
 it): `normalise(start: Long?, driver: String?,
@@ -164,19 +164,19 @@ apart with no lap between → replaced; 5 min with a lap between → both kept; 
 start sets the driver; three in a row collapse to the last; already
 normal → unchanged and nothing reported.
 
-### M31.3 — The server applies it where drivers are saved
+### M32.3 — The server applies it where drivers are saved
 
 `DriverRoutes.kt`: `setDriver` and `setDriverChanges` normalise before
 storing, with the session's lap ends from a `lapEnds: suspend (car, id) ->
 List<Long>` passed into `driverRoutes` (wired in `Application.kt` from
 `retiming.sessionLaps` and `liveTimings.laps`, as `sessionRoutes` is). The
-answer carries the stored list and `replaced` (M33 shows it).
+answer carries the stored list and `replaced` (M34 shows it).
 
 Tests (`DriverRoutesTest`): a change 30 s after another stores one, and the
 answer names the replaced one; the existing `driver changes within a session
 (M27)` case still passes.
 
-### M31.4 — The carry-over
+### M32.4 — The carry-over
 
 `archiveRoutes` gains an `opened: suspend (car, id) -> Unit` callback,
 called on `Open.Created` (a new session's line 0, or an announced one's
@@ -193,20 +193,20 @@ a restart (same device, `at` begun again) → carried, as decided; another
 device → not; 11 min apart → not; exactly 10 min → carried; already set → untouched; previous ended
 with a change → that driver; test data (`fake`) on either side → not.
 
-### M31.5 — Readers switched, the editor and its routes removed
+### M32.5 — Readers switched, the editor and its routes removed
 
 - `EventResults.kt` (`RaceSessionInput`, `RaceSessionResults.edited`,
   `seen`'s stints filter), `CarTimings.kt`, `Standings.kt`: no `edited`;
   `driverNow` in a race is the last stint's driver, one rule.
   `Event.keepingRaceEdits` and `eventProblems` keep carrying and checking
-  `Part.stints` until M31.6 clears it.
+  `Part.stints` until M32.6 clears it.
 - `RaceRoutes.kt`: both stints routes go (404, as any unknown path).
   `RaceSessionResults.edited` goes.
 - `EventDownload.kt`: `ExportPart.stints` and the `edited` column go; README
   text updated.
 - `RaceSection.svelte`: the stint editor, "Edit … stints", "Back to
   splitting at every stop" and the "as set by hand" line go; the stints
-  table stays (M36 links each stint to its session). `lib/race.ts` loses
+  table stays (M37 links each stint to its session). `lib/race.ts` loses
   `CarRace.stintsEdited`, `RaceSessionResults.edited`, `StintMark`,
   `marksOf`, `mergeWithPrevious`, `splitAt` and `setDriver`; `racePath`
   keeps only `'flags'`.
@@ -221,7 +221,7 @@ name the driver…` become one: the last stint's driver); `EventDownloadTest`
 stand, to edit`, `merge a stint…`, `split at a lap…`; the paths test keeps
 flags). Every other test passes unchanged.
 
-### M31.6 — The migration (Sam runs it)
+### M32.6 — The migration (Sam runs it)
 
 The race can only be worked out in `:server` (see What exists), so the
 migration is a second entry point there: `server/src/main/.../MigrateStints.kt`,
@@ -235,7 +235,7 @@ in the same file, tested. For each event, each race part, each car with
 `Part.stints`, it works out each race lap's driver both ways: **before**,
 by the edited marks (the last mark that began before the lap ended, today's
 rule at `Race.kt:141`, kept in `StintMigration` since `Race` no longer
-takes marks after M31.1); **after**, by `Race.sessions` on the session
+takes marks after M32.1); **after**, by `Race.sessions` on the session
 drivers it would write. It writes, per mark: inside
 a session's laps → a driver change at `start`; at or before a session's
 first lap → that session's driver. Marks with no laps are dropped. Each
@@ -252,9 +252,9 @@ sessions, at a session's start, empty ones, a same-driver split at a stop):
 laps per driver equal both ways; then Sam's dry run on production shows
 SAM 122, HUG 118, PAU 113, DRE 107 both sides.
 
-### M31.7 — Deployed, then migrated
+### M32.7 — Deployed, then migrated
 
-Decision 47 into `DECISIONS.md`. **The order matters**, so NHMS's race never
+Decision 48 into `DECISIONS.md`. **The order matters**, so NHMS's race never
 shows stints from the old session drivers alone:
 1. Sam runs the dry run, then `--apply`, against production (old server
    still running; nothing visible changes).
@@ -268,4 +268,4 @@ JOURNAL records the dry run's table and the check.
 ## Open questions
 
 - **The carry-over across a restart** — answered 2026-10-22: same tablet,
-  back to back (10 min), restarts included (M31.4).
+  back to back (10 min), restarts included (M32.4).

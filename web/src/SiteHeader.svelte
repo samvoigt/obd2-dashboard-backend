@@ -14,7 +14,7 @@
   let googleButton: HTMLDivElement | undefined = $state()
   let googleLoaded = false
 
-  // Under 600 px the account controls fold into one menu (M30.2); it closes on Escape and on a click outside.
+  // Under 600 px the account controls fold into one menu (M31.2); it closes on Escape and on a click outside.
   let menu: HTMLDetailsElement | undefined = $state()
   onMount(() => {
     void signin.check()
@@ -95,7 +95,7 @@
     {/each}
   </nav>
   <div class="who">
-    <!-- The crew's login goes here, before the account control (M33). -->
+    <!-- The crew's login goes here, before the account control (M34). -->
     <span class="crew-slot"></span>
     <div class="wide">
     {#if $signin.state === 'in'}
@@ -179,7 +179,7 @@
     display: grid; gap: 8px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
   }
   .menu a { color: var(--accent); text-decoration: none; }
-  /* A phone (M30.2): one row, the site's name dropped, the account in one control. */
+  /* A phone (M31.2): one row, the site's name dropped, the account in one control. */
   @media (max-width: 600px) {
     header { flex-wrap: nowrap; gap: 10px; }
     .home span { display: none; }

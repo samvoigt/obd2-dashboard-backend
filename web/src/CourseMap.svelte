@@ -33,7 +33,7 @@
     const m = map
     const c = course
     const sel = layout
-    void themeState.theme // drawn again in the theme's colours (M30.6)
+    void themeState.theme // drawn again in the theme's colours (M31.6)
     if (!m || !drawn) return
     drawn.clearLayers()
     const points = c.layouts.flatMap((l) => l.path)

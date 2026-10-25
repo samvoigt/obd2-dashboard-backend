@@ -84,7 +84,7 @@
     if (plot) draw()
   })
 
-  // The theme changed (M30.6): drawn again in its colours, which uPlot only reads when built.
+  // The theme changed (M31.6): drawn again in its colours, which uPlot only reads when built.
   let drawnIn = themeState.theme
   $effect(() => {
     const theme = themeState.theme

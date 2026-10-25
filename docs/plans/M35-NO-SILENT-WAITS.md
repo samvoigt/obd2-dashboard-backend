@@ -1,4 +1,4 @@
-# M34 — Nothing waits in silence
+# M35 — Nothing waits in silence
 
 Pages show something at once and fill in as data arrives: event results are
 worked out once and kept until something they're made of changes, a
@@ -8,7 +8,7 @@ browser tab. Phase 3 of the UX review (`UX-REVIEW.md` §3.B, §4 phase 3).
 who's driving, then this.
 
 > **Planned 2026-10-22**, checked against the code. Found while checking:
-> the results hold's key ignores which cars the viewer may see (M34.1, a
+> the results hold's key ignores which cars the viewer may see (M35.1, a
 > privacy fix, first).
 
 ---
@@ -41,7 +41,7 @@ who's driving, then this.
   re-timing stored (`RetimingJobs.sessionPrepared` → `retime`, and a course
   save's job in `courseSaved`); a session deleted (`CarAdmin.deleteSession`,
   in `adminCarRoutes`). With a 10 s hold these don't matter; with a long one
-  they must clear it. **M32.3 (built before this)** gave `adminCarRoutes` an
+  they must clear it. **M33.3 (built before this)** gave `adminCarRoutes` an
   `onChanged` (`edited`) and calls it on every merge, extension, unmerge and
   a merged session's delete; a plain session's delete doesn't call it yet.
 - **Live parts:** while a session in the event isn't complete, its laps are
@@ -53,7 +53,7 @@ who's driving, then this.
 - **The session page** (`SessionPage.svelte`, `onMount`, line 202): fetches
   `/api/sessions/{id}`, then (not awaited) drivers and messages, then
   **awaits the series** (thinned first for sessions over an hour, M19.6;
-  for a merged session, each member's, joined by `fetchMergedSeries`, M32.7),
+  for a merged session, each member's, joined by `fetchMergedSeries`, M33.7),
   and only then `fetchLaps(id)` (`/api/sessions/{id}/laps`, a few kB). The
   laps table and lap speeds are derived from `standing` or the series
   (`laps` at line 166), so the laps could show first, without speeds, and
@@ -71,13 +71,13 @@ who's driving, then this.
   joined). An entry for an event with a session still live is held 10 s, as
   now; the page's 30 s refresh then sees new laps.
 - **What clears the hold:** everything that calls `edited` today (since
-  M32, merges included), plus a session completing, a session's re-timing
+  M33, merges included), plus a session completing, a session's re-timing
   stored, a course's re-timing job finishing, and a plain session deleted. One `resultsHold.clear()` each; no
   finer invalidation (events are few; recomputing one on the next visit is
   fine).
 - **The 202-with-progress idea is deferred.** Measure first: with the hold,
   only the first visit after a change pays the 5–8 s. If that first visit is
-  still a problem after M34.1–M34.2 (measured on NHMS, below), a later
+  still a problem after M35.1–M35.2 (measured on NHMS, below), a later
   milestone adds it; this one doesn't.
 - **Skeletons, not spinners:** each page renders its panels with their
   headings and a placeholder block of the panel's usual height
@@ -90,7 +90,7 @@ who's driving, then this.
 
 ## The steps
 
-### M34.1 — The hold keyed by what's seen (privacy, first)
+### M35.1 — The hold keyed by what's seen (privacy, first)
 
 `ResultsHold.get`'s key becomes `"${event.id}@${event.revision}:${event.cars.sorted().joinToString(",")}"`
 (`seen` already removes hidden cars, so the cars are what's seen).
@@ -101,7 +101,7 @@ answer doesn't name the hidden car or its sessions. Fails before the change, pas
 
 Deploy on its own (with a replay streaming), since it's a leak today.
 
-### M34.2 — Held until changed
+### M35.2 — Held until changed
 
 `ResultsHold` gains `get(event, live: Boolean, compute)`: `live` entries
 expire after 10 s, others never; `clear()` as now. `eventResults` already
@@ -112,24 +112,24 @@ Clear the hold also in `Application.kt`: in the `completed` callback; from
 `RetimingJobs` (a new `onRetimed: () -> Unit` constructor parameter, called
 after `retime` stores and after a course job finishes); and after a plain
 session's delete in `adminCarRoutes` (`DELETE /api/admin/sessions/{id}`),
-through the `onChanged` M32.3 gave it.
+through the `onChanged` M33.3 gave it.
 
 Tests: a held entry outlives 10 s when nothing is live (fixed clock); a live
 one doesn't; each new clearing path empties it (`LiveResultsTest`,
-`RetimingJobsTest` with the callback counted); a merge (M32's route) still
+`RetimingJobsTest` with the callback counted); a merge (M33's route) still
 empties it.
 
 Measure (JOURNAL): on production after deploy, the NHMS event page twice in
 a row and after an edit, from the logs' `GET /api/events/… in Nms`; the
 driver page the same.
 
-### M34.3 — The session page: laps first
+### M35.3 — The session page: laps first
 
 Move the order of loading out of `SessionPage.svelte`'s `onMount` into a
 `loadSession(id, fetcher, { detail, laps, series })` in
 `lib/sessionPage.ts` that calls each callback as its part arrives: the
 detail, then at once `fetchLaps(id)` (a complete or merged session; a
-merge's id answers its laps through, M32.5), then the series
+merge's id answers its laps through, M33.5), then the series
 (`fetchSeries`, or `fetchMergedSeries` for a merge). The page renders the
 laps panel, lifted out of the `{#if !view}` gate, as soon as `standing` is
 set, speeds blank until the series comes (`speedOf` already returns nothing
@@ -141,7 +141,7 @@ session, `/laps` is asked before `/series`; for a merged one, its `/laps`
 before any member's `/series`. Check on the dev server with the M29
 synthetic 3 h session: the laps table appears before the chart.
 
-### M34.4 — Skeletons
+### M35.4 — Skeletons
 
 `.skeleton` in `app.css`; replace each "Loading…" with the page's real
 headings and skeleton blocks: event (title, standings, chart, stints), car
@@ -152,18 +152,18 @@ Check: at 390 px and desktop, each page's layout appears before its data
 (throttle the network in the browser to see it); no layout jump larger than
 a line when the data lands.
 
-### M34.5 — Page titles
+### M35.5 — Page titles
 
 `lib/title.ts`: `setTitle(...parts)` → `document.title = [...parts, 'Bad
 News Bears'].join(' · ')`. Each page calls it once its name is known (and
 with the list name at once); a merged session's page uses the merge's name
 or first start. Test: the function's output; a check in the
-phone script (M30) that each route's title isn't the default.
+phone script (M31) that each route's title isn't the default.
 
-### M34.6 — Deployed, and measured
+### M35.6 — Deployed, and measured
 
 With a replay streaming across the deploy. JOURNAL: the event page's and
-driver page's times before (2026-10-20's logs) and after (M34.2's
+driver page's times before (2026-10-20's logs) and after (M35.2's
 measurement); the session page's time to laps on the 3 h 17 min Saturday
 12:00 session, before and after (browser, signed out). Decide there
 whether the first-visit progress line is still wanted.
