@@ -905,3 +905,30 @@ Decision 46.
     once).
   - Sam downloaded the NHMS race weekend in 33.8 s (JOURNAL 2026-10-20).
 
+## M30 — A session's GPS on the receiver's time, its latency, its videos  ✅ 2026-10-24
+
+Decision 47. Proposed by Hugh in a pull request (2026-10-20), accepted by
+Sam (2026-10-24), merged with the UX work and deployed with M31 (`00052`).
+
+- **A fix's readings with its position:** `SeriesBuilder` places a fix's
+  `gps.*` readings when the receiver took it, as M28 placed its position;
+  `ThinSeries` too. Series version 4, so every stored series is built again
+  on its next view.
+- **A session's measured GPS latency** (`gpsLatencyMs`, 1–5,000 ms, set by
+  the crew or an editor: `PUT …/sessions/{id}/gps-latency`) moves a complete
+  session's positions, `gps.*` readings, laps and pit crossings earlier on
+  its page; never a lap's time, its sectors or the tablet check (decision
+  33). Re-timing and held runs follow it.
+- **A session's videos** (`PUT …/sessions/{id}/videos`: file, `startWall`,
+  length; up to 200, a camera's chapters each one), returned on
+  `/api/sessions/{id}`.
+- **Proven:** found by laying Race Session 2's telemetry over in-car video;
+  Speedhive's transponder crossings agree, a median 0.55 s before the
+  backend's lap ends over 221 laps (JOURNAL 2026-10-20, M30). Tests in
+  `SeriesBuilderTest`, `ThinSeriesTest`, `ArchiveServiceTest`,
+  `RetimingTest`, `RetimerTest`, `DriverRoutesTest`.
+- **Still open, from Hugh's "For Sam":** whether a latency should show on
+  (and be set from) the car's page; whether a video should be a link the
+  session page opens at a lap. Nothing on the website sets or shows either
+  yet.
+

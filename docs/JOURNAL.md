@@ -640,3 +640,24 @@ footage.
   (0.9915, steady all race): the car's gearing and tires. Also the
   overlay's, not the server's.
 
+## 2026-10-24 — M31's phone check, and a check that passed what it shouldn't
+
+- **The review's phone screenshots were wrong,** as M31's plan suspected:
+  desktop Chrome lays a window out no narrower than about 500 px, so
+  `--window-size=390` pages were laid out wider and cropped. Mobile
+  emulation over the DevTools protocol (as `measure.mjs` does) is the way.
+- **The first phone check passed a page 603 px wide.** It compared
+  `scrollWidth` with `innerWidth`; a mobile page wider than its screen is
+  zoomed out to fit and `innerWidth` grows with it, so a wide page always
+  "fit". Found only by looking at a screenshot that was wider than the
+  phone. It now compares with the phone's width. A check that finds nothing
+  needs a look at what it measured.
+- **What was wide:** the event page. Its `main` is a grid; a grid column is
+  as wide as its widest content, and the lap chart, drawn at its column's
+  width, held the column at 603 px from then on. `main > * { min-width: 0 }`
+  in `app.css` fixes every grid page.
+- **Deployed as `00052`** with Hugh's M30: one instance of the old revision,
+  drained with `1012`, none extra this time. Its revision check timed out
+  repeatedly (03:06–03:11 UTC), as it had on 2026-10-20, without stopping
+  the drain: worth watching.
+

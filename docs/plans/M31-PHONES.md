@@ -393,3 +393,16 @@ He checks there's no sideways scroll, every button can be hit with a thumb,
 and Bright mode reads in daylight. Anything he finds goes into this plan's
 last step, before the milestone closes. JOURNAL gets the phone check's
 before and after.
+
+**Deployed 2026-10-24** as `00052`, with Hugh's M30 merged in (Sam: "Merge
+now, ship it with M30"). The baseline walk-throughs were skipped (Sam:
+"Skip it, deploy now"), so M34.6 and M36 judge by eye. A smoke car
+streamed across the deploy: `1012` at the handover, reconnected at once,
+the next upload on `00052`; one instance of the old revision this time,
+none extra. **The live site through the phone check**, signed out, with
+the real NHMS event, Saturday 12:00's 3 h 17 min session, the Yaris's page,
+its sessions and a driver's page: every page fits.
+
+**Waiting on Sam's look on his phone** (the list above); anything he finds
+goes here before the milestone closes.
+
