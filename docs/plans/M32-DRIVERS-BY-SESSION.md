@@ -186,6 +186,11 @@ apart with no lap between → replaced; 5 min with a lap between → both kept; 
 start sets the driver; three in a row collapse to the last; already
 normal → unchanged and nothing reported.
 
+**Built 2026-10-26** as planned (`DriverRules.normalise`, `:archive`, 6 tests).
+**Decided on building:** "no lap ending between" applies only when the
+session has laps; a session never timed has none, and the lap test would
+take every change for a correction, so there only the minute applies.
+
 ### M32.3 — The server applies it where drivers are saved
 
 `DriverRoutes.kt`: `setDriver` and `setDriverChanges` normalise before
