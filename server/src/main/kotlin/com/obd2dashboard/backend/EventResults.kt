@@ -109,15 +109,13 @@ data class PartResults(
     val consistency: List<DriverConsistency> = emptyList(),
 )
 
-/** A session of the race (M26), a race part: its flags as entered, and each car's stints as edited in it. */
+/** A session of the race (M26), a race part: its flags as entered. Its stints follow from who drove (decision 48). */
 @Serializable
 data class RaceSessionResults(
     val part: PublicPart,
     /** As entered, epoch milliseconds, real time. */
     val green: Long? = null,
     val flag: Long? = null,
-    /** Each car's stints as edited; absent for the default. */
-    val edited: Map<String, List<StintView>> = emptyMap(),
 )
 
 /**
@@ -263,12 +261,11 @@ class EventResultsService(
     }
 
     /**
-     * [event] as someone [hidden] from sees it (M25): without hidden cars (their sessions and stints go with
-     * them) and without naming a hidden course. Results are held per what's seen, so no one is sent another's.
+     * [event] as someone [hidden] from sees it (M25): without hidden cars (their sessions, and so their stints, go
+     * with them) and without naming a hidden course. Results are held per what's seen, so no one is sent another's.
      */
     fun seen(event: Event, hidden: Hidden): Event =
-        if (event.cars.none(hidden::car)) event
-        else event.copy(cars = event.cars.filterNot(hidden::car), parts = event.parts.map { p -> p.copy(stints = p.stints.filterKeys { !hidden.car(it) }) })
+        if (event.cars.none(hidden::car)) event else event.copy(cars = event.cars.filterNot(hidden::car))
 
     /** An event's results (M14.5, M15.4): practice from each session's laps, the race as one timeline. */
     suspend fun eventResults(event: Event): EventResults {
@@ -328,7 +325,6 @@ class EventResultsService(
                             p.id, inParts[p.id].orEmpty().toSet(),
                             green = p.green?.let { g -> offset?.let { g.toEpochMilli() - it } },
                             flag = p.flag?.let { f -> offset?.let { f.toEpochMilli() - it } },
-                            edited = p.stints[car]?.map { StintMark(it.start, it.driver) },
                         )
                     },
                     drivers = sessions.associate { it.id to it.driver },
@@ -337,10 +333,7 @@ class EventResultsService(
             }
             RaceResults(
                 raceParts.map { p ->
-                    RaceSessionResults(
-                        pub.parts.first { it.id == p.id }, p.green?.toEpochMilli(), p.flag?.toEpochMilli(),
-                        p.stints.mapValues { (_, list) -> list.map { StintView(it.start, it.driver) } },
-                    )
+                    RaceSessionResults(pub.parts.first { it.id == p.id }, p.green?.toEpochMilli(), p.flag?.toEpochMilli())
                 },
                 Race.classify(cars.map { it.first }),
                 cars.mapNotNull { (c, o) -> o?.let { c.car to it } }.toMap(),

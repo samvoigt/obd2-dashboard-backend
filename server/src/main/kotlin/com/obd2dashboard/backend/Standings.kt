@@ -57,7 +57,7 @@ object Standings {
         counted: Set<String>,
         drivers: Map<String, Driver?>,
         race: RaceNowInput? = null,
-        /** Every driver by id: edited stints can name one who drove no session. */
+        /** Every driver by id: a driver change can name one whose session isn't in [drivers]. */
         roster: Map<String, Driver> = drivers.values.filterNotNull().associateBy { it.id },
         /** Driver changes within sessions (M27), by session, on `wall`: who drove from then. */
         changes: Map<String, List<StintMark>> = emptyMap(),
@@ -66,7 +66,7 @@ object Standings {
         // Until the session the car is in has a lap, nothing of the race, as at its very start (M26: Sunday's, before
         // its first crossing, isn't Saturday's stint going on).
         val carRace = race?.let { r ->
-            Race.sessions(car, onLayout, r.sessions.map { it.copy(edited = it.edited?.takeIf { e -> e.isNotEmpty() }) }, drivers.mapValues { it.value?.id }, changes)
+            Race.sessions(car, onLayout, r.sessions, drivers.mapValues { it.value?.id }, changes)
         }?.takeIf { it.sessions.lastOrNull()?.firstLap != null }
         val byId = roster
         // Who drove [session] at [at] on `wall` (M27): its last change before then, else its driver.
@@ -89,7 +89,7 @@ object Standings {
         return Standing(
             session, course, best, sectors,
             // Who's driving now: the session's last change, if it has any (M27), else its driver.
-            driver = driverNow(carRace, race?.sessions?.lastOrNull()?.edited?.isNotEmpty() == true, onLayout, session,
+            driver = driverNow(carRace, onLayout, session,
                 drivers + (session to driverAt(session, Long.MAX_VALUE)), byId, changes[session]?.lastOrNull()?.start),
             race = carRace?.let { RaceNow(it.laps.size, leftPits(it)) },
         )
@@ -98,12 +98,11 @@ object Standings {
     /** §22.6: an in-lap's last sector and an out-lap's first never count. */
     private fun countsForBest(lap: RunLap, i: Int) = !(lap.pitIn && i == lap.sectors.size - 1) && !(lap.pitOut && i == 0)
 
-    private fun driverNow(race: CarRace?, edited: Boolean, runs: List<RunTiming>, session: String, drivers: Map<String, Driver?>, byId: Map<String, Driver>, changedAt: Long? = null): DriverNow? {
+    private fun driverNow(race: CarRace?, runs: List<RunTiming>, session: String, drivers: Map<String, Driver?>, byId: Map<String, Driver>, changedAt: Long? = null): DriverNow? {
         if (race != null) {
-            // Stints the crew edited say who; else the session's driver as set (from the car page, say), else the stint's.
+            // In a race, the last stint's: its stints follow from who drove (decision 48), one rule.
             val stint = race.stints.lastOrNull()
-            val ofStint = stint?.driver?.let(byId::get)
-            val driver = if (edited) ofStint ?: drivers[session] else drivers[session] ?: ofStint
+            val driver = stint?.driver?.let(byId::get)
             return DriverNow(driver?.name, driver?.code, stint?.start)
         }
         val driver = drivers[session]

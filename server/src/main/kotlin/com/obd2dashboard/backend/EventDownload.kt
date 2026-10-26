@@ -33,10 +33,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** A stint as edited, its driver named (M29). */
-@Serializable
-data class ExportStint(val start: Long, val driver: DriverView? = null)
-
 /** A part of an event in its download (M29): where its folder is, its window, flags, sessions and stints. */
 @Serializable
 data class ExportPart(
@@ -55,8 +51,6 @@ data class ExportPart(
     /** Sessions put in it, or taken out, by hand. */
     val added: List<String> = emptyList(),
     val removed: List<String> = emptyList(),
-    /** The race only: each car's stints as edited, on its tablet's clock; absent for the default. */
-    val stints: Map<String, List<ExportStint>> = emptyMap(),
 )
 
 /** `event.json` (M29): the event as stored, its drivers named. */
@@ -224,7 +218,6 @@ object EventExport {
                 p.green?.toEpochMilli(), p.flag?.toEpochMilli(),
                 inParts[p.id].orEmpty().mapNotNull { records[it] }.groupBy { it.car }.mapValues { (_, r) -> r.sortedBy { it.created }.map { it.id } },
                 p.added, p.removed,
-                p.stints.mapValues { (_, list) -> list.map { ExportStint(it.start, named(it.driver)) } },
             )
         }
         records.values.filter { r -> inParts.values.any { r.id in it } }.forEach { r -> named(r.driver); r.driverChanges.forEach { named(it.driver) } }
@@ -287,13 +280,12 @@ object EventExport {
     /** `stints.csv`, a race part's: each of the car's stints whose laps are in it. */
     fun stintsCsv(race: CarRace, laps: List<ExportLap>, drivers: Map<String, Driver>, offset: Long?): String {
         val numbers = laps.mapNotNull { it.stint }.toSet()
-        val head = listOf("stint", "driver_code", "driver_name", "start_ms", "start_time", "first_lap", "last_lap", "laps", "time_s", "best_s", "edited")
+        val head = listOf("stint", "driver_code", "driver_name", "start_ms", "start_time", "first_lap", "last_lap", "laps", "time_s", "best_s")
         return csv(head, race.stints.filter { it.number in numbers }.map { s ->
             val d = driver(s.driver, drivers)
             listOf(
                 s.number.toString(), d?.code.orEmpty(), d?.name.orEmpty(), s.start.toString(), Instant.ofEpochMilli(s.start + (offset ?: 0)).toString(),
                 s.firstLap?.toString().orEmpty(), s.lastLap?.toString().orEmpty(), s.laps.toString(), seconds(s.seconds), s.best?.let(::seconds).orEmpty(),
-                race.stintsEdited.toString(),
             )
         })
     }
@@ -335,10 +327,10 @@ object EventExport {
                              server measured it out. Speeds in km/h from the raw log, as the session's page has
                              them: top and lowest of the samples, average over the GPS positions; blank where the
                              samples don't cover the lap.
-              stints.csv     Race parts only: each stint, its driver, laps and time.
+              stints.csv     Race parts only: each stint, its driver, laps and time. A stint is one driver's run,
+                             from the sessions' drivers and driver changes (sessions.json).
 
-            event.json       The event: its parts and their windows, flags, sessions by car, stints as edited, and
-                             the drivers named.
+            event.json       The event: its parts and their windows, flags, sessions by car, and the drivers named.
             results.json     The event's results, as its page shows them.
             """.trimIndent(),
         )

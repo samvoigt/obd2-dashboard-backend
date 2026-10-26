@@ -295,17 +295,14 @@ class EventResultsTest {
         race.sessions.single().green shouldBe t0.plusMillis(100_000).plusSeconds(600).toEpochMilli()
         json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).event.revision shouldBe 1
 
-        // Stints as edited replace the default.
+        // A driver change, nobody from lap 6: the stints follow (decision 48).
         runBlocking {
+            archiveOf().setDriverChanges(car.laps[5].session, listOf(com.obd2dashboard.backend.archive.DriverChange(car.laps[5].start, null)))
             val e = stores.events.get("race-day")!!
-            stores.events.save(e.copy(parts = listOf(e.race!!.copy(stints = mapOf("outback" to listOf(
-                com.obd2dashboard.backend.events.Stint(car.laps.first().start, "d-sam"),
-                com.obd2dashboard.backend.events.Stint(car.laps[5].start, null),
-            ))))), 1, t0)
+            stores.events.save(e, e.revision, t0) // a new revision: past the 10 s hold
         }
-        val edited = json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).race!!
-        edited.cars.single().stints.map { it.firstLap to it.lastLap } shouldBe listOf(1 to 5, 6 to 13)
-        edited.sessions.single().edited.keys shouldBe setOf("outback")
+        val changed = json.decodeFromString<EventResults>(client.get("/api/events/race-day").bodyAsText()).race!!
+        changed.cars.single().stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 5), Triple(null, 6, 13))
 
         // Sam's page (M15.5): their race stints.
         val samRecord = json.decodeFromString<DriverRecord>(client.get("/api/drivers/d-sam").bodyAsText())

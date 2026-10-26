@@ -65,8 +65,6 @@ public data class CarRace(
     /** The laps the green flag and the chequered flag fell in, if entered. */
     val greenLap: Int? = null,
     val flagLap: Int? = null,
-    /** Whether the stints are the default (split at every stop) or as edited. */
-    val stintsEdited: Boolean = false,
     /** A race in sessions (M26): where each began, its laps, time and flags. One for a race run in one. */
     val sessions: List<RaceSessionSpan> = emptyList(),
     /** The best of each sector over the race (§22.6's rule), and their sum when every sector has one (M16.2). */
@@ -85,16 +83,15 @@ public data class RaceSessionSpan(
     val flagLap: Int? = null,
 )
 
-/** A session of the race (M26), a race part: its sessions, flags already on the tablet's clock, and stints as edited. */
+/** A session of the race (M26), a race part: its sessions, and its flags already on the tablet's clock. */
 public data class RaceSessionInput(
     val part: String,
     val sessions: Set<String>,
     val green: Long? = null,
     val flag: Long? = null,
-    val edited: List<StintMark>? = null,
 )
 
-/** A stint's start as edited, on the tablet's clock, and who drove it. */
+/** A stint's or a driver change's start, on the tablet's clock, and who drove from then. */
 public data class StintMark(val start: Long, val driver: String?)
 
 /**
@@ -107,7 +104,7 @@ public object Race {
     /**
      * [runs] in the server's order, each on the event's course; only laps and
      * crossings in [raceSessions] count. [drivers] is who drove each session
-     * (seeding default stints); [edited], if any, replaces them; [green] and
+     * (its stints follow from them, decision 48); [green] and
      * [flag] are the entered start and finish, already on the tablet's clock.
      */
     public fun car(
@@ -115,7 +112,6 @@ public object Race {
         runs: List<RunTiming>,
         raceSessions: Set<String>,
         drivers: Map<String, String?> = emptyMap(),
-        edited: List<StintMark>? = null,
         green: Long? = null,
         flag: Long? = null,
         /** Driver changes within sessions (M27), by session, on `wall`: each starts a default stint, and is who drove from then. */
@@ -136,7 +132,7 @@ public object Race {
         if (raw.isEmpty()) return null
         val numbered = raw.mapIndexed { i, lap -> lap.copy(number = i + 1) }
         val stops = stopsOf(parts.flatMap { it.second }.sortedBy { it.second }, numbered)
-        val marks = (edited?.takeIf { it.isNotEmpty() } ?: stintsOf(numbered, drivers, changes.filterKeys { it in raceSessions })).sortedBy { it.start }
+        val marks = stintsOf(numbered, drivers, changes.filterKeys { it in raceSessions }).sortedBy { it.start }
         // A lap is the stint's that began before it ended: a stint split where lap N starts holds lap N, not N − 1.
         val laps = numbered.map { lap -> lap.copy(stint = marks.indexOfLast { it.start < lap.end }.coerceAtLeast(0) + 1) }
         val stints = marks.mapIndexed { i, m ->
@@ -151,7 +147,6 @@ public object Race {
             best = laps.filter(::onTrack).minByOrNull { it.time },
             greenLap = green?.let { t -> laps.firstOrNull { it.end > t }?.number },
             flagLap = flag?.let { t -> laps.firstOrNull { it.end > t }?.number },
-            stintsEdited = edited != null && edited.isNotEmpty(),
             bestSectors = bestSectors(laps),
             theoretical = Consistency.theoreticalBest(bestSectors(laps)),
         )
@@ -173,7 +168,7 @@ public object Race {
         /** Driver changes within sessions (M27), by session, on `wall`. */
         changes: Map<String, List<StintMark>> = emptyMap(),
     ): CarRace? {
-        val each = sessions.map { s -> s to car(car, runs, s.sessions, drivers, s.edited, s.green, s.flag, changes) }
+        val each = sessions.map { s -> s to car(car, runs, s.sessions, drivers, s.green, s.flag, changes) }
         val raced = each.mapNotNull { it.second }
         if (raced.isEmpty()) return null
         val laps = mutableListOf<RaceLap>()
@@ -198,7 +193,6 @@ public object Race {
             // The race's own: its first session's green flag, its last session's flag.
             greenLap = spans.firstOrNull { it.firstLap != null }?.greenLap,
             flagLap = spans.lastOrNull { it.firstLap != null }?.flagLap,
-            stintsEdited = raced.any { it.stintsEdited },
             bestSectors = best,
             theoretical = Consistency.theoreticalBest(best),
             sessions = spans,

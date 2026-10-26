@@ -49,7 +49,6 @@ export interface CarRace {
   best?: RaceLap | null
   greenLap?: number | null
   flagLap?: number | null
-  stintsEdited?: boolean
   bestSectors?: (number | null)[]
   theoretical?: number | null
   /** Each session of the race (M26): where it began in the laps, its laps and time, and its flags' laps. */
@@ -66,12 +65,11 @@ export interface RaceSessionSpan {
   flagLap?: number | null
 }
 
-/** A session of the race (M26), a race part: its flags as entered, and each car's stints as edited in it. */
+/** A session of the race (M26), a race part: its flags as entered. */
 export interface RaceSessionResults {
   part: PublicPart
   green?: number | null
   flag?: number | null
-  edited?: Record<string, StintMark[]>
 }
 
 export interface RaceResults {
@@ -107,12 +105,6 @@ export function flagsAt(car: CarRace, lap: number): { green: boolean; flag: bool
   return { green: spans.some((s) => s.greenLap === lap), flag: spans.some((s) => s.flagLap === lap) }
 }
 
-/** A stint as the editor holds it: from [start] on the tablet's clock. */
-export interface StintMark {
-  start: number
-  driver: string | null
-}
-
 /** "6:02:15", a race's length. */
 export function raceClock(seconds: number): string {
   const s = Math.round(seconds)
@@ -126,31 +118,9 @@ export function timeOfDay(tabletMs: number, offset: number | undefined, locale =
   return new Date(tabletMs + offset).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone })
 }
 
-/** The stints as they stand, to edit. */
-export function marksOf(car: CarRace): StintMark[] {
-  return car.stints.map((s) => ({ start: s.start, driver: s.driver ?? null }))
-}
-
-/** Stint [i] merged into the one before it (a stop without a driver change). The first can't be. */
-export function mergeWithPrevious(marks: readonly StintMark[], i: number): StintMark[] {
-  return i <= 0 || i >= marks.length ? [...marks] : marks.filter((_, j) => j !== i)
-}
-
-/** A new stint from lap [lap] (a change without a stop), its driver not yet named; nothing if one starts there already. */
-export function splitAt(marks: readonly StintMark[], laps: readonly RaceLap[], lap: number): StintMark[] {
-  const at = laps.find((l) => l.number === lap)
-  if (!at || marks.some((m) => m.start === at.start) || lap === laps[0]?.number) return [...marks]
-  return [...marks, { start: at.start, driver: null }].sort((a, b) => a.start - b.start)
-}
-
-export function setDriver(marks: readonly StintMark[], i: number, driver: string | null): StintMark[] {
-  return marks.map((m, j) => (j === i ? { ...m, driver } : m))
-}
-
-/** The path for an edit to the race, the admin's or the car's crew's (each sign-in's cookie reaches only its own). */
-export function racePath(who: 'admin' | 'crew', eventId: string, car: string, what: 'flags' | 'stints'): string {
-  if (who === 'admin') return what === 'flags' ? `/api/admin/events/${eventId}/race` : `/api/admin/events/${eventId}/race/stints/${car}`
-  return what === 'flags' ? `/api/cars/${car}/events/${eventId}/race` : `/api/cars/${car}/events/${eventId}/race/stints`
+/** The path for an edit to the race's flags, the admin's or the car's crew's (each sign-in's cookie reaches only its own). */
+export function racePath(who: 'admin' | 'crew', eventId: string, car: string): string {
+  return who === 'admin' ? `/api/admin/events/${eventId}/race` : `/api/cars/${car}/events/${eventId}/race`
 }
 
 /** Sends an edit; the server's words if it's refused, every problem included. */

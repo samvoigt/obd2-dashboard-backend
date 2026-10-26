@@ -93,11 +93,12 @@ class StandingsTest {
     }
 
     @Test
-    fun `stints as edited name the driver, of the car now and of the best lap`() {
+    fun `a driver change names the driver, of the car now and of the best lap (M32)`() {
         // The crew says Alex drove from lap 2, with no stop, in Sam's session.
         val runs = listOf(run(lap("c1", 0, n = 1), lap("c1", 70_000, 65_000, n = 2)))
-        val race = RaceNowInput(listOf(RaceSessionInput("p2", setOf("c1"), edited = listOf(StintMark(W, "d-sam"), StintMark(W + 70_000, "d-alex")))))
-        Standings.of("outback", "c1", box, runs, setOf("c1"), mapOf("c1" to sam), race, roster = mapOf("d-sam" to sam, "d-alex" to alex)).let {
+        val race = RaceNowInput(listOf(RaceSessionInput("p2", setOf("c1"))))
+        Standings.of("outback", "c1", box, runs, setOf("c1"), mapOf("c1" to sam), race, roster = mapOf("d-sam" to sam, "d-alex" to alex),
+            changes = mapOf("c1" to listOf(StintMark(W + 70_000, "d-alex")))).let {
             it.driver shouldBe DriverNow("Alex Rider", "ALE", W + 70_000)
             it.best!!.driver shouldBe "ALE"
         }

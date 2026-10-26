@@ -7,7 +7,6 @@ import com.obd2dashboard.backend.events.Event
 import com.obd2dashboard.backend.events.EventRules
 import com.obd2dashboard.backend.events.Part
 import com.obd2dashboard.backend.events.PartKind
-import com.obd2dashboard.backend.events.Stint
 import com.obd2dashboard.backend.registry.CarRegistry
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -29,28 +28,16 @@ data class SaveFlags(
     val part: String? = null,
 )
 
-/** A stint as edited: from [start] on the tablet's clock, milliseconds. */
-@Serializable
-data class StintView(val start: Long, val driver: String? = null)
-
-/** A car's stints (M15.3); null or empty goes back to the default, split at every stop. */
-@Serializable
-data class SaveStints(
-    val expected: Int,
-    val stints: List<StintView>? = null,
-    /** Which race session (M26): its part's id; none for a race in one. */
-    val part: String? = null,
-)
-
 /** What an edit to the race answers: the event's new revision, for the next edit. */
 @Serializable
 data class RaceSaved(val revision: Int)
 
 /**
- * **The race's flags and stints** (M15.3): set by the admin, or by the crew of
- * a car entered in the event. Two routes each, because each sign-in's cookie
- * reaches only its own paths (M14.4); one rule. Every edit names the revision
- * it was made on, and is logged with who made it.
+ * **The race's flags** (M15.3): set by the admin, or by the crew of a car
+ * entered in the event. Two routes, because each sign-in's cookie reaches only
+ * its own paths (M14.4); one rule. Every edit names the revision it was made
+ * on, and is logged with who made it. A race's stints aren't edited: they
+ * follow from who drove each session (M32, decision 48).
  */
 fun Route.raceRoutes(
     stores: EventStores,
@@ -59,7 +46,7 @@ fun Route.raceRoutes(
     adminAuth: AdminAuth,
     config: AdminConfig,
     clock: Clock,
-    /** A race's flags or stints saved: what the tablets are told may change (M17.4). */
+    /** A race's flags saved: what the tablets are told may change (M17.4). */
     onChanged: () -> Unit = {},
 ) {
     put("/api/admin/events/{id}/race") {
@@ -68,21 +55,10 @@ fun Route.raceRoutes(
         call.flags(stores, clock, onChanged, call.parameters["id"].orEmpty(), null, email)
     }
 
-    put("/api/admin/events/{id}/race/stints/{car}") {
-        val email = call.may(Action.EDIT, Thing(Kind.EVENT, call.parameters["id"].orEmpty()))?.email ?: return@put
-        call.stints(stores, clock, onChanged, call.parameters["id"].orEmpty(), call.parameters["car"].orEmpty(), email)
-    }
-
     put("/api/cars/{slug}/events/{id}/race") {
         val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
         if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
         call.flags(stores, clock, onChanged, call.parameters["id"].orEmpty(), car.slug.value, "the crew of ${car.slug.value}")
-    }
-
-    put("/api/cars/{slug}/events/{id}/race/stints") {
-        val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
-        if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
-        call.stints(stores, clock, onChanged, call.parameters["id"].orEmpty(), car.slug.value, "the crew of ${car.slug.value}")
     }
 }
 
@@ -90,17 +66,6 @@ private suspend fun ApplicationCall.flags(stores: EventStores, clock: Clock, onC
     val request = receive<SaveFlags>()
     editRace(stores, clock, onChanged, id, crewOf, request.expected, request.part, who, "flags ${request.green?.let(Instant::ofEpochMilli)} to ${request.flag?.let(Instant::ofEpochMilli)}") {
         it.copy(green = request.green?.let(Instant::ofEpochMilli), flag = request.flag?.let(Instant::ofEpochMilli))
-    }
-}
-
-private suspend fun ApplicationCall.stints(stores: EventStores, clock: Clock, onChanged: () -> Unit, id: String, car: String, who: String) {
-    val request = receive<SaveStints>()
-    val stints = request.stints.orEmpty().map { Stint(it.start, it.driver) }
-    val unknown = stints.mapNotNull { it.driver }.distinct().filter { stores.drivers.get(it) == null }
-    if (unknown.isNotEmpty()) return respond(HttpStatusCode.BadRequest, EventRefused("invalid", "No such driver.", unknown.map { "there's no driver $it" }))
-    val what = if (stints.isEmpty()) "stints of $car back to the default" else "${stints.size} stint(s) of $car"
-    editRace(stores, clock, onChanged, id, car, request.expected, request.part, who, what) { race ->
-        race.copy(stints = if (stints.isEmpty()) race.stints - car else race.stints + (car to stints.sortedBy { it.start }))
     }
 }
 

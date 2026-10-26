@@ -71,7 +71,7 @@ class CarTimings(
         // The race's sessions up to the one the car's in (M26): Sunday's lap count goes on from Saturday's.
         val race = part?.takeIf { it.kind == PartKind.RACE }?.let { p ->
             RaceNowInput(event?.races.orEmpty().filter { !it.start.isAfter(p.start) }.map { r ->
-                RaceSessionInput(r.id, partOf[r.id].orEmpty().toSet() + listOfNotNull(session.takeIf { r.id == p.id }), edited = r.stints[car]?.map { StintMark(it.start, it.driver) })
+                RaceSessionInput(r.id, partOf[r.id].orEmpty().toSet() + listOfNotNull(session.takeIf { r.id == p.id }))
             })
         }
         return Standings.of(

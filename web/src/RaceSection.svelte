@@ -4,8 +4,8 @@
   import { signin } from './lib/signin'
   import { fromLocalInput, toLocalInput } from './lib/events'
   import {
-    flagsAt, lapsIn, marksOf, mergeWithPrevious, raceClock, racePath, sendRaceEdit, sessionStartingAt, setDriver, splitAt, stintsIn, timeOfDay,
-    type CarRace, type RaceLap, type RaceResults, type RaceSessionResults, type StintMark,
+    flagsAt, raceClock, racePath, sendRaceEdit, sessionStartingAt, stintsIn, timeOfDay,
+    type CarRace, type RaceLap, type RaceResults, type RaceSessionResults,
   } from './lib/race'
   import { lapTime } from './lib/sessions'
   import { lapLink } from './lib/laps'
@@ -13,8 +13,9 @@
   import type { LapPick } from './lib/comparePick'
   import ComparePick from './ComparePick.svelte'
 
-  // The race (M15.4): one timeline per car, and for the admin or a car's crew, its flags and stints.
-  // A race in sessions (M26: Saturday's and Sunday's) is one race; each session has its own flags and stints.
+  // The race (M15.4): one timeline per car, and for the admin or a car's crew, its flags. Its stints follow from who
+  // drove each session, set on the session's page (M32, decision 48). A race in sessions (M26) is one race; each
+  // session has its own flags.
   let { race, eventId, revision, carName, onChanged, course, layout }: {
     race: RaceResults
     eventId: string
@@ -32,9 +33,6 @@
 
   let drivers: Driver[] = $state.raw([])
   let setters: Record<string, DriverSetter> = $state({})
-  let editing: { car: string; part: string } | null = $state(null) // the car and session whose stints are open
-  let marks: StintMark[] = $state.raw([])
-  let splitLap = $state('')
   // Each session's flags as typed, by its part's id.
   let green: Record<string, string> = $state({})
   let flag: Record<string, string> = $state({})
@@ -59,13 +57,13 @@
     }
   })
 
-  // Who may set each car's flags and stints: asked again when the header signs in or out (M21.1).
+  // Who may set each car's flags: asked again when the header signs in or out (M21.1).
   $effect(() => {
     void $signin
     const cars = race.cars.map((c) => c.car)
     void (async () => {
       const next: typeof setters = {}
-      // Flags and stints go through the event's admin routes (M23): an editor of the event, else the car's crew.
+      // Flags go through the event's admin routes (M23): an editor of the event, else the car's crew.
       for (const car of cars) next[car] = await whoCanSet(car, fetch, signin, { kind: 'event', id: eventId })
       setters = next
     })()
@@ -86,22 +84,7 @@
 
   function saveFlags(s: RaceSessionResults, car: string, who: 'admin' | 'crew') {
     const body = { expected: revision, green: fromLocalInput(green[s.part.id] ?? ''), flag: fromLocalInput(flag[s.part.id] ?? ''), part: s.part.id }
-    return edit(() => sendRaceEdit(racePath(who, eventId, car, 'flags'), body))
-  }
-
-  /** [c]'s stints in session [part], to edit: a stint never crosses one. */
-  function open(c: CarRace, part: string) {
-    editing = { car: c.car, part }
-    marks = marksOf(inSessions ? { ...c, stints: stintsIn(c, part) } : c) // in one, every stint, one with no laps yet too
-    splitLap = ''
-  }
-
-  function saveStints(car: string, part: string, who: 'admin' | 'crew', stints: StintMark[] | null) {
-    return edit(async () => {
-      const r = await sendRaceEdit(racePath(who, eventId, car, 'stints'), { expected: revision, stints, part })
-      editing = null
-      return r
-    })
+    return edit(() => sendRaceEdit(racePath(who, eventId, car), body))
   }
 </script>
 
@@ -156,7 +139,6 @@
 
   {#each race.cars as c (c.car)}
     {@const offset = race.tabletOffset[c.car]}
-    {@const who = setters[c.car]}
     <h3>{carName(c.car)}</h3>
     <div class="table-scroll">
       <table class="stints">
@@ -172,45 +154,9 @@
     </table>
     </div>
     {#if c.theoretical}<p class="small">Theoretical best <strong>{lapTime(c.theoretical)}</strong> <span class="muted">(the race's best of each sector added up)</span></p>{/if}
-    <p class="muted small">{c.stintsEdited ? 'Stints as set by hand.' : 'Split at every stop; merge a fuel stop, or split where drivers changed without one.'}</p>
+    <p class="muted small">A stint is one driver's run, from who drove each session: set on the session's page.</p>
     {#if c.stops.length > 0}
       <p class="small">Stops: {#each c.stops as s, i (s.entry)}{i > 0 ? ' · ' : ''}lap {s.lap}, {s.seconds != null ? `${s.seconds.toFixed(1)} s in the pit lane` : 'ended in the pits'}{/each}</p>
-    {/if}
-
-    {#if who}
-      {#if editing?.car === c.car}
-        {@const part = editing.part}
-        <div class="edit">
-          {#if inSessions}<p><strong>{sessionName(part)}</strong></p>{/if}
-          {#each marks as m, i (m.start)}
-            <p class="row">
-              Stint {i + 1}, from {timeOfDay(m.start, offset) || `lap ${lapsIn(c, part).find((l) => l.end > m.start)?.number ?? '—'}`}:
-              <select value={m.driver ?? ''} onchange={(e) => (marks = setDriver(marks, i, e.currentTarget.value || null))} aria-label={`Stint ${i + 1}'s driver`}>
-                <option value="">Driver not set</option>
-                {#each drivers as d (d.id)}<option value={d.id}>{d.name} ({d.code})</option>{/each}
-              </select>
-              {#if i > 0}<button onclick={() => (marks = mergeWithPrevious(marks, i))}>Merge with stint {i}</button>{/if}
-            </p>
-          {/each}
-          <p class="row">
-            <label>Split at lap <input class="lap" bind:value={splitLap} inputmode="numeric" /></label>
-            <button onclick={() => (marks = splitAt(marks, lapsIn(c, part), Number(splitLap)))}>Split</button>
-          </p>
-          <p class="row">
-            <button class="primary" disabled={busy} onclick={() => saveStints(c.car, part, who, marks)}>Save the stints</button>
-            <button disabled={busy} onclick={() => saveStints(c.car, part, who, null)}>Back to splitting at every stop</button>
-            <button onclick={() => (editing = null)}>Cancel</button>
-          </p>
-        </div>
-      {:else}
-        <p class="row">
-          {#each race.sessions as s (s.part.id)}
-            {#if lapsIn(c, s.part.id).length > 0}
-              <button onclick={() => open(c, s.part.id)}>{inSessions ? `Edit ${s.part.name}’s stints` : 'Edit stints'}</button>
-            {/if}
-          {/each}
-        </p>
-      {/if}
     {/if}
 
     <details>
@@ -259,7 +205,6 @@
   tr.best .time { color: var(--in-range); }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
   .edit { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0; }
-  .lap { width: 4em; }
   .error { color: var(--critical); }
   details { margin-top: 8px; }
   tr.session td { font-weight: 600; color: var(--muted); padding-top: 10px; }

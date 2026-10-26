@@ -293,6 +293,25 @@ name the driver…` become one: the last stint's driver); `EventDownloadTest`
 stand, to edit`, `merge a stint…`, `split at a lap…`; the paths test keeps
 flags). Every other test passes unchanged.
 
+**Built 2026-10-26.** `Race.car`/`Race.sessions` lost `edited`;
+`RaceSessionInput.edited`, `CarRace.stintsEdited` and
+`RaceSessionResults.edited` went. `Standings.driverNow` in a race is the last
+stint's driver, one rule. `seen` keeps only its car filter (a hidden car's
+sessions, and so its stints, already go with it). `CarTimings` passes no
+stints. `RaceRoutes`: both stints routes, `SaveStints` and `StintView` gone;
+flags as before. `EventDownload`: `ExportPart.stints`, `ExportStint` and
+`stints.csv`'s `edited` column gone; README says where stints come from.
+Site: `RaceSection` lost the stint editor and its buttons, saying instead "A
+stint is one driver's run, from who drove each session: set on the session's
+page."; `lib/race.ts` lost `stintsEdited`, `edited`, `StintMark`, `marksOf`,
+`mergeWithPrevious`, `splitAt`, `setDriver`; `racePath` is flags only.
+`Part.stints`, `keepingRaceEdits` and `eventProblems`' checks stay for the
+migration. **Tests changed:** `RaceRoutesTest` (stints routes now 404; flags
+kept in each case), `StandingsTest` (the edited case is now a driver change),
+`EventResultsTest` (the split at lap 6 by a driver change), `RaceTest` (the
+edited cases removed or made from driver changes), `race.test.ts`. 661
+Kotlin and 273 site tests pass.
+
 ### M32.6 — The migration (Sam runs it)
 
 The race can only be worked out in `:server` (see What exists), so the

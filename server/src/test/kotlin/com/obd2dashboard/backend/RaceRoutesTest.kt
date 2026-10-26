@@ -15,7 +15,6 @@ import com.obd2dashboard.backend.events.InMemoryDriverStore
 import com.obd2dashboard.backend.events.InMemoryEventStore
 import com.obd2dashboard.backend.events.Part
 import com.obd2dashboard.backend.events.PartKind
-import com.obd2dashboard.backend.events.Stint
 import com.obd2dashboard.backend.live.InMemoryLiveHub
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
@@ -136,49 +135,35 @@ class RaceRoutesTest {
     }
 
     @Test
-    fun `a car's crew sets its stints, and back to the default, and nobody else`() = testApplication {
+    fun `stints aren't edited any more, by the crew or the admin, and the crew still sets the flags (M32)`() = testApplication {
         app()
         val outback = crew("outback", "outback-crew")
-        put("/api/cars/outback/events/race-day/race/stints", outback, """{"expected":1,"stints":[{"start":2000,"driver":"d-sam"},{"start":1000}]}""")
-            .status shouldBe HttpStatusCode.OK
-        race().stints shouldBe mapOf("outback" to listOf(Stint(1000, null), Stint(2000, "d-sam")))
-        log.list.map { it.formattedMessage } shouldContain "race of race-day set, 2 stint(s) of outback, by the crew of outback"
-        put("/api/cars/outback/events/race-day/race/stints", outback, """{"expected":2,"stints":null}""").status shouldBe HttpStatusCode.OK
+        // Decision 48: a race's stints follow from who drove; the routes that edited them are gone.
+        put("/api/cars/outback/events/race-day/race/stints", outback, """{"expected":1,"stints":[{"start":1000,"driver":"d-sam"}]}""").status shouldBe HttpStatusCode.NotFound
+        put("/api/admin/events/race-day/race/stints/outback", admin(), """{"expected":1,"stints":[]}""").status shouldBe HttpStatusCode.NotFound
         race().stints shouldBe emptyMap()
-
-        put("/api/cars/outback/events/race-day/race/stints", outback, """{"expected":3,"stints":[{"start":1,"driver":"d-nobody"}]}""").let {
-            it.status shouldBe HttpStatusCode.BadRequest; it.bodyAsText() shouldContain "there's no driver d-nobody"
-        }
-        put("/api/cars/outback/events/race-day/race/stints", outback, """{"expected":3,"stints":[{"start":1},{"start":1}]}""").bodyAsText() shouldContain "start at once"
-        put("/api/cars/outback/events/race-day/race/stints", null, """{"expected":3,"stints":[]}""").status shouldBe HttpStatusCode.Unauthorized
-        put("/api/cars/yaris/events/race-day/race/stints", outback, """{"expected":3,"stints":[]}""").status shouldBe HttpStatusCode.Unauthorized // another car's login
+        put("/api/cars/yaris/events/race-day/race", crew("yaris", "pit-lane"), """{"expected":1,"green":${t0.toEpochMilli() + 3_700_000}}""").status shouldBe HttpStatusCode.OK
+        put("/api/cars/outback/events/race-day/race", null, """{"expected":2}""").status shouldBe HttpStatusCode.Unauthorized
         val miata = crew("miata", "miata-crew")
-        put("/api/cars/miata/events/race-day/race/stints", miata, """{"expected":3,"stints":[{"start":1}]}""").status shouldBe HttpStatusCode.NotFound // not entered
-        // The crew sets the flags too.
-        put("/api/cars/yaris/events/race-day/race", crew("yaris", "pit-lane"), """{"expected":3,"green":${t0.toEpochMilli() + 3_700_000}}""").status shouldBe HttpStatusCode.OK
+        put("/api/cars/miata/events/race-day/race", miata, """{"expected":2}""").status shouldBe HttpStatusCode.NotFound // not entered
     }
 
     @Test
-    fun `the admin sets any car's stints, and the event editor's save keeps them and the flags`() = testApplication {
+    fun `the event editor's save keeps the race's flags`() = testApplication {
         app()
         val a = admin()
-        put("/api/admin/events/race-day/race/stints/yaris", a, """{"expected":1,"stints":[{"start":5,"driver":"d-sam"}]}""").status shouldBe HttpStatusCode.OK
-        put("/api/admin/events/race-day/race", a, """{"expected":2,"green":${t0.toEpochMilli() + 3_700_000}}""").status shouldBe HttpStatusCode.OK
-        put("/api/admin/events/race-day/race/stints/miata", a, """{"expected":3,"stints":[{"start":5}]}""").let {
-            it.status shouldBe HttpStatusCode.NotFound; it.bodyAsText() shouldContain "This car isn't in that event."
-        }
-        // The editor saves the event, renaming the race: the flags and stints stay.
+        put("/api/admin/events/race-day/race", a, """{"expected":1,"green":${t0.toEpochMilli() + 3_700_000}}""").status shouldBe HttpStatusCode.OK
+        // The editor saves the event, renaming the race: the flags stay.
         val t = t0.toEpochMilli()
-        put("/api/admin/events/race-day", a, """{"expected":3,"name":"Race day","date":"2026-10-04","course":"nhms","layout":"road","cars":["outback","yaris"],"parts":[
+        put("/api/admin/events/race-day", a, """{"expected":2,"name":"Race day","date":"2026-10-04","course":"nhms","layout":"road","cars":["outback","yaris"],"parts":[
             {"id":"p1","kind":"practice","name":"Practice","start":$t,"end":${t + 3_600_000}},
             {"id":"p2","kind":"race","name":"The 6 hours","start":${t + 3_600_000},"end":${t + 8 * 3_600_000}}]}""").status shouldBe HttpStatusCode.OK
         race().name shouldBe "The 6 hours"
-        race().stints shouldBe mapOf("yaris" to listOf(Stint(5, "d-sam")))
         race().green shouldBe Instant.ofEpochMilli(t + 3_700_000)
     }
 
     @Test
-    fun `a race's flags and stints are set by the event's creator and editors, nobody else (M23)`() = testApplication {
+    fun `a race's flags are set by the event's creator and editors, nobody else (M23)`() = testApplication {
         app()
         val (ann, ed, olga) = listOf("ann", "ed", "olga").map { cookieOf("$it@example.com") }
         val green = t0.plusSeconds(3700).toEpochMilli()
@@ -186,15 +171,14 @@ class RaceRoutesTest {
         put("/api/admin/events/race-day/race", ann, """{"expected":1,"green":$green}""").status shouldBe HttpStatusCode.Forbidden
         access.set(Thing(Kind.EVENT, "race-day"), Access("ann@example.com", setOf("ed@example.com")))
         put("/api/admin/events/race-day/race", ann, """{"expected":1,"green":$green}""").status shouldBe HttpStatusCode.OK
-        put("/api/admin/events/race-day/race/stints/outback", ed, """{"expected":2,"stints":[{"start":$green,"driver":"d-sam"}]}""").status shouldBe HttpStatusCode.OK
+        put("/api/admin/events/race-day/race", ed, """{"expected":2,"green":$green}""").status shouldBe HttpStatusCode.OK
         put("/api/admin/events/race-day/race", olga, """{"expected":3,"green":$green}""").status shouldBe HttpStatusCode.Forbidden
-        put("/api/admin/events/race-day/race/stints/outback", olga, """{"expected":3}""").status shouldBe HttpStatusCode.Forbidden
         race().green shouldBe Instant.ofEpochMilli(green)
         log.list.map { it.formattedMessage }.any { it.startsWith("race of race-day set") && it.endsWith("by ed@example.com") } shouldBe true
     }
 
     @Test
-    fun `a race in sessions - each session's flags and stints are its own, and an edit says which (M26)`() = testApplication {
+    fun `a race in sessions - each session's flags are its own, and an edit says which (M26)`() = testApplication {
         app()
         runBlocking {
             stores.events.save(Event("weekend", "Weekend", "2026-10-03", "nhms", "road", listOf("outback", "yaris"), listOf(
@@ -212,13 +196,9 @@ class RaceRoutesTest {
         put("/api/admin/events/weekend/race", a, """{"expected":1,"green":$sundayGreen,"part":"p9"}""").status shouldBe HttpStatusCode.NotFound
         put("/api/admin/events/weekend/race", a, """{"expected":1,"green":$sundayGreen,"part":"p1"}""").status shouldBe HttpStatusCode.NotFound // practice
         put("/api/admin/events/weekend/race", a, """{"expected":1,"green":$sundayGreen,"part":"p3"}""").status shouldBe HttpStatusCode.OK
-        val crew = crew("yaris", "pit-lane")
-        put("/api/cars/yaris/events/weekend/race/stints", crew, """{"expected":2,"stints":[{"start":5,"driver":"d-sam"}],"part":"p2"}""").status shouldBe HttpStatusCode.OK
         runBlocking { stores.events.get("weekend")!! }.races.let { (sat, sun) ->
             sat.green shouldBe null
-            sat.stints.keys shouldBe setOf("yaris")
             sun.green shouldBe Instant.ofEpochMilli(sundayGreen)
-            sun.stints shouldBe emptyMap()
         }
         log.list.map { it.formattedMessage } shouldContain "race of weekend (p3) set, flags ${Instant.ofEpochMilli(sundayGreen)} to null, by sam@example.com"
     }

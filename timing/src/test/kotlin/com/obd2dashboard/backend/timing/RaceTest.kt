@@ -45,7 +45,6 @@ class RaceTest {
         race.stints[0].seconds shouldBe 280.0
         // A stint's best is never its in-lap, however quick.
         Race.car("outback", listOf(run(lap("c1", 0), lap("c1", 70_000, time = 60_000, pitIn = true))), setOf("c1"))!!.stints.single().best shouldBe 70.0
-        race.stintsEdited shouldBe false
     }
 
     @Test
@@ -90,19 +89,6 @@ class RaceTest {
         race.laps.size shouldBe 9 // laps before the start and after the flag still counted
         Race.car("outback", listOf(oneRun), raceSessions, flag = W + 2_000_000)!!.flagLap shouldBe null
         Race.car("outback", listOf(oneRun), raceSessions).let { it!!.greenLap shouldBe null; it.flagLap shouldBe null }
-    }
-
-    @Test
-    fun `stints as edited replace the default, merging a fuel stop and splitting where a change had no stop`() {
-        val edited = listOf(StintMark(W, "d-sam"), StintMark(W + 740_000, "d-alex")) // the first stop was fuel only
-        val race = Race.car("outback", listOf(oneRun), raceSessions, edited = edited)!!
-        race.stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 7), Triple("d-alex", 8, 9))
-        race.stintsEdited shouldBe true
-        val split = listOf(StintMark(W, "d-sam"), StintMark(W + 100_000, "d-alex")) // a change on track, in lap 2
-        Race.car("outback", listOf(oneRun), raceSessions, edited = split)!!.stints.map { it.firstLap to it.laps } shouldBe listOf(1 to 1, 2 to 8)
-        // Split exactly where lap 3 starts (lap 2's end): lap 3 is the new stint's, lap 2 the old one's.
-        val atLap = listOf(StintMark(W, "d-sam"), StintMark(W + 140_000, "d-alex"))
-        Race.car("outback", listOf(oneRun), raceSessions, edited = atLap)!!.stints.map { it.firstLap to it.lastLap } shouldBe listOf(1 to 2, 3 to 9)
     }
 
     @Test
@@ -183,17 +169,17 @@ class RaceTest {
     }
 
     @Test
-    fun `a restart within a session is still bridged, and edited stints stay in their session (M26)`() {
+    fun `a restart within a session is still bridged, its new session carrying on the driver, and no stint crosses the night (M26, M32)`() {
         // Saturday's app restarted 60 s after its last crossing: bridged. Then the night: not.
         val satB = run(lap("sat2", 20_000), offset = W + 210_000 + 60_000 - 20_000)
         val sunday2 = run(lap("sun", 30_000, time = 100_000, pitOut = true), lap("sun", 130_000), offset = W + 340_000 + night - 30_000)
+        // Kim took over at lap 3; the session after the restart wasn't set, so Kim carries on in it.
         val race = Race.sessions("outback", listOf(saturday, satB, sunday2), listOf(
-            RaceSessionInput("p2", setOf("sat", "sat2"), edited = listOf(StintMark(W, "d-sam"), StintMark(W + 140_000, "d-kim"))),
+            RaceSessionInput("p2", setOf("sat", "sat2")),
             RaceSessionInput("p3", setOf("sun")),
-        ), drivers = mapOf("sun" to "d-alex"))!!
+        ), drivers = mapOf("sat" to "d-sam", "sun" to "d-alex"), changes = mapOf("sat" to listOf(StintMark(W + 140_000, "d-kim"))))!!
         race.laps.map { it.source } shouldBe listOf("retimed", "retimed", "retimed", "restart", "retimed", "retimed", "retimed")
         race.stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 2), Triple("d-kim", 3, 5), Triple("d-alex", 6, 7))
-        race.stintsEdited shouldBe true
     }
 
     @Test
@@ -205,7 +191,7 @@ class RaceTest {
     }
 
     @Test
-    fun `a driver change within a session starts a default stint, its laps the new driver's, edited stints still winning (M27)`() {
+    fun `a driver change within a session starts a stint, its laps the new driver's (M27)`() {
         // One session, c1: Sam, then Alex from mid-lap 3 (the lap under way is the new driver's, as a stint's is).
         val one = run(lap("c1", 0), lap("c1", 70_000), lap("c1", 140_000), lap("c1", 210_000))
         val changes = mapOf("c1" to listOf(StintMark(W + 160_000, "d-alex")))
@@ -214,9 +200,6 @@ class RaceTest {
         // A change in a session outside the race, or before its first lap, makes no stint.
         Race.car("outback", listOf(one), setOf("c1"), drivers = mapOf("c1" to "d-sam"), changes = mapOf("p1" to listOf(StintMark(W + 160_000, "d-alex"))))!!
             .stints.single().driver shouldBe "d-sam"
-        // Stints as edited replace the default, the change's included.
-        Race.car("outback", listOf(one), setOf("c1"), drivers = mapOf("c1" to "d-sam"), edited = listOf(StintMark(W, "d-kim")), changes = changes)!!
-            .stints.single().driver shouldBe "d-kim"
         // Through a race in sessions too.
         Race.sessions("outback", listOf(one), listOf(RaceSessionInput("p2", setOf("c1"))), drivers = mapOf("c1" to "d-sam"), changes = changes)!!
             .stints.map { it.driver } shouldBe listOf("d-sam", "d-alex")
