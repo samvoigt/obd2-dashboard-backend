@@ -169,6 +169,21 @@ sessions back to back with Sam are one stint, a new driver at a session's
 start makes one, and a session nobody set is a stint of nobody's; a stint
 never crosses a race part. The other existing cases pass unchanged (17).
 
+**Refined 2026-10-26, after M32.3's full test run** (M32.1 had been committed
+after only `:timing`'s tests, a mistake: five server tests then failed):
+**a session nobody set carries on whoever was driving.** Only a session set
+to *another* driver starts a stint at its start. Otherwise every restart of
+the app before anyone set its driver, in old races too, became a stint of
+nobody's in the middle of one driver's run. The carry-over (M32.4) sets new
+sessions anyway. Server tests updated to the new rule, each now asserting
+what decision 48 says:
+- `StandingsTest` "in a race, the lap count…": Alex's stint from his
+  session's first lap (`W + 140_000`), not the stop's exit;
+- `StandingsTest` "…stints as they fall…" became "in a race, a session set
+  to a new driver starts that driver's stint, one nobody set carries on";
+- `CarTimingsTest` "in a race, laps counted…": Alex's stint from the live
+  session's first lap.
+
 ### M32.2 — The correction rule (pure, tested)
 
 `archive/.../DriverRules.kt` (beside `DriverChange`; `:events` can't see
@@ -202,6 +217,20 @@ answer carries the stored list and `replaced` (M34 shows it).
 Tests (`DriverRoutesTest`): a change 30 s after another stores one, and the
 answer names the replaced one; the existing `driver changes within a session
 (M27)` case still passes.
+
+**Built 2026-10-26.** `driverRoutes` takes `lapEnds` (wired in `Application.kt`:
+`retiming.sessionLaps(…).laps` ends once complete, else `liveTimings.laps`'
+`wall`s). Both `setDriver` and `setDriverChanges` go through one
+`saveDrivers`: the session's start from its header's `started`, then
+`DriverRules.normalise`, then both the driver and the changes stored. Both
+answer `DriversSaved(driver, changes, replaced)` (the site ignores the
+answer and reloads, so nothing there changes). **The plan was wrong** that the
+M27 case would pass unchanged: its changes were 1 s apart, at moments before
+the session began, so the rule rightly took them for one correction. It now
+uses changes 10 and 20 minutes in. New case: a change 30 s after another is
+stored as one at the first moment, with the replaced one in the answer, and
+a change in the first minute sets the session's driver. 656 Kotlin tests
+pass.
 
 ### M32.4 — The carry-over
 

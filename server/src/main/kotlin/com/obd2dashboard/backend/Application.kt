@@ -185,7 +185,11 @@ fun Application.module(
             liveSeries = liveSeries, liveLaps = { car, id -> liveTimings.laps(car, id) },
         )
         messageRoutes(registry, crewAuth, crew)
-        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = edited)
+        // A session's laps' ends (M32): its timed laps once complete, else as the tablet sent them while it's driven.
+        val lapEnds: suspend (String, String) -> List<Long> = { car, id ->
+            retiming.sessionLaps(car, id)?.laps?.map { it.end } ?: liveTimings.laps(car, id)?.map { it.wall }.orEmpty()
+        }
+        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = edited, lapEnds = lapEnds)
         raceRoutes(events, registry, crewAuth, adminAuth, admin, clock, onChanged = edited)
         webRoutes()
 

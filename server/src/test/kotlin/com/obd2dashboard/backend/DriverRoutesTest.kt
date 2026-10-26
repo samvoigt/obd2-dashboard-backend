@@ -208,15 +208,18 @@ class DriverRoutesTest {
         app()
         val c = crew("outback", "outback-crew")
         set("/api/cars/outback/sessions/$s/driver", c, "d-sam").status shouldBe HttpStatusCode.OK
-        changes("/api/cars/outback/sessions/$s/driver-changes", c, """{"changes":[{"from":2000,"driver":"d-sam"},{"from":1000,"driver":"d-alex"}]}""").let {
+        // Ten and twenty minutes into the session (its header started at t0): far enough apart to be changes (M32).
+        val t0 = Instant.parse("2026-10-04T13:00:00Z").toEpochMilli()
+        val (ten, twenty) = t0 + 600_000 to t0 + 1_200_000
+        changes("/api/cars/outback/sessions/$s/driver-changes", c, """{"changes":[{"from":$twenty,"driver":"d-sam"},{"from":$ten,"driver":"d-alex"}]}""").let {
             it.status shouldBe HttpStatusCode.OK
-            it.bodyAsText() shouldBe """{"changes":[{"from":1000,"driver":"d-alex"},{"from":2000,"driver":"d-sam"}]}""" // in order
+            it.bodyAsText() shouldBe """{"driver":"d-sam","changes":[{"from":$ten,"driver":"d-alex"},{"from":$twenty,"driver":"d-sam"}],"replaced":[]}""" // in order
         }
         json.decodeFromString<SessionDetail>(client.get("/api/sessions/$s").bodyAsText()).let {
             it.driver shouldBe DriverView("d-sam", "Sam Voigt", "SAM") // from the start
-            it.driverChanges shouldBe listOf(DriverChangeDetail(1000, DriverView("d-alex", "Alex Rider", "ALE")), DriverChangeDetail(2000, DriverView("d-sam", "Sam Voigt", "SAM")))
+            it.driverChanges shouldBe listOf(DriverChangeDetail(ten, DriverView("d-alex", "Alex Rider", "ALE")), DriverChangeDetail(twenty, DriverView("d-sam", "Sam Voigt", "SAM")))
         }
-        log.list.map { it.formattedMessage } shouldContain "driver changes: session $s of outback, d-alex from 1000, d-sam from 2000 by the crew of outback"
+        log.list.map { it.formattedMessage } shouldContain "driver changes: session $s of outback, d-alex from $ten, d-sam from $twenty by the crew of outback"
         // The admin, for any car; an empty list is the session's driver throughout again.
         val a = admin()
         changes("/api/admin/sessions/$s/driver-changes", a, """{"changes":[]}""").status shouldBe HttpStatusCode.OK
@@ -234,7 +237,25 @@ class DriverRoutesTest {
         sessions.get(s)!!.driverChanges shouldBe emptyList()
     }
 
-    // GPS latency and videos (M30)
+@Test
+    fun `a driver change half a minute after another corrects it, and the answer says what went (M32)`() = testApplication {
+        app()
+        val c = crew("outback", "outback-crew")
+        val t0 = Instant.parse("2026-10-04T13:00:00Z").toEpochMilli()
+        set("/api/cars/outback/sessions/$s/driver", c, "d-sam").status shouldBe HttpStatusCode.OK
+        // Alex from ten minutes in, then, thirty seconds later, the crew meant Sam: one change, at the first moment.
+        val r = changes("/api/cars/outback/sessions/$s/driver-changes", c,
+            """{"changes":[{"from":${t0 + 600_000},"driver":"d-alex"},{"from":${t0 + 630_000},"driver":"d-sam"}]}""")
+        r.status shouldBe HttpStatusCode.OK
+        json.decodeFromString<DriversSaved>(r.bodyAsText()) shouldBe
+            DriversSaved("d-sam", listOf(DriverChangeView(t0 + 600_000, "d-sam")), listOf(DriverChangeView(t0 + 600_000, "d-alex")))
+        sessions.get(s)!!.driverChanges shouldBe listOf(com.obd2dashboard.backend.archive.DriverChange(t0 + 600_000, "d-sam"))
+        // A change in the session's first minute corrects its driver from the start.
+        changes("/api/cars/outback/sessions/$s/driver-changes", c, """{"changes":[{"from":${t0 + 20_000},"driver":"d-alex"}]}""").status shouldBe HttpStatusCode.OK
+        sessions.get(s)!!.let { it.driver shouldBe "d-alex"; it.driverChanges shouldBe emptyList() }
+    }
+
+        // GPS latency and videos (M30)
 
     private suspend fun ApplicationTestBuilder.putJson(path: String, cookie: String?, body: String): HttpResponse =
         client.put(path) {
