@@ -102,6 +102,9 @@ public class FirestoreSessionIndex(private val db: Firestore) : SessionIndex {
     override suspend fun setDriverChanges(id: String, changes: List<DriverChange>): Boolean =
         conditional(id) { current -> current.copy(driverChanges = changes) }
 
+    override suspend fun setDriverIfUnset(id: String, driver: String): Boolean =
+        conditional(id) { current -> current.takeIf { it.driver == null && it.driverChanges.isEmpty() }?.copy(driver = driver) }
+
     override suspend fun setClockOffset(id: String, offsetMs: Long): Boolean =
         conditional(id) { current -> current.copy(clockOffsetMs = minOf(current.clockOffsetMs ?: offsetMs, offsetMs)) }
 

@@ -250,6 +250,21 @@ a restart (same device, `at` begun again) → carried, as decided; another
 device → not; 11 min apart → not; exactly 10 min → carried; already set → untouched; previous ended
 with a change → that driver; test data (`fake`) on either side → not.
 
+**Built 2026-10-26.** `SessionIndex.setDriverIfUnset` (in memory; Firestore
+through its one `conditional` transaction, writing only when there's no
+driver and no change), `ArchiveService.setDriverIfUnset`, `carryDriver` in
+`DriverCarry.kt`, and `archiveRoutes`' `opened` hook, called after the
+`Created` answer and never failing the upload. `Application.kt` logs
+"driver carried over: …" and calls `edited()`. **As built:** "the session
+before" is the car's latest created before this one, test data never on
+either side; the gap is its `updated` to this one's `created`, at most
+`DRIVE_GAP`; a previous session ending with a change to nobody carries
+nothing. Tests (`DriverCarryTest`, 6): back to back carries; its last
+change's driver, and nothing when that was nobody; exactly 10 min carries,
+11 doesn't; another tablet, a driver already set, or test data carries
+nothing; a restart carries; and through the real `PUT /v1/sessions/{id}`
+(line 0 with a device). 662 Kotlin tests pass.
+
 ### M32.5 — Readers switched, the editor and its routes removed
 
 - `EventResults.kt` (`RaceSessionInput`, `RaceSessionResults.edited`,

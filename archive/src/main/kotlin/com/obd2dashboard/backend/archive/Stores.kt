@@ -148,6 +148,12 @@ public interface SessionIndex {
     /** Sets the session's driver changes (M27), the whole list, touching nothing else; false if there's no such session. */
     public suspend fun setDriverChanges(id: String, changes: List<DriverChange>): Boolean
 
+    /**
+     * Sets who drove the session only if nobody has said yet: no driver and no changes (M32's carry-over), touching
+     * nothing else; true if it was set. One write, so a crew's set in the meantime wins.
+     */
+    public suspend fun setDriverIfUnset(id: String, driver: String): Boolean
+
     /** Stores [offsetMs] as the session's clock offset, or keeps the one stored if smaller (M18.1). */
     public suspend fun setClockOffset(id: String, offsetMs: Long): Boolean
 
@@ -277,6 +283,14 @@ public class InMemorySessionIndex : SessionIndex {
 
     override suspend fun setDriverChanges(id: String, changes: List<DriverChange>): Boolean =
         sessions.computeIfPresent(id) { _, current -> current.copy(driverChanges = changes) } != null
+
+    override suspend fun setDriverIfUnset(id: String, driver: String): Boolean {
+        var set = false
+        sessions.computeIfPresent(id) { _, current ->
+            if (current.driver == null && current.driverChanges.isEmpty()) current.copy(driver = driver).also { set = true } else current
+        }
+        return set
+    }
 
     override suspend fun setClockOffset(id: String, offsetMs: Long): Boolean =
         sessions.computeIfPresent(id) { _, current -> current.copy(clockOffsetMs = minOf(current.clockOffsetMs ?: offsetMs, offsetMs)) } != null

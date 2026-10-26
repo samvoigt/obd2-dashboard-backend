@@ -53,12 +53,18 @@ fun Route.archiveRoutes(
     prepared: suspend (car: String, id: String) -> Unit = { _, _ -> },
     /** The moment a session is complete: its live run is done with (M17.2). */
     completed: (car: String, id: String) -> Unit = { _, _ -> },
+    /** A session's line 0 just arrived, its header (device included) now known: the driver's carry-over (M32). */
+    opened: suspend (car: String, id: String) -> Unit = { _, _ -> },
 ) {
     put("/v1/sessions/{id}") {
         archiveCall(call) { car, id ->
             val body = call.readCapped(MAX_OPEN_BYTES) ?: return@archiveCall call.tooLarge("a session record is at most $MAX_OPEN_BYTES bytes")
             when (val result = archive.open(car, id, body)) {
-                is ArchiveService.Open.Created -> call.respond(HttpStatusCode.Created, Acked(result.ackedThrough))
+                is ArchiveService.Open.Created -> {
+                    call.respond(HttpStatusCode.Created, Acked(result.ackedThrough))
+                    // After the answer, and never the upload's failure: the tablet has its ack.
+                    runCatching { opened(car, id) }.onFailure { call.application.log.warn("carrying a driver to $id failed", it) }
+                }
                 is ArchiveService.Open.Existing -> call.respond(HttpStatusCode.OK, Acked(result.ackedThrough))
                 ArchiveService.Open.WrongCar -> call.wrongCar(id)
                 is ArchiveService.Open.BadRecord -> call.badRecord(result.reason)

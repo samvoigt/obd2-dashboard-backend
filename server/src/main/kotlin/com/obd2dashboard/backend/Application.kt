@@ -202,7 +202,15 @@ fun Application.module(
                 val car = call.principal<CarPrincipal>()!!
                 call.respond(PublicCar(car.slug, car.name))
             }
-            archiveRoutes(archive, prepared = retiming::sessionPrepared, completed = { car, id -> liveTimings.completed(car, id); liveSeries.completed(id) })
+            archiveRoutes(
+                archive, prepared = retiming::sessionPrepared, completed = { car, id -> liveTimings.completed(car, id); liveSeries.completed(id) },
+                opened = { car, id ->
+                    carryDriver(archive, car, id)?.let { driver ->
+                        adminLog.info("driver carried over: session {} of {} to {} from the session before", id, car, driver)
+                        edited()
+                    }
+                },
+            )
             tabletCourseRoutes(courses)
         }
     }
