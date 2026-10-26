@@ -1266,3 +1266,40 @@ things (JOURNAL 2026-10-20, M30):
 The latency is a measurement of one session's GPS, kept on the session
 where it was measured. The server makes no guess of its own and learns
 nothing about the car, so the rule in `CLAUDE.md` holds.
+
+## 48. Who drove belongs to the session; a race's stints follow from it
+
+**Decision.** (M32; amends 34, 35, 43 and 44; Sam, 2026-10-22.)
+- **A session's driver from its start and its driver changes are the only
+  record of who drove.** They're edited on the session page; the live page's
+  crew sets the live session's.
+- **A race's stints are worked out, never edited.** Within each race part, a
+  stint starts at the part's first lap, at each driver change in its
+  sessions, and at a session's start when it's set to a driver other than
+  the one driving at the end of the one before. A session nobody set carries
+  on whoever was driving. A change to the same driver (entered at a stop, for
+  a double stint) starts a stint too. **Stops no longer split a stint**;
+  they're shown inside it. A stint never crosses a race part (decision 43).
+- **A correction replaces, not adds** (Sam: "a stint shorter than 60s or 1
+  lap is likely a correction"): a driver change less than 60 s after the
+  entry before it (the session's start counts as one), or with no lap ending
+  between them, corrects that entry. It keeps the earlier moment (when the
+  swap happened) and takes the later driver; correcting the start sets the
+  session's driver. A session never timed uses the minute alone.
+- **A session following straight on carries its driver over:** when its
+  line 0 arrives and nobody has set its driver, it gets the driver the car's
+  previous session ended with, if that one was on the same tablet and last
+  heard at most 10 minutes before this one was first heard, restarts of the
+  app included (Sam: "Same tablet, back to back (10 min)"). Never test data.
+- **Hand-edited stints, the stint editor's split and merge, and both
+  precedence rules are gone.** The races that had edited stints had them
+  moved into their sessions' drivers once (M32.6), checked lap for lap
+  against the race this rule works out.
+
+**Why.** The same fact had several addresses, and rules decided silently
+between them: edited stints won over the crew's driver change, so it "didn't
+take" (2026-10-19, "why won't the current driver update?"). Stops splitting
+stints forced hand edits, which then disabled driver changes. Every restart
+of the app started with nobody driving. Sam: "any change to the stint takes
+place everywhere"; "the driver should mostly be edited by session".
+
