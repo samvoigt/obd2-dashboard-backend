@@ -109,6 +109,17 @@ tasks.register<JavaExec>("devServer") {
     providers.gradleProperty("devJvmArgs").orNull?.let { jvmArgs(it.split(" ")) }
 }
 
+/**
+ * `scripts/migrate-stints.sh [--apply | --clear]` (M32.6): hand-edited race stints into the sessions' drivers, once,
+ * against the project and bucket in the environment. Sam's to run on production.
+ */
+tasks.register<JavaExec>("migrateStints") {
+    description = "Moves races' hand-edited stints into their sessions' drivers (M32.6): a dry run, --apply or --clear."
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.obd2dashboard.backend.MigrateStintsKt")
+}
+
 // Course tests read the NHMS seed: a changed seed must re-run them (M12.3).
 tasks.test {
     inputs.dir("../courses/seed")

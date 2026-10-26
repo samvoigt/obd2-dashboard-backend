@@ -343,6 +343,24 @@ sessions, at a session's start, empty ones, a same-driver split at a stop):
 laps per driver equal both ways; then Sam's dry run on production shows
 SAM 122, HUG 118, PAU 113, DRE 107 both sides.
 
+**Built 2026-10-26.** `server/src/main/.../MigrateStints.kt`: the pure
+`StintMigration` (`before`, `beforeStints`, `plan`, `after`, `stintsOf`),
+`PlannedIndex` (the production index with the planned drivers in place, read
+only), and `main`. **"After" is the real thing:** the race is worked out by
+`EventResultsService` over `PlannedIndex`, the very code the new server runs,
+not a copy of its rule; a mismatch in any lap's driver or any stint refuses
+`--apply`. `--clear` checks the *stored* drivers the same way, so it can't
+run before `--apply` and the deploy. **Found on building:** a split the edits
+made at a session's first lap with the same driver as before would vanish
+under the new rule (a session starting with the same driver isn't a new
+stint), so it's written as a change at that lap. Run as
+`scripts/migrate-stints.sh [--apply | --clear]` (`./gradlew -PskipWeb
+:server:migrateStints`, the project and bucket from `env.sh`).
+`StintMigrationTest` (4), on NHMS's shapes: a change inside a session, a
+same-driver split at a session's start, an empty stint, a new driver at a
+session's start; the race from the plan equals the edited race lap for lap
+and stint for stint, and stale drivers are caught.
+
 ### M32.7 — Deployed, then migrated
 
 Decision 48 into `DECISIONS.md`. **The order matters**, so NHMS's race never
