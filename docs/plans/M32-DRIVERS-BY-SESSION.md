@@ -95,8 +95,9 @@ half of UX review phase 2 (`UX-REVIEW.md` §3.C, §7); the screens are M34.
     page's crew sets the live session's (M34).
   - **A race's stints are worked out, never edited:** within each race part,
     a stint starts at the part's first lap, at each driver change in its
-    sessions, and at a session's start when its driver differs from the
-    driver in force at the end of the one before. A change to the same
+    sessions, and at a session's start when it's set to a driver other than
+    the one in force at the end of the one before. A session nobody set
+    carries on whoever was driving. A change to the same
     driver (entered at a stop, for a double stint) starts a stint too.
     **Stops no longer split a stint**; they're shown inside it. A stint
     never crosses a race part (decision 43).
