@@ -263,19 +263,26 @@ public object Race {
     /**
      * **Stints from who drove** (M32, decision 48): one from the first lap; one at each driver change inside the race
      * (M27), a change to the same driver included (a double stint, entered at the stop); and one where a session starts
-     * with a driver other than the one already driving. Stops split nothing. Each stint is driven by whoever drove its
-     * first lap: its session's driver, or the change before the lap ended.
+     * with a driver other than the one already driving. A session nobody set carries on whoever was driving (a restart
+     * of the app, say, before anyone set it). Stops split nothing. Each stint is driven by whoever drove its first lap:
+     * its session's driver, or the change before the lap ended, or, in a session nobody set, the driver before it.
      */
     private fun stintsOf(laps: List<RaceLap>, drivers: Map<String, String?>, changes: Map<String, List<StintMark>>): List<StintMark> {
-        fun driverOf(lap: RaceLap): String? {
-            val change = changes[lap.session]?.lastOrNull { it.start < lap.end } ?: return drivers[lap.session]
-            return change.driver
+        // Who drove each lap, in order: a session nobody set takes the driver before it.
+        val driverOf = HashMap<Int, String?>()
+        var carried: String? = null
+        for (lap in laps) {
+            val change = changes[lap.session]?.lastOrNull { it.start < lap.end }
+            val who = if (change != null) change.driver else drivers[lap.session] ?: carried
+            driverOf[lap.number] = who
+            carried = who
         }
-        fun driverAfter(t: Long) = laps.firstOrNull { it.end > t }?.let(::driverOf)
+        fun driverAfter(t: Long) = laps.firstOrNull { it.end > t }?.let { driverOf[it.number] }
         val first = laps.first().start
-        // A session's start (its driver from the start), when it isn't who was driving at the end of the one before.
-        val sessionStarts = laps.zipWithNext().filter { (before, lap) -> lap.session != before.session && drivers[lap.session] != driverOf(before) }
-            .map { (_, lap) -> StintMark(lap.start, driverAfter(lap.start)) }
+        // A session's start, when it was set to someone other than who was driving at the end of the one before.
+        val sessionStarts = laps.zipWithNext().filter { (before, lap) ->
+            lap.session != before.session && drivers[lap.session] != null && drivers[lap.session] != driverOf[before.number]
+        }.map { (_, lap) -> StintMark(lap.start, driverAfter(lap.start)) }
         val inRace = changes.values.flatten().filter { c -> c.start > first && c.start < laps.last().end }
         return (listOf(StintMark(first, driverAfter(first))) + sessionStarts + inRace.map { StintMark(it.start, driverAfter(it.start)) })
             .distinctBy { it.start }

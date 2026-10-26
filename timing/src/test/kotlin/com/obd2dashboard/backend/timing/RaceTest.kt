@@ -242,9 +242,11 @@ class RaceTest {
             .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 6))
         Race.car("outback", listOf(three), setOf("a", "b", "c"), drivers = mapOf("a" to "d-sam", "b" to "d-sam", "c" to "d-alex"))!!
             .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 4), Triple("d-alex", 5, 6))
-        // A session nobody's set is a stint of nobody's, not a continuation.
+        // A session nobody set carries on whoever was driving (a restart of the app before anyone set it).
         Race.car("outback", listOf(three), setOf("a", "b", "c"), drivers = mapOf("a" to "d-sam", "c" to "d-sam"))!!
-            .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 2), Triple(null, 3, 4), Triple("d-sam", 5, 6))
+            .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 6))
+        Race.car("outback", listOf(three), setOf("a", "b", "c"), drivers = mapOf("a" to "d-sam", "c" to "d-alex"))!!
+            .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 4), Triple("d-alex", 5, 6))
     }
 
     @Test

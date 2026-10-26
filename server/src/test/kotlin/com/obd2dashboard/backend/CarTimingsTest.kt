@@ -111,8 +111,9 @@ class CarTimingsTest {
         runBlocking { index.setDriver(b, "d-alex") }
         val s = standing()
         s.race shouldBe RaceNow(4, BOX_WALL0 + 12_500) // no stop: since the first lap
-        // Alex, as set on the session now, though no stop has split the stint Sam began; the best was Sam's stint's.
-        s.driver shouldBe DriverNow("Alex Rider", "ALE", BOX_WALL0 + 12_500)
+        // Alex, as set on the live session: his stint began with it, at its first lap (M32), not at the race's first;
+        // the best was Sam's stint's.
+        s.driver shouldBe DriverNow("Alex Rider", "ALE", BOX_WALL0 + 151_700)
         s.best!!.driver shouldBe "SAM"
     }
 

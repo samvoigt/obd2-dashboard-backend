@@ -71,24 +71,24 @@ class StandingsTest {
         // In the pits: entered, not out.
         val inPits = run(lap("c1", 0, n = 1), lap("c1", 70_000, n = 2, pitIn = true), crossings = listOf(PitCrossing("c1", "in", 130_000.0)))
         Standings.of("outback", "c1", box, listOf(inPits), setOf("c1"), mapOf("c1" to sam), race).race shouldBe RaceNow(2, null)
-        // Out again, Alex driving from the stop.
+        // Out again, Alex's session: his stint from its first lap, the out-lap (M32: stops split nothing; a new driver does).
         val after = run(
             lap("c1", 0, n = 1), lap("c1", 70_000, n = 2, pitIn = true), lap("c2", 140_000, 120_000, n = 3, pitOut = true), lap("c2", 260_000, 65_000, n = 4),
             sessions = listOf("c1", "t1", "c2"), crossings = listOf(PitCrossing("c1", "in", 130_000.0), PitCrossing("t1", "out", 200_000.0)),
         )
         Standings.of("outback", "c2", box, listOf(after), setOf("c1", "t1", "c2"), mapOf("c1" to sam, "c2" to alex), race).let {
             it.race shouldBe RaceNow(4, W + 200_000)
-            it.driver shouldBe DriverNow("Alex Rider", "ALE", W + 200_000)
+            it.driver shouldBe DriverNow("Alex Rider", "ALE", W + 140_000)
             it.best shouldBe BestLap(65.0, listOf(20.0, 25.0, 25.0), "ALE", "c2", 4)
         }
     }
 
     @Test
-    fun `in a race with stints as they fall, the session's driver as set is who's driving now`() {
-        // No stop yet, so one stint, Sam's; the crew says Alex took over in c2 (from the car page).
+    fun `in a race, a session set to a new driver starts that driver's stint, one nobody set carries on (M32)`() {
+        // No stop; the crew says Alex took over in c2 (from the car page): his stint from c2's first lap.
         val runs = listOf(run(lap("c1", 0, n = 1), lap("c2", 70_000, n = 2)))
         val race = RaceNowInput(listOf(RaceSessionInput("p2", setOf("c1", "c2"))))
-        Standings.of("outback", "c2", box, runs, setOf("c1", "c2"), mapOf("c1" to sam, "c2" to alex), race).driver shouldBe DriverNow("Alex Rider", "ALE", W)
+        Standings.of("outback", "c2", box, runs, setOf("c1", "c2"), mapOf("c1" to sam, "c2" to alex), race).driver shouldBe DriverNow("Alex Rider", "ALE", W + 70_000)
         Standings.of("outback", "c2", box, runs, setOf("c1", "c2"), mapOf("c1" to sam), race).driver shouldBe DriverNow("Sam Voigt", "SAM", W)
     }
 
