@@ -29,7 +29,7 @@ class RaceTest {
     private val raceSessions = setOf("c1", "t1", "c2", "c3")
 
     @Test
-    fun `one run through two driver changes, numbered straight through, stops and stints at each`() {
+    fun `one run through two driver changes, numbered straight through, stops, and a stint at each new driver`() {
         val race = Race.car("outback", listOf(oneRun), raceSessions, drivers = mapOf("c1" to "d-sam", "c2" to "d-alex", "c3" to "d-sam"))!!
         race.laps.map { it.number } shouldBe (1..9).toList()
         race.laps.first().start shouldBe W
@@ -220,5 +220,37 @@ class RaceTest {
         // Through a race in sessions too.
         Race.sessions("outback", listOf(one), listOf(RaceSessionInput("p2", setOf("c1"))), drivers = mapOf("c1" to "d-sam"), changes = changes)!!
             .stints.map { it.driver } shouldBe listOf("d-sam", "d-alex")
+    }
+
+    @Test
+    fun `stops split no stint, and a change to the same driver at a stop starts one (M32)`() {
+        // The whole run with one driver: two fuel stops, one stint.
+        val same = mapOf("c1" to "d-sam", "c2" to "d-sam", "c3" to "d-sam")
+        Race.car("outback", listOf(oneRun), raceSessions, drivers = same)!!.stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe
+            listOf(Triple("d-sam", 1, 9))
+        // A double stint: the same driver entered again at the second stop's exit.
+        val again = mapOf("c3" to listOf(StintMark(W + 740_000, "d-sam")))
+        Race.car("outback", listOf(oneRun), raceSessions, drivers = same, changes = again)!!.stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe
+            listOf(Triple("d-sam", 1, 7), Triple("d-sam", 8, 9))
+    }
+
+    @Test
+    fun `sessions back to back with the same driver are one stint, a new driver at a session's start starts one (M32)`() {
+        // Three sessions in one run (restarts of the app between, say), Sam throughout, then Alex in the third.
+        val three = run(lap("a", 0), lap("a", 70_000), lap("b", 140_000), lap("b", 210_000), lap("c", 280_000), lap("c", 350_000))
+        Race.car("outback", listOf(three), setOf("a", "b", "c"), drivers = mapOf("a" to "d-sam", "b" to "d-sam", "c" to "d-sam"))!!
+            .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 6))
+        Race.car("outback", listOf(three), setOf("a", "b", "c"), drivers = mapOf("a" to "d-sam", "b" to "d-sam", "c" to "d-alex"))!!
+            .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 4), Triple("d-alex", 5, 6))
+        // A session nobody's set is a stint of nobody's, not a continuation.
+        Race.car("outback", listOf(three), setOf("a", "b", "c"), drivers = mapOf("a" to "d-sam", "c" to "d-sam"))!!
+            .stints.map { Triple(it.driver, it.firstLap, it.lastLap) } shouldBe listOf(Triple("d-sam", 1, 2), Triple(null, 3, 4), Triple("d-sam", 5, 6))
+    }
+
+    @Test
+    fun `a stint never crosses a race part, though the driver is the same (M32)`() {
+        val race = Race.sessions("outback", listOf(saturday, sunday), listOf(RaceSessionInput("p2", setOf("sat")), RaceSessionInput("p3", setOf("sun"))),
+            drivers = mapOf("sat" to "d-sam", "sun" to "d-sam"))!!
+        race.stints.map { it.driver to it.firstLap } shouldBe listOf("d-sam" to 1, "d-sam" to 4)
     }
 }

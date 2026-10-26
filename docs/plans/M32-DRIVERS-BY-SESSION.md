@@ -147,6 +147,28 @@ Tests (`RaceTest`), rewritten:
 - new: three back-to-back sessions with the same driver are one stint; a
   stint never crosses a race part.
 
+**Revalidated 2026-10-26** against the code after Hugh's M30 (merged
+2026-10-24): it added `gpsLatencyMs` and `videos` to `SessionRecord`
+(`Stores.kt:66`, `:68`; `DriverChange` is now `:82`, `setDriver` `:143`,
+`setDriverChanges` `:149`) and gps-latency and videos routes to
+`DriverRoutes.kt` (`setDriver` now `:225`, `setDriverChanges` `:237`),
+touching nothing this plan changes. `defaultStints` was `Race.kt:259–276`.
+**Decided on building:** a correction keeps the replaced entry's moment and
+takes the new driver ("Paul from 14:05", where 14:05 Drew was corrected at
+14:05:30): the first moment is when the swap happened. Replacing the
+session's start sets the session's driver.
+
+**Built 2026-10-26, in two halves so every commit builds:** here, the rule
+(`stintsOf` replaces `defaultStints`); `edited` stays working until M32.5
+removes it with its readers. A session's start makes a stint when the
+session's own driver isn't who drove the lap before. Tests: the first case
+renamed ("…a stint at each new driver", unchanged otherwise, since every stop
+in it is also a new session and driver); new: two fuel stops with one driver
+are one stint and a change to the same driver at a stop makes two; three
+sessions back to back with Sam are one stint, a new driver at a session's
+start makes one, and a session nobody set is a stint of nobody's; a stint
+never crosses a race part. The other existing cases pass unchanged (17).
+
 ### M32.2 — The correction rule (pure, tested)
 
 `archive/.../DriverRules.kt` (beside `DriverChange`; `:events` can't see
