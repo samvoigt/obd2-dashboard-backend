@@ -273,6 +273,30 @@ Tests (`MergeRoutesTest`, in memory): merge, extend, split, delete, name;
 refusals (not yours, live member, different parts, overlap, already
 merged); each change empties the results' hold.
 
+**Built 2026-10-28 (after M33.4).** `MergeRoutes.kt`: `SessionMerges` (each
+session as the rules see it: live or not from the hub, its span as the list
+shows it, its part's name by `sessionsIn` with merges, the merge it's in)
+and `mergeRoutes`: `POST /api/admin/cars/{slug}/merges` (`{members}` → 201,
+`{into, add}` → 200, members saved in time order) and `POST
+/api/admin/merges/{id}/split`, `Action.EDIT`, logged, then `edited`. A
+refusal is 409 `MergeRefused` with every problem and its sessions. **As
+built, beside the plan:** the routes are their own `mergeRoutes`, not inside
+`adminCarRoutes`, which gained only `onChanged` (its delete now clears the
+hold too) and handles a merge id: `CarAdmin.deleteMerged` checks every member
+as one is checked (live or uploading) before deleting any, then the merge.
+**A member alone is refused** (`SessionMerged`, 409 "part of a merged
+session"), by `CarAdmin`, so `admin.sh delete-session` refuses too (the tool
+now builds Firestore's merges). Removing a car deletes its merges. The name
+routes (admin and crew) name a merge by its id; the driver routes answer 404
+for it. Decision 49 in `DECISIONS.md`. `MergeRoutesTest` (5): merge, extend,
+extending into another part refused, split, its sessions free again;
+refusals with their sessions (uploading, parts, overlap, another car's,
+merged already); signed out or another site; naming, and the driver route's
+404; deleting every member, a member alone refused, the hold cleared (the
+next read sees it). **The hold after a merge or split** is seen only once
+results count a merge as one (M33.6): placement can't move a merge, since
+its members must share a part. 682 Kotlin tests pass.
+
 ### M33.4 — Placement as one unit
 
 `EventRules.sessionsIn(event, sessions, merges: List<List<String>> =

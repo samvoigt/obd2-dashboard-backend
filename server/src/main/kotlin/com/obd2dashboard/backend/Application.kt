@@ -165,7 +165,8 @@ fun Application.module(
         this@module.attributes.put(Gate.KEY, Gate(adminAuth, admin, users, access))
         adminSignInRoutes(adminAuth, admin)
         adminAccessRoutes()
-        adminCarRoutes(registry, CarAdmin(registry, archive, messages, clock), archive, hub, clock, adminAuth, admin)
+        adminCarRoutes(registry, CarAdmin(registry, archive, messages, clock, events.merges), archive, hub, clock, adminAuth, admin, onChanged = edited)
+        mergeRoutes(SessionMerges(archive, events, hub, clock), clock, onChanged = edited)
         // A course is in use once any session's laps were timed at it (its summary's track, M12.3).
         val courseInUse: suspend (String) -> Boolean = { id ->
             registry.list().any { car -> archive.sessionsOf(car.slug.value).any { it.summary?.track == id } }
@@ -190,7 +191,7 @@ fun Application.module(
         val lapEnds: suspend (String, String) -> List<Long> = { car, id ->
             retiming.sessionLaps(car, id)?.laps?.map { it.end } ?: liveTimings.laps(car, id)?.map { it.wall }.orEmpty()
         }
-        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = edited, lapEnds = lapEnds)
+        driverRoutes(events.drivers, archive, registry, crewAuth, adminAuth, admin, onChanged = edited, lapEnds = lapEnds, merges = events.merges)
         raceRoutes(events, registry, crewAuth, adminAuth, admin, clock, onChanged = edited)
         webRoutes()
 

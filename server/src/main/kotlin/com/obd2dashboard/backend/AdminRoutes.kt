@@ -10,6 +10,7 @@ import com.obd2dashboard.backend.admin.normalEmail
 import com.obd2dashboard.backend.admin.CarHasSessions
 import com.obd2dashboard.backend.admin.NoSuchSession
 import com.obd2dashboard.backend.admin.SessionBusy
+import com.obd2dashboard.backend.admin.SessionMerged
 import com.obd2dashboard.backend.archive.SessionIds
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.live.CarStatus
@@ -201,6 +202,8 @@ fun Route.adminCarRoutes(
     clock: Clock,
     auth: AdminAuth,
     config: AdminConfig,
+    /** A session or merged session deleted (M33.3): the results' hold is cleared. */
+    onChanged: () -> Unit = {},
 ) {
     suspend fun view(car: Car, access: AccessView? = null): AdminCar {
         val status = hub.status(car.slug.value)
@@ -325,16 +328,27 @@ fun Route.adminCarRoutes(
         // Deleting a car's sessions is its creator's, or a master admin's (Sam, M23).
         call.signedIn(change = true) ?: return@delete
         val id = call.parameters["id"].orEmpty().lowercase()
-        val record = archive.session(id)
+        // A merged session's id (M33.3): every member goes, then the merge.
+        val merge = if (archive.session(id) == null) try { carAdmin.mergedToDelete(id) } catch (_: NoSuchSession) { null } else null
+        val car = merge?.car ?: archive.session(id)?.car
             ?: return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
-        val email = (call.may(Action.DELETE, Thing(Kind.CAR, record.car)) ?: return@delete).email
+        val email = (call.may(Action.DELETE, Thing(Kind.CAR, car)) ?: return@delete).email
         try {
-            // Live first: a live session is usually uploading too, and "live" is the reason that matters.
-            carAdmin.deleteSession(id, live = isLive(record.car, id))
-            adminLog.info("session deleted: {} of {} by {}", id, record.car, email)
+            if (merge != null) {
+                val live = hub.status(car).liveSession()
+                carAdmin.deleteMerged(id, live = { it == live })
+                adminLog.info("merged session deleted: {} of {} ({}) by {}", id, car, merge.members, email)
+            } else {
+                // Live first: a live session is usually uploading too, and "live" is the reason that matters.
+                carAdmin.deleteSession(id, live = isLive(car, id))
+                adminLog.info("session deleted: {} of {} by {}", id, car, email)
+            }
+            onChanged()
             call.respond(HttpStatusCode.NoContent)
         } catch (_: NoSuchSession) {
             call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        } catch (_: SessionMerged) {
+            call.respond(HttpStatusCode.Conflict, ApiError("merged", "That session is part of a merged session: delete the merged one, or unmerge it first."))
         } catch (e: SessionBusy) {
             val message = if (e.live) {
                 "That session is live: its tablet is still sending. Delete it once the drive has ended."

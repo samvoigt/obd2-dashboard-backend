@@ -25,12 +25,16 @@ import com.obd2dashboard.backend.admin.normalEmail
 import com.obd2dashboard.backend.admin.CarHasSessions
 import com.obd2dashboard.backend.admin.NoSuchSession
 import com.obd2dashboard.backend.admin.SessionBusy
+import com.obd2dashboard.backend.admin.SessionMerged
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.InMemoryMergeStore
+import com.obd2dashboard.backend.archive.MergeStore
 import com.obd2dashboard.backend.archive.SessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreAccessStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
+import com.obd2dashboard.backend.archive.gcp.FirestoreMergeStore
 import com.obd2dashboard.backend.events.Driver
 import com.obd2dashboard.backend.events.DriverStore
 import com.obd2dashboard.backend.events.Event
@@ -88,6 +92,7 @@ fun main(args: Array<String>) {
                 events = FirestoreEventStore.connect(project),
                 users = FirestoreUserStore.connect(project),
                 access = FirestoreAccessStore.connect(project),
+                merges = FirestoreMergeStore.connect(project),
             )
         },
         io = ConsoleIo,
@@ -132,9 +137,11 @@ class Tools(
     val users: UserStore = InMemoryUserStore(),
     /** Each thing's creator and editors (M23). */
     val access: AccessStore = InMemoryAccessStore(),
+    /** Merged sessions (M33). */
+    val merges: MergeStore = InMemoryMergeStore(),
 ) {
     /** The rules shared with the admin page (M6.1). */
-    val admin: CarAdmin = CarAdmin(registry, archive, Messages(messages))
+    val admin: CarAdmin = CarAdmin(registry, archive, Messages(messages), merges = merges)
 }
 
 /**
@@ -403,6 +410,8 @@ class DeleteSession(private val io: AdminIo) :
             throw CliktError("No session $id.")
         } catch (_: SessionBusy) {
             throw CliktError("Session $id is still uploading. Try again once it has been quiet for 5 minutes.")
+        } catch (e: SessionMerged) {
+            throw CliktError("Session $id is part of merged session ${e.merge}. Delete that on the website, or unmerge it first.")
         }
         val typed = io.readLine("Type the session id again to delete it (car ${session.car}): ")
         if (typed?.trim()?.lowercase() != session.id) throw CliktError("Not deleted.")

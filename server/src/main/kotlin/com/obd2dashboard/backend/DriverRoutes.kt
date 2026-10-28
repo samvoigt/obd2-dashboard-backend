@@ -1,5 +1,9 @@
 package com.obd2dashboard.backend
 
+import java.time.Instant
+import com.obd2dashboard.backend.archive.MergedSession
+import com.obd2dashboard.backend.archive.InMemoryMergeStore
+import com.obd2dashboard.backend.archive.MergeStore
 import com.obd2dashboard.backend.admin.Action
 import com.obd2dashboard.backend.admin.Kind
 import com.obd2dashboard.backend.admin.Thing
@@ -56,7 +60,11 @@ fun Route.driverRoutes(
     onChanged: () -> Unit = {},
     /** A session's laps' ends on the tablet's `wall` (M32): whether a lap lies between two driver changes. */
     lapEnds: suspend (car: String, id: String) -> List<Long> = { _, _ -> emptyList() },
+    /** Merged sessions (M33.3): the name routes name a merge by its id; the driver routes don't (drivers are its members'). */
+    merges: MergeStore = InMemoryMergeStore(),
 ) {
+    suspend fun merge(id: String) = merges.get(id)?.takeIf { !it.split }
+
     get("/api/drivers") {
         call.respond(drivers.list().map { it.view() })
     }
@@ -100,7 +108,12 @@ fun Route.driverRoutes(
     // Names (M18.3): the same two sign-ins, the same rule for whose session it is.
     put("/api/admin/sessions/{id}/name") {
         call.signedIn(change = true) ?: return@put
-        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+        val id = call.parameters["id"].orEmpty().lowercase()
+        merge(id)?.let { m ->
+            val who = call.may(Action.EDIT, Thing(Kind.CAR, m.car)) ?: return@put
+            return@put call.setMergeName(m, merges, who.email, onChanged)
+        }
+        val record = archive.session(id)
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
         val who = call.may(Action.EDIT, Thing(Kind.CAR, record.car)) ?: return@put
         call.setName(record, archive, who.email, onChanged)
@@ -109,7 +122,11 @@ fun Route.driverRoutes(
     put("/api/cars/{slug}/sessions/{id}/name") {
         val car = call.pathCar(registry) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such car."))
         if (!call.isCrew(crewAuth, car)) return@put call.respond(HttpStatusCode.Unauthorized, ApiError("auth", "Log in with the crew passcode."))
-        val record = archive.session(call.parameters["id"].orEmpty().lowercase())
+        val id = call.parameters["id"].orEmpty().lowercase()
+        merge(id)?.takeIf { it.car == car.slug.value }?.let { m ->
+            return@put call.setMergeName(m, merges, "the crew of ${car.slug.value}", onChanged)
+        }
+        val record = archive.session(id)
             ?.takeIf { it.car == car.slug.value }
             ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session for this car."))
         call.setName(record, archive, "the crew of ${car.slug.value}", onChanged)
@@ -228,6 +245,16 @@ private suspend fun ApplicationCall.setName(record: SessionRecord, archive: Arch
     val name = sessionName(receive<SetName>().name).getOrElse { return respond(HttpStatusCode.BadRequest, ApiError("invalid", it.message ?: "Not a name.")) }
     if (!archive.setName(record.id, name)) return respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
     adminLog.info("session named: {} of {} to {} by {}", record.id, record.car, name?.let { "\"$it\"" } ?: "nothing", who)
+    onChanged()
+    respond(SetName(name))
+}
+
+/** A merged session's name (M33.3), on its revision. */
+private suspend fun ApplicationCall.setMergeName(merge: MergedSession, merges: MergeStore, who: String, onChanged: () -> Unit) {
+    val name = sessionName(receive<SetName>().name).getOrElse { return respond(HttpStatusCode.BadRequest, ApiError("invalid", it.message ?: "Not a name.")) }
+    merges.save(merge.copy(name = name), merge.revision, Instant.now())
+        ?: return respond(HttpStatusCode.Conflict, ApiError("conflict", "It changed just now: reload and try again."))
+    adminLog.info("merged session named: {} of {} to {} by {}", merge.id, merge.car, name?.let { "\"$it\"" } ?: "nothing", who)
     onChanged()
     respond(SetName(name))
 }

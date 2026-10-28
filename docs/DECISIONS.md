@@ -1303,3 +1303,39 @@ stints forced hand edits, which then disabled driver changes. Every restart
 of the app started with nobody driving. Sam: "any change to the stint takes
 place everywhere"; "the driver should mostly be edited by session".
 
+
+## 49. A merged session: several stored sessions, one session on the site
+
+**Decision.** (M33; Sam, 2026-10-22.)
+- **A car's editors can merge two or more of its complete sessions** into
+  one merged session, with an id, a name and a page of its own. The
+  sessions must be in time order without overlapping (by more than 5 s,
+  for the two clocks behind a session's start and end; NHMS's back-to-back
+  sessions follow on 0.2 s or more), and **in the same event part, or in
+  none** (Sam). A merge may be extended with more sessions, keeping its id;
+  two merged sessions can't be merged ("unmerge one first").
+- **The members stay as stored, untouched:** a merge is its own small record
+  (`merges/{id}`: the car, the members in order, a name, `split`). The
+  archive, re-timing and the tablet never see it. A session is in at most
+  one merge not split, kept by each save's transaction.
+- **Everything a visitor reads counts it once:** the car's list, its page,
+  event results, driver pages and the download. **Placement treats a merge
+  as one unit**, by its whole span; a member added to or removed from a part
+  by hand takes the others with it, so its members are always in the same
+  part.
+- **Who drove stays on the members** (decision 48): a driver change on a
+  merged session's page is stored on the member its moment falls in.
+- **Unmerging** keeps the record, marked `split`, so its URL moves to the
+  first member, and frees its members. **Deleting** a merged session deletes
+  every member and the merge; a member can't be deleted alone.
+- **Suggested, never automatic:** sessions that look like one drive (the
+  same tablet, consecutive in one drive, unmerged, in one part or none) are
+  offered for merging; nothing is merged without a click (Sam: "Suggest,
+  you confirm").
+
+**Why.** A drive is often several sessions (an app restart, an adapter
+reconnect, a tablet-only minute between), and every page showed the pieces
+(Sam: "treated as one session in the UI and for all other practical
+purposes"). Merging the stored logs would break every link to them (laps,
+re-timings, driver changes, events, the live page) and leave logs the tablet
+never sent; a record of the merge changes only what's shown.

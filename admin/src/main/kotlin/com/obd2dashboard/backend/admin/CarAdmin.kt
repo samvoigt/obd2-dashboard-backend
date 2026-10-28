@@ -1,6 +1,10 @@
 package com.obd2dashboard.backend.admin
 
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.InMemoryMergeStore
+import com.obd2dashboard.backend.archive.MergeStore
+import com.obd2dashboard.backend.archive.MergedSession
+import com.obd2dashboard.backend.archive.holding
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
@@ -19,6 +23,8 @@ public class CarAdmin(
     private val archive: ArchiveService,
     private val messages: Messages,
     private val clock: Clock = Clock.systemUTC(),
+    /** Merged sessions (M33): a member is deleted with its merge, never alone. */
+    private val merges: MergeStore = InMemoryMergeStore(),
 ) {
     /**
      * Registers a car. With [chosenToken] (decision 24), its generated token is
@@ -62,6 +68,12 @@ public class CarAdmin(
      * Returns the record.
      */
     public suspend fun checkDeletable(id: String, live: Boolean = false): SessionRecord {
+        val record = checkSending(id, live)
+        merges.holding(record.car, id)?.let { throw SessionMerged(id, it.id) }
+        return record
+    }
+
+    private suspend fun checkSending(id: String, live: Boolean): SessionRecord {
         val record = archive.session(id) ?: throw NoSuchSession(id)
         if (live) throw SessionBusy(id, live = true)
         val quietFor = Duration.between(record.updated, clock.instant())
@@ -75,9 +87,28 @@ public class CarAdmin(
         archive.delete(id)
     }
 
+    /** The merged session [id], not split, that [deleteMerged] would delete; or [NoSuchSession]. */
+    public suspend fun mergedToDelete(id: String): MergedSession = merges.get(id)?.takeIf { !it.split } ?: throw NoSuchSession(id)
+
+    /**
+     * Deletes a merged session (M33.3): every member, each checked as [checkDeletable]
+     * checks one ([live] says which is live) before any is deleted, then the merge.
+     * A member already gone is skipped. Returns the merge.
+     */
+    public suspend fun deleteMerged(id: String, live: (String) -> Boolean = { false }): MergedSession {
+        val merge = mergedToDelete(id)
+        val members = merge.members.filter { archive.session(it) != null }
+        members.forEach { checkSending(it, live(it)) }
+        members.forEach { archive.delete(it) }
+        merges.delete(merge.id)
+        return merge
+    }
+
     public suspend fun removeCar(slug: Slug): Int {
         checkRemovable(slug)
         registry.removeCar(slug)
+        // Its merges: only split ones can be left once its sessions are gone.
+        merges.ofCar(slug.value).forEach { merges.delete(it.id) }
         return messages.deleteCar(slug.value)
     }
 
@@ -90,6 +121,9 @@ public class CarAdmin(
 /** A session is being sent right now, so deleting it would not stick. */
 public class SessionBusy(public val id: String, public val live: Boolean) :
     Exception(if (live) "session $id is live" else "session $id is still uploading")
+
+/** A session is part of the merged session [merge] (M33): deleted with it, or unmerged first. */
+public class SessionMerged(public val id: String, public val merge: String) : Exception("session $id is in merged session $merge")
 
 /** No session has that id. */
 public class NoSuchSession(public val id: String) : Exception("no session $id")
