@@ -238,4 +238,23 @@ class EventDownloadTest {
         files.getValue("1-practice/gti/raw.jsonl") shouldBe stored.getValue(g)
         files.getValue("README.txt") shouldNotContain "Left out"
     }
+
+    @Test
+    fun `a merged session's practice row exports each lap under its member, and sessions json names the merge (M33)`() {
+        val part = com.obd2dashboard.backend.events.Part("p1", com.obd2dashboard.backend.events.PartKind.PRACTICE, "Practice", java.time.Instant.EPOCH, java.time.Instant.EPOCH.plusSeconds(3600))
+        fun lap(n: Int, session: String) = StandingLap(n, 70.0, emptyList(), false, false, n * 70_000L, (n + 1) * 70_000L, "retimed", session = session)
+        val row = SessionResult("merge-1", "outback", null, 0, listOf(lap(1, "s-a"), lap(2, "s-b")))
+        val results = EventResults(
+            PublicEvent("e", "E", "2026-10-04", "box", "Box", "box", "Box", emptyList(), emptyList()),
+            listOf(PartResults(PublicPart("p1", "practice", "Practice", 0, 3_600_000), listOf(row), emptyList(), emptyList())),
+            emptyList(), emptyList(),
+        )
+        EventExport.laps(part, "outback", setOf("s-a", "s-b"), results, null, emptyMap()).map { it.session to it.lap } shouldBe listOf("s-a" to 1, "s-b" to 2)
+        // Only the asked-for member's laps when the car's sessions there are fewer.
+        EventExport.laps(part, "outback", setOf("s-b"), results, null, emptyMap()).map { it.session } shouldBe listOf("s-b")
+        val record = com.obd2dashboard.backend.archive.SessionRecord("s-a", "outback", null, null, 0, emptyList(), true, null, 0, java.time.Instant.EPOCH, java.time.Instant.EPOCH)
+        EventExport.exportSession(record, emptyMap(), "merge-1").merged shouldBe "merge-1"
+        EventExport.exportSession(record, emptyMap()).merged shouldBe null
+    }
+
 }

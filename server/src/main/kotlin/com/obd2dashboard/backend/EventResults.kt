@@ -144,6 +144,8 @@ data class EventResults(
     val practiceTheoretical: Double? = null,
     val practiceSectorRows: List<SectorRow> = emptyList(),
     val practiceConsistency: List<DriverConsistency> = emptyList(),
+    /** Each merged session's members (M33.6): member id → the merged session's, whose row and page stand for it. */
+    val merged: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -170,6 +172,34 @@ object Results {
             if (last != null && last.first == driver) last.second += lap else runs += driver to mutableListOf(lap)
         }
         return runs
+    }
+
+    /**
+     * A merged session's stretches (M33.6): [laps] (each naming its member in
+     * `session`) as [stretches] splits one session's, over the merged timeline:
+     * a member nobody set carries on whoever was driving at the end of the one
+     * before (decision 48).
+     */
+    fun mergedStretches(members: List<SessionRecord>, laps: List<StandingLap>): List<Pair<String?, List<StandingLap>>> {
+        val carried = mutableMapOf<String, String?>()
+        var driving: String? = null
+        for (r in members) {
+            carried[r.id] = driving
+            if (r.driver != null || r.driverChanges.isNotEmpty()) driving = r.driverAt(Long.MAX_VALUE)
+        }
+        val byId = members.associateBy { it.id }
+        val runs = mutableListOf<Pair<String?, MutableList<StandingLap>>>()
+        for (lap in laps) {
+            val r = lap.session?.let(byId::get)
+            val driver = when {
+                r == null -> null
+                r.driver == null && r.driverChanges.isEmpty() -> carried[r.id]
+                else -> r.driverAt(lap.end)
+            }
+            val last = runs.lastOrNull()
+            if (last != null && last.first == driver) last.second += lap else runs += driver to mutableListOf(lap)
+        }
+        return runs.ifEmpty { listOf(members.firstOrNull()?.driver to mutableListOf()) }
     }
 
     /** One per driver (a session with none counts as "not set"), fastest first. */
@@ -281,18 +311,34 @@ class EventResultsService(
             live.read(car) { held -> Provisional.runs(course, held.filter { s -> s.id in eventIds && records[s.id]?.complete == false }) }
         }
         val liveIds = provisional.values.flatten().flatMap { it.sessions }.toSet()
+        // Merged sessions (M33.6): a row (per stretch) each, never one per member.
+        val mergeOf = event.cars.flatMap { stores.merges.ofCar(it) }.filter { !it.split }.flatMap { m -> m.members.map { it to m } }.toMap()
+        suspend fun lapsOf(r: SessionRecord): SessionLaps? =
+            if (r.complete) retiming.sessionLaps(r.car, r.id, event.course)
+            else provisional[r.car]?.firstOrNull { r.id in it.sessions }?.let { run ->
+                standingLaps(run, r.id)?.let { SessionLaps(run.course, course?.name ?: run.course, run.courseVersion, run.layout, it) }
+            }
         val parts = event.parts.zip(pub.parts).map { (part, publicPart) ->
-            val results = inParts[part.id].orEmpty().mapNotNull { records[it] }.map { r ->
-                val laps = if (r.complete) retiming.sessionLaps(r.car, r.id, event.course)
-                else provisional[r.car]?.firstOrNull { r.id in it.sessions }?.let { run ->
-                    standingLaps(run, r.id)?.let { SessionLaps(run.course, course?.name ?: run.course, run.courseVersion, run.layout, it) }
-                }
-                val other = laps?.layout?.takeIf { it != event.layout }
+            val members = inParts[part.id].orEmpty().mapNotNull { records[it] }
+            // Each merge where its first member falls; its members are always in the same part (M33.4).
+            val units = members.groupBy { mergeOf[it.id]?.id ?: it.id }.values
+            val results = units.map { unit ->
+                val m = mergeOf[unit.first().id]
+                val timed = unit.map { it to lapsOf(it) }
+                val other = timed.firstNotNullOfOrNull { it.second?.layout }?.takeIf { it != event.layout }
                 // A row per driver's stretch (M27): each lap is its driver's.
-                Results.stretches(r, laps?.laps.orEmpty()).mapIndexed { i, (driver, stretch) ->
+                val stretches = if (m == null) {
+                    Results.stretches(unit.single(), timed.single().second?.laps.orEmpty())
+                } else {
+                    val laps = timed.flatMap { (r, l) -> l?.laps.orEmpty().map { it.copy(session = r.id) } }.sortedBy { it.end }.mapIndexed { i, l -> l.copy(lap = i + 1) }
+                    Results.mergedStretches(unit, laps)
+                }
+                val first = unit.first()
+                stretches.mapIndexed { i, (driver, stretch) ->
                     SessionResult(
-                        r.id, r.car, driver?.let { drivers[it] }?.view(), r.created.toEpochMilli(),
-                        stretch, other, if (other == null) Results.best(stretch) else null, live = r.id in liveIds, name = r.name, stretch = i,
+                        m?.id ?: first.id, first.car, driver?.let { drivers[it] }?.view(), first.created.toEpochMilli(),
+                        stretch, other, if (other == null) Results.best(stretch) else null, live = unit.any { it.id in liveIds },
+                        name = m?.name ?: first.name, stretch = i,
                     )
                 }
             }.flatten()
@@ -344,6 +390,7 @@ class EventResultsService(
         return EventResults(
             pub, parts, Results.driverBests(practice), practiceSectors, race,
             Consistency.theoreticalBest(practiceSectors), Results.sectorRows(practice), Results.consistency(practice),
+            merged = mergeOf.filterKeys { it in eventIds }.mapValues { it.value.id },
         )
     }
 

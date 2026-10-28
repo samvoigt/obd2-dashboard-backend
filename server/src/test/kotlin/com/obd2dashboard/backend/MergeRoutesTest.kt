@@ -120,21 +120,26 @@ class MergeRoutesTest {
         json.decodeFromString<EventResults>(client.get("/api/events/weekend").bodyAsText()).parts.associate { p -> p.part.id to p.sessions.map { it.id } }
 
     @Test
-    fun `merge, extend and unmerge`() = testApplication {
+    fun `merge, extend and unmerge, each clearing the results' hold`() = testApplication {
         app()
         val a = admin()
+        parts() shouldBe mapOf("p1" to listOf(id(1), id(2), id(7)), "p2" to listOf(id(3), id(6))) // now held for 10 s
         val made = merge(a, 2, 1)
         made.status shouldBe HttpStatusCode.Created
         val view = json.decodeFromString<MergeView>(made.bodyAsText())
         view.members shouldBe listOf(id(1), id(2)) // time order, whatever the request's
         log.list.map { it.formattedMessage } shouldContain "sessions merged: [${id(1)}, ${id(2)}] of outback as ${view.id} by sam@example.com"
+        // Seen at once, though held: one row for the merge (M33.6).
+        parts() shouldBe mapOf("p1" to listOf(view.id, id(7)), "p2" to listOf(id(3), id(6)))
         val extended = send("POST", "/api/admin/cars/outback/merges", a, """{"into":"${view.id}","add":["${id(7)}"]}""")
         extended.status shouldBe HttpStatusCode.OK
         json.decodeFromString<MergeView>(extended.bodyAsText()).let { it.id shouldBe view.id; it.members shouldBe listOf(id(1), id(2), id(7)) }
         // Extending into another part is refused as merging is.
         send("POST", "/api/admin/cars/outback/merges", a, """{"into":"${view.id}","add":["${id(3)}"]}""").status shouldBe HttpStatusCode.Conflict
+        parts()["p1"] shouldBe listOf(view.id)
         send("POST", "/api/admin/merges/${view.id}/split", a).status shouldBe HttpStatusCode.OK
         runBlocking { merges.get(view.id)!!.split } shouldBe true
+        parts()["p1"] shouldBe listOf(id(1), id(2), id(7))
         // Its sessions are free again; the split one can't be split twice.
         merge(a, 1, 2).status shouldBe HttpStatusCode.Created
         send("POST", "/api/admin/merges/${view.id}/split", a).status shouldBe HttpStatusCode.NotFound
@@ -185,7 +190,7 @@ class MergeRoutesTest {
         app()
         val a = admin()
         val view = json.decodeFromString<MergeView>(merge(a, 1, 2).bodyAsText())
-        parts() shouldBe mapOf("p1" to listOf(id(1), id(2), id(7)), "p2" to listOf(id(3), id(6))) // now held for 10 s
+        parts() shouldBe mapOf("p1" to listOf(view.id, id(7)), "p2" to listOf(id(3), id(6))) // now held for 10 s
         send("DELETE", "/api/admin/sessions/${id(1)}", a).let {
             it.status shouldBe HttpStatusCode.Conflict
             it.bodyAsText().contains("part of a merged session") shouldBe true

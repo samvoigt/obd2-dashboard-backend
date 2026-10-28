@@ -103,6 +103,8 @@ data class ExportSession(
     val sha256: String? = null,
     /** The server's clock less the tablet's (M18.1), milliseconds; null if not measured. */
     val clockOffsetMs: Long? = null,
+    /** The merged session it's part of (M33.6), shown as one on the site; null if none. */
+    val merged: String? = null,
 )
 
 /** A lap in `laps.csv` (M29). */
@@ -183,7 +185,7 @@ object EventExport {
                     speeds.line(line)
                 }
                 zip.closeEntry()
-                text("$dir/sessions.json", json.encodeToString(sessionsSerializer, sessions.map { exportSession(it, drivers) }))
+                text("$dir/sessions.json", json.encodeToString(sessionsSerializer, sessions.map { exportSession(it, drivers, results.merged[it.id]) }))
                 val carRace = race?.cars?.firstOrNull { it.car == car }
                 val offset = race?.tabletOffset?.get(car)
                 val laps = laps(part, car, sessions.map { it.id }.toSet(), results, carRace, drivers)
@@ -230,11 +232,11 @@ object EventExport {
         )
     }
 
-    fun exportSession(r: SessionRecord, drivers: Map<String, Driver>): ExportSession = ExportSession(
+    fun exportSession(r: SessionRecord, drivers: Map<String, Driver>, merged: String? = null): ExportSession = ExportSession(
         r.id, r.car, r.header?.started, r.header?.device, r.header?.app, r.header?.vin, r.header?.protocol, r.header?.source ?: r.summary?.source,
         r.created.toString(), r.updated.toString(),
         driver(r.driver, drivers), r.driverChanges.map { ExportDriverChange(it.from, driver(it.driver, drivers)) },
-        r.name, r.complete, r.ackedThrough + 1, r.sha256, r.clockOffsetMs,
+        r.name, r.complete, r.ackedThrough + 1, r.sha256, r.clockOffsetMs, merged,
     )
 
     /**
@@ -250,9 +252,10 @@ object EventExport {
                 )
             }
         } else {
-            results.parts.firstOrNull { it.part.id == part.id }?.sessions.orEmpty().filter { it.car == car && it.id in sessions }.flatMap { row ->
-                row.laps.map { l ->
-                    ExportLap(row.id, l.lap, l.start, l.end, l.time, l.sectors, l.pitIn, l.pitOut, l.source, row.driver, otherLayout = row.otherLayout, live = row.live)
+            // A merged session's row (M33.6) has the merge's id; each lap names its member, which the log and offsets know.
+            results.parts.firstOrNull { it.part.id == part.id }?.sessions.orEmpty().filter { it.car == car }.flatMap { row ->
+                row.laps.filter { (it.session ?: row.id) in sessions }.map { l ->
+                    ExportLap(l.session ?: row.id, l.lap, l.start, l.end, l.time, l.sectors, l.pitIn, l.pitOut, l.source, row.driver, otherLayout = row.otherLayout, live = row.live)
                 }
             }.sortedBy { it.end }
         }

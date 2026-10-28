@@ -374,6 +374,22 @@ rows count the merge once, with the same bests as unmerged; `merged` maps
 each member; the race's laps and stints unchanged; the download unchanged
 but for the name.
 
+**Built 2026-10-28.** `EventResults.kt`: each part's sessions grouped by
+merge; a merge is one row per stretch (its id, its name or its first
+member's, heard from its first member's), its members' laps joined and
+numbered through as `/laps` numbers them, each with `session`; stretches by
+`Results.mergedStretches` (decision 48's carry: a member nobody set carries
+on). `EventResults.merged` maps member → merge. The race is unchanged (it
+reads members). Driver pages follow (a part's bests now name the merge).
+`EventDownload`: practice laps come from rows by each lap's `session`
+(a merged row's id is no member's, so filtering rows by id would have
+dropped its laps: found while validating); `sessions.json` has `merged`.
+Tests: `EventResultsTest` +1 (three sessions of one run in practice and two
+in the race, merged: one row per stretch, Sam's taking the unset member's
+laps, every lap numbered through, bests as the drivers' own, `merged`, the
+race equal to unmerged), `EventDownloadTest` +1, `MergeRoutesTest` now sees
+merge and split clear the hold. 689 Kotlin tests pass.
+
 ### M33.7 — The merged page
 
 `web/src/lib/sessionPage.ts` (not `merge.ts`, which is the live lane's):

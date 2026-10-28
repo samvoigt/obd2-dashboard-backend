@@ -123,6 +123,54 @@ class EventResultsTest {
     }
 
     @Test
+    fun `a merged session is one row per stretch in practice, with the same bests, and the race is unchanged (M33)`(): Unit = runBlocking {
+        val a = "5ace0000-1111-4111-8111-00000000a033"
+        val b = "5ace0000-1111-4111-8111-00000000b033"
+        val c = "5ace0000-1111-4111-8111-00000000c033"
+        val r1 = "5ace0000-1111-4111-8111-00000000d033"
+        val r2 = "5ace0000-1111-4111-8111-00000000e033"
+        registry.addCar(Slug.parse("outback"), "Outback")
+        courses.save("box", 0, "The box", boxGeoJson(), Instant.EPOCH)
+        stores.drivers.put(Driver("d-sam", "Sam Voigt", "SAM"))
+        stores.drivers.put(Driver("d-alex", "Alex Rider", "ALE"))
+        val event = Event("box-day", "Box day", "2026-10-04", "box", "box", listOf("outback"), listOf(
+            Part("p1", PartKind.PRACTICE, "Practice 1", at(0), at(60)),
+            Part("p3", PartKind.RACE, "Race", at(120), at(480)),
+        ))
+        stores.events.save(event, 0, t0)
+        // One run of the app in three sessions: Sam's, then one nobody set (Sam carries on), then Alex's.
+        session(a, 10, boxLog(0, 40), "d-sam")
+        session(b, 12, boxLog(41, 300), null)
+        session(c, 14, boxLog(301, 450), "d-alex")
+        session(r1, 130, boxLog(0, 300, device = "tab-c"), "d-sam")
+        session(r2, 140, boxLog(301, 600, device = "tab-c"), "d-alex")
+        val service = EventResultsService(stores, courses, registry, archiveOf(), RetimingJobs(registry, archiveOf(), courses, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)))
+        val apart = service.eventResults(stores.events.get("box-day")!!)
+        apart.parts[0].sessions.map { it.id } shouldBe listOf(a, b, c)
+
+        stores.merges.save(com.obd2dashboard.backend.archive.MergedSession("5ace0000-1111-4111-8111-00000000f033", "outback", listOf(a, b, c), "Morning", t0, t0), 0, t0)
+        stores.merges.save(com.obd2dashboard.backend.archive.MergedSession("5ace0000-1111-4111-8111-00000000f133", "outback", listOf(r1, r2), created = t0, updated = t0), 0, t0)
+        val merged = service.eventResults(stores.events.get("box-day")!!)
+        val rows = merged.parts[0].sessions
+        rows.map { it.id }.toSet() shouldBe setOf("5ace0000-1111-4111-8111-00000000f033")
+        rows.map { it.driver?.code to it.stretch } shouldBe listOf("SAM" to 0, "ALE" to 1)
+        rows.all { it.name == "Morning" } shouldBe true
+        // Every lap still there, numbered through, each naming its member; Sam's include b's (nobody set: he carries on).
+        rows.flatMap { it.laps }.size shouldBe apart.parts[0].sessions.sumOf { it.laps.size }
+        rows.flatMap { it.laps }.map { it.lap } shouldBe (1..rows.sumOf { it.laps.size }).toList()
+        rows[0].laps.map { it.session }.toSet() shouldBe apart.parts[0].sessions.filter { it.id != c && it.laps.isNotEmpty() }.map { it.id }.toSet()
+        rows[1].laps.all { it.session == c } shouldBe true
+        // Merged, b's laps are Sam's: his best is a's and b's best, Alex's is c's.
+        fun bestOf(vararg ids: String) = apart.parts[0].sessions.filter { it.id in ids }.flatMap { it.laps }.filter { !it.pitIn && !it.pitOut }.minOf { it.time }
+        merged.parts[0].bests.associate { it.driver?.code to it.lap.time } shouldBe mapOf("SAM" to bestOf(a, b), "ALE" to bestOf(c))
+        merged.practiceBests.map { it.lap.time }.min() shouldBe apart.practiceBests.map { it.lap.time }.min()
+        merged.merged shouldBe mapOf(a to "5ace0000-1111-4111-8111-00000000f033", b to "5ace0000-1111-4111-8111-00000000f033", c to "5ace0000-1111-4111-8111-00000000f033",
+            r1 to "5ace0000-1111-4111-8111-00000000f133", r2 to "5ace0000-1111-4111-8111-00000000f133")
+        // The race reads its members as ever: lap for lap and stint for stint the same.
+        merged.race shouldBe apart.race
+    }
+
+    @Test
     fun `an event's page shows each practice's sessions, laps, and each driver's best, on the event's course`() = testApplication {
         app()
         val a = "5ace0000-1111-4111-8111-00000000a015"
