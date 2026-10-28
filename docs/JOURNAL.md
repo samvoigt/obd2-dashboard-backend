@@ -661,3 +661,29 @@ footage.
   repeatedly (03:06–03:11 UTC), as it had on 2026-10-20, without stopping
   the drain: worth watching.
 
+
+## 2026-10-27 — M32: NHMS's hand-edited stints into its sessions' drivers
+
+- **The dry run and `--apply`** (Sam, on the old server) agreed lap for lap
+  and stint for stint. "After" was the race worked out by the new server's
+  own `EventResultsService` over the planned drivers, not a copy of its rule:
+
+  | Race Session 1, tha-bearmobile | PAU | DRE | SAM | HUG |
+  |---|---|---|---|---|
+  | before (edited stints) | 56 laps 1:44:11 | 57 laps 1:40:14 | 64 laps 1:55:02 | 60 laps 2:00:31 |
+  | after (sessions' drivers) | 56 laps 1:44:11 | 57 laps 1:40:14 | 64 laps 1:55:02 | 60 laps 2:00:31 |
+
+  Stints HUG 1–60 · DRE 61–117 · PAU 118–173 · SAM 174–237 both ways. Five
+  sessions written; two short ones went from DRE to SAM (Sam's stint was
+  running at their first laps).
+- **Race Session 2 had nothing to migrate:** it was never edited. Its stints
+  were the old rule's, split at every stop, with three empty ones. Under
+  decision 48 HUG's three (353–359, 360–386, 387–410) are one, and the empty
+  ones are gone. Found only by asking production why the dry run listed one
+  part: a migration that reports only what it changes needs a look at what
+  it skipped.
+- **Deployed as `00053`** with a live stream across it: `1012`, reconnected at
+  once. The live event page then showed 8 stints and SAM 122, HUG 118,
+  PAU 113, DRE 107 laps, as before.
+- **A step committed after only its module's tests broke five server tests**
+  (M32.1). The whole suite runs before every commit.

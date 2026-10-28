@@ -959,3 +959,40 @@ UX review phase 1 (`plans/UX-REVIEW.md`). Deployed as `00052`, with M30.
 - **Found:** the review's phone screenshots were laid out wide and cropped,
   and the first check passed a wide page (JOURNAL 2026-10-24).
 
+
+## M32 — Who drove belongs to the session; race stints follow from it  ✅ 2026-10-27
+
+Decision 48 (amends 34, 35, 43, 44); UX review §7. Deployed as `00053`.
+
+- **Stints from sessions' drivers** (`Race.stintsOf`, replacing
+  `defaultStints`): a stint starts at the part's first lap, at each driver
+  change (to the same driver too), and at a session's start when that
+  session is set to another driver. A session nobody set carries on whoever
+  was driving (found when five server tests failed: every restart had become
+  a stint of nobody's). Stops never split a stint; a stint never crosses a
+  race part.
+- **A correction replaces** (`DriverRules.normalise`, `:archive`): a change
+  under 60 s after the entry before, or with no lap ending between them,
+  replaces that entry, keeping the earlier moment and the later driver;
+  correcting the start sets the session's driver. The lap test only when the
+  session has laps. Applied wherever drivers are saved (`saveDrivers` in
+  `DriverRoutes.kt`), answering `DriversSaved` with what it replaced.
+- **The carry-over** (`DriverCarry.kt`): a session opened by the same tablet
+  within `DRIVE_GAP` (10 min, the previous one's `updated` to this one's
+  `created`) takes the driver the previous one ended with, only if nobody has
+  set one (`SessionIndex.setDriverIfUnset`, a Firestore transaction), never
+  across test data; restarts included. Called after the line 0 `PUT`'s answer,
+  never failing it.
+- **Nothing reads hand-edited stints:** the race, standings, results, live
+  timing and the download work stints out from who drove. The stint editor,
+  its routes, `stintsEdited` and the download's `edited` column went.
+  `Part.stints` stays in the event's shape (empty since the migration).
+- **The migration** (`MigrateStints.kt`, `scripts/migrate-stints.sh [--apply |
+  --clear]`): edited stints into session drivers and changes, a same-driver
+  split at a session's start kept as a change there. Checked with the real
+  `EventResultsService` over a read-only `PlannedIndex`; refuses on any
+  difference in a lap's driver or a stint. NHMS: MATCH, five sessions written,
+  then deployed, then cleared (JOURNAL 2026-10-27).
+- **Tests:** `DriverRulesTest` (6), `DriverCarryTest` (6),
+  `StintMigrationTest` (4), new `RaceTest` cases; 665 Kotlin and 273 site
+  tests pass.
