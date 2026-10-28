@@ -340,6 +340,28 @@ spanning a same-run join present, none across a restart; `suggestMerges`:
 same device and drive suggested, a live or uploading one breaks the run,
 another part breaks it, another device breaks it, already merged skipped.
 
+**Built 2026-10-28.** `SessionRoutes.kt`: `foldMerges`/`fold` (pure: one
+row per merge not split, with `members`), `suggestMerges` (pure, per drive;
+`Drive.suggested`), the list passing each session's tablet (`summary.device`,
+else the header's). `/api/sessions/{id}` for a merge id: `mergedDetail`
+(the folded row, all members' signals, gaps and videos, `members` with each
+one's driver and changes, and a driver timeline across them by decision 48:
+a member nobody set carries on); for a split one, its first member's detail
+(the page sees the other id and moves); a member's detail has `mergedInto`.
+`/laps`: every complete member's laps on the event's course, else the first
+member's, numbered through by when they ended, each with `session` (a new
+optional field on `StandingLap`). `/messages`: first member's start to last
+one's end, on the first's clock. `/series` and `/live-laps` 404 for a merge
+id (no record). A hidden car's merge id answers as one that never was.
+**Admin download** of a merge id: its members' logs through `MergedLog`,
+gzipped (not covered by a test: its fixtures have no stored logs; checked on
+the dev server in M33.8). Tests: `MergedSessionsTest` (4: suggested, then
+one row; the merged page's members and driver timeline; a member's
+`mergedInto`, a split merge as its first member; `suggestMerges`' rules),
+`SessionLapsTest` +1 (three sessions of one run: laps numbered through, each
+naming its member), `HiddenTest` (a hidden car's merge in the detail,
+messages and laps reads). 687 Kotlin tests pass.
+
 ### M33.6 — Event results and the download count a merge once
 
 `EventResults.kt`: a merge's rows in every part as decided (its laps from

@@ -7,6 +7,7 @@ import com.obd2dashboard.backend.admin.Kind
 import com.obd2dashboard.backend.admin.Thing
 import com.obd2dashboard.backend.admin.User
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.MergedSession
 import com.obd2dashboard.backend.archive.InMemorySegmentStore
 import com.obd2dashboard.backend.archive.InMemorySessionIndex
 import com.obd2dashboard.backend.archive.SessionRecord
@@ -67,9 +68,11 @@ class HiddenTest {
     private val t0 = Instant.parse("2026-10-04T13:00:00Z")
     private val secretSession = "5ace0000-1111-4111-8111-0000000000aa"
     private val openSession = "5ace0000-1111-4111-8111-0000000000bb"
+    /** A merged session of the hidden car's (M33.5). */
+    private val secretMerge = "5ace0000-1111-4111-8111-0000000000ad"
 
     /** Everything a signed-out answer must never hold. */
-    private val secrets = listOf("secret-car", "Secret Car", "secret-course", "Secret Course", "secret-event", "Secret Event", secretSession)
+    private val secrets = listOf("secret-car", "Secret Car", "secret-course", "Secret Course", "secret-event", "Secret Event", secretSession, secretMerge)
 
     private fun cookieOf(email: String) = "${AdminAuth.COOKIE}=${AdminAuth(testCrewKey()).issue(email)}"
 
@@ -89,6 +92,7 @@ class HiddenTest {
                 val at = t0.plusSeconds(600)
                 sessions.create(SessionRecord(id, car, null, null, 0, emptyList(), false, null, 0, at, at, driver = "d-00000001"))
             }
+            stores.merges.save(MergedSession(secretMerge, "secret-car", listOf(secretSession), created = t0, updated = t0), 0, t0)
             for (thing in listOf(Thing(Kind.CAR, "secret-car"), Thing(Kind.COURSE, "secret-course"), Thing(Kind.EVENT, "secret-event"))) {
                 access.set(thing, Access("", hidden = true))
             }
@@ -126,10 +130,10 @@ class HiddenTest {
         "/api/cars/{slug}/messages" to listOf("/api/cars/secret-car/messages", "/api/cars/open-car/messages"),
         "/api/cars/{slug}/sessions" to listOf("/api/cars/secret-car/sessions", "/api/cars/open-car/sessions"),
         "/api/cars/{slug}/crew" to listOf("/api/cars/secret-car/crew"),
-        "/api/sessions/{id}" to listOf("/api/sessions/$secretSession", "/api/sessions/$openSession"),
+        "/api/sessions/{id}" to listOf("/api/sessions/$secretSession", "/api/sessions/$openSession", "/api/sessions/$secretMerge"),
         "/api/sessions/{id}/live-laps" to listOf("/api/sessions/$secretSession/live-laps"),
-        "/api/sessions/{id}/messages" to listOf("/api/sessions/$secretSession/messages", "/api/sessions/$openSession/messages"),
-        "/api/sessions/{id}/laps" to listOf("/api/sessions/$secretSession/laps"),
+        "/api/sessions/{id}/messages" to listOf("/api/sessions/$secretSession/messages", "/api/sessions/$openSession/messages", "/api/sessions/$secretMerge/messages"),
+        "/api/sessions/{id}/laps" to listOf("/api/sessions/$secretSession/laps", "/api/sessions/$secretMerge/laps"),
         "/api/sessions/{id}/series" to listOf("/api/sessions/$secretSession/series"),
         "/api/courses" to listOf("/api/courses"),
         "/api/courses/{id}" to listOf("/api/courses/secret-course"),
@@ -159,7 +163,7 @@ class HiddenTest {
     fun `signed out, nothing hidden is anywhere`() = testApplication {
         app()
         val never = mapOf("secret-car" to "never-car", "secret-course" to "never-course", "secret-event" to "never-event",
-            secretSession to "5ace0000-1111-4111-8111-0000000000cc")
+            secretSession to "5ace0000-1111-4111-8111-0000000000cc", secretMerge to "5ace0000-1111-4111-8111-0000000000ce")
         for (path in reads.values.flatten() + "/api/cars/secret-car/live") {
             val response = call(HttpMethod.Get, path)
             val about = never.keys.firstOrNull { path.contains(it) }

@@ -4,6 +4,7 @@ import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.InMemoryMergeStore
 import com.obd2dashboard.backend.archive.LapInfo
 import com.obd2dashboard.backend.archive.MergeStore
+import com.obd2dashboard.backend.archive.MergedSession
 import com.obd2dashboard.backend.archive.SessionIds
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.archive.SessionSummary
@@ -53,6 +54,8 @@ data class StandingLap(
     val checked: Boolean = true,
     /** What re-timing found where it disagrees with the tablet's lap by more than 2 ms. */
     val flag: LapFlag? = null,
+    /** On a merged session's laps (M33.5), the member it's from; else null. */
+    val session: String? = null,
 )
 
 /** Re-timing's lap where the tablet's is flagged; all null if it found none there. */
@@ -84,6 +87,8 @@ data class SessionItem(
     val event: EventRef? = null,
     /** What the admin or the crew called it (M18.3). */
     val name: String? = null,
+    /** A merged session's members, in order (M33.5); empty for a session. */
+    val members: List<String> = emptyList(),
 )
 
 /** Which event and part a session is in (M14.5). */
@@ -92,7 +97,13 @@ data class EventRef(val id: String, val name: String, val part: String)
 
 /** Sessions close enough together to be one drive: an adapter reconnect starts a new session (§3.2). */
 @Serializable
-data class Drive(val started: Long, val ended: Long, val sessions: List<SessionItem>)
+data class Drive(
+    val started: Long,
+    val ended: Long,
+    val sessions: List<SessionItem>,
+    /** Runs of its sessions that look like one drive, each offered for merging (M33.5): ids in time order. */
+    val suggested: List<List<String>> = emptyList(),
+)
 
 @Serializable
 data class SignalView(val name: String, val unit: String, val kind: String)
@@ -114,6 +125,20 @@ data class SessionDetail(
     val gpsLatencyMs: Long? = null,
     /** Its videos (M30.3), each placed on the tablet's `wall`, in order. */
     val videos: List<SessionVideoView> = emptyList(),
+    /** A merged session's members (M33.5), in order, each with who drove it: where its drivers are edited. */
+    val members: List<MemberDetail> = emptyList(),
+    /** A member's: the merged session it's part of (M33.5), whose page the site shows instead. */
+    val mergedInto: String? = null,
+)
+
+/** A merged session's member (M33.5): its span on the tablet's clock and who drove it. */
+@Serializable
+data class MemberDetail(
+    val id: String,
+    val started: Long,
+    val ended: Long,
+    val driver: DriverView? = null,
+    val driverChanges: List<DriverChangeDetail> = emptyList(),
 )
 
 /** A driver change as a session's page shows it (M27): from [from] on the tablet's `wall`, [driver] (null: not set). */
@@ -189,29 +214,79 @@ fun Route.sessionRoutes(
         val records = archive.sessionsOf(car.slug.value)
         val inEvents = eventsOf(car.slug.value, records, call.hidden())
         val items = records.filter { it.ackedThrough >= 0 || it.id == live }.map { item(it, live, inEvents[it.id]) }
-        call.respond(drives(items))
+        // Merged sessions as one row each (M33.5); runs that look like one drive suggested.
+        val devices = records.associate { it.id to (it.summary?.device ?: it.header?.device) }
+        call.respond(drives(foldMerges(items, merges.ofCar(car.slug.value)), devices = devices))
+    }
+
+    /** A session's page's facts (M7.3); [mergedInto] its merge's id if it's a member (M33.5). */
+    suspend fun detail(record: SessionRecord, hidden: Hidden, mergedInto: String? = null): SessionDetail? {
+        val car = registry.get(Slug.parse(record.car)) ?: return null
+        val summary = if (record.complete) archive.summary(record.id) else null
+        return SessionDetail(
+            session = item(record, hub.status(record.car).liveSession(), eventsOf(record.car, archive.sessionsOf(record.car), hidden)[record.id]),
+            car = car.slug.value,
+            carName = car.name,
+            signals = summary?.signals.orEmpty().map { SignalView(it.name, it.unit, it.kind) },
+            gaps = summary?.gaps ?: 0,
+            missed = summary?.missed ?: 0,
+            driver = record.driver?.let { drivers?.get(it) }?.view(),
+            driverChanges = record.driverChanges.map { c -> DriverChangeDetail(c.from, c.driver?.let { drivers?.get(it) }?.view()) },
+            gpsLatencyMs = record.gpsLatencyMs,
+            videos = record.videos.map { it.view() },
+            mergedInto = mergedInto,
+        )
+    }
+
+    /**
+     * A merged session's page's facts (M33.5): its members' folded row, all
+     * their signals, and each member with who drove it. Its driver is the first
+     * member's, then a change at each member set to someone else (a member nobody
+     * set carries on, decision 48) and at each member's own changes.
+     */
+    suspend fun mergedDetail(m: MergedSession, records: List<SessionRecord>, hidden: Hidden): SessionDetail? {
+        val car = registry.get(Slug.parse(m.car)) ?: return null
+        val live = hub.status(m.car).liveSession()
+        val inEvents = eventsOf(m.car, archive.sessionsOf(m.car), hidden)
+        val members = m.members.mapNotNull { id -> records.firstOrNull { it.id == id } }
+        if (members.isEmpty()) return null
+        val items = members.map { item(it, live, inEvents[it.id]) }
+        val summaries = members.map { if (it.complete) archive.summary(it.id) else null }
+        suspend fun view(id: String?) = id?.let { drivers?.get(it) }?.view()
+        val changes = mutableListOf<DriverChangeDetail>()
+        var driving = members.first().driver
+        members.zip(items).forEachIndexed { i, (r, item) ->
+            if (i > 0 && r.driver != null && r.driver != driving) { changes += DriverChangeDetail(item.started, view(r.driver)); driving = r.driver }
+            r.driverChanges.forEach { c -> changes += DriverChangeDetail(c.from, view(c.driver)); driving = c.driver }
+        }
+        return SessionDetail(
+            session = fold(m, items),
+            car = car.slug.value,
+            carName = car.name,
+            signals = summaries.flatMap { it?.signals.orEmpty() }.distinctBy { it.name }.map { SignalView(it.name, it.unit, it.kind) },
+            gaps = summaries.sumOf { it?.gaps ?: 0 },
+            missed = summaries.sumOf { it?.missed ?: 0 },
+            driver = view(members.first().driver),
+            driverChanges = changes,
+            videos = members.flatMap { r -> r.videos.map { it.view() } },
+            members = members.zip(items).map { (r, item) ->
+                MemberDetail(r.id, item.started, item.ended, view(r.driver), r.driverChanges.map { c -> DriverChangeDetail(c.from, view(c.driver)) })
+            },
+        )
     }
 
     get("/api/sessions/{id}") {
+        val hidden = call.hidden()
+        // A merged session's id (M33.5); one unmerged answers as its first member, whose page the site moves to.
+        call.merged(merges, hidden)?.let { m ->
+            val records = archive.sessionsOf(m.car)
+            val answer = if (m.split) records.firstOrNull { it.id == m.members.first() }?.let { detail(it, hidden) } else mergedDetail(m, records, hidden)
+            return@get answer?.let { call.respond(it) } ?: call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+        }
         // A live session has a page before its first chunk arrives (M7.6): from the live stream alone.
         val record = call.sessionRecord(archive, allowLive = hub) ?: return@get
-        val car = registry.get(Slug.parse(record.car)) ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
-        val summary = if (record.complete) archive.summary(record.id) else null
-        val hidden = call.hidden()
-        call.respond(
-            SessionDetail(
-                session = item(record, hub.status(record.car).liveSession(), eventsOf(record.car, archive.sessionsOf(record.car), hidden)[record.id]),
-                car = car.slug.value,
-                carName = car.name,
-                signals = summary?.signals.orEmpty().map { SignalView(it.name, it.unit, it.kind) },
-                gaps = summary?.gaps ?: 0,
-                missed = summary?.missed ?: 0,
-                driver = record.driver?.let { drivers?.get(it) }?.view(),
-                driverChanges = record.driverChanges.map { c -> DriverChangeDetail(c.from, c.driver?.let { drivers?.get(it) }?.view()) },
-                gpsLatencyMs = record.gpsLatencyMs,
-                videos = record.videos.map { it.view() },
-            ),
-        )
+        val into = merges.ofCar(record.car).firstOrNull { !it.split && record.id in it.members }?.id
+        detail(record, hidden, into)?.let { call.respond(it) } ?: call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
     }
 
     get("/api/sessions/{id}/live-laps") {
@@ -221,6 +296,17 @@ fun Route.sessionRoutes(
     }
 
     get("/api/sessions/{id}/messages") {
+        // A merged session's (M33.5): from its first member's start to its last's end, on the first's clock.
+        call.merged(merges, call.hidden())?.takeIf { !it.split }?.let { m ->
+            val members = archive.sessionsOf(m.car).filter { it.id in m.members }.sortedBy { m.members.indexOf(it.id) }
+            if (members.isEmpty()) return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
+            val windows = members.map { r ->
+                val summary = if (r.complete) r.summary ?: archive.summary(r.id) else null
+                SessionMessages.window(r, summary?.started, summary?.ended, clock.instant())
+            }
+            val offset = windows.first().third
+            return@get call.respond(messages(m.car, windows.first().first, windows.last().second).map { SessionMessage.of(it, offset) })
+        }
         val record = call.sessionRecord(archive) ?: return@get
         val summary = if (record.complete) record.summary ?: archive.summary(record.id) else null
         val (from, to, offset) = SessionMessages.window(record, summary?.started, summary?.ended, clock.instant())
@@ -228,6 +314,18 @@ fun Route.sessionRoutes(
     }
 
     get("/api/sessions/{id}/laps") {
+        // A merged session's (M33.5): its members' laps on one course, numbered through, each naming its member.
+        call.merged(merges, call.hidden())?.takeIf { !it.split }?.let { m ->
+            val members = archive.sessionsOf(m.car).filter { it.id in m.members && it.complete }.sortedBy { m.members.indexOf(it.id) }
+            val event = members.firstNotNullOfOrNull { eventsOf(m.car, archive.sessionsOf(m.car))[it.id] }?.let { events?.get(it.id) }
+            val course = event?.course ?: members.firstNotNullOfOrNull { laps(m.car, it.id, null)?.course }
+                ?: return@get call.respond(HttpStatusCode.NoContent)
+            val timed = members.mapNotNull { r -> laps(m.car, r.id, course)?.let { r.id to it } }
+            val first = timed.firstOrNull()?.second ?: return@get call.respond(HttpStatusCode.NoContent)
+            val all = timed.flatMap { (id, t) -> t.laps.map { it.copy(session = id) } }.sortedBy { it.end }.mapIndexed { i, lap -> lap.copy(lap = i + 1) }
+            val merged = first.copy(laps = all)
+            return@get call.respond(if (call.hidden().course(merged.course)) merged.copy(course = "", courseName = "") else merged)
+        }
         val record = call.sessionRecord(archive) ?: return@get
         if (!record.complete) return@get call.respond(HttpStatusCode.NoContent)
         // A session in an event is timed on the event's course (M16.1); else the course its laps name, else the first touched.
@@ -286,6 +384,13 @@ private suspend fun io.ktor.server.application.ApplicationCall.sessionRecord(
     return record
 }
 
+/** The merged session named in the path (M33.5), split or not, unless its car is hidden from this request; else null, nothing answered. */
+private suspend fun io.ktor.server.application.ApplicationCall.merged(merges: MergeStore, hidden: Hidden): MergedSession? {
+    val raw = parameters["id"].orEmpty()
+    if (!SessionIds.isValid(raw)) return null
+    return merges.get(SessionIds.normalise(raw))?.takeIf { !hidden.car(it.car) }
+}
+
 /**
  * The exact log (M7.3), admin-only (Sam): the completed file as stored, or a
  * session's segments zipped as they stream. The VIN is in it, as it should be.
@@ -310,7 +415,7 @@ suspend fun io.ktor.server.application.ApplicationCall.downloadSession(archive: 
  * **Test data is never part of a drive** (§21): each fake session stands alone,
  * and doesn't bridge the real ones either side of it (M11).
  */
-fun drives(sessions: List<SessionItem>, gap: Duration = DRIVE_GAP): List<Drive> {
+fun drives(sessions: List<SessionItem>, gap: Duration = DRIVE_GAP, devices: Map<String, String?> = emptyMap()): List<Drive> {
     val drives = mutableListOf<MutableList<SessionItem>>()
     val (fake, real) = sessions.partition { it.source == FAKE }
     for (s in real.sortedBy { it.started }) {
@@ -318,8 +423,63 @@ fun drives(sessions: List<SessionItem>, gap: Duration = DRIVE_GAP): List<Drive> 
         if (current != null && s.started - current.maxOf { it.ended } < gap.toMillis()) current += s else drives += mutableListOf(s)
     }
     fake.forEach { drives += mutableListOf(it) }
-    return drives.map { d -> Drive(d.minOf { it.started }, d.maxOf { it.ended }, d.sortedByDescending { it.started }) }
+    return drives.map { d -> Drive(d.minOf { it.started }, d.maxOf { it.ended }, d.sortedByDescending { it.started }, suggestMerges(d, devices)) }
         .sortedByDescending { it.started }
+}
+
+/**
+ * **Sessions that look like one drive** (M33.5, decision 49), offered for
+ * merging, never merged: within one drive, runs of two or more consecutive
+ * complete sessions from the same tablet ([devices], by id), none merged,
+ * test data or of unknown tablet, all in the same event part or none. A
+ * session that isn't one of those breaks the run. Pure.
+ */
+fun suggestMerges(drive: List<SessionItem>, devices: Map<String, String?>): List<List<String>> {
+    val runs = mutableListOf<MutableList<SessionItem>>()
+    var last: SessionItem? = null
+    for (s in drive.sortedBy { it.started }) {
+        val device = devices[s.id]
+        val fits = s.state == "complete" && s.members.isEmpty() && s.source != FAKE && device != null
+        val prev = last
+        if (fits && prev != null && devices[prev.id] == device && prev.event == s.event) runs.last() += s
+        else if (fits) runs += mutableListOf(s)
+        last = s.takeIf { fits }
+    }
+    return runs.filter { it.size >= 2 }.map { r -> r.map { it.id } }
+}
+
+/**
+ * [items] with each of [merges]' members folded into one row (M33.5): the
+ * merge's id, from its first member's start to its last's end, laps summed,
+ * the best of all, its name or the first member's. A merge with no member
+ * listed (all gone) isn't shown. Pure.
+ */
+fun foldMerges(items: List<SessionItem>, merges: List<MergedSession>): List<SessionItem> {
+    val byId = items.associateBy { it.id }
+    val folded = merges.filter { !it.split }.mapNotNull { m -> m.members.mapNotNull { byId[it] }.takeIf { it.isNotEmpty() }?.let { fold(m, it) } }
+    val inMerge = folded.flatMap { it.members }.toSet()
+    return items.filter { it.id !in inMerge } + folded
+}
+
+/** One row for merge [m] from its members' [items]. */
+fun fold(m: MergedSession, items: List<SessionItem>): SessionItem {
+    val sorted = items.sortedBy { it.started }
+    return SessionItem(
+        id = m.id,
+        started = sorted.first().started,
+        ended = sorted.maxOf { it.ended },
+        lines = sorted.sumOf { it.lines },
+        state = sorted.firstOrNull { it.state != "complete" }?.state ?: "complete",
+        track = sorted.firstNotNullOfOrNull { it.track },
+        layout = sorted.firstNotNullOfOrNull { it.layout },
+        laps = sorted.sumOf { it.laps },
+        bestLap = sorted.mapNotNull { it.bestLap }.minByOrNull { it.time },
+        faults = sorted.flatMap { it.faults }.distinct(),
+        source = sorted.map { it.source }.distinct().singleOrNull(),
+        event = sorted.first().event,
+        name = m.name ?: sorted.first().name,
+        members = sorted.map { it.id },
+    )
 }
 
 /** The `source` of a session of invented readings (§21). */

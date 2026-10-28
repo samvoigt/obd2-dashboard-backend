@@ -87,8 +87,8 @@ public class CarAdmin(
         archive.delete(id)
     }
 
-    /** The merged session [id], not split, that [deleteMerged] would delete; or [NoSuchSession]. */
-    public suspend fun mergedToDelete(id: String): MergedSession = merges.get(id)?.takeIf { !it.split } ?: throw NoSuchSession(id)
+    /** The merged session [id], not split (M33); or [NoSuchSession]. */
+    public suspend fun merged(id: String): MergedSession = merges.get(id)?.takeIf { !it.split } ?: throw NoSuchSession(id)
 
     /**
      * Deletes a merged session (M33.3): every member, each checked as [checkDeletable]
@@ -96,7 +96,7 @@ public class CarAdmin(
      * A member already gone is skipped. Returns the merge.
      */
     public suspend fun deleteMerged(id: String, live: (String) -> Boolean = { false }): MergedSession {
-        val merge = mergedToDelete(id)
+        val merge = merged(id)
         val members = merge.members.filter { archive.session(it) != null }
         members.forEach { checkSending(it, live(it)) }
         members.forEach { archive.delete(it) }

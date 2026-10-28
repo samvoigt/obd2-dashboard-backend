@@ -1,5 +1,10 @@
 package com.obd2dashboard.backend
 
+import io.ktor.server.response.respondOutputStream
+import io.ktor.server.response.header
+import io.ktor.http.ContentType
+import java.util.zip.GZIPOutputStream
+import com.obd2dashboard.backend.archive.MergedLog
 import com.obd2dashboard.backend.admin.Action
 import com.obd2dashboard.backend.admin.CarAdmin
 import com.obd2dashboard.backend.admin.Kind
@@ -317,6 +322,20 @@ fun Route.adminCarRoutes(
         // A car's sessions are its editors' to download (M23); asked once the session's car is known.
         call.signedIn(change = false) ?: return@get
         val raw = call.parameters["id"].orEmpty()
+        // A merged session's (M33.5): its members' logs back to back, each starting with its own header line.
+        val merge = if (SessionIds.isValid(raw)) try { carAdmin.merged(SessionIds.normalise(raw)) } catch (_: NoSuchSession) { null } else null
+        if (merge != null) {
+            val who = call.may(Action.EDIT, Thing(Kind.CAR, merge.car)) ?: return@get
+            val members = archive.sessionsOf(merge.car).filter { it.id in merge.members && it.ackedThrough >= 0 }.sortedBy { merge.members.indexOf(it.id) }
+            adminLog.info("merged session downloaded: {} of {} by {}", merge.id, merge.car, who.email)
+            call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${merge.id}.jsonl.gz\"")
+            return@get call.respondOutputStream(ContentType.parse("application/gzip")) {
+                GZIPOutputStream(this).let { gz ->
+                    MergedLog.write(members, { r, use -> archive.read(r) { use(it) } }, gz)
+                    gz.finish()
+                }
+            }
+        }
         val record = (if (SessionIds.isValid(raw)) archive.session(SessionIds.normalise(raw)) else null)?.takeIf { it.ackedThrough >= 0 }
             ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
         val who = call.may(Action.EDIT, Thing(Kind.CAR, record.car)) ?: return@get
@@ -329,7 +348,7 @@ fun Route.adminCarRoutes(
         call.signedIn(change = true) ?: return@delete
         val id = call.parameters["id"].orEmpty().lowercase()
         // A merged session's id (M33.3): every member goes, then the merge.
-        val merge = if (archive.session(id) == null) try { carAdmin.mergedToDelete(id) } catch (_: NoSuchSession) { null } else null
+        val merge = if (archive.session(id) == null) try { carAdmin.merged(id) } catch (_: NoSuchSession) { null } else null
         val car = merge?.car ?: archive.session(id)?.car
             ?: return@delete call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such session."))
         val email = (call.may(Action.DELETE, Thing(Kind.CAR, car)) ?: return@delete).email

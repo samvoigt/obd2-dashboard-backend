@@ -62,6 +62,26 @@ class SessionLapsTest {
     }
 
     @Test
+    fun `a merged session's laps, its members' on one course, numbered through, each naming its member (M33)`() = testApplication {
+        app()
+        runBlocking { courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH) }
+        val c = "5ace0000-1111-4111-8111-00000000000c"
+        val m = "5ace0000-1111-4111-8111-0000000000c1"
+        // One run of the app in three sessions: the lap across b's end into c is c's, as re-timing gives it.
+        session(a, boxLog(0, 40))
+        session(b, boxLog(41, 300))
+        session(c, boxLog(301, 450))
+        val apart = listOf(laps(b)!!.laps.size, laps(c)!!.laps.size)
+        runBlocking { events.merges.save(com.obd2dashboard.backend.archive.MergedSession(m, "outback", listOf(a, b, c), created = Instant.EPOCH, updated = Instant.EPOCH), 0, Instant.EPOCH) }
+        val got = laps(m)!!
+        got.course shouldBe "box"
+        got.laps.size shouldBe apart.sum()
+        got.laps.map { it.lap } shouldBe (1..apart.sum()).toList()
+        got.laps.map { it.session } shouldBe List(apart[0]) { b } + List(apart[1]) { c }
+        got.laps.zipWithNext().all { (x, y) -> x.end < y.end } shouldBe true
+    }
+
+    @Test
     fun `a session's laps as they stand, numbered through the run, placed on its wall clock`() = testApplication {
         app()
         runBlocking {
