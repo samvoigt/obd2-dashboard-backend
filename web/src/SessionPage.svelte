@@ -4,9 +4,9 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, LONG_SESSION_MS, messageMarkers, needsDetail, speedsAtPositions,
+    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchMergedSeries, fetchSeries, joined, membersIn, lapNote, lapRows, LONG_SESSION_MS, messageMarkers, needsDetail, speedsAtPositions,
     standingRows, unitOf,
-    type LapRow, type Series, type SessionLaps, type SessionMessage,
+    type LapRow, type Member, type Series, type SessionLaps, type SessionMessage,
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
@@ -26,6 +26,9 @@
   import { themeState } from './lib/themeState.svelte'
 
   let { slug, id }: { slug: string; id: string } = $props()
+  // The session shown (M33.7): a member's page, or an unmerged merge's, moves to where it now lives.
+  // svelte-ignore state_referenced_locally
+  let sid = $state(id)
 
   interface Detail {
     session: SessionItem
@@ -37,6 +40,10 @@
     driver?: Driver | null
     /** Where the driver changed within it (M27). */
     driverChanges?: DriverChangeDetail[]
+    /** A merged session's members (M33.5), in order; absent or empty for a session. */
+    members?: (Member & { driver?: Driver | null; driverChanges?: DriverChangeDetail[] })[]
+    /** A member's: the merged session whose page shows it (M33.5). */
+    mergedInto?: string | null
   }
 
   let detail = $state<Detail | null>(null)
@@ -118,11 +125,27 @@
   let thin = $state(false)
   let viewed = $state<[number, number] | null>(null)
   let loadingDetail = false
+  // A merged session's members loaded in full so far (M33.7): only those a narrow view covers are.
+  let fullMembers = new Set<string>()
   $effect(() => {
     const view = viewed ?? range
     if (!needsDetail(thin, view) || loadingDetail) return
+    const members = detail?.members ?? []
+    if (members.length > 0) {
+      const want = new Set([...fullMembers, ...membersIn(members, view!)])
+      if (want.size === fullMembers.size) return
+      loadingDetail = true
+      void fetchMergedSeries(members, fetch, true, want).then((joinedSeries) => {
+        if (joinedSeries) {
+          series = joinedSeries
+          fullMembers = want
+          range = view
+        }
+      }).finally(() => { loadingDetail = false })
+      return
+    }
     loadingDetail = true
-    void fetchSeries(id).then((full) => {
+    void fetchSeries(sid).then((full) => {
       if (full) {
         series = full
         thin = false
@@ -192,7 +215,11 @@
     !s.track ? null : courseNames ? `${courseNames.name}${s.layout ? ` · ${courseNames.layouts[s.layout] ?? s.layout}` : ''}` : trackOf(s)
   let messages: SessionMessage[] = $state.raw([])
   const happened = $derived([...(view ? events(view) : []), ...messageMarkers(messages)].sort((a, b) => a.t - b.t))
-  const markers = $derived(themeState.theme ? happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : m.kind === 'message' ? 'accent' : 'muted') })) : [])
+  const markers = $derived(themeState.theme ? [
+    ...happened.map((m) => ({ t: m.t, color: color(m.kind === 'fault' ? 'critical' : m.kind === 'gap' ? 'caution' : m.kind === 'message' ? 'accent' : 'muted') })),
+    // Where one member of a merged session ends and the next begins (M33.7).
+    ...(detail?.members ?? []).slice(1).map((m) => ({ t: m.started / 1000, color: color('muted') })),
+  ] : [])
   const positions = $derived(view ? view.positions.t.map((t) => view!.t0 + t) : [])
   const speeds = $derived(view ? speedsAtPositions(view) : [])
   // The map's stretch (M16.1): the positions inside the window, or all of them.
@@ -204,22 +231,35 @@
 
   onMount(async () => {
     try {
-      const response = await fetch(`/api/sessions/${id}`)
-      if (response.status === 404) {
+      const load = async (at: string): Promise<Detail | null> => {
+        const response = await fetch(`/api/sessions/${at}`)
+        if (response.status === 404) return null
+        if (!response.ok) throw new Error(`The server answered ${response.status}.`)
+        return (await response.json()) as Detail
+      }
+      let loaded = await load(sid)
+      // A member's page shows its merged session; an unmerged one's, its first member (M33.7). The address follows, its lap window kept.
+      const moved = loaded?.mergedInto ?? (loaded && loaded.session.id !== sid ? loaded.session.id : null)
+      if (loaded && moved) {
+        sid = moved
+        history.replaceState(null, '', `/cars/${slug}/sessions/${moved}${window.location.search}`)
+        if (loaded.mergedInto) loaded = await load(moved)
+      }
+      if (!loaded) {
         missing = true
         return
       }
-      if (!response.ok) throw new Error(`The server answered ${response.status}.`)
-      detail = (await response.json()) as Detail
+      detail = loaded
       // Who drove (M14.4): everyone sees it; the admin or the car's crew can set it. Never on test data, though
       // test data can be named (M18.3).
       if (detail.session.source !== 'fake') {
         void fetch('/api/drivers').then((r) => (r.ok ? r.json() : [])).then((d: Driver[]) => (drivers = d)).catch(() => {})
       }
       // Crew messages sent while it ran (M18.4).
-      void fetch(`/api/sessions/${id}/messages`).then((r) => (r.ok ? r.json() : [])).then((m: SessionMessage[]) => (messages = m)).catch(() => {})
+      void fetch(`/api/sessions/${sid}/messages`).then((r) => (r.ok ? r.json() : [])).then((m: SessionMessage[]) => (messages = m)).catch(() => {})
       thin = detail.session.state === 'complete' && detail.session.ended - detail.session.started > LONG_SESSION_MS
-      series = await fetchSeries(id, fetch, thin)
+      const members = detail.members ?? []
+      series = members.length > 0 ? await fetchMergedSeries(members, fetch, thin) : await fetchSeries(sid, fetch, thin)
       // A lap's link (M16.1): the chart zoomed to its window, the map showing that stretch.
       const linked = readWindow(window.location.search)
       if (linked) {
@@ -227,7 +267,7 @@
         range = [linked[0] / 1000, linked[1] / 1000]
       }
       if (detail.session.state === 'live') follow()
-      else if (detail.session.state === 'complete') standing = await fetchLaps(id).catch(() => null)
+      else if (detail.session.state === 'complete') standing = await fetchLaps(sid).catch(() => null)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
@@ -237,7 +277,7 @@
   function follow() {
     const source = new EventSource(`/api/cars/${slug}/live`)
     let current: string | null = null
-    const ours = () => current === id
+    const ours = () => current === sid
     source.addEventListener('snapshot', (ev) => {
       const e = JSON.parse((ev as MessageEvent).data) as { session?: { id?: string; signals?: Series['signals'] }; history?: { record: Record<string, unknown> }[] }
       current = e.session?.id ?? null
@@ -254,7 +294,7 @@
     })
     const ticker = setInterval(() => tick++, 1000)
     const refresh = setInterval(async () => {
-      const next = await fetchSeries(id).catch(() => null)
+      const next = await fetchSeries(sid).catch(() => null)
       if (next) {
         series = next
         const cutoff = next.lastSeq ?? -Infinity
@@ -287,7 +327,7 @@
 
   /** A lap of this session as a compare pick (M16.4), on the course its laps were timed on. */
   function pickOf(lap: LapRow, on: SessionLaps): LapPick {
-    return { ref: { car: slug, session: id, start: lap.start, end: lap.end }, course: on.course, layout: on.layout, label: `${detail?.carName ?? slug} lap ${lap.lap}, ${lapTime(lap.time)}` }
+    return { ref: { car: slug, session: lap.session ?? sid, start: lap.start, end: lap.end }, course: on.course, layout: on.layout, label: `${detail?.carName ?? slug} lap ${lap.lap}, ${lapTime(lap.time)}` }
   }
 
   /** The map to [w] (or everything), and the address with it, so what's shown can be shared (M16.1). */
@@ -343,7 +383,11 @@
         GPS lost for {lengthText(g.to - g.from)} ({clockText(g.from)}–{clockText(g.to)}) while the car was moving: no route or laps then.
       </p>
     {/each}
-    {#if setter && drivers.length > 0}
+    {#if (detail.members ?? []).length > 0}
+      {@const ms = detail.members ?? []}
+      <p class="members muted small">{ms.length} sessions merged: {ms.map((m) => clockOf(m.started)).join(', ')}</p>
+    {/if}
+    {#if setter && drivers.length > 0 && (detail.members ?? []).length === 0}
       <p class="driver">
         <label>{changes.length > 0 ? 'Driver from the start' : 'Driver'}
           <select value={detail.driver?.id ?? ''} onchange={(e) => chooseDriver(e.currentTarget.value || null)} disabled={settingDriver}>

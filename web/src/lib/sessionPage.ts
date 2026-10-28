@@ -62,6 +62,8 @@ export interface LapRow {
   retimedOn?: number
   /** Where re-timing disagrees with the tablet's lap (M13.5): what it found there, or `{}` for no lap. */
   flag?: { time?: number | null; start?: number | null; end?: number | null }
+  /** On a merged session (M33.7), the member it's from: what a compare pick names. */
+  session?: string
 }
 
 /** `GET /api/sessions/{id}/laps` (M13.5): the laps as they stand, on the wall clock. */
@@ -81,6 +83,8 @@ export interface SessionLaps {
     source: 'tablet' | 'retimed'
     checked?: boolean
     flag?: { time?: number | null; start?: number | null; end?: number | null } | null
+    /** On a merged session's laps (M33.5), the member it's from. */
+    session?: string | null
   }[]
 }
 
@@ -97,6 +101,7 @@ export function standingRows(laps: SessionLaps): LapRow[] {
     sectors: l.sectors.length > 0 ? l.sectors : null,
     ...(l.source === 'retimed' ? { retimedOn: laps.courseVersion } : {}),
     ...(l.flag ? { flag: l.flag } : {}),
+    ...(l.session ? { session: l.session } : {}),
   }))
   markBest(rows)
   return rows
@@ -320,3 +325,64 @@ export function needsDetail(thin: boolean, range: readonly [number, number] | nu
   return thin && range !== null && range[1] - range[0] <= DETAIL_WINDOW_S
 }
 
+
+/** A merged session's member (M33.5), as its page's detail lists it. */
+export interface Member {
+  id: string
+  /** Epoch milliseconds, the tablet's clock. */
+  started: number
+  ended: number
+}
+
+/**
+ * **Members' series joined into one** (M33.7), pure: each member's times
+ * shifted onto the first's `t0`, a break (`null`) in every signal at each
+ * join so no line is drawn across it, positions and events carried, dropped
+ * fixes summed. [series] in time order; a member with none is skipped.
+ */
+export function joinSeries(series: readonly (Series | null)[]): Series | null {
+  const present = series.filter((s): s is Series => s !== null)
+  const first = present[0]
+  if (!first) return null
+  const out: Series = {
+    version: first.version, t0: first.t0, lastSeq: null, signals: [], numbers: {}, states: {}, sets: {},
+    positions: { t: [], lat: [], lon: [], dropped: 0 }, events: { stopped: [], fault: [], gap: [], lap: [] },
+  }
+  const declared = new Set<string>()
+  for (const s of present) {
+    const dt = s.t0 - first.t0
+    for (const sig of s.signals) if (!declared.has(sig.name)) { declared.add(sig.name); out.signals.push(sig) }
+    for (const [name, col] of Object.entries(s.numbers)) {
+      const into = (out.numbers[name] ??= { t: [], v: [] })
+      const last = into.t[into.t.length - 1]
+      if (last !== undefined) { into.t.push(last + 1); into.v.push(null) }
+      for (let i = 0; i < col.t.length; i++) { into.t.push(col.t[i]! + dt); into.v.push(col.v[i]!) }
+    }
+    for (const [name, rows] of Object.entries(s.states)) (out.states[name] ??= []).push(...rows.map(([t, a, b]) => [t + dt, a, b] as [number, number | null, string | null]))
+    for (const [name, rows] of Object.entries(s.sets)) (out.sets[name] ??= []).push(...rows.map(([t, v]) => [t + dt, v] as [number, string[]]))
+    out.positions.t.push(...s.positions.t.map((t) => t + dt))
+    out.positions.lat.push(...s.positions.lat)
+    out.positions.lon.push(...s.positions.lon)
+    out.positions.dropped = (out.positions.dropped ?? 0) + (s.positions.dropped ?? 0)
+    out.events.stopped.push(...s.events.stopped.map(([t, a, b]) => [t + dt, a, b] as [number, string, string]))
+    out.events.fault.push(...s.events.fault.map(([t, v]) => [t + dt, v] as [number, string[]]))
+    out.events.gap.push(...s.events.gap.map(([t, v]) => [t + dt, v] as [number, number]))
+    out.events.lap.push(...s.events.lap.map(([t, v]) => [t + dt, v] as [number, LapRecord]))
+  }
+  return out
+}
+
+/**
+ * A merged session's series (M33.7): each member's, thinned when [thin], or
+ * full for those in [full] (the members a narrow view covers), then joined.
+ * Each member's stays its own request, cached and tagged as ever (decision 41).
+ */
+export async function fetchMergedSeries(members: readonly Member[], fetcher: typeof fetch = fetch, thin = false, full: ReadonlySet<string> = new Set()): Promise<Series | null> {
+  const each = await Promise.all(members.map((m) => fetchSeries(m.id, fetcher, thin && !full.has(m.id))))
+  return joinSeries(each)
+}
+
+/** The members a view (seconds, as the chart's axis) covers: whose full detail a narrow view of a merged session loads. */
+export function membersIn(members: readonly Member[], range: readonly [number, number]): Set<string> {
+  return new Set(members.filter((m) => m.started / 1000 < range[1] && m.ended / 1000 > range[0]).map((m) => m.id))
+}

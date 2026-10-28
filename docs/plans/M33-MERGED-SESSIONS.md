@@ -408,6 +408,21 @@ across them, a break at each join, laps numbered through, a member's URL
 lands on the merged page, and a member's lap link lands on the merged page
 focused on that lap.
 
+**Built 2026-10-28** (checked on the dev server with M33.8, below).
+`lib/sessionPage.ts`: `joinSeries` (pure: onto the first `t0`, a `null`
+break per signal at each join, positions and events carried, `dropped`
+summed), `fetchMergedSeries(members, fetcher, thin, full)` and `membersIn`
+(the members a view covers). `LapRow.session` from the merged laps.
+`SessionPage.svelte`: the session shown is `sid`; a `mergedInto` detail, or
+an unmerged merge's (its first member's, another id), moves the page there
+with `history.replaceState`, keeping `?from=&to=`; a merged detail fetches
+its members' series (thinned when the merge is over an hour) and joins them;
+a narrow view loads full detail only for the members it covers; a mark on
+the chart at each join; "3 sessions merged: 09:23, 11:55, 12:00" under the
+facts; a compare pick names the lap's member. **As built:** a merged page
+shows who drove but doesn't edit it (its driver routes are the members',
+M34.4's Drivers block). `sessionPage.test.ts` +2.
+
 ### M33.8 — The sessions list: merge, unmerge, suggestions
 
 `SessionsPage.svelte`, for whoever may edit the car (`may.edit`): a

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bestSectors, defaultSignals, DETAIL_WINDOW_S, events, fetchLaps, fetchSeries, joined, lapNote, lapRows, messageMarkers, nearest, needsDetail, speedColor, speedsAtPositions, speedSignal, standingRows,
+  bestSectors, defaultSignals, DETAIL_WINDOW_S, events, fetchLaps, fetchMergedSeries, fetchSeries, joined, joinSeries, membersIn, lapNote, lapRows, messageMarkers, nearest, needsDetail, speedColor, speedsAtPositions, speedSignal, standingRows,
   type Series, type SessionLaps,
 } from './sessionPage'
 
@@ -213,3 +213,45 @@ describe('a long session\u2019s page (M19.6)', () => {
   })
 })
 
+
+describe('a merged session (M33.7)', () => {
+  const a = series({
+    numbers: { 'engine.rpm': { t: [0, 1000], v: [800, 900] } },
+    positions: { t: [500], lat: [43], lon: [-71], dropped: 1 },
+    events: { stopped: [], fault: [[200, ['P0037']]], gap: [], lap: [] },
+  })
+  const b = series({
+    t0: t0 + 60_000,
+    signals: [{ name: 'engine.rpm', unit: 'rpm', kind: 'number' }, { name: 'vehicle.speed', unit: 'km/h', kind: 'number' }],
+    numbers: { 'engine.rpm': { t: [0, 1000], v: [1000, 1100] }, 'vehicle.speed': { t: [500], v: [40] } },
+    positions: { t: [100], lat: [43.1], lon: [-71.1], dropped: 2 },
+    events: { stopped: [], fault: [], gap: [], lap: [[900, { lap: 1, time: 70 }]] },
+  })
+
+  it('joins members onto the first one\'s clock, a break at each join, events and positions carried', () => {
+    const j = joinSeries([a, null, b])!
+    expect(j.t0).toBe(t0)
+    expect(j.signals.map((s) => s.name)).toEqual(['engine.rpm', 'vehicle.speed'])
+    expect(j.numbers['engine.rpm']).toEqual({ t: [0, 1000, 1001, 60_000, 61_000], v: [800, 900, null, 1000, 1100] })
+    expect(j.numbers['vehicle.speed']).toEqual({ t: [60_500], v: [40] })
+    expect(j.positions).toEqual({ t: [500, 60_100], lat: [43, 43.1], lon: [-71, -71.1], dropped: 3 })
+    expect(j.events.fault).toEqual([[200, ['P0037']]])
+    expect(j.events.lap).toEqual([[60_900, { lap: 1, time: 70 }]])
+    // The chart sees one session: wall seconds through both, no line across the join.
+    const [times, rpm] = joined(j, ['engine.rpm'])
+    expect(times).toEqual([t0 / 1000, (t0 + 1000) / 1000, (t0 + 1001) / 1000, (t0 + 60_000) / 1000, (t0 + 61_000) / 1000])
+    expect(rpm).toEqual([800, 900, null, 1000, 1100])
+    expect(joinSeries([null])).toBe(null)
+  })
+
+  it('fetches each member, thinned when long, full where a narrow view covers it', async () => {
+    const asked: string[] = []
+    const fetcher = (async (url: string) => { asked.push(url); return new Response(JSON.stringify(url.includes('/m2/') ? b : a)) }) as unknown as typeof fetch
+    const members = [{ id: 'm1', started: t0, ended: t0 + 1000 }, { id: 'm2', started: t0 + 60_000, ended: t0 + 61_000 }]
+    expect((await fetchMergedSeries(members, fetcher, true))!.numbers['engine.rpm']!.v).toEqual([800, 900, null, 1000, 1100])
+    expect(asked).toEqual(['/api/sessions/m1/series?thin=1', '/api/sessions/m2/series?thin=1'])
+    asked.length = 0
+    await fetchMergedSeries(members, fetcher, true, membersIn(members, [(t0 + 59_000) / 1000, (t0 + 70_000) / 1000]))
+    expect(asked).toEqual(['/api/sessions/m1/series?thin=1', '/api/sessions/m2/series'])
+  })
+})
