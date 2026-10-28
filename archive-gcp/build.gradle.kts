@@ -77,3 +77,12 @@ tasks.register<JavaExec>("userSmoke") {
 tasks.test {
     inputs.dir("../courses/seed")
 }
+
+tasks.register<JavaExec>("mergeSmoke") {
+    description = "Stores, reads and deletes throwaway merges against the real Firestore."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("com.obd2dashboard.backend.archive.gcp.MergeSmokeKt")
+    args(providers.gradleProperty("gcpProject").orNull ?: "")
+    outputs.upToDateWhen { false }
+}

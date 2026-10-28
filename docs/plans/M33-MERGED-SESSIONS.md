@@ -186,6 +186,50 @@ merged page opens on the members' thinned series only and the plan says so
 before M33.7. The overlap found sets the tolerance in M33.2. Recorded here
 and in JOURNAL.
 
+**Measured 2026-10-28** (public APIs; the page through a scratch script that
+times the load itself, since `measure.mjs` counts from 8 s after it):
+- **Nothing overlaps.** NHMS Saturday's five sessions follow on 12.4 s,
+  0.2 s, 13.2 s and 0.2 s apart (the list's `started`/`ended`, the
+  summary's); Sunday's four 0.2–4.0 s apart. The tolerance is **5 s** of
+  overlap, for the two clocks behind `started` and `ended`; anything more
+  refuses.
+- **Saturday joined weighs 2.97 MB** (952 KB gzipped; 110k number points,
+  19k positions, 237 laps), against 1.21 MB for its largest member and
+  1.58 MB for the site's largest session today (Sunday's 4 h 13).
+- **The page holds up:** the real session page, its series answered with
+  Saturday's five joined (as `joinSeries` will), on a 390 px phone at 4×
+  CPU, twice each:
+
+  | | chart drawn | long tasks | longest | heap |
+  |---|---|---|---|---|
+  | 57e1f881 (1.2 MB) | 1.4 s | 2, 300 ms | 227 ms | 14.1 MB |
+  | c1516a5d (1.6 MB) | 1.2 s | 2–4, 295–416 ms | 240 ms | 17.4 MB |
+  | Saturday joined (3.0 MB) | 1.3–2.8 s | 3–4, 485–525 ms | 346 ms | 18.9 MB |
+
+  **Gate passed:** the merged page opens on the members' thinned series
+  joined, as planned.
+
+**Validated 2026-10-28, after M32:**
+- `sessionsIn` has **seven** callers now (`MigrateStints.kt:127` too); M33.4
+  passes merges to all of them except the migration, which is done.
+- **One collection, not two.** Firestore's `DriverStore.put` already keeps a
+  code unique by reading every driver in its transaction; a car has a
+  handful of merges, so a save reads the car's merges (`car ==`) in its
+  transaction and refuses a member already in another live one. That keeps
+  "a session in only one merge" without a `mergeMembers` collection to keep
+  in step. **One `save(merge, expected, now)`**, as `EventStore`'s: create
+  (expected 0), extend, rename and split are all a save on the revision.
+- **The rules take a small input**, not `SessionRecord`: each candidate's id,
+  car, complete, started and ended (the summary's, as the list shows them),
+  its part's name or null, and the merge it's in. Problems carry the
+  sessions they're about, and their words name no clock time (the server
+  doesn't know the viewer's zone; the list marks the rows).
+- **Deleting one member** on its own is refused ("It's part of a merged
+  session: unmerge it first"), in `CarAdmin`, so the admin tool refuses too.
+- `MergeStore` goes in `:archive` beside `SessionIndex`; the Firestore one in
+  `:archive-gcp`; `module` takes `merges: MergeStore = InMemoryMergeStore()`
+  as it takes users and access, production passing Firestore's.
+
 ### M33.2 — The store and the rules (tested; in memory and Firestore)
 
 `:archive`: `MergedSession`, `MergeStore` (`create`, `extend`, `split`,
@@ -202,6 +246,16 @@ two merges refused at the store; split marks `split` and frees the members.
 `scripts/merge-smoke.sh`, in `archive-smoke.sh`'s style, for the Firestore
 store: two throwaway sessions merged, a second merge of one refused, split,
 removed (a line for it in CLAUDE.md's Build block).
+
+**Built 2026-10-28.** `archive/.../Merges.kt`: `MergedSession`, `MergeStore`
+(`save` on the revision, `get`, `ofCar`, `delete`; `holding(car, id)` the
+merge not split that holds a session), `InMemoryMergeStore`, and the pure
+`MergeRules.check(candidates, into)` returning `Problem(message, sessions)`.
+`FirestoreMergeStore` (`merges`, one transaction per save reading the car's
+merges). Tests: `MergesTest` (9: each rule alone, the 5 s tolerance both
+sides, extending, the store's one merge per session, split freeing its
+members), `MergeMappingTest`; `scripts/merge-smoke.sh` passed on the real
+Firestore. 675 Kotlin tests pass.
 
 ### M33.3 — The routes to merge, unmerge, name and delete
 

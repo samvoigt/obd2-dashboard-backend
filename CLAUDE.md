@@ -81,6 +81,7 @@ scripts/admin.sh import-course courses/seed/nhms.geojson   # a course from a fil
 scripts/admin.sh remove-course <id>   # a course and its re-timings (refused if a tablet timed laps there)
 scripts/admin.sh import-event <file.json>   # an event from a file (see its help); remove-event, add-driver, remove-driver
 scripts/event-smoke.sh          # throwaway drivers and an event through the real Firestore
+scripts/merge-smoke.sh          # throwaway merges through the real Firestore
 python3 courses/seed/make_nhms.py   # remake NHMS's seed from the app's file (only read)
 ```
 
