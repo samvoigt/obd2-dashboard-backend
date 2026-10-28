@@ -281,6 +281,20 @@ emptyList())`, and the six callers pass the car's merges. Tests
 it overlaps most; a member added by hand brings the others; a member removed
 takes the others out; without merges, every existing test unchanged.
 
+**Built 2026-10-28, before M33.3** (the routes' refusals name a session's
+part, which should already treat a merge as one). `sessionsIn(event,
+sessions, merges)`: each merge a unit of its eligible members, placed by
+its span; a member added by hand takes the unit there, one removed takes it
+out. **Where merges come from:** `EventStores` gained `merges: MergeStore`
+(in memory unless given; production passes Firestore's), since every caller
+but `sessionRoutes` already has it; `sessionRoutes` takes `merges` too.
+`MergeStore.membersOf(cars)` gives the members of each merge not split. All
+six serving callers pass it (`EventResults`, `adminEventRoutes`,
+`EventDownload`, `sessionRoutes`' `eventsOf`, both in `CarTimings`).
+`EventRulesTest` +2 (placed whole by its span, where alone its members split
+across parts; added or removed by hand takes the merge; fake members left
+out), every existing case unchanged. 677 Kotlin tests pass.
+
 ### M33.5 — What the session routes answer for a merged session
 
 `SessionRoutes.kt`: `sessionRecord()` resolves a merge id (and a `split`

@@ -47,6 +47,10 @@ public interface MergeStore {
 /** The merge, not split, that holds session [id], if any. */
 public suspend fun MergeStore.holding(car: String, id: String): MergedSession? = ofCar(car).firstOrNull { !it.split && id in it.members }
 
+/** The members of each merged session of [cars], not split (M33.4): what placement treats as one. */
+public suspend fun MergeStore.membersOf(cars: Collection<String>): List<List<String>> =
+    cars.flatMap { car -> ofCar(car).filter { !it.split }.map { it.members } }
+
 /** For tests and the dev server. */
 public class InMemoryMergeStore : MergeStore {
     private val merges = ConcurrentHashMap<String, MergedSession>()

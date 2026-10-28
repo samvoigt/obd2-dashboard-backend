@@ -85,6 +85,26 @@ class EventRulesTest {
     }
 
     @Test
+    fun `a merged session is placed whole, by its span (M33)`() {
+        val e = event(part("p1", 0, 60), part("p2", 60, 300))
+        // Alone, "a" is p1's and "b" and "c" p2's; merged, the span (40–200) overlaps p2 most.
+        val sessions = listOf(heard("a", 40, 59), heard("b", 61, 100), heard("c", 101, 200), heard("other", 10, 20))
+        EventRules.sessionsIn(e, sessions) shouldBe mapOf("p1" to listOf("other", "a"), "p2" to listOf("b", "c"))
+        EventRules.sessionsIn(e, sessions, listOf(listOf("a", "b", "c"))) shouldBe mapOf("p1" to listOf("other"), "p2" to listOf("a", "b", "c"))
+    }
+
+    @Test
+    fun `a member added or removed by hand takes the merge with it`() {
+        val sessions = listOf(heard("a", 10, 20), heard("b", 21, 30))
+        val merge = listOf(listOf("a", "b"))
+        EventRules.sessionsIn(event(part("p1", 0, 60), part("p2", 60, 120, added = listOf("b"))), sessions, merge) shouldBe
+            mapOf("p1" to emptyList(), "p2" to listOf("a", "b"))
+        EventRules.sessionsIn(event(part("p1", 0, 60, removed = listOf("a"))), sessions, merge) shouldBe mapOf("p1" to emptyList())
+        // A merge whose members are fake, or another car's, places only what's eligible.
+        EventRules.sessionsIn(event(part("p1", 0, 60)), listOf(heard("a", 10, 20), heard("b", 21, 30, source = "fake")), merge) shouldBe mapOf("p1" to listOf("a"))
+    }
+
+    @Test
     fun `only the race has flags and stints, the flag after the green, stints for cars entered, starts apart`() {
         val race = part("p2", 60, 480, PartKind.RACE)
         EventRules.eventProblems(event(part("p1", 0, 60), race.copy(green = at(61), flag = at(470), stints = mapOf("outback" to listOf(Stint(1, "d1"), Stint(2, null)))))) shouldBe emptyList()

@@ -1,10 +1,13 @@
 package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.InMemoryMergeStore
 import com.obd2dashboard.backend.archive.LapInfo
+import com.obd2dashboard.backend.archive.MergeStore
 import com.obd2dashboard.backend.archive.SessionIds
 import com.obd2dashboard.backend.archive.SessionRecord
 import com.obd2dashboard.backend.archive.SessionSummary
+import com.obd2dashboard.backend.archive.membersOf
 import com.obd2dashboard.backend.events.DriverStore
 import com.obd2dashboard.backend.events.EventRules
 import com.obd2dashboard.backend.events.EventStore
@@ -24,8 +27,8 @@ import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import java.time.Clock
-import java.time.Instant
 import java.time.Duration
+import java.time.Instant
 import java.util.zip.GZIPOutputStream
 import kotlinx.serialization.Serializable
 
@@ -132,6 +135,8 @@ fun Route.sessionRoutes(
     drivers: DriverStore? = null,
     /** For the event each session is in (M14.5). */
     events: EventStore? = null,
+    /** Merged sessions (M33): placed in events as one, listed and shown as one. */
+    merges: MergeStore = InMemoryMergeStore(),
     /** A car's crew messages sent in a window (M18.4). */
     messages: suspend (car: String, from: Instant, to: Instant) -> List<Message> = { _, _, _ -> emptyList() },
     /** A session still uploading as a thinned series (M19.4); null to build it full-size, as before. */
@@ -143,8 +148,9 @@ fun Route.sessionRoutes(
     /** Each of [car]'s sessions in an event, by session; an event hidden from this request (M25) not named. */
     suspend fun eventsOf(car: String, records: List<SessionRecord>, hidden: Hidden = Hidden.NOTHING): Map<String, EventRef> {
         val heard = records.map { it.heard() }
+        val merged = merges.membersOf(listOf(car))
         return events?.list().orEmpty().filter { car in it.cars && !hidden.event(it.id) }.flatMap { e ->
-            EventRules.sessionsIn(e, heard).flatMap { (partId, ids) ->
+            EventRules.sessionsIn(e, heard, merged).flatMap { (partId, ids) ->
                 val part = e.parts.first { it.id == partId }
                 ids.map { it to EventRef(e.id, e.name, part.name) }
             }

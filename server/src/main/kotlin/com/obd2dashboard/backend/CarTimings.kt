@@ -1,6 +1,7 @@
 package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.membersOf
 import com.obd2dashboard.backend.courses.Course
 import com.obd2dashboard.backend.courses.CourseStore
 import com.obd2dashboard.backend.events.Event
@@ -9,8 +10,8 @@ import com.obd2dashboard.backend.events.Part
 import com.obd2dashboard.backend.events.PartKind
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.timing.Provisional
-import com.obd2dashboard.backend.timing.RunTiming
 import com.obd2dashboard.backend.timing.RaceSessionInput
+import com.obd2dashboard.backend.timing.RunTiming
 import com.obd2dashboard.backend.timing.StintMark
 import java.util.concurrent.ConcurrentHashMap
 
@@ -36,8 +37,9 @@ class CarTimings(
     /** The event [car]'s session [session] is in, and its part; null if none. */
     suspend fun eventOf(car: String, session: String): Pair<Event, Part>? {
         val heard = archive.sessionsOf(car).map { it.heard() }
+        val merges = events.merges.membersOf(listOf(car))
         return events.events.list().filter { car in it.cars }.firstNotNullOfOrNull { e ->
-            EventRules.sessionsIn(e, heard).entries.firstOrNull { session in it.value }?.let { (part, _) -> e to e.parts.first { it.id == part } }
+            EventRules.sessionsIn(e, heard, merges).entries.firstOrNull { session in it.value }?.let { (part, _) -> e to e.parts.first { it.id == part } }
         }
     }
 
@@ -47,7 +49,7 @@ class CarTimings(
         val complete = records.filter { it.complete }.map { it.id }.toSet()
         val inEvent = eventOf(car, session)
         val event = inEvent?.first
-        val partOf = event?.let { e -> EventRules.sessionsIn(e, records.map { it.heard() }) }.orEmpty()
+        val partOf = event?.let { e -> EventRules.sessionsIn(e, records.map { it.heard() }, events.merges.membersOf(listOf(car))) }.orEmpty()
         val eventSessions = partOf.values.flatten().toSet()
         // The course: the event's, else the one the car's latest live lap names.
         val course = event?.let { courses.get(it.course) }

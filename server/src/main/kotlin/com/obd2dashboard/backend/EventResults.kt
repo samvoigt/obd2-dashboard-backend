@@ -2,6 +2,7 @@ package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.membersOf
 import com.obd2dashboard.backend.courses.CourseCheck
 import com.obd2dashboard.backend.courses.CourseRules
 import com.obd2dashboard.backend.courses.CourseStore
@@ -270,7 +271,7 @@ class EventResultsService(
     /** An event's results (M14.5, M15.4): practice from each session's laps, the race as one timeline. */
     suspend fun eventResults(event: Event): EventResults {
         val records = archive.sessionsOfCars(event.cars).associateBy { it.id }
-        val inParts = EventRules.sessionsIn(event, records.values.map { it.heard() })
+        val inParts = EventRules.sessionsIn(event, records.values.map { it.heard() }, stores.merges.membersOf(event.cars))
         val drivers = stores.drivers.list().associateBy { it.id }
         val pub = public(event)
         // The live runs (M17.6), per car: its sessions in the event not complete yet, re-timed as complete ones are.

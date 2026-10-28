@@ -7,6 +7,7 @@ import com.obd2dashboard.backend.archive.ArchiveService
 import com.obd2dashboard.backend.archive.LapSpeeds
 import com.obd2dashboard.backend.archive.MergedLog
 import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.membersOf
 import com.obd2dashboard.backend.events.Driver
 import com.obd2dashboard.backend.events.Event
 import com.obd2dashboard.backend.events.EventRules
@@ -355,7 +356,7 @@ fun Route.eventDownloadRoutes(stores: EventStores, archive: ArchiveService, serv
             // Signed in, so nothing is hidden (M25).
             val results = service.results(event, Hidden.NOTHING)
             val records = archive.sessionsOfCars(event.cars).filter { it.ackedThrough >= 0 }.associateBy { it.id }
-            val inParts = EventRules.sessionsIn(event, records.values.map { it.heard() })
+            val inParts = EventRules.sessionsIn(event, records.values.map { it.heard() }, stores.merges.membersOf(event.cars))
             val drivers = stores.drivers.list().associateBy { it.id }
             adminLog.info("event downloaded: {}, cars {} by {}", event.id, cars, who.email)
             call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${event.id}-data.zip\"")

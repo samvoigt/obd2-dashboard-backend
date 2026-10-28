@@ -4,7 +4,10 @@ import com.obd2dashboard.backend.admin.Action
 import com.obd2dashboard.backend.admin.Kind
 import com.obd2dashboard.backend.admin.Thing
 import com.obd2dashboard.backend.archive.ArchiveService
+import com.obd2dashboard.backend.archive.InMemoryMergeStore
+import com.obd2dashboard.backend.archive.MergeStore
 import com.obd2dashboard.backend.archive.SessionRecord
+import com.obd2dashboard.backend.archive.membersOf
 import com.obd2dashboard.backend.courses.CourseCheck
 import com.obd2dashboard.backend.courses.CourseRules
 import com.obd2dashboard.backend.courses.CourseStore
@@ -37,8 +40,8 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
-/** Drivers and events (M14), passed into the module together. */
-class EventStores(val drivers: DriverStore, val events: EventStore)
+/** Drivers and events (M14), passed into the module together; and merged sessions (M33), which events place as one. */
+class EventStores(val drivers: DriverStore, val events: EventStore, val merges: MergeStore = InMemoryMergeStore())
 
 @Serializable
 data class DriverView(
@@ -207,7 +210,7 @@ fun Route.adminEventRoutes(
         val event = events.get(id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such event."))
         val sessions = archive.sessionsOfCars(event.cars)
-        val inParts = EventRules.sessionsIn(event, sessions.map { it.heard() })
+        val inParts = EventRules.sessionsIn(event, sessions.map { it.heard() }, stores.merges.membersOf(event.cars))
         val byId = sessions.associateBy { it.id }
         val placed = inParts.values.flatten().toSet()
         val day = runCatching { LocalDate.parse(event.date) }.getOrNull()

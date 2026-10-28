@@ -10,6 +10,7 @@ import com.obd2dashboard.backend.archive.gcp.FirestoreAccessStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreCourseStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreDriverStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreEventStore
+import com.obd2dashboard.backend.archive.gcp.FirestoreMergeStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreMessageStore
 import com.obd2dashboard.backend.archive.gcp.FirestoreSessionIndex
 import com.obd2dashboard.backend.archive.gcp.FirestoreUserStore
@@ -19,12 +20,11 @@ import com.obd2dashboard.backend.live.InMemoryLiveHub
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.live.Messages
 import com.obd2dashboard.backend.registry.CarRegistry
-import java.time.Clock
 import com.obd2dashboard.backend.registry.firestore.FirestoreCarStore
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.Application
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.auth.Authentication
@@ -41,6 +41,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.sse.SSE
+import java.time.Clock
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -77,7 +78,7 @@ fun main() {
             messages = Messages(FirestoreMessageStore.connect(project)), crewKey = crewKey,
             admin = AdminConfig.fromEnvironment(System::getenv),
             courses = FirestoreCourseStore.connect(project),
-            events = EventStores(FirestoreDriverStore.connect(project), FirestoreEventStore.connect(project)),
+            events = EventStores(FirestoreDriverStore.connect(project), FirestoreEventStore.connect(project), FirestoreMergeStore.connect(project)),
             watchRetiming = true,
             // Invited users and who may edit what (M23).
             users = FirestoreUserStore.connect(project),
@@ -180,7 +181,7 @@ fun Application.module(
         publicEventRoutes(events, eventResults)
         eventDownloadRoutes(events, archive, eventResults)
         sessionRoutes(
-            registry, archive, hub, clock, laps = { car, id, on -> retiming.sessionLaps(car, id, on) }, drivers = events.drivers, events = events.events,
+            registry, archive, hub, clock, laps = { car, id, on -> retiming.sessionLaps(car, id, on) }, drivers = events.drivers, events = events.events, merges = events.merges,
             messages = { car, from, to -> messages.between(car, from, to) },
             liveSeries = liveSeries, liveLaps = { car, id -> liveTimings.laps(car, id) },
         )

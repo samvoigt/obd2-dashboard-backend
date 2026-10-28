@@ -75,17 +75,26 @@ public object EventRules {
      * entered in the event, the server hearing it during the part's window
      * (`[start, end)`), never fake data; the part it overlaps most if two; plus
      * sessions added by hand (there only), less those removed by hand.
+     * **A merged session is one unit** (M33.4, decision 49): [merges] (each its
+     * members' ids) are placed by their whole span, a member added or removed
+     * by hand takes the others with it, so members never land in different parts.
      */
-    public fun sessionsIn(event: Event, sessions: Collection<SessionHeard>): Map<String, List<String>> {
+    public fun sessionsIn(event: Event, sessions: Collection<SessionHeard>, merges: Collection<List<String>> = emptyList()): Map<String, List<String>> {
         val eligible = sessions.filter { it.car in event.cars && it.source != FAKE }
+        val byId = eligible.associateBy { it.id }
+        val inMerge = mutableSetOf<String>()
+        val units = merges.mapNotNull { m -> m.mapNotNull { byId[it] }.takeIf { it.isNotEmpty() }?.also { u -> inMerge += u.map { it.id } } } +
+            eligible.filter { it.id !in inMerge }.map { listOf(it) }
         val byHand = event.parts.flatMap { p -> p.added.map { it to p.id } }.toMap()
-        val chosen = eligible.mapNotNull { s ->
-            val part = byHand[s.id]
+        val chosen = units.flatMap { unit ->
+            val span = SessionHeard(unit.first().id, unit.first().car, unit.minOf { it.from }, unit.maxOf { it.to }, null)
+            val ids = unit.map { it.id }
+            val part = ids.firstNotNullOfOrNull { byHand[it] }
                 ?: event.parts
-                    .filter { p -> s.id !in p.removed && s.from.isBefore(p.end) && !s.to.isBefore(p.start) }
-                    .maxWithOrNull(compareBy<Part> { overlap(it, s) }.thenByDescending { it.start })
+                    .filter { p -> ids.none { it in p.removed } && span.from.isBefore(p.end) && !span.to.isBefore(p.start) }
+                    .maxWithOrNull(compareBy<Part> { overlap(it, span) }.thenByDescending { it.start })
                     ?.id
-            part?.let { s to it }
+            if (part == null) emptyList() else unit.map { it to part }
         }
         return event.parts.associate { p -> p.id to chosen.filter { it.second == p.id }.map { it.first }.sortedBy { it.from }.map { it.id } }
     }
