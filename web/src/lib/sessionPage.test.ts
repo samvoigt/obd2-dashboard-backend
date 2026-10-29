@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bestSectors, defaultSignals, DETAIL_WINDOW_S, events, fetchLaps, fetchMergedSeries, fetchSeries, joined, joinSeries, membersIn, lapNote, lapRows, messageMarkers, nearest, needsDetail, speedColor, speedsAtPositions, speedSignal, standingRows,
+  bestSectors, defaultSignals, DETAIL_WINDOW_S, events, fetchLaps, fetchMergedSeries, fetchSeries, joined, joinSeries, loadSessionData, membersIn, lapNote, lapRows, messageMarkers, nearest, needsDetail, speedColor, speedsAtPositions, speedSignal, standingRows,
   type Series, type SessionLaps,
 } from './sessionPage'
 
@@ -253,5 +253,39 @@ describe('a merged session (M33.7)', () => {
     asked.length = 0
     await fetchMergedSeries(members, fetcher, true, membersIn(members, [(t0 + 59_000) / 1000, (t0 + 70_000) / 1000]))
     expect(asked).toEqual(['/api/sessions/m1/series?thin=1', '/api/sessions/m2/series'])
+  })
+})
+
+describe('a session page\'s data, laps first (M35.3)', () => {
+  const laps = { course: 'box', courseName: 'Box', courseVersion: 1, layout: 'box', laps: [] }
+  function recording() {
+    const asked: string[] = []
+    const fetcher = (async (url: string) => {
+      asked.push(url)
+      return new Response(JSON.stringify(url.endsWith('/laps') ? laps : series()))
+    }) as unknown as typeof fetch
+    return { asked, fetcher }
+  }
+
+  it('asks for a complete session\'s laps before its series, and hands each over as it comes', async () => {
+    const { asked, fetcher } = recording()
+    const got: string[] = []
+    const thin = await loadSessionData('s1', { state: 'complete', started: 0, ended: 7_200_000 }, [], { laps: () => got.push('laps'), series: () => got.push('series') }, fetcher)
+    expect(asked).toEqual(['/api/sessions/s1/laps', '/api/sessions/s1/series?thin=1'])
+    expect(got.sort()).toEqual(['laps', 'series'])
+    expect(thin).toBe(true)
+  })
+
+  it('a merged session: its own laps before any member\'s series', async () => {
+    const { asked, fetcher } = recording()
+    await loadSessionData('m', { state: 'complete', started: 0, ended: 60_000 }, [{ id: 'a', started: 0, ended: 30_000 }, { id: 'b', started: 30_000, ended: 60_000 }],
+      { laps: () => {}, series: () => {} }, fetcher)
+    expect(asked).toEqual(['/api/sessions/m/laps', '/api/sessions/a/series', '/api/sessions/b/series'])
+  })
+
+  it('a live session has no laps to ask for yet', async () => {
+    const { asked, fetcher } = recording()
+    await loadSessionData('s1', { state: 'live', started: 0, ended: 1 }, [], { laps: () => {}, series: () => {} }, fetcher)
+    expect(asked).toEqual(['/api/sessions/s1/series'])
   })
 })

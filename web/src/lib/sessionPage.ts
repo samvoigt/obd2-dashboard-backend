@@ -386,3 +386,24 @@ export async function fetchMergedSeries(members: readonly Member[], fetcher: typ
 export function membersIn(members: readonly Member[], range: readonly [number, number]): Set<string> {
   return new Set(members.filter((m) => m.started / 1000 < range[1] && m.ended / 1000 > range[0]).map((m) => m.id))
 }
+
+/**
+ * **A session page's data, laps first** (M35.3): a complete session's laps (a
+ * few kB, `/laps`; a merged one's through its own id) are asked for before its
+ * series (megabytes, each member's for a merge), and each is handed over as it
+ * comes, so the laps table shows before the chart. A long session's series
+ * comes thinned (M19.6). Answers whether it was thinned.
+ */
+export async function loadSessionData(
+  id: string,
+  session: { state: string; started: number; ended: number },
+  members: readonly Member[],
+  on: { laps: (laps: SessionLaps | null) => void; series: (series: Series | null) => void },
+  fetcher: typeof fetch = fetch,
+): Promise<boolean> {
+  const thin = session.state === 'complete' && session.ended - session.started > LONG_SESSION_MS
+  const laps = session.state === 'complete' ? fetchLaps(id, fetcher).catch(() => null).then(on.laps) : Promise.resolve()
+  const series = (members.length > 0 ? fetchMergedSeries(members, fetcher, thin) : fetchSeries(id, fetcher, thin)).then(on.series)
+  await Promise.all([laps, series])
+  return thin
+}

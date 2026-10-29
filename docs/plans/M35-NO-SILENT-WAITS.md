@@ -188,6 +188,22 @@ session, `/laps` is asked before `/series`; for a merged one, its `/laps`
 before any member's `/series`. Check on the dev server with the M29
 synthetic 3 h session: the laps table appears before the chart.
 
+**Validated and built 2026-10-28.** The page's load had changed since the
+plan (M33.7 moved a member's page to its merge; the detail stays in the
+page for that): after the detail it awaited the series (a merge's members'
+joined) and only then asked for the laps. `loadSessionData(id, session,
+members, { laps, series })` in `lib/sessionPage.ts` asks for a complete
+session's laps first, then the series, both in flight, each handed over as
+it comes. **As built, the order on the page is kept** (chart, map, then
+laps: moving laps up is M38's): the laps panel is out of the series' gate,
+shown as soon as `standing` is set, its speed columns appearing with the
+series; the chart and map stay behind the gate (M35.4's placeholders keep
+their space). A lap link's window is applied when the series comes.
+`sessionPage.test.ts` +3 (plain: `/laps` before `/series?thin=1`; merged:
+its `/laps` before any member's series; live: no laps asked). **The check
+moves to M35.6**, on production's Saturday 12:00 (3 h 17 min) rather than a
+synthetic session: time to the laps table and to the chart.
+
 ### M35.4 — Skeletons
 
 `.skeleton` in `app.css`; replace each "Loading…" with the page's real

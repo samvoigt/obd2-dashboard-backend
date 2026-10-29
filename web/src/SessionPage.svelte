@@ -4,7 +4,7 @@
   import Chart from './Chart.svelte'
   import SessionMap from './SessionMap.svelte'
   import {
-    bestSectors, countsForBest, defaultSignals, events, fetchLaps, fetchMergedSeries, fetchSeries, joined, membersIn, lapNote, lapRows, LONG_SESSION_MS, messageMarkers, needsDetail, speedsAtPositions,
+    bestSectors, countsForBest, defaultSignals, events, fetchMergedSeries, fetchSeries, joined, loadSessionData, membersIn, lapNote, lapRows, LONG_SESSION_MS, messageMarkers, needsDetail, speedsAtPositions,
     standingRows, unitOf,
     type LapRow, type Member, type Series, type SessionLaps, type SessionMessage,
   } from './lib/sessionPage'
@@ -253,17 +253,21 @@
       }
       // Crew messages sent while it ran (M18.4).
       void fetch(`/api/sessions/${sid}/messages`).then((r) => (r.ok ? r.json() : [])).then((m: SessionMessage[]) => (messages = m)).catch(() => {})
+      // Laps first, then the series (M35.3): the table shows while the chart's data is still coming.
       thin = detail.session.state === 'complete' && detail.session.ended - detail.session.started > LONG_SESSION_MS
-      const members = detail.members ?? []
-      series = members.length > 0 ? await fetchMergedSeries(members, fetch, thin) : await fetchSeries(sid, fetch, thin)
-      // A lap's link (M16.1): the chart zoomed to its window, the map showing that stretch.
-      const linked = readWindow(window.location.search)
-      if (linked) {
-        focus = linked
-        range = [linked[0] / 1000, linked[1] / 1000]
-      }
+      await loadSessionData(sid, detail.session, detail.members ?? [], {
+        laps: (l) => (standing = l),
+        series: (s) => {
+          series = s
+          // A lap's link (M16.1): the chart zoomed to its window, the map showing that stretch.
+          const linked = readWindow(window.location.search)
+          if (linked) {
+            focus = linked
+            range = [linked[0] / 1000, linked[1] / 1000]
+          }
+        },
+      })
       if (detail.session.state === 'live') follow()
-      else if (detail.session.state === 'complete') standing = await fetchLaps(sid).catch(() => null)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
@@ -455,6 +459,9 @@
         </section>
       {/if}
 
+    {/if}
+
+    <!-- Laps first (M35.3): asked before the series and shown as soon as they come, speeds filled in once it's here. -->
       {#if laps.length > 0}
         <section class="panel">
           <h2>Laps</h2>
@@ -495,6 +502,7 @@
         </section>
       {/if}
 
+    {#if view}
       {#if happened.length > 0}
         <section class="panel">
           <h2>What happened</h2>
