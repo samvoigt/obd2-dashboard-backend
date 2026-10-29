@@ -3,6 +3,7 @@
  * editor's logic. Pure, so it's tested without a browser.
  */
 
+import { saveSessionDriver, type DriversSaved } from './driverChanges'
 import { get } from 'svelte/store'
 import { isMaster, isSignedIn, signin, type SignIn } from './signin'
 import { allowedFor, type Kind } from './access'
@@ -144,13 +145,8 @@ export type DriverSetter = 'admin' | 'crew' | null
  * Sets (or with null clears) who drove session [id] of car [slug]: through the
  * admin's path or the crew's, since each sign-in's cookie reaches only its own.
  */
-export async function setSessionDriver(who: 'admin' | 'crew', slug: string, id: string, driver: string | null, fetcher: typeof fetch = fetch): Promise<void> {
-  const path = who === 'admin' ? `/api/admin/sessions/${id}/driver` : `/api/cars/${slug}/sessions/${id}/driver`
-  const response = await fetcher(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ driver }) })
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { message?: string }
-    throw new Error(body.message || `The server answered ${response.status}.`)
-  }
+export async function setSessionDriver(who: 'admin' | 'crew', slug: string, id: string, driver: string | null, fetcher: typeof fetch = fetch): Promise<DriversSaved> {
+  return saveSessionDriver(who, slug, id, driver, fetcher)
 }
 
 /** A session's name set or cleared (M18.3), by the admin or the car's crew, as who drove it is. The name as stored. */

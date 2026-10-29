@@ -56,6 +56,34 @@ is M32, which comes first.
   session's drivers, so these two places are the only editors.
 - **Tests to extend:** `web/src/lib/driverChanges.test.ts`.
 
+## Validated 2026-10-28, after M32 and M33
+
+- **`live.offsetMs` is the viewer's clock less the server's** (`localNow -
+  serverNow`, `lib/live.ts:62`), not the server's against the tablet's as
+  written above. "At [hh:mm]" needs the tablet's clock too: each live point
+  has `t` (`atMs`, when the server had it) and its record's `wall`, so a
+  viewer time T is the tablet's `wall` `newest.wall + (T - offsetMs -
+  newest.t)`, and a `wall` shows on the viewer's clock as `wall -
+  newest.wall + newest.t + offsetMs`. `swapMoment` takes the newest point,
+  not a bare offset.
+- **The message panel is `web/src/MessagePanel.svelte`**, not under
+  `widgets/`; its login is `login`/`logout` there, as described.
+- **The Driver panel shows only with `live.standing`** (`CarPage.svelte:262`),
+  and a live session at no course has none. So the panel takes `standing`
+  as optional and is shown whenever there's a standing or the crew has a
+  live session; otherwise the crew could never set a driver there.
+- **The driver routes' answer** (M32): `DriversSaved(driver, changes,
+  replaced)`, each change `{from, driver: id}`. `setSessionDriver` and
+  `saveDriverChanges` ignore it today; they return it now, for the
+  confirmation and the session page's "replaced" line.
+- **A merged session's detail** (M33.5) has `members`, each with `id`,
+  `started`, `ended`, `driver` and `driverChanges`, and its laps name their
+  member in `session`: what M34.4 needs, as planned. Its page shows who
+  drove but doesn't edit it yet (M33.7), which M34.5 changes.
+- The header's Crew slot is `<span class="crew-slot">` in `SiteHeader.svelte`
+  (M31); the crew cookie's path is `/api/cars/{slug}` (`CrewRoutes.kt:79`),
+  so a header login works from any page, as planned.
+
 ## Decided here
 
 - **The Driver panel holds the control.** Crew logged in: **Set driver**
@@ -109,6 +137,15 @@ start, an unknown lap refused; a time on the viewer's clock to the tablet's
 `wall`; a time in the future or before the session refused; no laps → the
 session's driver is set; the paths for crew and admin; a `replaced` answer
 in words.
+
+**Built 2026-10-28.** `lib/driverChanges.ts`: `SwapChoice`, `LiveClocks`
+(the newest point and the viewer's offset), `viewerTime`/`tabletWall`,
+`lastStop`, `swapMoment` (as decided; a time is today on the viewer's clock,
+refused in the future or before the session's first moment), `setDriverAt`
+(today's `DriverPicker.set`, moved: no moment sets the session's driver,
+else a change added to its list), `replacedText`. `saveDriverChanges` and a
+new `saveSessionDriver` return the server's `DriversSaved`;
+`events.setSessionDriver` goes through it. `driverChanges.test.ts` +4.
 
 ### M34.2 — The Driver panel sets the driver
 
