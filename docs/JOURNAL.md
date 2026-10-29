@@ -687,3 +687,32 @@ footage.
   PAU 113, DRE 107 laps, as before.
 - **A step committed after only its module's tests broke five server tests**
   (M32.1). The whole suite runs before every commit.
+
+## 2026-10-28 — M33: merged sessions, measured, deployed, NHMS merged
+
+- **Nothing at NHMS overlaps.** Saturday's five sessions follow on 12.4 s,
+  0.2 s, 13.2 s and 0.2 s apart; Sunday's four 0.2–4.0 s. A merge refuses
+  more than 5 s of overlap.
+- **Measured before building:** the real session page, its series answered
+  with Saturday's five joined (2.97 MB, 952 KB gzipped), on a 390 px phone at
+  4× CPU: drawn in 1.3–2.8 s, its longest task 346 ms, heap 18.9 MB, against
+  240 ms and 17.4 MB for the site's largest single session. `measure.mjs`
+  counts from 8 s after a page loads, so it can't see a load: a scratch
+  script timed it instead.
+- **Deployed as `00054`** with a live stream across it: `1012`, reconnected
+  at once. Production suggested both days as one drive each (Saturday's 5,
+  Sunday's 4) without anyone telling it which.
+- **Sam merged both days.** The race unchanged: 8 stints, SAM 122, HUG 118,
+  PAU 113, DRE 107 laps. Each race session is now one session on the event
+  page, a row per stint's driver: Saturday HUG 60, DRE 57, PAU 56, SAM 64;
+  Sunday PAU 57, SAM 58, HUG 58, DRE 50. The merged pages' laps run 1–237
+  and 1–223.
+- **The merged pages on production**, same scratch measure: drawn in 1.6 s,
+  longest task 334–369 ms; heap 21 MB (Sunday) and 32 MB (Saturday). **The
+  very first load of Sunday's took 14.5 s**: a member's thinned series is
+  built the first time anyone asks for it, and some of Sunday's hadn't been.
+  The next load took 1.6 s. Worth knowing for a merge of sessions nobody has
+  opened since they were driven.
+- **The dev server only knows NHMS:** every synthetic session there has no
+  laps, merged or not, until the box course is saved. Found when the merged
+  page showed no laps table and a single session didn't either.

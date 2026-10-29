@@ -996,3 +996,43 @@ Decision 48 (amends 34, 35, 43, 44); UX review §7. Deployed as `00053`.
 - **Tests:** `DriverRulesTest` (6), `DriverCarryTest` (6),
   `StintMigrationTest` (4), new `RaceTest` cases; 665 Kotlin and 273 site
   tests pass.
+
+## M33 — Merged sessions: several stored sessions, one session everywhere you look  ✅ 2026-10-28
+
+Decision 49; Sam, 2026-10-22. Deployed as `00054`.
+
+- **Measured first:** NHMS's back-to-back sessions never overlap (0.2 s
+  apart at the closest), so a merge refuses more than 5 s; Saturday's five
+  series joined (3 MB) keep the session page usable on a slowed phone
+  (JOURNAL 2026-10-28).
+- **A merge is its own record** (`MergedSession`, `MergeStore`; Firestore
+  `merges`, one transaction per save reading the car's merges, so a session
+  is in one merge). `MergeRules`: two or more of one car's complete
+  sessions, in order, in the same event part or none; refusals name their
+  sessions. Unmerging keeps the record `split`, so its address moves to the
+  first member.
+- **Routes:** `POST /api/admin/cars/{slug}/merges` (merge, or extend into an
+  existing merge), `POST /api/admin/merges/{id}/split`; the name routes name
+  a merge; deleting a merged session deletes every member, a member alone is
+  refused (`CarAdmin`, so `admin.sh` too); removing a car removes its merges.
+  Every change clears the results' hold.
+- **Placement treats a merge as one unit** (`sessionsIn(…, merges)`), by its
+  span; a member added or removed by hand takes the others.
+- **One session everywhere:** the list (one row; `suggestMerges` per drive:
+  same tablet, consecutive, complete, unmerged, one part), the page
+  (members' facts and who drove across them; laps numbered through, each
+  naming its member; messages; a member's page moves to its merge), event
+  results (a row per stretch, `merged` member → merge; the race unchanged),
+  driver pages, and both downloads (the merge's members as one log;
+  `sessions.json` names the merge).
+- **The site:** `joinSeries` and `fetchMergedSeries` (members' series joined
+  in the browser, thinned when long, full where a narrow view covers), a mark
+  at each join; the list's Select, Merge bar, suggestion line, Unmerge.
+  Editing who drove on a merged page waits for M34.
+- **Tests:** `MergesTest` (9), `MergeMappingTest`, `MergeRoutesTest` (5),
+  `MergedSessionsTest` (4), and cases in `EventRulesTest`, `SessionLapsTest`,
+  `EventResultsTest`, `EventDownloadTest`, `HiddenTest`, `sessionPage.test.ts`,
+  `sessions.test.ts`; `scripts/merge-smoke.sh` on the real Firestore. 689
+  Kotlin and 276 site tests pass.
+- **Proven:** the whole flow on the dev server in the browser; on
+  production, both NHMS days suggested, merged by Sam, the race unchanged.
