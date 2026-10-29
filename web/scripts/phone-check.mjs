@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Does every page fit a phone (M31.1)? Each path laid out as a 390 × 844 phone (mobile
 // emulation, as measure.mjs does: a desktop window won't lay out that narrow), and a page
-// fails when it scrolls sideways or its header's links run under its buttons (M34.3). Tables may
+// fails when it draws nothing (M35.4), scrolls sideways, or its header's links run under its buttons (M34.3). Tables may
 // scroll inside their panel; the page never does.
 //
 //   node web/scripts/phone-check.mjs [base] [extra paths…]
@@ -68,7 +68,9 @@ const MEASURE = `(() => {
   const who = document.querySelector('header .who')?.getBoundingClientRect()
   const clip = nav && getComputedStyle(nav).overflowX !== 'visible' ? nav.getBoundingClientRect().right : Infinity
   const overlap = nav && who ? Math.max(0, ...[...nav.querySelectorAll('a')].map((a) => Math.round(Math.min(a.getBoundingClientRect().right, clip) - who.left))) : 0
-  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small, overlap })
+  // A page that drew nothing fits any phone (M35.4: a stale Vite cache left every page blank, and all passed).
+  const blank = !document.querySelector('main') || (document.querySelector('main').innerText ?? '').trim().length === 0
+  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small, overlap, blank })
 })()`
 
 async function check(path, tag) {
@@ -88,8 +90,8 @@ async function check(path, tag) {
   const strict = /^\/cars\/[a-z0-9-]+$/.test(path) || /\/sessions\/[0-9a-f-]{36}$/.test(path)
   const tooSmall = strict && m.small.length > 0
   const covered = m.overlap > 0
-  const ok = !wide && !tooSmall && !covered
-  console.log(`${ok ? 'ok  ' : wide ? 'WIDE' : covered ? 'OVER' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${covered ? `  the header's links run ${m.overlap} px under its buttons` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
+  const ok = !wide && !tooSmall && !covered && !m.blank
+  console.log(`${ok ? 'ok  ' : m.blank ? 'NONE' : wide ? 'WIDE' : covered ? 'OVER' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${m.blank ? '  nothing drawn' : ''}${covered ? `  the header's links run ${m.overlap} px under its buttons` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
   if (wide) for (const o of m.offenders) console.log(`       ${o.el}  right ${o.right}, width ${o.width}${o.text ? `  "${o.text}"` : ''}`)
   if (m.small.length) for (const c of m.small.slice(0, 5)) console.log(`       ${c}`)
   return ok

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { onMount } from 'svelte'
   import { api } from './lib/admin'
   import { codeFrom, type Driver } from './lib/events'
@@ -143,7 +144,7 @@
       </ul>
     {/if}
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton title={false} panels={[56, 56, 56, 56]} label="Loading the drivers" />
   {/if}
 </main>
 

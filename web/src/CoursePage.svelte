@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import CourseMap from './CourseMap.svelte'
   import HiddenBadge from './HiddenBadge.svelte'
@@ -79,7 +80,7 @@
       </ul>
     {/if}
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton panels={[400, 160]} label="Loading the course" />
   {/if}
 </main>
 

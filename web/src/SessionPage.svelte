@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { clockText, gpsGaps, lengthText } from './lib/gps'
   import { onDestroy, onMount } from 'svelte'
   import Chart from './Chart.svelte'
@@ -431,7 +432,7 @@
     {/if}
 
     {#if !view}
-      <p class="muted">Loading the session's data…</p>
+      <Skeleton title={false} panels={[340, 400]} label="Loading the session's chart and map" />
     {:else}
       <section class="panel">
         <div class="pickers">
@@ -515,7 +516,7 @@
       {/if}
     {/if}
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton panels={[24, 44, 340, 400]} label="Loading the session" />
   {/if}
 </main>
 

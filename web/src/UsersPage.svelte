@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { api, AdminError, confirmed, when } from './lib/admin'
   import { inviteProblem, thingLink, type InvitedUser } from './lib/access'
   import { isMaster, signin } from './lib/signin'
@@ -59,7 +60,7 @@
   <p class="back"><a href="/">← Home</a></p>
   <h1>Users</h1>
   {#if $signin.state === 'unknown'}
-    <p class="muted">Loading…</p>
+    <Skeleton title={false} panels={[56, 56]} label="Loading the users" />
   {:else if !master}
     <p class="muted">Only a master admin can manage users.</p>
   {:else}
@@ -108,7 +109,7 @@
         {/each}
       </ul>
     {:else}
-      <p class="muted">Loading…</p>
+      <Skeleton title={false} panels={[44, 44]} label="Loading" />
     {/if}
   {/if}
 </main>

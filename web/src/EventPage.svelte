@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import {
     dateText, driverLabel, gap, partOn, REFRESH_MS, sectorGap, windowText, type DriverBest, type DriverConsistency, type EventResults, type SectorRow, type SessionResult,
@@ -131,7 +132,7 @@
       </section>
     {/each}
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton panels={[24, 220, 320, 200]} label="Loading the event" />
   {/if}
 </main>
 

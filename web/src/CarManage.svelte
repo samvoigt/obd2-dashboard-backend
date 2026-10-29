@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { signin } from './lib/signin'
   import {
     AdminError, api, clockNote, confirmed, day, passcodeProblem, stateText, tokenProblem, twiceProblem,
@@ -172,7 +173,7 @@
   {:else if error}
     <p class="error" role="alert">{error}</p>
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton title={false} panels={[120, 200]} label="Loading the car" />
   {/if}
 </main>
 

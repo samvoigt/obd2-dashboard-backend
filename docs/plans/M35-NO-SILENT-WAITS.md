@@ -215,6 +215,26 @@ Check: at 390 px and desktop, each page's layout appears before its data
 (throttle the network in the browser to see it); no layout jump larger than
 a line when the data lands.
 
+**Built 2026-10-28.** `.skeleton` in `app.css` (the line colour, a soft
+pulse, still under `prefers-reduced-motion`; no colour role of its own:
+the colour test passes) and `widgets/Skeleton.svelte` (a title's line and
+panels at given heights, `role="status"`, `aria-busy`). Every "Loading…"
+(12, in ten pages) is now its page's layout: the session page (facts,
+switches, chart 340 px, map 400 px; and the chart and map alone while the
+series comes), event, driver, course, the events and drivers lists, a car's
+manage page, compare, the event editor, users. **As built, one commit**,
+not one per page: one widget and a line each.
+
+**Checked on the dev server** (headless Chrome at 390 px, each API answer
+held back 2.5 s): the session page, events, drivers and a course each
+showed their skeleton (3–4 blocks, no "Loading…") and then their data. The
+session page's chart first landed ~75 px below its placeholder at phone
+width (the title wraps; the switches row); its skeleton now has those two
+lines. **Found: every page under Vite drew nothing** (a stale dependency
+cache, "504 Outdated Optimize Dep"; `vite --force` fixed it), **and the
+phone check passed them all**: nothing drawn, nothing too wide. It now fails
+a page whose `main` is missing or empty ("NONE").
+
 ### M35.5 — Page titles
 
 `lib/title.ts`: `setTitle(...parts)` → `document.title = [...parts, 'Bad

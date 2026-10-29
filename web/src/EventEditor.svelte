@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { untrack } from 'svelte'
   import { signin } from './lib/signin'
   import { allowedFor, NOTHING, type Allowed } from './lib/access'
@@ -150,7 +151,7 @@
   {#if $signin.state === 'out'}
     <p>Sign in (top right) to edit.</p>
   {:else if !loaded}
-    {#if message}<p class="error">{message}</p>{:else}<p class="muted">Loading…</p>{/if}
+    {#if message}<p class="error">{message}</p>{:else}<Skeleton title={false} panels={[360]} label="Loading the event" />{/if}
   {:else}
     <h1>{isNew ? 'New event' : name}</h1>
     <section class="panel form">

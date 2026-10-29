@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { onMount } from 'svelte'
   import { signin } from './lib/signin'
   import { dateText, whereText, type PublicEvent } from './lib/eventResults'
@@ -38,7 +39,7 @@
       {/each}
     </ul>
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton title={false} panels={[72, 72, 72]} label="Loading the events" />
   {/if}
 </main>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import L from 'leaflet'
   import 'leaflet/dist/leaflet.css'
   import { onMount } from 'svelte'
@@ -149,7 +150,7 @@
       <div class="map" bind:this={mapBox}></div>
     </section>
   {:else}
-    <p class="muted">Loading both laps…</p>
+    <Skeleton title={false} panels={[340, 400]} label="Loading both laps" />
   {/if}
 </main>
 

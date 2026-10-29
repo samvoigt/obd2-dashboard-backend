@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import { dateText, type DriverRecord } from './lib/eventResults'
   import { raceClock } from './lib/race'
@@ -88,7 +89,7 @@
       </section>
     {/each}
   {:else}
-    <p class="muted">Loading…</p>
+    <Skeleton panels={[24, 140, 200]} label="Loading the driver" />
   {/if}
 </main>
 
