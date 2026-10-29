@@ -183,6 +183,7 @@ fun Route.adminEventRoutes(
         drivers.get(id) ?: return@put call.respond(HttpStatusCode.NotFound, ApiError("not_found", "No such driver."))
         val request = call.receive<SaveDriver>()
         call.saveDriver(drivers, Driver(id, request.name.trim(), request.code.trim()), email, HttpStatusCode.OK)
+        onChanged() // results name each driver (M35.2)
     }
 
     delete("/api/admin/drivers/{id}") {

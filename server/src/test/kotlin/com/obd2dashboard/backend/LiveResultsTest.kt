@@ -157,7 +157,7 @@ class LiveResultsTest {
     }
 
     @Test
-    fun `results are held 10 s, and emptied by an edit`(): Unit = runBlocking {
+    fun `results are held until something changes, a live one 10 s (M35_2)`(): Unit = runBlocking {
         var t = 0L
         val clock = object : Clock() {
             override fun instant() = Instant.ofEpochMilli(t)
@@ -167,12 +167,20 @@ class LiveResultsTest {
         val hold = ResultsHold(clock)
         val e = Event("day", "Day", "2026-09-28", "box", "box", emptyList(), emptyList(), revision = 1)
         var computed = 0
-        suspend fun get(ev: Event = e) = hold.get(ev) { computed++; EventResults(PublicEvent(ev.id, "", "", "", "", "", "", emptyList(), emptyList()), emptyList(), emptyList(), emptyList()) }
+        var open = false
+        suspend fun get(ev: Event = e) = hold.get(ev) {
+            computed++
+            EventResults(PublicEvent(ev.id, "", "", "", "", "", "", emptyList(), emptyList()), emptyList(), emptyList(), emptyList(), open = open)
+        }
         get(); get()
         computed shouldBe 1
-        t = 9_999; get(); computed shouldBe 1
-        t = 10_000; get(); computed shouldBe 2
-        get(e.copy(revision = 2)); computed shouldBe 3 // another revision: never the old one's
+        t = 86_400_000; get(); computed shouldBe 1 // a day later, nothing changed: still held
+        get(e.copy(revision = 2)); computed shouldBe 2 // another revision: never the old one's
+        get(e.copy(cars = listOf("a", "b"))); computed shouldBe 3 // other cars seen: never another's (M35.1)
         hold.clear(); get(); computed shouldBe 4
+        // A session in the event not complete yet, laps shown or not: held only 10 s.
+        hold.clear(); open = true; get(); computed shouldBe 5
+        t += 9_999; get(); computed shouldBe 5
+        t += 1; get(); computed shouldBe 6
     }
 }

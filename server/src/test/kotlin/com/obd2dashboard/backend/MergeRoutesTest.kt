@@ -23,6 +23,7 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.patch
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -202,4 +203,24 @@ class MergeRoutesTest {
         // Held for 10 s, yet the next read sees the change: the delete cleared the hold.
         parts() shouldBe mapOf("p1" to listOf(id(7)), "p2" to listOf(id(3), id(6)))
     }
+
+    @Test
+    fun `held results follow a car's and a driver's rename at once (M35_2)`() = testApplication {
+        app()
+        val a = admin()
+        runBlocking {
+            stores.drivers.put(com.obd2dashboard.backend.events.Driver("d-sam", "Sam Voigt", "SAM"))
+            sessions.setDriver(id(1), "d-sam")
+        }
+        fun read() = runBlocking { json.decodeFromString<EventResults>(client.get("/api/events/weekend").bodyAsText()) }
+        read().let { r -> r.event.cars.single().name shouldBe "Outback"; r.parts[0].sessions.first().driver?.name shouldBe "Sam Voigt" } // now held
+        client.patch("/api/admin/cars/outback") {
+            header(HttpHeaders.Host, "localhost"); header(HttpHeaders.Origin, "http://localhost"); header(HttpHeaders.Cookie, a)
+            contentType(ContentType.Application.Json); setBody("""{"name":"The Outback"}""")
+        }.status shouldBe HttpStatusCode.OK
+        read().event.cars.single().name shouldBe "The Outback"
+        send("PUT", "/api/admin/drivers/d-sam", a, """{"name":"Samuel Voigt","code":"SAM"}""").status shouldBe HttpStatusCode.OK
+        read().parts[0].sessions.first().driver?.name shouldBe "Samuel Voigt"
+    }
+
 }

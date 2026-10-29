@@ -54,7 +54,8 @@ class RetimingJobsTest {
         session("gone", "yaris", boxLog(1000, 1300, device = "tab-9"))
         archive.summary("gone") // summarised, then its log lost: re-timing it fails
         store.objects.remove(ArchiveService.sessionKey("gone"))
-        val jobs = RetimingJobs(registry, archive, courses, this)
+        var retimed = 0
+        val jobs = RetimingJobs(registry, archive, courses, this, onRetimed = { retimed++ })
         val course = courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!!
 
         jobs.courseSaved(course).join()
@@ -62,6 +63,7 @@ class RetimingJobsTest {
         jobs.progress("box") shouldBe RetimingProgress(version = 1, runs = 3, sessions = 4, done = 3, failed = 1, finished = true)
         timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz", "sessions/y/timing-v2-box-1.json.gz")
         jobs.progress("elsewhere") shouldBe null
+        retimed shouldBe 1 // once, when the job is done (M35.2)
     }
 
     @Test
@@ -83,14 +85,17 @@ class RetimingJobsTest {
     fun `a course removed takes its re-timings with it, and no other course's`(): Unit = runBlocking {
         registry.addCar(Slug.parse("outback"), "Outback")
         session("a", "outback", boxLog(0, 300))
-        val jobs = RetimingJobs(registry, archive, courses, this)
+        var retimed = 0
+        val jobs = RetimingJobs(registry, archive, courses, this, onRetimed = { retimed++ })
         jobs.courseSaved(courses.save("box", 0, "Box", boxGeoJson(), Instant.EPOCH)!!).join()
         jobs.courseSaved(courses.save("box-2", 0, "Box 2", boxGeoJson(), Instant.EPOCH)!!).join()
         timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz", "sessions/a/timing-v2-box-2-1.json.gz")
         courses.delete("box")
+        retimed = 0
         jobs.courseRemoved("box").join()
         timingFiles() shouldBe listOf("sessions/a/timing-v2-box-2-1.json.gz")
         jobs.progress("box") shouldBe null
+        retimed shouldBe 1
     }
 
     @Test
@@ -100,9 +105,14 @@ class RetimingJobsTest {
         courses.save("far", 0, "Far", Json.parseToJsonElement(boxGeoJson().toString().replace("-71.4", "-72.4")).jsonObject, Instant.EPOCH)
         session("a", "outback", boxLog(0, 40))
         session("b", "outback", boxLog(41, 300))
-        val jobs = RetimingJobs(registry, archive, courses, this)
+        var retimed = 0
+        val jobs = RetimingJobs(registry, archive, courses, this, onRetimed = { retimed++ })
         jobs.sessionPrepared("outback", "b")
         timingFiles() shouldBe listOf("sessions/a/timing-v2-box-1.json.gz")
+        retimed shouldBe 1
+        // Laps asked for on view build nothing new to clear for: no call.
+        jobs.sessionLaps("outback", "b")
+        retimed shouldBe 1
         // No courses, nothing to do.
         RetimingJobs(registry, archive, InMemoryCourseStore(), this).sessionPrepared("outback", "b")
     }

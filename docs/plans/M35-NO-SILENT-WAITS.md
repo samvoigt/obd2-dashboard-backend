@@ -132,6 +132,44 @@ Measure (JOURNAL): on production after deploy, the NHMS event page twice in
 a row and after an edit, from the logs' `GET /api/events/… in Nms`; the
 driver page the same.
 
+**Validated 2026-10-28.**
+- **A plain session's delete already clears the hold:** M33.3 made
+  `adminCarRoutes`' delete call `onChanged` for a session as for a merge.
+- **Re-timing: not on every `retime`.** `retime` runs whenever results are
+  worked out (`sessionLaps` builds a missing timing), so a callback there
+  would have results clear their own hold. What changes stored laps is
+  three jobs: `sessionPrepared` (a new session's run), a course save's job
+  finishing, and `courseRemoved`'s. `onRetimed` is called at the end of
+  each. A timing built on view is what results would compute anyway.
+- **Two more edits change results and don't clear it:** a car renamed
+  (`PATCH /api/admin/cars/{slug}`; results name each car) and a driver
+  renamed (`PUT /api/admin/drivers/{id}`; rows name each driver). Both now
+  call `onChanged`. A driver's delete is refused once they drove, so it
+  can't change results; hiding a car changes the seen cars, so the key.
+- **Whether an entry is live** is read from the results themselves (a
+  session row or a race lap marked `live`), not passed back separately.
+- `ResultsHold` is built before `RetimingJobs` in `module`, so the jobs can
+  clear it.
+
+**Built 2026-10-28.** `ResultsHold.get(event, compute)`: an entry is kept
+until `clear()`, unless its results are **open**, then 10 s. `open` is a
+field of `EventResults` never sent (`@Transient`), set by `eventResults`:
+**a session placed in the event not complete, or a part under way now**
+(`EventResultsService` takes the clock). **Found building:** the first
+rule, whether the results showed anything `live`, held for good the results
+of an event looked at before its car's session existed, and the session
+then never showed up: `LiveResultsTest`'s flag case (the page asks the
+moment the stream opens) failed 2 runs in 3. "Not complete" alone has the
+same hole; a part under way closes it, since a session starting then joins
+that part. Cleared also by: a session completing (`completed`), the three
+re-timing jobs (`RetimingJobs(onRetimed)`, built after the hold in
+`module`), a car renamed and a driver renamed (both `onChanged`). Tests:
+`LiveResultsTest` (held a day when nothing's open; another revision or
+other cars never share; open, 10 s), `RetimingJobsTest` (each job calls
+`onRetimed` once; laps built on view don't), `MergeRoutesTest` (a car's
+and a driver's rename show at once); the three live-results cases pass
+3 runs of 3. 691 Kotlin tests pass.
+
 ### M35.3 — The session page: laps first
 
 Move the order of loading out of `SessionPage.svelte`'s `onMount` into a

@@ -44,6 +44,8 @@ class RetimingJobs(
     private val archive: ArchiveService,
     private val courses: CourseStore,
     private val scope: CoroutineScope,
+    /** Stored laps changed (M35.2): a session's run re-timed, a course's job done, a course's re-timings removed. */
+    private val onRetimed: () -> Unit = {},
 ) {
     private val retimer = Retimer(archive, courses) { timing ->
         for (lap in timing.flagged) {
@@ -68,6 +70,7 @@ class RetimingJobs(
         if (current.isEmpty()) return
         val (run, at) = runOf(sessionsOf(car), id, current) ?: return
         for (course in at) retime(run, course)
+        onRetimed()
     }
 
     /**
@@ -119,6 +122,7 @@ class RetimingJobs(
             log.info("re-timed {} runs at {} v{}, {} failed", runs.size, course.id, course.version, p.failed)
             // Done at this version: a restart won't start it again (M18.2). A run that failed is re-timed on view.
             courses.setRetimed(course.id, course.version)
+            onRetimed()
         }
         val entry = course.version to job
         jobs[course.id] = entry
@@ -164,6 +168,7 @@ class RetimingJobs(
             val sessions = registry.list().flatMap { car -> archive.sessionsOf(car.slug.value).map { it.id } }
             val removed = lock.withLock { archive.removeTimings(sessions, id) }
             log.info("course {} removed: {} re-timings deleted", id, removed)
+            onRetimed()
         }
     }
 

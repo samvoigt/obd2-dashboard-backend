@@ -118,7 +118,9 @@ fun Application.module(
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
-    val retiming = RetimingJobs(registry, archive, courses, this)
+    // Results held until what they're made of changes (M35.2); re-timing's stored laps are part of that.
+    val resultsHold = ResultsHold(clock)
+    val retiming = RetimingJobs(registry, archive, courses, this, onRetimed = resultsHold::clear)
     if (watchRetiming) retiming.watch()
     // Sessions answered complete and not yet one object when the server stopped (M19.3): finished now.
     launch {
@@ -132,7 +134,6 @@ fun Application.module(
     val timingPage = TimingPage(hub)
     val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this, standing = timingPage::standing)
     timingDownlink = timing
-    val resultsHold = ResultsHold(clock)
     val liveSeries = LiveSeries(archive, clock)
     // Something results and timing are made of was edited: both work it out again at once.
     val edited: () -> Unit = { timing.nudge(); resultsHold.clear() }
@@ -178,7 +179,7 @@ fun Application.module(
         )
         adminEventRoutes(events, courses, registry, archive, clock, adminAuth, admin, onChanged = edited)
         publicCourseRoutes(courses)
-        val eventResults = EventResultsService(events, courses, registry, archive, retiming, liveTimings, hub, resultsHold)
+        val eventResults = EventResultsService(events, courses, registry, archive, retiming, liveTimings, hub, resultsHold, clock)
         publicEventRoutes(events, eventResults)
         eventDownloadRoutes(events, archive, eventResults)
         sessionRoutes(
@@ -205,7 +206,7 @@ fun Application.module(
                 call.respond(PublicCar(car.slug, car.name))
             }
             archiveRoutes(
-                archive, prepared = retiming::sessionPrepared, completed = { car, id -> liveTimings.completed(car, id); liveSeries.completed(id) },
+                archive, prepared = retiming::sessionPrepared, completed = { car, id -> liveTimings.completed(car, id); liveSeries.completed(id); resultsHold.clear() },
                 opened = { car, id ->
                     carryDriver(archive, car, id)?.let { driver ->
                         adminLog.info("driver carried over: session {} of {} to {} from the session before", id, car, driver)

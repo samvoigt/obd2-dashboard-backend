@@ -274,6 +274,7 @@ fun Route.adminCarRoutes(
         call.refusals {
             registry.rename(slug, name)
             adminLog.info("car renamed: {} by {}", slug, who.email)
+            onChanged() // results name each car (M35.2)
             call.respond(call.viewFor(who, registry.get(slug)!!)!!)
         }
     }

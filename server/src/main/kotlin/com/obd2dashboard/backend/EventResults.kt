@@ -146,6 +146,11 @@ data class EventResults(
     val practiceConsistency: List<DriverConsistency> = emptyList(),
     /** Each merged session's members (M33.6): member id → the merged session's, whose row and page stand for it. */
     val merged: Map<String, String> = emptyMap(),
+    /**
+     * A session placed in the event isn't complete yet, or a part is under way (M35.2): laps may come at any
+     * moment, from a session that may not exist yet. The hold keeps such results only briefly. Never sent.
+     */
+    @kotlinx.serialization.Transient val open: Boolean = false,
 )
 
 /**
@@ -278,6 +283,8 @@ class EventResultsService(
     private val hub: LiveHub? = null,
     /** Results held briefly, so many viewers cost one computation. */
     private val held: ResultsHold = ResultsHold(),
+    /** For whether a part is under way (M35.2). */
+    private val clock: java.time.Clock = java.time.Clock.systemUTC(),
 ) {
     suspend fun public(event: Event): PublicEvent {
         val course = courses.get(event.course)
@@ -391,6 +398,8 @@ class EventResultsService(
             pub, parts, Results.driverBests(practice), practiceSectors, race,
             Consistency.theoreticalBest(practiceSectors), Results.sectorRows(practice), Results.consistency(practice),
             merged = mergeOf.filterKeys { it in eventIds }.mapValues { it.value.id },
+            // A session not complete, or a part under way, which a session starting now would join (M35.2).
+            open = eventIds.any { records[it]?.complete == false } || event.parts.any { p -> clock.instant().let { !it.isBefore(p.start) && it.isBefore(p.end) } },
         )
     }
 
@@ -442,21 +451,27 @@ fun Route.publicEventRoutes(stores: EventStores, service: EventResultsService) {
 }
 
 /**
- * An event's results held for [forMs] (M17.6): during a part the page asks
- * every 30 s, and many viewers cost one computation. Emptied whenever what
- * they're made of is edited (a driver, a race, an event, a course), so an
- * edit shows at once.
+ * **An event's results, held until something they're made of changes**
+ * (M17.6, M35.2): many viewers cost one computation, and a page opened twice
+ * costs one. Emptied by [clear] whenever anything they're made of changes (a
+ * driver, a car, a race, an event, a course, a session completed, deleted or
+ * merged, a re-timing stored). An entry with a session in the event not
+ * complete yet (`EventResults.open`) is held only [liveForMs]: its laps move
+ * every lap, and its first may not have come.
  */
-class ResultsHold(private val clock: java.time.Clock = java.time.Clock.systemUTC(), private val forMs: Long = 10_000) {
-    private val held = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, EventResults>>()
+class ResultsHold(private val clock: java.time.Clock = java.time.Clock.systemUTC(), private val liveForMs: Long = 10_000) {
+    private class Held(val at: Long, val results: EventResults, val live: Boolean)
+
+    private val held = java.util.concurrent.ConcurrentHashMap<String, Held>()
 
     suspend fun get(event: Event, compute: suspend () -> EventResults): EventResults {
         // [event] as the viewer sees it (`seen`): its cars are part of the key, so one viewer's results never
         // reach another who may see fewer (M35.1: a hidden car's laps reached signed-out visitors for 10 s).
         val key = "${event.id}@${event.revision}:${event.cars.sorted().joinToString(",")}"
         val now = clock.millis()
-        held[key]?.takeIf { now - it.first < forMs }?.let { return it.second }
-        return compute().also { held[key] = now to it }
+        held[key]?.takeIf { !it.live || now - it.at < liveForMs }?.let { return it.results }
+        // Not what the results show (a session being driven may have no laps in them yet), but whether one is open.
+        return compute().also { held[key] = Held(now, it, it.open) }
     }
 
     fun clear() = held.clear()
