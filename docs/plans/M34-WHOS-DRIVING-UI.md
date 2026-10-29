@@ -237,6 +237,17 @@ entry); a change at a later member's first lap → that member's driver; a
 change mid-member → a change on it; Remove on a later member's start entry
 is that member's driver set to the one in force before it.
 
+**Built 2026-10-28.** `lib/driverChanges.ts`: `DriverMember`,
+`TimelineLap`, `TimelineEntry`, and a save as one `DriverEdit` (a member's
+driver, or its whole list of changes). `driverTimeline` as decided; **as
+built, the plan's `changeTarget` is three functions, one per action:**
+`changeAt(members, laps, lap, driver)` (a lap's member is the one it names,
+else the one it began in; its first lap → the member's driver, else a
+change), `changeEntry` (a start's driver is its member's, a change's is
+re-made at its moment) and `removeEntry` (a change out of its list; a later
+member's start back to whoever drove before it; never the first).
+`driverChanges.test.ts` +5.
+
 ### M34.5 — The session page's Drivers block
 
 `SessionPage.svelte`'s three controls become one **Drivers** block, from

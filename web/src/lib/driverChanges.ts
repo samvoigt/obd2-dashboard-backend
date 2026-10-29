@@ -161,3 +161,106 @@ export function replacedText(saved: DriversSaved, drivers: readonly Driver[], cl
   const name = (id: string | null) => (id ? drivers.find((d) => d.id === id)?.name ?? id : 'nobody')
   return `replaced ${saved.replaced.map((r) => `${name(r.driver)} from ${clock(r.from)}`).join(', ')}`
 }
+
+/** A session as the Drivers block reads it (M34.4): a plain session is one member; a merged one's are its members. */
+export interface DriverMember {
+  id: string
+  /** Its first moment, the tablet's clock. */
+  started: number
+  driver?: Driver | null
+  driverChanges?: DriverChangeDetail[]
+}
+
+/** A lap as the session page has it: on the tablet's clock; on a merged session, the member it's from. */
+export interface TimelineLap {
+  lap: number
+  start: number
+  end: number
+  session?: string
+}
+
+/** A stretch of who drove (M34.4): from a member's start, or from a change within one. */
+export interface TimelineEntry {
+  from: number
+  /** The lap it begins in; null at the very start, or without laps. */
+  lap: number | null
+  driver: Driver | null
+  member: string
+  kind: 'start' | 'change'
+}
+
+/** One save (M34.4): a member's driver from its start, or its whole list of changes. */
+export type DriverEdit = { member: string; kind: 'driver'; driver: string | null } | { member: string; kind: 'changes'; changes: DriverChangeId[] }
+
+const lapOf = (laps: readonly TimelineLap[], from: number) => laps.find((l) => l.end > from)?.lap ?? null
+const sameDriver = (a: Driver | null | undefined, b: Driver | null | undefined) => (a?.id ?? null) === (b?.id ?? null)
+
+/**
+ * **Who drove, as one timeline** (M34.4): the first member's driver from the
+ * start; a later member's start only where it's set to someone other than
+ * who was driving (a member nobody set carries on, decision 48); each change
+ * within a member, from its moment.
+ */
+export function driverTimeline(members: readonly DriverMember[], laps: readonly TimelineLap[]): TimelineEntry[] {
+  const out: TimelineEntry[] = []
+  let driving: Driver | null = null
+  members.forEach((m, i) => {
+    if (i === 0) {
+      out.push({ from: m.started, lap: null, driver: m.driver ?? null, member: m.id, kind: 'start' })
+      driving = m.driver ?? null
+    } else if (m.driver && !sameDriver(m.driver, driving)) {
+      out.push({ from: m.started, lap: lapOf(laps, m.started), driver: m.driver, member: m.id, kind: 'start' })
+      driving = m.driver
+    }
+    for (const c of [...(m.driverChanges ?? [])].sort((a, b) => a.from - b.from)) {
+      out.push({ from: c.from, lap: lapOf(laps, c.from), driver: c.driver ?? null, member: m.id, kind: 'change' })
+      driving = c.driver ?? null
+    }
+  })
+  return out
+}
+
+/** The member a moment falls in: the last to start at or before it. */
+function memberAt(members: readonly DriverMember[], from: number): DriverMember | undefined {
+  let found = members[0]
+  for (const m of members) if (m.started <= from) found = m
+  return found
+}
+
+/**
+ * **A change at lap N, as one save** (M34.4): from the lap's start, on the
+ * member it's from; at or before that member's first lap, its driver from its
+ * start; else a change added to its list.
+ */
+export function changeAt(members: readonly DriverMember[], laps: readonly TimelineLap[], lapNo: number, driver: string | null): DriverEdit | { error: string } {
+  const lap = laps.find((l) => l.lap === lapNo)
+  if (!lap) return { error: `There's no lap ${lapNo}.` }
+  // A lap's member: the one it names (a merged session's laps do), else the one it began in.
+  const memberOf = (l: TimelineLap) => (l.session ? members.find((m) => m.id === l.session) : undefined) ?? memberAt(members, l.start)
+  const member = memberOf(lap)
+  if (!member) return { error: 'No session to save it on.' }
+  const mine = laps.filter((l) => memberOf(l)?.id === member.id)
+  const first = mine.reduce<TimelineLap | null>((a, l) => (a === null || l.start < a.start ? l : a), null)
+  if (first && lap.start <= first.start) return { member: member.id, kind: 'driver', driver }
+  return { member: member.id, kind: 'changes', changes: withChange(idsOf(member.driverChanges ?? []), lap.start, driver) }
+}
+
+/** An entry's driver changed (M34.4): a start's is its member's driver; a change's is that change, at its moment. */
+export function changeEntry(members: readonly DriverMember[], entry: TimelineEntry, driver: string | null): DriverEdit {
+  const member = members.find((m) => m.id === entry.member)
+  if (entry.kind === 'start') return { member: entry.member, kind: 'driver', driver }
+  return { member: entry.member, kind: 'changes', changes: withChange(idsOf(member?.driverChanges ?? []), entry.from, driver) }
+}
+
+/**
+ * An entry removed (M34.4): a change, taken out of its member's list; a later
+ * member's start, that member set to whoever was driving before it, so it
+ * carries on. The very first entry can't be removed, only changed.
+ */
+export function removeEntry(members: readonly DriverMember[], timeline: readonly TimelineEntry[], entry: TimelineEntry): DriverEdit | null {
+  const at = timeline.indexOf(entry)
+  if (at <= 0) return null
+  const member = members.find((m) => m.id === entry.member)
+  if (entry.kind === 'change') return { member: entry.member, kind: 'changes', changes: withoutChange(idsOf(member?.driverChanges ?? []), entry.from) }
+  return { member: entry.member, kind: 'driver', driver: timeline[at - 1]!.driver?.id ?? null }
+}

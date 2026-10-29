@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { driverAt, driversText, idsOf, lastStop, replacedText, saveDriverChanges, setDriverAt, swapMoment, tabletWall, viewerTime, withChange, withoutChange, type LiveClocks } from './driverChanges'
+import { changeAt, changeEntry, driverAt, driverTimeline, removeEntry, driversText, idsOf, lastStop, replacedText, saveDriverChanges, setDriverAt, swapMoment, tabletWall, viewerTime, withChange, withoutChange, type LiveClocks } from './driverChanges'
 
 const sam = { id: 'd-sam', name: 'Sam', code: 'SAM' }
 const alex = { id: 'd-alex', name: 'Alex', code: 'ALE' }
@@ -97,5 +97,55 @@ describe('when the swap happened (M34.1)', () => {
     expect(replacedText({ driver: 'd-alex', changes: [], replaced: [] }, [sam, alex], clock)).toBe(null)
     expect(replacedText({ driver: null, changes: [], replaced: [{ from: 5, driver: 'd-sam' }, { from: 6, driver: null }] }, [sam, alex], clock))
       .toBe('replaced Sam from t5, nobody from t6')
+  })
+})
+
+describe('who drove, as one timeline (M34.4)', () => {
+  const drew = { id: 'd-drew', name: 'Drew', code: 'DRE' }
+  // Laps of 100 s: lap N from N·100 s. A plain session: one member, laps that name none.
+  const lap = (n: number, session?: string) => ({ lap: n, start: n * 100_000, end: (n + 1) * 100_000, ...(session ? { session } : {}) })
+
+  it('one member, no changes: one entry, from the start', () => {
+    expect(driverTimeline([{ id: 's', started: 0, driver: sam }], [lap(1), lap(2)])).toEqual([{ from: 0, lap: null, driver: sam, member: 's', kind: 'start' }])
+  })
+
+  it('one member, two changes: each from the lap it falls in', () => {
+    const t = driverTimeline([{ id: 's', started: 0, driver: sam, driverChanges: [{ from: 300_000, driver: alex }, { from: 500_000, driver: null }] }], [1, 2, 3, 4, 5].map((n) => lap(n)))
+    expect(t.map((e) => [e.kind, e.lap, e.driver?.code ?? null])).toEqual([['start', null, 'SAM'], ['change', 3, 'ALE'], ['change', 5, null]])
+  })
+
+  // Saturday's shape: a, then b set to nobody (carries Sam on) or to Sam (the same: no entry), then c set to Drew.
+  const members = [
+    { id: 'a', started: 0, driver: sam },
+    { id: 'b', started: 300_000, driver: null },
+    { id: 'c', started: 400_000, driver: drew, driverChanges: [{ from: 600_000, driver: alex }] },
+  ]
+  const laps = [lap(1, 'a'), lap(2, 'a'), lap(3, 'b'), lap(4, 'c'), lap(5, 'c'), lap(6, 'c')]
+
+  it('three members: one carrying the same driver has no entry, another driver has one', () => {
+    expect(driverTimeline(members, laps).map((e) => [e.member, e.kind, e.lap, e.driver?.code ?? null])).toEqual([
+      ['a', 'start', null, 'SAM'], ['c', 'start', 4, 'DRE'], ['c', 'change', 6, 'ALE'],
+    ])
+    expect(driverTimeline([members[0]!, { ...members[1]!, driver: sam }], laps)).toHaveLength(1)
+  })
+
+  it('a change at a later member\'s first lap is its driver; mid-member, a change on it', () => {
+    expect(changeAt(members, laps, 4, 'd-sam')).toEqual({ member: 'c', kind: 'driver', driver: 'd-sam' })
+    expect(changeAt(members, laps, 3, 'd-alex')).toEqual({ member: 'b', kind: 'driver', driver: 'd-alex' })
+    expect(changeAt(members, laps, 5, 'd-sam')).toEqual({ member: 'c', kind: 'changes', changes: [{ from: 500_000, driver: 'd-sam' }, { from: 600_000, driver: 'd-alex' }] })
+    expect(changeAt(members, laps, 2, null)).toEqual({ member: 'a', kind: 'changes', changes: [{ from: 200_000, driver: null }] })
+    expect(changeAt(members, laps, 9, null)).toEqual({ error: "There's no lap 9." })
+    // A plain session's laps name no member: the one they began in.
+    expect(changeAt([{ id: 's', started: 0, driver: sam }], [lap(1), lap(2)], 1, 'd-alex')).toEqual({ member: 's', kind: 'driver', driver: 'd-alex' })
+    expect(changeAt([{ id: 's', started: 0, driver: sam }], [lap(1), lap(2)], 2, 'd-alex')).toEqual({ member: 's', kind: 'changes', changes: [{ from: 200_000, driver: 'd-alex' }] })
+  })
+
+  it('changing an entry, and removing one: a later start goes back to whoever drove before', () => {
+    const t = driverTimeline(members, laps)
+    expect(changeEntry(members, t[0]!, 'd-alex')).toEqual({ member: 'a', kind: 'driver', driver: 'd-alex' })
+    expect(changeEntry(members, t[2]!, 'd-sam')).toEqual({ member: 'c', kind: 'changes', changes: [{ from: 600_000, driver: 'd-sam' }] })
+    expect(removeEntry(members, t, t[0]!)).toBe(null)
+    expect(removeEntry(members, t, t[1]!)).toEqual({ member: 'c', kind: 'driver', driver: 'd-sam' })
+    expect(removeEntry(members, t, t[2]!)).toEqual({ member: 'c', kind: 'changes', changes: [] })
   })
 })
