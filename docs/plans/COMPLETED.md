@@ -1036,3 +1036,34 @@ Decision 49; Sam, 2026-10-22. Deployed as `00054`.
   Kotlin and 276 site tests pass.
 - **Proven:** the whole flow on the dev server in the browser; on
   production, both NHMS days suggested, merged by Sam, the race unchanged.
+
+## M34 — Who's driving, on screen  ✅ 2026-10-28
+
+UX review phase 2's screens (§3.C, §7); the model is M32. Deployed as `00055`.
+
+- **The Driver panel sets who's driving** (`StandingPanel.svelte`), for the
+  car's crew: Set driver / Change driver, then who (a button per driver, Not
+  set), then, once the session has laps, when: Now, At the last stop (its
+  out-lap's start), From lap N, At hh:mm on the viewer's clock. A
+  confirmation for 10 s, with what a correction replaced. Shown whenever the
+  crew has a live session, course or not. `DriverPicker.svelte` went.
+- **The rules, pure** (`lib/driverChanges.ts`): `swapMoment` (the viewer's
+  time to the tablet's `wall` through the newest live point and the viewer's
+  offset), `setDriverAt`, `replacedText`; the setters return the server's
+  `DriversSaved`.
+- **The crew login is the header's Crew button** (`lib/crew.ts`,
+  `widgets/CrewButton.svelte`): any page, each car asked once, the last car
+  remembered; the car page follows it and reconnects; the message panel
+  points to it. The cookie didn't change (its path already reached any page).
+- **The session page's Drivers block** is the one editor of who drove, for
+  every session, merged ones too: `driverTimeline` over its members, each
+  entry changed or removed, a change added at a lap; each save on the
+  member it falls in (`changeAt`, `changeEntry`, `removeEntry`). The laps
+  table's Driver column follows it.
+- **The phone check** fails a page whose header links run under its buttons.
+- **Tests:** `driverChanges.test.ts` (+9), `crew.test.ts` (3); 288 site
+  tests. **Checked** on the dev server at 390 px with a drive streaming
+  (3 taps, named within 4 s, replaced, from a lap, the header's login and
+  logout) and on plain and merged sessions' Drivers blocks.
+- **Left for M36:** signed out at 390 px, "Courses" is cut at the header's
+  edge, there to scroll to.

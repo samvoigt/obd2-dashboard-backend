@@ -716,3 +716,30 @@ footage.
 - **The dev server only knows NHMS:** every synthetic session there has no
   laps, merged or not, until the box course is saved. Found when the merged
   page showed no laps table and a single session didn't either.
+
+## 2026-10-28 — M34: who's driving, on screen
+
+- **"Drew just got in the car. Set it."** (the review's walk-through 2), on
+  the dev server as a 390 px phone, a drive streaming: **3 taps** once
+  logged in (Change driver, Drew, Now), and **the standing named Drew
+  within 4 s**. A second pick straight after said what it replaced. Before
+  M34 the same was a bare select, with no "when", no confirmation, and the
+  login inside the message panel. Timed by a scratch script, not by hand:
+  taps and seconds, not a person's hesitation.
+- **The live page's clocks:** `live.offsetMs` is the viewer's clock less the
+  server's, not the tablet's; the plan had it wrong. A time typed on the
+  viewer's clock reaches the tablet's `wall` through the newest live point,
+  which carries both (`t` on the server's, its record's `wall`).
+- **The phone check passed a header whose links ran under the new Crew
+  button**: nothing was wider than the phone. It now fails a page where they
+  do (12 pages on the old build). As M31 found with `innerWidth`: a check
+  that finds nothing needs a look at what it measured.
+- **Deployed as `00055`** with a live stream across it: three `1012`s, each
+  reconnected at once. The old revision drained on two instances (02:27:39
+  and 02:28:09), and a reconnect most likely landed on the second before it
+  went.
+- **Deploys are mine again** (Sam, a permission rule for exactly
+  `caffeinate -i scripts/deploy.sh`): the auto mode's check had refused
+  M33's deploy, a command that waited for the stream and then deployed, and
+  later let the same deploy through when it ran alone. The stream now runs
+  separately and the deploy as that one command.
