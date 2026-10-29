@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createSignIn } from './signin'
-import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, setSessionDriver, setSessionName, toLocalInput, whoCanSet, type Part } from './events'
+import { saveSessionDriver } from './driverChanges'
+import { addSession, codeFrom, fromLocalInput, heardText, newPart, removeSession, saveBody, setSessionName, toLocalInput, whoCanSet, type Part } from './events'
 
 const part = (id: string, added: string[] = [], removed: string[] = []): Part =>
   ({ id, kind: 'practice', name: id, start: 0, end: 1, added, removed })
@@ -78,13 +79,13 @@ describe('who drove (M14.4)', () => {
   it('the admin through the admin\u2019s path, the crew through the car\u2019s', async () => {
     seen.length = 0
     const ok = answering({ '/api/admin/sessions/s1/driver': [200, {}], '/api/cars/outback/sessions/s1/driver': [200, {}] })
-    await setSessionDriver('admin', 'outback', 's1', 'd-sam', ok)
-    await setSessionDriver('crew', 'outback', 's1', null, ok)
+    await saveSessionDriver('admin', 'outback', 's1', 'd-sam', ok)
+    await saveSessionDriver('crew', 'outback', 's1', null, ok)
     expect(seen.map((s) => s.url)).toEqual(['/api/admin/sessions/s1/driver', '/api/cars/outback/sessions/s1/driver'])
     expect(seen[0]!.init!.method).toBe('PUT')
     expect(seen[0]!.init!.body).toBe('{"driver":"d-sam"}')
     expect(seen[1]!.init!.body).toBe('{"driver":null}')
-    await expect(setSessionDriver('crew', 'yaris', 's1', 'd-sam', ok)).rejects.toThrow('nope')
+    await expect(saveSessionDriver('crew', 'yaris', 's1', 'd-sam', ok)).rejects.toThrow('nope')
   })
 
   it('a name through the same two paths, the name as stored back (M18.3)', async () => {

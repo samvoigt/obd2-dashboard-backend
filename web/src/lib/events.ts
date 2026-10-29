@@ -3,7 +3,6 @@
  * editor's logic. Pure, so it's tested without a browser.
  */
 
-import { saveSessionDriver, type DriversSaved } from './driverChanges'
 import { get } from 'svelte/store'
 import { isMaster, isSignedIn, signin, type SignIn } from './signin'
 import { allowedFor, type Kind } from './access'
@@ -140,14 +139,6 @@ export function heardText(s: SessionBrief, locale = 'en-GB', timeZone?: string):
 
 /** Who may say who drove a session: the admin, the car's crew, or nobody looking (M14.4). */
 export type DriverSetter = 'admin' | 'crew' | null
-
-/**
- * Sets (or with null clears) who drove session [id] of car [slug]: through the
- * admin's path or the crew's, since each sign-in's cookie reaches only its own.
- */
-export async function setSessionDriver(who: 'admin' | 'crew', slug: string, id: string, driver: string | null, fetcher: typeof fetch = fetch): Promise<DriversSaved> {
-  return saveSessionDriver(who, slug, id, driver, fetcher)
-}
 
 /** A session's name set or cleared (M18.3), by the admin or the car's crew, as who drove it is. The name as stored. */
 export async function setSessionName(who: 'admin' | 'crew', slug: string, id: string, name: string | null, fetcher: typeof fetch = fetch): Promise<string | null> {

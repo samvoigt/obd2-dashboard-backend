@@ -266,6 +266,35 @@ on three replayed sessions merged (M33.7's check), a change at a lap in the
 second is stored on the second (its own page, unmerged, shows it); the laps
 table's Driver column and the event page's stints follow after a reload.
 
+**Built 2026-10-28.** `SessionPage.svelte`: one **Drivers** block from
+`driverTimeline` over the session's members (a plain session as one; a
+merged one's `members`): "From the start", "From lap 17", "From lap 25
+(next session)" (its clock time when it has no lap), each with **Change**
+(an inline select) and, but the first, **Remove**; "Add a change at lap [ ]
+to [driver] Add". Each save is one `DriverEdit` on its member, through
+`saveSessionDriver` or `saveDriverChanges` (admin's path or crew's, as
+`whoCanSet` says), then the detail is read again; a `replaced` answer shows
+under the block. Merged sessions are edited here now. The laps table's
+Driver column is `driverOfLap(timeline, end)`. For viewers who can't edit,
+"Driven by …" from the same timeline. `events.setSessionDriver` went (no
+caller left); its test runs on `saveDriverChanges.saveSessionDriver`.
+`driverChanges.test.ts`'s cases cover the timeline; 288 site tests pass.
+
+**Checked on the dev server, 2026-10-28** (a scratch headless Chrome
+script, signed in with the dev sign-in, Vite serving the newest code): a
+plain session of 12 laps, then three merged (36 laps). Plain: from the
+start Sam; changes at lap 4 (Drew) and lap 8 (Sam) added, the laps table
+3 SAM, 4 DRE, 7 DRE, 8 SAM; lap 8's changed to Drew; lap 4's removed, the
+table 3–7 SAM, 8 DRE. Merged: a change at lap 17 (the second member's
+fifth) stored as a change on the second member, one at lap 13 (its first)
+as its driver: the second member as stored, driver SAM then DRE; the
+table 12–16 SAM, 17–24 DRE, 25 SAM. The third member, which the
+carry-over had set to Sam (replayed straight after the second), shows as
+"From lap 25 (next session): Sam Voigt", as decision 48 has it. Phone
+check: the merged page passes signed in and out. Not checked here: the
+event page's stints (no event on the dev server; the race reads the same
+stored drivers, M32).
+
 ### M34.6 — Deployed
 
 With a replay streaming across the deploy. Then on the dev server, the

@@ -264,3 +264,10 @@ export function removeEntry(members: readonly DriverMember[], timeline: readonly
   if (entry.kind === 'change') return { member: entry.member, kind: 'changes', changes: withoutChange(idsOf(member?.driverChanges ?? []), entry.from) }
   return { member: entry.member, kind: 'driver', driver: timeline[at - 1]!.driver?.id ?? null }
 }
+
+/** Who drove a lap ending at [end] (M34.5): the last entry of [timeline] that began before it. */
+export function driverOfLap(timeline: readonly TimelineEntry[], end: number): Driver | null {
+  let found = timeline[0]
+  for (const e of timeline) if (e.from < end) found = e
+  return found?.driver ?? null
+}

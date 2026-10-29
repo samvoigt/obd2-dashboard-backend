@@ -10,8 +10,11 @@
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
   import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
-  import { setSessionDriver, setSessionName, whoCanSet, type Driver, type DriverSetter } from './lib/events'
-  import { driverAt, driversText, idsOf, saveDriverChanges, withChange, withoutChange, type DriverChangeDetail } from './lib/driverChanges'
+  import { setSessionName, whoCanSet, type Driver, type DriverSetter } from './lib/events'
+  import {
+    changeAt, changeEntry, driverOfLap, driversText, driverTimeline, removeEntry, replacedText, saveDriverChanges, saveSessionDriver,
+    type DriverChangeDetail, type DriverEdit, type DriverMember,
+  } from './lib/driverChanges'
   import { signin } from './lib/signin'
   import { indexesIn, readWindow, withWindow } from './lib/laps'
   import type { LapPick } from './lib/comparePick'
@@ -70,22 +73,34 @@
     }
   }
 
-  // Driver changes within the session (M27): made at a lap's start, as a race's stints are split.
-  let changeLap = $state('')
-  let changeDriver = $state('')
-  const changes = $derived(detail?.driverChanges ?? [])
-  /** The lap a change falls in: the first to end after it. */
-  const lapOfChange = (from: number) => laps.find((l) => l.end > from)?.lap
+  // Who drove (M34.5): one timeline over the session's members (one, unless merged), edited in one block, each save
+  // on the member its moment falls in (decision 49).
+  const members: DriverMember[] = $derived(
+    !detail ? [] : (detail.members ?? []).length > 0 ? detail.members!
+      : [{ id: detail.session.id, started: detail.session.started, driver: detail.driver ?? null, driverChanges: detail.driverChanges ?? [] }],
+  )
+  let editing: number | null = $state(null)
+  let addLap = $state('')
+  let addDriver = $state('')
+  let savedNote: string | null = $state(null)
 
-  async function saveChanges(next: ReturnType<typeof idsOf>) {
-    const d = detail
-    if (!d || !setter) return
+  async function apply(edit: DriverEdit | { error: string } | null) {
+    if (!edit || !setter) return
+    if ('error' in edit) { driverError = edit.error; return }
     settingDriver = true
     driverError = null
+    savedNote = null
     try {
-      await saveDriverChanges(setter, slug, d.session.id, next)
-      detail = { ...d, driverChanges: next.map((c) => ({ from: c.from, driver: drivers.find((x) => x.id === c.driver) ?? null })) }
-      changeLap = ''
+      const saved = edit.kind === 'driver'
+        ? await saveSessionDriver(setter, slug, edit.member, edit.driver)
+        : await saveDriverChanges(setter, slug, edit.member, edit.changes)
+      const replaced = replacedText(saved, drivers, (wall) => clockOf(wall))
+      if (replaced) savedNote = `Saved, and ${replaced}: under a minute, or no lap, after the entry before.`
+      editing = null
+      addLap = ''
+      // As stored, a merged session's timeline included: read again.
+      const r = await fetch(`/api/sessions/${sid}`)
+      if (r.ok) detail = (await r.json()) as Detail
     } catch (e) {
       driverError = e instanceof Error ? e.message : String(e)
     } finally {
@@ -93,26 +108,6 @@
     }
   }
 
-  function addChange() {
-    const lap = laps.find((l) => l.lap === Number(changeLap))
-    if (!lap) { driverError = `There's no lap ${changeLap}.`; return }
-    void saveChanges(withChange(idsOf(changes), lap.start, changeDriver || null))
-  }
-
-  async function chooseDriver(id: string | null) {
-    const d = detail
-    if (!d || !setter) return
-    settingDriver = true
-    driverError = null
-    try {
-      await setSessionDriver(setter, slug, d.session.id, id)
-      detail = { ...d, driver: drivers.find((x) => x.id === id) ?? null }
-    } catch (e) {
-      driverError = e instanceof Error ? e.message : String(e)
-    } finally {
-      settingDriver = false
-    }
-  }
   let series = $state.raw<Series | null>(null)
   // Stretches with no GPS while the car moved (M24): the tablet's GPS, so no route or laps then.
   const gaps = $derived(series ? gpsGaps(series) : [])
@@ -190,6 +185,7 @@
   // The laps as they stand (M13.5): the server's, where it has them (the tablet's, re-timed where a line moved); else the series'.
   let standing: SessionLaps | null = $state.raw(null)
   const laps: LapRow[] = $derived(standing ? standingRows(standing) : view ? lapRows(view) : [])
+  const timeline = $derived(driverTimeline(members, laps))
   // Each sector's best on track (M12.7): its column's highlight.
   const sectorBests = $derived(bestSectors(laps))
   // Each lap's top, lowest and average speed (km/h) from the series shown; a thinned one keeps the peaks.
@@ -387,36 +383,42 @@
       {@const ms = detail.members ?? []}
       <p class="members muted small">{ms.length} sessions merged: {ms.map((m) => clockOf(m.started)).join(', ')}</p>
     {/if}
-    {#if setter && drivers.length > 0 && (detail.members ?? []).length === 0}
-      <p class="driver">
-        <label>{changes.length > 0 ? 'Driver from the start' : 'Driver'}
-          <select value={detail.driver?.id ?? ''} onchange={(e) => chooseDriver(e.currentTarget.value || null)} disabled={settingDriver}>
-            <option value="">Nobody yet</option>
-            {#each drivers as d (d.id)}<option value={d.id}>{d.name} ({d.code})</option>{/each}
-          </select>
-        </label>
-        {#if driverError}<span class="error">{driverError}</span>{/if}
-      </p>
-      {#each changes as c (c.from)}
-        <p class="driver">
-          From lap {lapOfChange(c.from) ?? '—'}: <strong>{c.driver?.name ?? 'nobody'}</strong>
-          <button class="small" disabled={settingDriver} onclick={() => saveChanges(withoutChange(idsOf(changes), c.from))}>Remove</button>
-        </p>
-      {/each}
-      {#if laps.length > 1}
-        <p class="driver">
-          <label>Driver change at lap <input class="lapno" bind:value={changeLap} inputmode="numeric" /></label>
-          <label>to
-            <select bind:value={changeDriver}>
-              <option value="">Nobody yet</option>
-              {#each drivers as d (d.id)}<option value={d.id}>{d.name} ({d.code})</option>{/each}
-            </select>
-          </label>
-          <button disabled={settingDriver || !changeLap} onclick={addChange}>Add</button>
-        </p>
-      {/if}
-    {:else if detail.driver || changes.length > 0}
-      <p class="driver">Driven by <strong>{driversText(detail.driver, changes)}</strong>{#if changes.length === 0 && detail.driver} <span class="muted">({detail.driver.code})</span>{/if}</p>
+    {#if setter && drivers.length > 0}
+      <section class="drivers" aria-label="Drivers">
+        <div class="name">Drivers</div>
+        {#each timeline as e, i (`${e.member}-${e.kind}-${e.from}`)}
+          <p class="driver">
+            <span>{i === 0 ? 'From the start' : e.kind === 'start' ? `From ${e.lap ? `lap ${e.lap}` : clockOf(e.from)} (next session)` : `From lap ${e.lap ?? '—'}`}:</span>
+            {#if editing === i}
+              <select value={e.driver?.id ?? ''} onchange={(ev) => apply(changeEntry(members, e, ev.currentTarget.value || null))} disabled={settingDriver} aria-label="Driver">
+                <option value="">Nobody yet</option>
+                {#each drivers as d (d.id)}<option value={d.id}>{d.name} ({d.code})</option>{/each}
+              </select>
+              <button class="small" onclick={() => (editing = null)}>Cancel</button>
+            {:else}
+              <strong>{e.driver?.name ?? 'Nobody yet'}</strong>
+              <button class="small" disabled={settingDriver} onclick={() => (editing = i)}>Change</button>
+              {#if i > 0}<button class="small" disabled={settingDriver} onclick={() => apply(removeEntry(members, timeline, e))}>Remove</button>{/if}
+            {/if}
+          </p>
+        {/each}
+        {#if laps.length > 1}
+          <p class="driver">
+            <label>Add a change at lap <input class="lapno" bind:value={addLap} inputmode="numeric" /></label>
+            <label>to
+              <select bind:value={addDriver}>
+                <option value="">Nobody yet</option>
+                {#each drivers as d (d.id)}<option value={d.id}>{d.name} ({d.code})</option>{/each}
+              </select>
+            </label>
+            <button disabled={settingDriver || !addLap.trim()} onclick={() => apply(changeAt(members, laps, Number(addLap), addDriver || null))}>Add</button>
+          </p>
+        {/if}
+        {#if savedNote}<p class="muted small">{savedNote}</p>{/if}
+        {#if driverError}<p class="error">{driverError}</p>{/if}
+      </section>
+    {:else if timeline.some((e) => e.driver)}
+      <p class="driver">Driven by <strong>{driversText(timeline[0]?.driver, timeline.slice(1))}</strong>{#if timeline.length === 1 && timeline[0]?.driver} <span class="muted">({timeline[0].driver.code})</span>{/if}</p>
     {/if}
     {#if s.state === 'uploading'}
       <p class="muted small">Still being uploaded: this shows what has arrived so far. Reload for more.</p>
@@ -458,12 +460,12 @@
           <h2>Laps</h2>
           <div class="table-scroll">
           <table class="laps">
-            <thead><tr><th>Lap</th>{#if changes.length > 0}<th>Driver</th>{/if}<th>Time</th>{#each sectorBests as _, i (i)}<th>S{i + 1}</th>{/each}{#if hasSpeeds}{@const u = shownUnit('km/h', units.system)}<th title="Top speed, {u}">Top</th><th title="Lowest speed, {u}">Low</th><th title="Average speed, {u}">Avg</th>{/if}<th></th></tr></thead>
+            <thead><tr><th>Lap</th>{#if timeline.length > 1}<th>Driver</th>{/if}<th>Time</th>{#each sectorBests as _, i (i)}<th>S{i + 1}</th>{/each}{#if hasSpeeds}{@const u = shownUnit('km/h', units.system)}<th title="Top speed, {u}">Top</th><th title="Lowest speed, {u}">Low</th><th title="Average speed, {u}">Avg</th>{/if}<th></th></tr></thead>
             <tbody>
               {#each laps as lap (lap.end)}
                 <tr class:best={lap.best} class:chosen={chosenLap === lap.end} onclick={() => showLap(lap)}>
                   <td>{lap.lap}</td>
-                  {#if changes.length > 0}<td>{driverAt(detail.driver, changes, lap.end)?.code ?? '—'}</td>{/if}
+                  {#if timeline.length > 1}<td>{driverOfLap(timeline, lap.end)?.code ?? '—'}</td>{/if}
                   <td class="time">{lapTime(lap.time)}</td>
                   {#each sectorBests as bestOf, i (i)}
                     {@const t = lap.sectors?.[i]}
@@ -534,6 +536,9 @@
   .naming { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; }
   .driver label { display: inline-flex; gap: 8px; align-items: center; }
   .lapno { width: 4em; }
+  .drivers { margin: 0 0 8px; }
+  .drivers .name { color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+  .driver { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
   .laps .note { display: block; font-size: 0.8rem; white-space: nowrap; }
   .laps .note.flag { color: var(--caution); }
   .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.95rem; }
