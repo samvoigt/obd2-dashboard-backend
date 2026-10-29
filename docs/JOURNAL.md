@@ -743,3 +743,36 @@ footage.
   M33's deploy, a command that waited for the stream and then deployed, and
   later let the same deploy through when it ran alone. The stream now runs
   separately and the deploy as that one command.
+
+## 2026-10-28 — M35: nothing waits in silence
+
+- **A privacy leak, fixed and deployed on its own (`00056`):** event results
+  were held by event and revision only, so for 10 s a signed-out visitor
+  could be sent results worked out for someone signed in, a hidden car's
+  laps included. A test (signed in, then signed out at once) failed before
+  the fix and passes after; the hold's key now has the cars the viewer sees.
+- **Held until changed (`00057`)**, NHMS's event page from production:
+
+  | | first visit | again at once | 11 s later | 71 s later |
+  |---|---|---|---|---|
+  | before (10 s hold) | 6.7 s | 0.2 s | 5.5 s | — |
+  | after | 8.3 s | 0.2 s | 0.2 s | 0.2 s |
+
+  The first visit after a change still pays the whole computation (6–8 s).
+  A driver page that follows the event's held results: 0.14–0.2 s.
+- **Found building the hold:** keeping results "until changed unless they
+  show something live" held for good the results of an event looked at
+  before its car's session existed, and the session never appeared (a live
+  test failed 2 runs in 3). Results are now short-lived whenever a session
+  in the event isn't complete **or a part is under way**.
+- **Laps first, measured** on Saturday merged (3 h 17 min and four more
+  sessions), 390 px, 4× CPU: the laps table and the chart still appear
+  together (1.4–2.1 s before, 1.5–1.9 s after). The merged session's
+  `/laps` takes 1.6–1.8 s on the server, each member's 0.4–0.5 s, asked
+  one after another, while each member's thinned series takes 0.2–0.4 s:
+  here the laps are the slow part. Laps first pays off when the series is
+  (a slow phone link, a long plain session).
+- **A blank site passed the phone check:** a stale Vite dependency cache
+  ("504 Outdated Optimize Dep") left every page empty under the dev server,
+  and nothing empty is too wide. The check now fails a page that draws
+  nothing, and one with no title of its own.

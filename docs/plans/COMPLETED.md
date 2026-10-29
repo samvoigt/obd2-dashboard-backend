@@ -1067,3 +1067,34 @@ UX review phase 2's screens (§3.C, §7); the model is M32. Deployed as `00055`.
   logout) and on plain and merged sessions' Drivers blocks.
 - **Left for M36:** signed out at 390 px, "Courses" is cut at the header's
   edge, there to scroll to.
+
+## M35 — Nothing waits in silence  ✅ 2026-10-28
+
+UX review phase 3 (§3.B). Deployed as `00056` (the privacy fix, alone) and `00057`.
+
+- **The results hold is keyed by the cars the viewer sees** (M35.1): a
+  signed-in viewer's results, a hidden car's laps in them, reached
+  signed-out visitors for 10 s. `HiddenTest` failed before, passes after.
+- **Results held until something they're made of changes** (M35.2): 10 s
+  only while a session in the event isn't complete or a part is under way
+  (`EventResults.open`, never sent). Cleared by every edit as before, and
+  now by a session completing, the re-timing jobs (`RetimingJobs(onRetimed)`:
+  a session prepared, a course's job done, a course removed; not laps built
+  on view) and a car's or a driver's rename. NHMS: 0.2 s at any later visit,
+  where it was 5.5 s after 10 s.
+- **A session page asks for its laps before its series** (M35.3,
+  `loadSessionData`) and shows them without waiting for the chart; the
+  page's order is unchanged (M38 moves panels).
+- **Placeholders, not "Loading…"** (M35.4): `.skeleton` and
+  `widgets/Skeleton.svelte`, every page's layout at its panels' heights.
+- **A title on every page** (M35.5, `lib/title.ts`): by the address at once,
+  by name once loaded.
+- **The phone check** fails a page that draws nothing ("NONE") or has no
+  title of its own ("NAME").
+- **Tests:** `HiddenTest` +1, `LiveResultsTest` (the hold rewritten),
+  `RetimingJobsTest` (the callback), `MergeRoutesTest` +1 (renames);
+  `sessionPage.test.ts` +3, `title.test.ts` (2). 691 Kotlin and 293 site tests.
+- **Open, for Sam:** the first visit after a change still waits 6–8 s
+  (the plan's "progress line" idea, deferred here until measured); and a
+  merged session's `/laps` takes 1.6–1.8 s (its members' laps one after
+  another, each 0.4–0.5 s), longer than its series.
