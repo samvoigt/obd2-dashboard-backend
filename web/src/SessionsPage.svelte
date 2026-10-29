@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type Drive } from './lib/sessions'
+  import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, mergeBar, sourceLabel, trackOf, type Drive, type SessionItem } from './lib/sessions'
   import { signin } from './lib/signin'
   import { AdminError, api, confirmed, deleteBlocked, sessionConfirmation, sessionStateText, type AdminSession } from './lib/admin'
   import { allowed, mine, NOTHING, type Allowed } from './lib/access'
@@ -65,6 +65,44 @@
     busy = false
   }
 
+  // Merging (M33.8): tick sessions, then Merge; or take a suggestion. The server says why not, as it says it.
+  let selected: Set<string> = $state(new Set())
+  let merging = $state(false)
+  let mergeError: string | null = $state(null)
+  const items = $derived((drives ?? []).flatMap((d) => d.sessions))
+  const bar = $derived(mergeBar(selected, items))
+  const isMerged = (s: SessionItem) => (s.members ?? []).length > 0
+
+  function toggle(id: string) {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    selected = next
+  }
+
+  async function change(method: string, path: string, body?: unknown) {
+    merging = true
+    mergeError = null
+    try {
+      await api(method, path, body)
+      selected = new Set()
+      await Promise.all([refresh(), refreshAdmin()])
+    } catch (e) {
+      mergeError = e instanceof Error ? e.message : String(e)
+    }
+    merging = false
+  }
+
+  /** A merged session's members as deleting sees them: the first that can't be deleted yet says why. */
+  function mergedBlocked(s: SessionItem): string | null {
+    for (const id of s.members ?? []) {
+      const a = admin.get(id)
+      const why = a ? deleteBlocked(a) : null
+      if (why) return why
+    }
+    return null
+  }
+
   // A live or uploading session changes as it goes; a finished list doesn't.
   onMount(() => {
     refresh()
@@ -77,6 +115,7 @@
   <p class="back"><a href={`/cars/${slug}`}>← {slug}, live</a>{#if may.edit}<a href={`/cars/${slug}/manage`}>Manage {slug} →</a>{/if}</p>
   <h1>Past sessions</h1>
   {#if adminError}<p class="error" role="alert">{adminError}</p>{/if}
+  {#if mergeError}<p class="error" role="alert">{mergeError}</p>{/if}
 
   {#if error}
     <p class="error">Could not load the sessions: {error}</p>
@@ -93,6 +132,14 @@
         {dayOf(drive.started)}
         <span class="muted">· {clockOf(drive.started)}–{clockOf(drive.ended)} · {duration(drive.ended - drive.started)}</span>
       </h2>
+      {#if may.edit}
+        {#each drive.suggested ?? [] as run (run.join())}
+          <p class="suggest">
+            These {run.length} look like one drive ({run.map((id) => clockOf(items.find((x) => x.id === id)?.started ?? 0)).join(', ')})
+            <button class="primary small" disabled={merging} onclick={() => change('POST', `/cars/${slug}/merges`, { members: run })}>Merge</button>
+          </p>
+        {/each}
+      {/if}
       <ul>
         {#each drive.sessions as s (s.id)}
           {@const b = badge(s.state)}
@@ -112,12 +159,35 @@
                 {#if s.event}<span>{s.event.name}, {s.event.part}</span>{/if}
                 {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap} of {s.laps})</span></span>{/if}
                 {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
+                {#if isMerged(s)}<span class="merged">{s.members!.length} sessions merged</span>{/if}
                 {#if s.lines > 0}<span class="muted">{s.lines.toLocaleString()} lines</span>{/if}
               </span>
             </a>
-            {#if signedIn && admin.get(s.id)}
+            {#if signedIn && may.edit && isMerged(s)}
+              <div class="manage">
+                <label class="pick small"><input type="checkbox" checked={selected.has(s.id)} onchange={() => toggle(s.id)} aria-label={`Select ${clockOf(s.started)} to merge`} /> Select</label>
+                <a class="small" href={`/api/admin/sessions/${s.id}/download`} download>Download</a>
+                <button class="small" disabled={merging} onclick={() => change('POST', `/merges/${s.id}/split`)}>Unmerge</button>
+                {#if may.delete}<button class="danger small" onclick={() => { deleting = deleting === s.id ? null : s.id; typed = '' }}>Delete</button>{/if}
+              </div>
+              {#if deleting === s.id}
+                {@const blocked = mergedBlocked(s)}
+                <div class="confirm">
+                  {#if blocked}
+                    <p class="warn">One of its sessions: {blocked}</p>
+                  {:else}
+                    <p class="warn">All {s.members!.length} of its sessions are deleted, data and records ({(s.members ?? []).map((id) => admin.get(id)).map((a) => (a ? clockOf(a.started) : '?')).join(', ')}). This can't be undone.</p>
+                    <label><span>Type <strong>{sessionConfirmation(s.id)}</strong> (the start of its id) to confirm</span>
+                      <input bind:value={typed} autocapitalize="off" autocomplete="off" spellcheck="false" />
+                    </label>
+                    <div><button class="danger" disabled={busy || !confirmed(typed, sessionConfirmation(s.id))} onclick={() => remove({ id: s.id, started: s.started, lines: s.lines, state: s.state })}>Delete {s.members!.length} sessions</button></div>
+                  {/if}
+                </div>
+              {/if}
+            {:else if signedIn && admin.get(s.id)}
               {@const a = admin.get(s.id)!}
               <div class="manage">
+                {#if may.edit}<label class="pick small"><input type="checkbox" checked={selected.has(s.id)} onchange={() => toggle(s.id)} aria-label={`Select ${clockOf(s.started)} to merge`} /> Select</label>{/if}
                 <span class="muted small">{sessionStateText(a.state)}</span>
                 {#if a.lines > 0}<a class="small" href={`/api/admin/sessions/${s.id}/download`} download>Download</a>{/if}
                 {#if may.delete}<button class="danger small" onclick={() => { deleting = deleting === s.id ? null : s.id; typed = '' }}>Delete</button>{/if}
@@ -142,6 +212,17 @@
       </ul>
     </section>
   {/each}
+
+  {#if bar.kind !== 'none'}
+    <div class="merge-bar" role="region" aria-label="Merge">
+      {#if bar.kind === 'refused'}
+        <span class="warn">{bar.message}</span>
+      {:else}
+        <button class="primary" disabled={merging} onclick={() => change('POST', `/cars/${slug}/merges`, bar.kind === 'merge' ? { members: bar.members } : { into: bar.into, add: bar.add })}>{bar.label}</button>
+      {/if}
+      <button onclick={() => (selected = new Set())}>Clear</button>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -176,4 +257,13 @@
   button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
   button:disabled { opacity: 0.5; cursor: default; }
   button.danger { border-color: var(--critical); color: var(--critical); }
+  button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .pick { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; cursor: pointer; }
+  .pick input { width: 20px; height: 20px; }
+  .suggest { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 8px; color: var(--muted); }
+  .merged { font-size: 0.85rem; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 0 6px; }
+  .merge-bar {
+    position: sticky; bottom: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap;
+    margin-top: 16px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  }
 </style>

@@ -28,6 +28,8 @@ export interface SessionItem {
   event?: { id: string; name: string; part: string } | null
   /** What the admin or the crew called it (M18.3). */
   name?: string | null
+  /** A merged session's members, in order (M33.5); absent or empty for a session. */
+  members?: string[]
 }
 
 /**
@@ -46,6 +48,31 @@ export interface Drive {
   started: number
   ended: number
   sessions: SessionItem[]
+  /** Runs of its sessions that look like one drive, offered for merging (M33.5): ids in time order. */
+  suggested?: string[][]
+}
+
+/** What ticking sessions on the list offers (M33.8). */
+export type MergeBar =
+  | { kind: 'none' }
+  | { kind: 'merge'; members: string[]; label: string }
+  | { kind: 'extend'; into: string; add: string[]; label: string }
+  | { kind: 'refused'; message: string }
+
+/**
+ * **The Merge bar** (M33.8), pure: under two ticked, nothing; plain sessions,
+ * merge them; one merged session and plain ones, add them to it; two merged
+ * sessions, refused. The server checks the rest (parts, overlaps, uploads).
+ */
+export function mergeBar(selected: ReadonlySet<string>, items: readonly SessionItem[]): MergeBar {
+  const picked = items.filter((s) => selected.has(s.id))
+  if (picked.length < 2) return { kind: 'none' }
+  const merged = picked.filter((s) => (s.members ?? []).length > 0)
+  if (merged.length > 1) return { kind: 'refused', message: 'Two merged sessions can\'t be merged: unmerge one first.' }
+  const plain = picked.filter((s) => (s.members ?? []).length === 0)
+  const into = merged[0]
+  if (into) return { kind: 'extend', into: into.id, add: plain.map((s) => s.id), label: `Add ${plain.length} to the merged session` }
+  return { kind: 'merge', members: plain.map((s) => s.id), label: `Merge ${plain.length} sessions` }
 }
 
 export async function fetchDrives(slug: string, fetcher: typeof fetch = fetch): Promise<Drive[] | null> {

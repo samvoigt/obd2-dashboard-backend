@@ -439,6 +439,34 @@ merged rows → "Unmerge one first").
 Check on the dev server: the suggestion appears for replayed back-to-back
 sessions; one click merges them; Unmerge restores three rows.
 
+**Built 2026-10-28.** `lib/sessions.ts`: `members` and `suggested` on the
+types, and `mergeBar(selected, items)` (pure: under two, nothing; plain
+ones, "Merge 3 sessions"; one merged and plain ones, "Add 1 to the merged
+session"; two merged, refused). `SessionsPage.svelte`, for the car's
+editors: Select on every row (`aria-label`), a sticky Merge bar with Clear,
+the server's refusal shown as it says it, a line above each suggested run
+("These 3 look like one drive (16:59, 17:14, 17:29)" and Merge), and on a
+merged row "3 sessions merged", Download, Unmerge and Delete (its
+confirmation lists its members' times; blocked while any member is live
+or uploading). `sessions.test.ts` +1. 276 site tests pass.
+
+**Checked on the dev server, 2026-10-28** (M33.7 and M33.8): three
+synthetic 15-minute sessions back to back on one tablet, each a restart of
+the app. The list suggested all three; one click merged them into one row
+(45 min, 36 laps, best 1:10.000). The merged page drew one chart and map
+from 16:59 to 17:44 with a mark at each join and "3 sessions merged: 16:59,
+17:14, 17:29"; its laps (once the box course was saved on the dev server,
+which only had NHMS: before that, every session there had none, merged or
+not) were numbered 1 to 36, each naming its member. A member's lap link
+(`?from=&to=`) moved to the merged page, zoomed on that lap. Unmerge gave
+three rows and the suggestion back; Select on two and "Merge 2 sessions"
+merged them, then the merged row and the third gave "Add 1 to the merged
+session" and extended it, keeping its id. The merged download: 100,863
+lines, three session headers. The phone check passes the list and the
+merged page; the list's controls are 44 px. **Found:** one click (through
+the browser tool's element reference) didn't reach the page; a click on
+the button itself did. Not the page's: its log shows no request.
+
 ### M33.9 — Deployed
 
 With a replay streaming across it. Then Sam merges NHMS Saturday's sessions

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type SessionItem } from './sessions'
+import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type SessionItem, mergeBar } from './sessions'
 
 describe('words for past sessions', () => {
   it('writes durations', () => {
@@ -55,5 +55,20 @@ describe('what a session is (M11)', () => {
   })
   it('shows a source it doesn’t know as sent, never guessed at', () => {
     expect(sourceLabel('replay')).toEqual({ text: 'replay', kind: 'other' })
+  })
+})
+
+describe('the Merge bar (M33.8)', () => {
+  const item = (id: string, members: string[] = []): SessionItem =>
+    ({ id, started: 0, ended: 1, lines: 1, state: 'complete', track: null, layout: null, laps: 0, bestLap: null, faults: [], members })
+  const items = [item('a'), item('b'), item('c'), item('m1', ['x', 'y']), item('m2', ['z', 'w'])]
+
+  it('offers nothing under two, a merge of plain sessions, adding to one merged, and refuses two merged', () => {
+    expect(mergeBar(new Set(['a']), items)).toEqual({ kind: 'none' })
+    expect(mergeBar(new Set(['a', 'b', 'c']), items)).toEqual({ kind: 'merge', members: ['a', 'b', 'c'], label: 'Merge 3 sessions' })
+    expect(mergeBar(new Set(['m1', 'c']), items)).toEqual({ kind: 'extend', into: 'm1', add: ['c'], label: 'Add 1 to the merged session' })
+    expect(mergeBar(new Set(['m1', 'm2']), items)).toEqual({ kind: 'refused', message: 'Two merged sessions can\'t be merged: unmerge one first.' })
+    // Ticked rows no longer listed (merged meanwhile) don't count.
+    expect(mergeBar(new Set(['a', 'gone']), items)).toEqual({ kind: 'none' })
   })
 })
