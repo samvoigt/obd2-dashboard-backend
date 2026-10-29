@@ -243,6 +243,16 @@ with the list name at once); a merged session's page uses the merge's name
 or first start. Test: the function's output; a check in the
 phone script (M31) that each route's title isn't the default.
 
+**Built 2026-10-28.** `lib/title.ts`: `titleOf`, `setTitle`, and
+`routeTitle(route)`, what the address alone says ("Sessions ·
+tha-bearmobile", "Events", "New course"…), set by `App.svelte` at once;
+`index.html`'s default is "Bad News Bears". The session page names itself
+by its name or start and its car, the event, driver and course pages by
+their name, once loaded. **As built:** the car page and its sessions list
+use the slug, not the car's name (neither page loads it; not worth a
+request). `title.test.ts` (2). The phone check fails a page other than the
+landing whose title has no " · " ("NAME"); every page passes.
+
 ### M35.6 — Deployed, and measured
 
 With a replay streaming across the deploy. JOURNAL: the event page's and

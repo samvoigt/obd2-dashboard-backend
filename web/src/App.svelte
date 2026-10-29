@@ -6,9 +6,12 @@
   import SiteHeader from './SiteHeader.svelte'
   import SiteFooter from './SiteFooter.svelte'
   import { route } from './lib/routes'
+  import { routeTitle } from './lib/title'
 
   // Pages are separate URLs served by the server (`/`, `/cars/{slug}`, …), so links are plain links.
   const current = route(window.location.pathname)
+  // Named at once by what the address says (M35.5); a page whose name comes with its data names itself then.
+  document.title = routeTitle(current)
 </script>
 
 <SiteHeader page={current.page} />

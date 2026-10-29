@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import {
@@ -61,6 +62,9 @@
       void mine('car').then((m) => (yourCars = cars.filter((c) => m.has(c)))).catch(() => (yourCars = []))
     } else yourCars = []
   })
+
+  // Its tab, once its name is known (M35.5).
+  $effect(() => { const name = results?.event.name; if (name) setTitle(name) })
 </script>
 
 <main>

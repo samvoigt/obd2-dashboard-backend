@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { clockText, gpsGaps, lengthText } from './lib/gps'
   import { onDestroy, onMount } from 'svelte'
@@ -73,6 +74,9 @@
       nameError = e instanceof Error ? e.message : String(e)
     }
   }
+
+  // Its tab (M35.5): its name, or when it began, and the car.
+  $effect(() => { if (detail) setTitle(detail.session.name ?? `${dayOf(detail.session.started)}, ${clockOf(detail.session.started)}`, detail.carName) })
 
   // Who drove (M34.5): one timeline over the session's members (one, unless merged), edited in one block, each save
   // on the member its moment falls in (decision 49).

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import CourseMap from './CourseMap.svelte'
@@ -48,6 +49,9 @@
     if ($signin.state === 'in') void allowedFor('course', id).then((m) => (may = m))
     else may = NOTHING
   })
+
+  // Its tab, once its name is known (M35.5).
+  $effect(() => { const name = view?.name; if (name) setTitle(name) })
 </script>
 
 <main>

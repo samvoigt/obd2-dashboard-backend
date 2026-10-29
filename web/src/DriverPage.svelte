@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import { dateText, type DriverRecord } from './lib/eventResults'
@@ -35,6 +36,9 @@
       course: c.course, layout: event.layout, label: `${r.driver.name} ${lapTime(c.best.lap.time)}`,
     }
   }
+
+  // Its tab, once its name is known (M35.5).
+  $effect(() => { const name = record?.driver.name; if (name) setTitle(name) })
 </script>
 
 <main>

@@ -70,7 +70,7 @@ const MEASURE = `(() => {
   const overlap = nav && who ? Math.max(0, ...[...nav.querySelectorAll('a')].map((a) => Math.round(Math.min(a.getBoundingClientRect().right, clip) - who.left))) : 0
   // A page that drew nothing fits any phone (M35.4: a stale Vite cache left every page blank, and all passed).
   const blank = !document.querySelector('main') || (document.querySelector('main').innerText ?? '').trim().length === 0
-  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small, overlap, blank })
+  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small, overlap, blank, title: document.title })
 })()`
 
 async function check(path, tag) {
@@ -90,8 +90,10 @@ async function check(path, tag) {
   const strict = /^\/cars\/[a-z0-9-]+$/.test(path) || /\/sessions\/[0-9a-f-]{36}$/.test(path)
   const tooSmall = strict && m.small.length > 0
   const covered = m.overlap > 0
-  const ok = !wide && !tooSmall && !covered && !m.blank
-  console.log(`${ok ? 'ok  ' : m.blank ? 'NONE' : wide ? 'WIDE' : covered ? 'OVER' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${m.blank ? '  nothing drawn' : ''}${covered ? `  the header's links run ${m.overlap} px under its buttons` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
+  // Every page but the landing says what it is in its tab (M35.5).
+  const untitled = path !== '/' && !m.title.includes(' · ')
+  const ok = !wide && !tooSmall && !covered && !m.blank && !untitled
+  console.log(`${ok ? 'ok  ' : m.blank ? 'NONE' : wide ? 'WIDE' : covered ? 'OVER' : untitled ? 'NAME' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${m.blank ? '  nothing drawn' : ''}${untitled ? `  titled "${m.title}"` : ''}${covered ? `  the header's links run ${m.overlap} px under its buttons` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
   if (wide) for (const o of m.offenders) console.log(`       ${o.el}  right ${o.right}, width ${o.width}${o.text ? `  "${o.text}"` : ''}`)
   if (m.small.length) for (const c of m.small.slice(0, 5)) console.log(`       ${c}`)
   return ok
