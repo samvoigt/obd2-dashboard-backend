@@ -451,7 +451,9 @@ class ResultsHold(private val clock: java.time.Clock = java.time.Clock.systemUTC
     private val held = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, EventResults>>()
 
     suspend fun get(event: Event, compute: suspend () -> EventResults): EventResults {
-        val key = "${event.id}@${event.revision}"
+        // [event] as the viewer sees it (`seen`): its cars are part of the key, so one viewer's results never
+        // reach another who may see fewer (M35.1: a hidden car's laps reached signed-out visitors for 10 s).
+        val key = "${event.id}@${event.revision}:${event.cars.sorted().joinToString(",")}"
         val now = clock.millis()
         held[key]?.takeIf { now - it.first < forMs }?.let { return it.second }
         return compute().also { held[key] = now to it }

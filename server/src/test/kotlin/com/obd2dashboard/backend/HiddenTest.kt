@@ -202,6 +202,19 @@ class HiddenTest {
     }
 
     @Test
+    fun `results held for someone signed in are never sent to someone signed out (M35_1)`() = testApplication {
+        app()
+        val ann = cookieOf("ann@example.com")
+        // Signed in first: the event's results with the hidden car, now held.
+        call(HttpMethod.Get, "/api/events/open-day", ann).bodyAsText() shouldContain "Secret Car"
+        // Signed out at once, within the hold: the hidden car isn't there, nor its session.
+        val out = call(HttpMethod.Get, "/api/events/open-day").bodyAsText()
+        for (secret in secrets) withClue("signed out after signed in", secret) { out shouldNotContain secret }
+        // And the other way round: signed in after signed out still sees everything.
+        call(HttpMethod.Get, "/api/events/open-day", ann).bodyAsText() shouldContain "Secret Car"
+    }
+
+    @Test
     fun `signed in, everything is there`() = testApplication {
         app()
         val ann = cookieOf("ann@example.com")

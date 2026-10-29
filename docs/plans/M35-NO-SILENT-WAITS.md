@@ -101,6 +101,15 @@ answer doesn't name the hidden car or its sessions. Fails before the change, pas
 
 Deploy on its own (with a replay streaming), since it's a leak today.
 
+**Validated and built 2026-10-28.** The leak was as described:
+`ResultsHold.get` keyed `"${event.id}@${event.revision}"` while
+`results(event, hidden)` held `seen(event, hidden)`. A new `HiddenTest` case
+(signed in, then signed out at once, then signed in again) **failed before
+the change**, naming `secret-car` to the signed-out visitor, and passes
+after: the key now ends with the seen cars, sorted. A hidden course's name
+was never at risk (`naming` is applied after the hold). 690 Kotlin tests
+pass.
+
 ### M35.2 — Held until changed
 
 `ResultsHold` gains `get(event, live: Boolean, compute)`: `live` entries
