@@ -4,6 +4,7 @@
   import { roleText } from './lib/access'
   import logo from './assets/logo.webp'
   import ThemeSwitch from './widgets/ThemeSwitch.svelte'
+  import CrewButton from './widgets/CrewButton.svelte'
 
   // Every page's header (M21.1): home, the site's pages, and the one sign-in that turns on each page's edits.
   let { page }: { page: string } = $props()
@@ -95,8 +96,8 @@
     {/each}
   </nav>
   <div class="who">
-    <!-- The crew's login goes here, before the account control (M34). -->
-    <span class="crew-slot"></span>
+    <!-- The crew's login (M34.3), before the account control. -->
+    <CrewButton />
     <div class="wide">
     {#if $signin.state === 'in'}
       {#if isMaster($signin)}<a class="users" class:here={page === 'users'} href="/users">Users</a>{/if}
@@ -183,7 +184,10 @@
   @media (max-width: 600px) {
     header { flex-wrap: nowrap; gap: 10px; }
     .home span { display: none; }
-    nav { gap: 10px; font-size: 0.95rem; flex-wrap: nowrap; min-width: 0; }
+    /* With the Crew button (M34.3) the links can outgrow the row: they scroll in their own space, never under the buttons. */
+    nav { gap: 10px; font-size: 0.95rem; flex-wrap: nowrap; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    nav::-webkit-scrollbar { display: none; }
+    .who { flex-shrink: 0; gap: 6px; }
     .wide { display: none; }
     .narrow { display: block; }
   }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Does every page fit a phone (M31.1)? Each path laid out as a 390 × 844 phone (mobile
 // emulation, as measure.mjs does: a desktop window won't lay out that narrow), and a page
-// fails when it scrolls sideways. Tables may scroll inside their panel; the page never does.
+// fails when it scrolls sideways or its header's links run under its buttons (M34.3). Tables may
+// scroll inside their panel; the page never does.
 //
 //   node web/scripts/phone-check.mjs [base] [extra paths…]
 //   node web/scripts/phone-check.mjs http://localhost:5173 /events/m29-check
@@ -61,7 +62,13 @@ const MEASURE = `(() => {
     if (r.width === 0 || r.height === 0 || getComputedStyle(el).visibility === 'hidden') continue
     if (r.height < 43.5) small.push(el.tagName.toLowerCase() + ' ' + Math.round(r.height) + 'px "' + (el.textContent || el.getAttribute('aria-label') || el.placeholder || '').trim().slice(0, 24) + '"')
   }
-  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small })
+  // The header's links never run under its buttons (M34.3: the Crew button covered "Courses", and nothing was wide).
+  // The links, not the nav: its box shrinks to fit while they spill out of it, unless it clips them.
+  const nav = document.querySelector('header nav')
+  const who = document.querySelector('header .who')?.getBoundingClientRect()
+  const clip = nav && getComputedStyle(nav).overflowX !== 'visible' ? nav.getBoundingClientRect().right : Infinity
+  const overlap = nav && who ? Math.max(0, ...[...nav.querySelectorAll('a')].map((a) => Math.round(Math.min(a.getBoundingClientRect().right, clip) - who.left))) : 0
+  return JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, width, offenders: out.slice(0, 5), small, overlap })
 })()`
 
 async function check(path, tag) {
@@ -80,8 +87,9 @@ async function check(path, tag) {
   // Small controls fail the pages read in the pits (the car's and a session's); elsewhere they're reported.
   const strict = /^\/cars\/[a-z0-9-]+$/.test(path) || /\/sessions\/[0-9a-f-]{36}$/.test(path)
   const tooSmall = strict && m.small.length > 0
-  const ok = !wide && !tooSmall
-  console.log(`${ok ? 'ok  ' : wide ? 'WIDE' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
+  const covered = m.overlap > 0
+  const ok = !wide && !tooSmall && !covered
+  console.log(`${ok ? 'ok  ' : wide ? 'WIDE' : covered ? 'OVER' : 'TINY'} ${tag.padEnd(4)} ${path}${wide ? `  (${m.scrollWidth} px wide)` : ''}${covered ? `  the header's links run ${m.overlap} px under its buttons` : ''}${m.small.length ? `  ${m.small.length} control(s) under 44 px` : ''}`)
   if (wide) for (const o of m.offenders) console.log(`       ${o.el}  right ${o.right}, width ${o.width}${o.text ? `  "${o.text}"` : ''}`)
   if (m.small.length) for (const c of m.small.slice(0, 5)) console.log(`       ${c}`)
   return ok

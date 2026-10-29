@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { crew as crewLogins, isCrew } from './lib/crew'
   import { gpsLostLive, lengthText } from './lib/gps'
   import { onMount, untrack } from 'svelte'
   import SessionMap from './SessionMap.svelte'
@@ -7,7 +8,6 @@
   import GMeter from './widgets/GMeter.svelte'
   import LapsPanel from './widgets/LapsPanel.svelte'
   import StandingPanel from './widgets/StandingPanel.svelte'
-  import DriverPicker from './widgets/DriverPicker.svelte'
   import Readout from './widgets/Readout.svelte'
   import Status from './widgets/Status.svelte'
   import UnitsSwitch from './widgets/UnitsSwitch.svelte'
@@ -161,11 +161,15 @@
     chosen = [...new Set(next)]
   }
 
-  async function checkCrew() {
-    const r = await fetch(`/api/cars/${slug}/crew`).catch(() => null)
-    crew = r?.ok ? ((await r.json()) as { crew: boolean }).crew : false
+  // Crew or not is the header's Crew button's (M34.3): asked once here, then followed.
+  let started = false // the stream opened once crew-or-not was known; after that, a change reconnects it
+  $effect(() => {
+    const now = $crewLogins.cars[slug] === true
+    if (!started || now === crew) return
+    crew = now
     if (!crew) messages = []
-  }
+    reconnect() // the stream is crew's or public as it connects (M5.5)
+  })
 
   onMount(() => {
     let source: EventSource | null = null
@@ -199,8 +203,12 @@
         }
       }
     }
-    reconnect = async () => { await checkCrew(); open() }
-    reconnect()
+    reconnect = open
+    void crewLogins.check([slug]).then(() => {
+      crew = isCrew(slug)
+      started = true
+      open()
+    })
     const tick = setInterval(() => (now = Date.now()), 250)
     return () => { clearInterval(tick); source?.close() }
   })
@@ -259,16 +267,20 @@
       <GMeter {trail} peaks={peak} stale={trail.length === 0} />
       <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />
     </section>
-    {#if live.standing}<StandingPanel standing={live.standing} {serverNow} />{/if}
-    {#if crew && liveId}<DriverPicker {slug} session={liveId} current={live.standing?.driver?.code} hasLaps={laps.length > 0}
-      nowWall={() => (live.history.at(-1)?.rec.wall as number | undefined) ?? null} />{/if}
+    <!-- Who's driving (M34.2): set here by the crew, so shown for a live session even before there's a standing. -->
+    {#if live.standing || (crew && liveId)}
+      {@const last = live.history.at(-1)}
+      <StandingPanel standing={live.standing} {serverNow} {crew} {slug} session={liveId} {laps}
+        clocks={{ newest: last && typeof last.rec.wall === 'number' ? { t: last.t, wall: last.rec.wall } : null, offsetMs: live.offsetMs }}
+        startWall={typeof live.session?.wall === 'number' ? live.session.wall : null} />
+    {/if}
     {#if laps.length > 0}<LapsPanel rows={laps} bestSectors={live.standing?.bestSectors} speeds={lapSpeedMap} />{/if}
     <section class="dash statuses">
       {#each dash.statuses as n (n)}<Status signal={n} rec={live.latest[n]} freshness={current(n)} />{/each}
       <Faults {codes} />
     </section>
 
-    <MessagePanel {slug} {crew} list={messages} offsetMs={live.offsetMs} {now} onCrewChange={() => reconnect()} />
+    <MessagePanel {slug} {crew} list={messages} offsetMs={live.offsetMs} {now} />
 
     {#if names.length > 0}
       <section class="panel">

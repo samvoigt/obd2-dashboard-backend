@@ -179,6 +179,46 @@ Check: log in from the landing page; open the car page; the message panel
 and Set driver are there without reloading. Log out from the header on the
 car page; both disappear.
 
+**Built 2026-10-28 (M34.2 and M34.3, checked together).**
+`StandingPanel.svelte` holds the control: **Set driver** / **Change
+driver** for the car's crew, then who (a 44 px button per driver, Not set,
+Cancel), then, once the session has laps, when (Now; At the last stop (lap
+N, hh:mm) when there's one; From lap [ ] Set; At [hh:mm] Set; Back,
+Cancel). Before laps, who sets the session's driver. A confirmation for
+10 s ("Drew Blouch · from 21:14 (replaced …)"); signed out, an unset driver
+reads "Not set · the crew sets it here". `CarPage` shows the panel whenever
+there's a standing **or** the crew has a live session (it needs no course
+now), passing the laps, the clocks and the session's first `wall`.
+`DriverPicker.svelte` is gone. **M34.3:** `lib/crew.ts` (`createCrew`,
+`crew`, `isCrew`: check, login, logout, the remembered car, storage in
+try/catch), `widgets/CrewButton.svelte` in the header's slot (cars from
+`/api/cars`, each asked once when opened; the car's select, passcode, Log
+in; each car logged in with Log out; "Crew ✓" once in). `CarPage` asks the
+store once, opens its stream, then reconnects when its car's login changes;
+`MessagePanel` lost its login form ("Crew? Log in with the Crew button, top
+right, to message the driver."), its Log out goes through the store.
+`crew.test.ts` (3).
+
+**Checked on the dev server, 2026-10-28,** a 390 px phone (a scratch
+headless Chrome script, the dev passcode read from its file into the page,
+never printed), a 30-minute synthetic drive streaming live: signed out,
+"Not set · the crew sets it here", the hint in the message panel, no
+control; logged in from the header, "Crew ✓", and the message panel and
+the control appeared without a reload. Before the first lap, "Drew Blouch
+· from the start" in 2 taps; with laps, **3 taps** (Change driver, Drew,
+Now) and "Drew Blouch · from 21:14"; **the standing named Drew within 4 s**;
+Sam straight after: "Sam Voigt · from 21:14 (replaced Drew Blouch from
+21:14)"; From lap 2: "Drew Blouch · from 21:12". Logged out from the header:
+the control and the message panel's tools gone. "At the last stop" isn't in
+this check (the synthetic drive never stops): `lastStop`'s tests cover it.
+**Found: the Crew button covered "Courses"** at phone width, signed out,
+and the phone check passed it (nothing was wider than the phone). The nav
+now scrolls in its own space under 600 px, and `phone-check.mjs` fails a
+page whose header links run under its buttons; it caught all 12 signed-out
+pages on the old build. **Left for M36:** signed out at 390 px, "Courses"
+is cut at the edge, there to scroll to (signed in, the account is one
+letter and every link fits).
+
 ### M34.4 — A session's drivers as one timeline (pure, tested)
 
 `lib/driverChanges.ts`, over `members: { id, start, end, driver, changes }[]`

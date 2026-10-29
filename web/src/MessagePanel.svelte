@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { crew as crewLogins } from './lib/crew'
   import {
     age, current, describe, length, LIFETIMES, MAX_TEXT, PRESETS, sendable, type CrewMessage,
   } from './lib/messages'
@@ -9,17 +10,14 @@
     list,
     offsetMs,
     now,
-    onCrewChange,
   }: {
     slug: string
     crew: boolean
     list: CrewMessage[]
     offsetMs: number
     now: number
-    onCrewChange: () => void
   } = $props()
 
-  let passcode = $state('')
   let text = $state('')
   let lifetime = $state(LIFETIMES[0]!.seconds)
   let error: string | null = $state(null)
@@ -44,21 +42,8 @@
     }
   }
 
-  async function login(e: SubmitEvent) {
-    e.preventDefault()
-    busy = true
-    error = null
-    const r = await call('POST', '/login', { passcode })
-    passcode = ''
-    busy = false
-    if (r.ok) onCrewChange()
-    else error = await explain(r)
-  }
-
-  async function logout() {
-    await call('DELETE', '/login')
-    onCrewChange()
-  }
+  // Logging in and out is the header's Crew button's (M34.3); the car page follows it.
+  const logout = () => crewLogins.logout(slug)
 
   async function send(messageText: string, preset?: string) {
     busy = true
@@ -80,11 +65,7 @@
 
 <section class="crew" class:boxed={crew}>
   {#if !crew}
-    <form class="login" onsubmit={login}>
-      <span class="muted">Crew messages</span>
-      <input type="password" autocomplete="current-password" placeholder="Crew passcode" bind:value={passcode} aria-label="Crew passcode" />
-      <button type="submit" disabled={busy || passcode.length === 0}>Log in</button>
-    </form>
+    <p class="login muted">Crew? Log in with the Crew button, top right, to message the driver.</p>
   {:else}
     <div class="head">
       <strong>Message the driver</strong>
