@@ -1,4 +1,9 @@
 <script lang="ts">
+  import HiddenBadge from './HiddenBadge.svelte'
+  import { isHidden } from './lib/access'
+  import { setTitle } from './lib/title'
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import Skeleton from './widgets/Skeleton.svelte'
   import { signin } from './lib/signin'
   import {
@@ -31,6 +36,10 @@
 
   const signedIn = $derived($signin.state === 'in')
   // What you may do to it (M23): it's in your list only if you may edit it; deleting and sharing are its maker's.
+  // Hidden (M36.8): said here, where it's managed, not on the lists.
+  let hidden = $state(false)
+  $effect(() => { if ($signin.state === 'in') void isHidden('car', slug).then((h) => (hidden = h)) })
+  $effect(() => { const name = car?.name; if (name) setTitle('Manage', name) })
   const may = $derived(car ? allowed(accessOf(car)) : allowed(null))
 
   // Loaded when signed in, and forgotten when signed out, with no reload either way.
@@ -95,8 +104,8 @@
 </script>
 
 <main>
-  <p class="back"><a href="/cars">← Cars</a></p>
-  <h1>Manage {car?.name ?? slug}</h1>
+  <Breadcrumbs items={crumbs({ page: 'manage', slug }, { car: car?.name })} />
+  <h1>Manage {car?.name ?? slug}{#if hidden}<HiddenBadge />{/if}</h1>
 
   {#if !signedIn}
     <p class="muted">Sign in (top right) to manage this car.</p>
@@ -169,7 +178,7 @@
         </div>
       {/if}
     </section>
-    {#if may.share}<EditorsPanel kind="car" id={slug} />{/if}
+    {#if may.share}<EditorsPanel kind="car" id={slug} onhidden={(h) => (hidden = h)} />{/if}
   {:else if error}
     <p class="error" role="alert">{error}</p>
   {:else}
@@ -178,8 +187,6 @@
 </main>
 
 <style>
-  .back { margin: 0 0 8px; }
-  .back a { color: var(--muted); text-decoration: none; }
   .links { display: flex; gap: 16px; }
   .links a { color: var(--accent); }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 12px 0; }

@@ -17,6 +17,8 @@ import com.obd2dashboard.backend.events.Event
 import com.obd2dashboard.backend.events.Part
 import com.obd2dashboard.backend.events.PartKind
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.LiveHub
+import com.obd2dashboard.backend.live.CarStatus
 import com.obd2dashboard.backend.registry.CarRegistry
 import com.obd2dashboard.backend.registry.InMemoryCarStore
 import com.obd2dashboard.backend.registry.Slug
@@ -72,7 +74,7 @@ class HiddenTest {
     private val secretMerge = "5ace0000-1111-4111-8111-0000000000ad"
 
     /** Everything a signed-out answer must never hold. */
-    private val secrets = listOf("secret-car", "Secret Car", "secret-course", "Secret Course", "secret-event", "Secret Event", secretSession, secretMerge)
+    private val secrets = listOf("secret-car", "Secret Car", "Secret Driver", "secret-course", "Secret Course", "secret-event", "Secret Event", secretSession, secretMerge)
 
     private fun cookieOf(email: String) = "${AdminAuth.COOKIE}=${AdminAuth(testCrewKey()).issue(email)}"
 
@@ -101,11 +103,21 @@ class HiddenTest {
 
     private var routes: List<RoutingNode> = emptyList()
 
+    /** Both cars streaming, the hidden one with a standing naming its driver (M36.1): the cars list must not carry it. */
+    private val hub: LiveHub = InMemoryLiveHub().let { real ->
+        object : LiveHub by real {
+            override suspend fun status(car: String): CarStatus = CarStatus(connected = true, inSession = true, lastDataAt = Instant.now())
+        }
+    }
+    private val timingPage = TimingPage(hub).also { page ->
+        runBlocking { page.standing("secret-car", Standing("s1", CourseAt("nhms", 0, "road"), null, null, DriverNow("Secret Driver", "SEC", null), null)) }
+    }
+
     private fun ApplicationTestBuilder.app() {
         application {
-            module(registry, ArchiveService(sessions, InMemorySegmentStore()), InMemoryLiveHub(),
+            module(registry, ArchiveService(sessions, InMemorySegmentStore()), hub,
                 messages = testMessages(), crewKey = testCrewKey(), admin = config, courses = courses, events = stores,
-                users = users, access = access)
+                users = users, access = access, timingPage = timingPage)
             routes = plugin(RoutingRoot).getAllRoutes()
         }
     }
@@ -218,7 +230,7 @@ class HiddenTest {
     fun `signed in, everything is there`() = testApplication {
         app()
         val ann = cookieOf("ann@example.com")
-        call(HttpMethod.Get, "/api/cars", ann).bodyAsText() shouldContain """"name":"Secret Car","state":"offline","hidden":true"""
+        call(HttpMethod.Get, "/api/cars", ann).bodyAsText() shouldContain """"name":"Secret Car","state":"live","hidden":true,"standing":{"driver":{"name":"Secret Driver","code":"SEC"}}"""
         call(HttpMethod.Get, "/api/courses/secret-course", ann).bodyAsText() shouldContain """"hidden":true"""
         call(HttpMethod.Get, "/api/events/secret-event", ann).bodyAsText() shouldContain """"hidden":true"""
         call(HttpMethod.Get, "/api/events/open-day", ann).bodyAsText() shouldNotContain """"hidden":true"""

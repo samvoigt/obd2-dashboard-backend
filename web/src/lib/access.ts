@@ -155,3 +155,16 @@ export async function allowedFor(kind: Kind, id: string, fetcher: typeof fetch =
     return NOTHING
   }
 }
+
+/**
+ * Whether a car, event or course is hidden (M36.8), from its public list,
+ * which says so only to someone signed in; false when it can't be had. The
+ * editors show the badge by it, as the lists no longer do.
+ */
+export async function isHidden(kind: Exclude<Kind, 'driver'>, id: string, fetcher: typeof fetch = fetch): Promise<boolean> {
+  const path = kind === 'car' ? '/api/cars' : kind === 'event' ? '/api/events' : '/api/courses'
+  const r = await fetcher(path).catch(() => null)
+  if (!r?.ok) return false
+  const list = (await r.json().catch(() => [])) as { slug?: string; id?: string; hidden?: boolean }[]
+  return list.some((x) => (x.slug ?? x.id) === id && x.hidden === true)
+}

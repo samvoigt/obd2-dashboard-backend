@@ -3,6 +3,7 @@
  * is tested without a browser. The server groups drives (M7.3).
  */
 
+import { clockText, dayText } from './terms'
 export type SessionState = 'live' | 'uploading' | 'complete' | 'incomplete'
 
 export interface LapView {
@@ -99,14 +100,14 @@ export function lapTime(seconds: number): string {
   return min > 0 ? `${min}:${rest.padStart(6, '0')}` : rest
 }
 
-/** "Sat, 26 Sept 2026", in the viewer's time zone. */
-export function dayOf(ms: number, locale = 'en-GB', timeZone?: string): string {
-  return new Date(ms).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone })
+/** "Sat 26 Sep", in the viewer's time zone, the year only when it isn't this one (M36.9's one format). */
+export function dayOf(ms: number, timeZone?: string, now: number = Date.now()): string {
+  return dayText(ms, now, timeZone)
 }
 
 /** "14:05". */
-export function clockOf(ms: number, locale = 'en-GB', timeZone?: string): string {
-  return new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
+export function clockOf(ms: number, timeZone?: string): string {
+  return clockText(ms, timeZone)
 }
 
 /** A badge for a session that isn't simply finished; null when it is. */

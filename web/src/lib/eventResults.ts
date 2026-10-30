@@ -5,6 +5,7 @@
 import type { Driver } from './events'
 import type { SessionLaps } from './sessionPage'
 import type { RaceResults } from './race'
+import { clockText, dateRange, dayText } from './terms'
 
 export type StandingLap = SessionLaps['laps'][number]
 
@@ -34,9 +35,9 @@ export interface PublicEvent {
   endDate?: string | null
 }
 
-/** "2026-10-02 – 2026-10-04": an event's days (M26); one date for one day. */
-export function dateText(e: Pick<PublicEvent, 'date' | 'endDate'>): string {
-  return e.endDate && e.endDate !== e.date ? `${e.date} – ${e.endDate}` : e.date
+/** "Fri 2 – Sun 4 Oct": an event's days (M26), in the one format (M36.9); one day for one. */
+export function dateText(e: Pick<PublicEvent, 'date' | 'endDate'>, now: number = Date.now()): string {
+  return dateRange(e.date, e.endDate, now)
 }
 
 /** "NHMS, Road Course": where it is; nothing for a course hidden from you (M25), which isn't named. */
@@ -129,11 +130,9 @@ export function driverLabel(d: Driver | null | undefined): string {
   return d ? `${d.name} (${d.code})` : 'Driver not set'
 }
 
-/** "4 Oct, 09:00–10:00", a part's window in the viewer's time zone. */
-export function windowText(p: PublicPart, locale = 'en-GB', timeZone?: string): string {
-  const time = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
-  const day = new Date(p.start).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone })
-  return `${day}, ${time(p.start)}–${time(p.end)}`
+/** "Sun 4 Oct, 09:00–10:00", a part's window in the viewer's time zone. */
+export function windowText(p: PublicPart, timeZone?: string, now: number = Date.now()): string {
+  return `${dayText(p.start, now, timeZone)}, ${clockText(p.start, timeZone)}–${clockText(p.end, timeZone)}`
 }
 
 /** `GET /api/drivers/{id}` (M15.5). */

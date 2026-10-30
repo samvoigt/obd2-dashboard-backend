@@ -6,6 +6,7 @@
 import { get } from 'svelte/store'
 import { isMaster, isSignedIn, signin, type SignIn } from './signin'
 import { allowedFor, type Kind } from './access'
+import { clockText, dayText } from './terms'
 export interface Driver {
   id: string
   name: string
@@ -130,11 +131,9 @@ export function codeFrom(name: string): string {
   return name.normalize('NFKD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()
 }
 
-/** "4 Oct, 13:05–13:40": when the server heard a session, in the viewer's time zone. */
-export function heardText(s: SessionBrief, locale = 'en-GB', timeZone?: string): string {
-  const time = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
-  const date = new Date(s.heardFrom).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone })
-  return `${date}, ${time(s.heardFrom)}–${time(s.heardTo)}`
+/** "Sun 4 Oct, 13:05–13:40": when the server heard a session, in the viewer's time zone. */
+export function heardText(s: SessionBrief, timeZone?: string, now: number = Date.now()): string {
+  return `${dayText(s.heardFrom, now, timeZone)}, ${clockText(s.heardFrom, timeZone)}–${clockText(s.heardTo, timeZone)}`
 }
 
 /** Who may say who drove a session: the admin, the car's crew, or nobody looking (M14.4). */

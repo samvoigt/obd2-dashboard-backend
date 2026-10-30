@@ -27,6 +27,8 @@ Google Cloud Run.
   `docs/plans/COMPLETED.md`, `DECISIONS.md` or `JOURNAL.md`, and the plan is
   deleted.
 - `docs/JOURNAL.md` — measurements from real deployments and process lessons.
+- `docs/GLOSSARY.md` — the site's words, one per thing, and its one date
+  format (M36.9); `web/src/lib/terms.ts` holds the same. A new term goes in both.
 - The app's `CLAUDE.md` and `docs/` in `../obd2-dashboard`. The server's
   conventions follow the app's. When the two repos share a format, the app's
   session log (its milestone M8) is where it comes from.

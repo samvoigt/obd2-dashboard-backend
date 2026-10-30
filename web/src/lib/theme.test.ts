@@ -121,6 +121,42 @@ describe('no colour is written outside app.css', () => {
   })
 })
 
+describe('the error colour means trouble (M36.9)', () => {
+  // `--critical` only where something is wrong or about to be destroyed: errors, refused saves, trouble codes and
+  // fault markers, destructive buttons, a reading in its critical range (decision 29), the crew's Pit and Box calls,
+  // a message too long, the course maps' pit lines, and the top of the map's speed scale (the logo's hot pink).
+  // Each use is listed: a new one is a decision.
+  const allowed: Record<string, string[]> = {
+    '*': ['.error', 'button.danger', '.fault'],
+    'EventEditor.svelte': ['.problems'],
+    'MessagePanel.svelte': ['.preset.pit, .preset.box', '.count.over'],
+    'SessionPage.svelte': ['.events li.fault', "color(m.kind === 'fault' ? 'critical'"],
+    'CourseMap.svelte': ["{ color: color('critical'), weight: 4 }"],
+    'CourseEditor.svelte': ["drawLine(line.a, line.b, color('critical')"],
+    'widgets/Gauge.svelte': ['.band.critical', '.critical .value'],
+    'widgets/Readout.svelte': ['.critical .value'],
+    'widgets/Bar.svelte': ['.zone.critical', '.critical .fill', '.critical .value'],
+    'widgets/Status.svelte': ['.critical .light', '.critical .text'],
+    'widgets/Faults.svelte': ['.any', '.code'],
+    'lib/theme.ts': ["return [color('accent'), color('in-range'), color('caution'), color('critical')]"],
+  }
+
+  it('is used only where it is listed', () => {
+    const unlisted: string[] = []
+    for (const [path, text] of Object.entries(sources)) {
+      const file = path.startsWith('./') ? `lib/${path.slice(2)}` : path.replace(/^\.\.\//, '')
+      for (const line of text.split('\n')) {
+        if (!line.includes('var(--critical)') && !line.includes("'critical')") && !line.includes("? 'critical'")) continue
+        // Class names and state words ('critical' as a kind) aren't the colour.
+        if (!line.includes('var(--critical)') && !line.includes('color(')) continue
+        const ok = [...allowed['*']!, ...(allowed[file] ?? [])].some((use) => line.trimStart().startsWith(use) || line.includes(use))
+        if (!ok) unlisted.push(`${file}: ${line.trim()}`)
+      }
+    }
+    expect(unlisted).toEqual([])
+  })
+})
+
 describe('shading', () => {
   it('is a role made translucent', () => {
     expect(translucent('#ffa9de', 0.1)).toBe('rgba(255, 169, 222, 0.1)')

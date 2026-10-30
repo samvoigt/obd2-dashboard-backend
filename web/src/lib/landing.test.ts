@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PublicEvent } from './eventResults'
-import { EVENTS_SHOWN, eventsShown, latestSession, layoutsLine, sessionLine, underWay } from './landing'
+import type { CarSummary } from './api'
+import { EVENTS_SHOWN, eventsShown, lastSeenText, latestSession, layoutsLine, nowCard, sessionLine, underWay } from './landing'
 import type { SessionItem } from './sessions'
 
 const session = (id: string, started: number, more: Partial<SessionItem> = {}): SessionItem => ({
@@ -25,7 +26,7 @@ describe('the landing page in summary (M21.6)', () => {
 
   it('says a session as the sessions page does, laps and best only when there are any', () => {
     const started = new Date(2026, 8, 26, 14, 5).getTime()
-    expect(sessionLine(session('a', started))).toMatch(/26 Sept? 2026 · 14:05 · 23 min$/)
+    expect(sessionLine(session('a', started), started)).toBe('Sat 26 Sep, 14:05 · 23 min')
     expect(sessionLine(session('a', started, { laps: 1, bestLap: { lap: 1, time: 94.532 } }))).toMatch(/23 min · 1 lap · best 1:34\.532$/)
     expect(sessionLine(session('a', started, { laps: 12 }))).toMatch(/· 12 laps$/)
   })
@@ -48,5 +49,35 @@ describe('the landing page in summary (M21.6)', () => {
       { id: 'oval', name: 'Oval', default: false, sectors: 0 },
     ] }
     expect(layoutsLine(c)).toBe('Road Course, 3 sectors · Short, 1 sector · Oval')
+  })
+})
+
+describe('the "Now" card (M36.2)', () => {
+  const car = (slug: string, state: CarSummary['state']): CarSummary => ({ slug, name: slug.toUpperCase(), state })
+  const today = event('today', [[100, 200]])
+
+  it('one live car, or several, a card each in the list’s order; behind counts as live', () => {
+    expect(nowCard([car('a', 'offline'), car('b', 'live')], {}, [today], 150)).toEqual({ kind: 'live', cars: [car('b', 'live')] })
+    const two = nowCard([car('a', 'stale'), car('b', 'no_session'), car('c', 'live')], {}, null, 0)
+    expect(two?.kind === 'live' && two.cars.map((c) => c.slug)).toEqual(['a', 'c'])
+  })
+
+  it('no car live: an event under way, not one that is over or yet to come', () => {
+    expect(nowCard([car('a', 'no_session')], { a: session('s', 1) }, [event('past', [[0, 50]]), today], 150)).toEqual({ kind: 'event', event: today })
+    expect(nowCard([car('a', 'offline')], {}, [today], 250)).toBeNull()
+  })
+
+  it('neither: the latest session over all cars; nothing at all, no card', () => {
+    const card = nowCard([car('a', 'offline'), car('b', 'offline')], { a: session('old', 1), b: session('new', 5) }, [], 0)
+    expect(card?.kind === 'last' && [card.car.slug, card.session.id]).toEqual(['b', 'new'])
+    expect(nowCard([car('a', 'offline')], { a: null }, [], 0)).toBeNull()
+    expect(nowCard([], {}, null, 0)).toBeNull()
+  })
+})
+
+describe('an offline car (M36.7)', () => {
+  it('was last seen when its latest session ended, in the one date format', () => {
+    const now = Date.parse('2026-10-29T12:00:00Z')
+    expect(lastSeenText({ ended: Date.parse('2026-10-18T14:14:30Z') }, now, 'UTC')).toBe('last seen Sun 18 Oct, 14:14')
   })
 })

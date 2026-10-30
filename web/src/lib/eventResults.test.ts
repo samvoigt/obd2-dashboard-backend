@@ -13,7 +13,7 @@ describe('an event’s results (M14.5)', () => {
   })
   it('a part’s window', () => {
     const start = Date.UTC(2026, 9, 4, 13, 0)
-    expect(windowText({ id: 'p1', kind: 'practice', name: 'P1', start, end: start + 3_600_000 }, 'en-GB', 'UTC')).toBe('4 Oct, 13:00–14:00')
+    expect(windowText({ id: 'p1', kind: 'practice', name: 'P1', start, end: start + 3_600_000 }, 'UTC', Date.UTC(2026, 9, 29))).toBe('Sun 4 Oct, 13:00–14:00')
   })
   it('a sector\u2019s gap to the best of all', () => {
     expect(sectorGap(0.1234)).toBe('+0.123')
@@ -43,8 +43,8 @@ describe('where an event is (M25)', () => {
 
 describe('an event’s days (M26)', () => {
   it('one date for one day, a range for several', () => {
-    expect(dateText({ date: '2026-10-04' })).toBe('2026-10-04')
-    expect(dateText({ date: '2026-10-04', endDate: '2026-10-04' })).toBe('2026-10-04')
-    expect(dateText({ date: '2026-10-02', endDate: '2026-10-04' })).toBe('2026-10-02 – 2026-10-04')
+    expect(dateText({ date: '2026-10-04' }, Date.UTC(2026, 9, 29))).toBe('Sun 4 Oct')
+    expect(dateText({ date: '2026-10-04', endDate: '2026-10-04' }, Date.UTC(2026, 9, 29))).toBe('Sun 4 Oct')
+    expect(dateText({ date: '2026-10-02', endDate: '2026-10-04' }, Date.UTC(2026, 9, 29))).toBe('Fri 2 – Sun 4 Oct')
   })
 })

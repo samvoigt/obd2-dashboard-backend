@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TermHelp from './widgets/TermHelp.svelte'
   import { onMount } from 'svelte'
   import { whoCanSet, type Driver, type DriverSetter } from './lib/events'
   import { signin } from './lib/signin'
@@ -142,7 +143,7 @@
     <h3>{carName(c.car)}</h3>
     <div class="table-scroll">
       <table class="stints">
-      <thead><tr><th>Stint</th>{#if inSessions}<th>Session</th>{/if}<th>Driver</th><th>Laps</th><th>Time</th><th>Best</th><th>Median</th><th>Spread</th></tr></thead>
+      <thead><tr><th><TermHelp term="stint" /></th>{#if inSessions}<th>Session</th>{/if}<th>Driver</th><th>Laps</th><th>Time</th><th>Best</th><th><TermHelp term="median" /></th><th><TermHelp term="spread" /></th></tr></thead>
       <tbody>
         {#each c.stints as s (s.number)}
           <tr><td>{s.number}</td>{#if inSessions}<td>{sessionName(race.sessions.find((r) => stintsIn(c, r.part.id).includes(s))?.part.id ?? '')}</td>{/if}<td>{#if s.driver}<a href={`/drivers/${s.driver}`}>{driverName(s.driver)}</a>{:else}{driverName(s.driver)}{/if}</td>
@@ -153,10 +154,10 @@
       </tbody>
     </table>
     </div>
-    {#if c.theoretical}<p class="small">Theoretical best <strong>{lapTime(c.theoretical)}</strong> <span class="muted">(the race's best of each sector added up)</span></p>{/if}
+    {#if c.theoretical}<p class="small"><TermHelp term="theoretical" /> <strong>{lapTime(c.theoretical)}</strong> <span class="muted">(the race's best of each sector added up)</span></p>{/if}
     <p class="muted small">A stint is one driver's run, from who drove each session: set on the session's page.</p>
     {#if c.stops.length > 0}
-      <p class="small">Stops: {#each c.stops as s, i (s.entry)}{i > 0 ? ' · ' : ''}lap {s.lap}, {s.seconds != null ? `${s.seconds.toFixed(1)} s in the pit lane` : 'ended in the pits'}{/each}</p>
+      <p class="small"><TermHelp term="stop" word="Stops" />: {#each c.stops as s, i (s.entry)}{i > 0 ? ' · ' : ''}lap {s.lap}, {s.seconds != null ? `${s.seconds.toFixed(1)} s in the pit lane` : 'ended in the pits'}{/each}</p>
     {/if}
 
     <details>

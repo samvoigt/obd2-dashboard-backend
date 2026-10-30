@@ -44,7 +44,7 @@ describe('words for the page', () => {
     expect(stateText('warp')).toBe('Offline')
   })
   it('writes a day', () => {
-    expect(day(Date.UTC(2026, 8, 26, 12), 'en-GB', 'UTC')).toBe('26 Sept 2026')
+    expect(day(Date.UTC(2026, 8, 26, 12), 'UTC', Date.UTC(2026, 9, 29))).toBe('Sat 26 Sep')
   })
 })
 
@@ -66,7 +66,7 @@ describe('sessions', () => {
     expect(sessionConfirmation('3a3b3c3d-3333-4333-8333-33333333abcd')).toBe('3a3b3c3d')
   })
   it('writes a date and time', () => {
-    expect(when(Date.UTC(2026, 8, 26, 14, 5), 'en-GB', 'UTC')).toBe('26 Sept 2026, 14:05')
+    expect(when(Date.UTC(2026, 8, 26, 14, 5), 'UTC', Date.UTC(2026, 9, 29))).toBe('Sat 26 Sep, 14:05')
   })
 })
 

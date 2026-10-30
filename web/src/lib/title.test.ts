@@ -13,7 +13,7 @@ describe('page titles (M35.5)', () => {
     expect(routeTitle(route('/'))).toBe('Bad News Bears')
     expect(routeTitle(route('/cars/tha-bearmobile'))).toBe('tha-bearmobile · live · Bad News Bears')
     expect(routeTitle(route('/cars/tha-bearmobile/sessions'))).toBe('Sessions · tha-bearmobile · Bad News Bears')
-    expect(routeTitle(route('/events'))).toBe('Events · Bad News Bears')
+    expect(routeTitle(route('/events'))).toBe('Results · Bad News Bears')
     expect(routeTitle(route('/courses/new'))).toBe('New course · Bad News Bears')
     const plain = ['/cars', '/courses', '/drivers', '/users', '/compare', '/privacy', '/terms', '/events/nhms-lemsons-2026', '/drivers/d-9421c351', '/courses/nhms']
       .filter((path) => routeTitle(route(path)) === 'Bad News Bears')

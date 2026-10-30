@@ -79,3 +79,47 @@ export function route(path: string): Route {
   const m = CAR.exec(path)
   return m?.[1] ? { page: 'car', slug: m[1] } : { page: 'landing' }
 }
+
+/** One step of a page's breadcrumbs (M36.5); the page itself, last, has no link. */
+export interface Crumb {
+  href?: string
+  label: string
+}
+
+/** What a page knows to name its crumbs by; each falls back to its id. */
+export interface CrumbNames {
+  car?: string | null
+  /** The session's name, else its day and time. */
+  session?: string | null
+  event?: string | null
+  course?: string | null
+  driver?: string | null
+}
+
+/**
+ * **A page's breadcrumbs** (M36.5), pure: from the header's section ("Live",
+ * "Results", "Drivers", "Courses") to the page, "Live › Tha Bearmobile ›
+ * Sessions › Sun 18 Oct, 12:00". Nothing for a top-level page.
+ */
+export function crumbs(r: Route, names: CrumbNames = {}): Crumb[] {
+  const live: Crumb = { href: '/cars', label: 'Live' }
+  const results: Crumb = { href: '/events', label: 'Results' }
+  const car = (slug: string): Crumb => ({ href: `/cars/${slug}`, label: names.car || slug })
+  switch (r.page) {
+    case 'car': return [live, { label: names.car || r.slug }]
+    case 'sessions': return [live, car(r.slug), { label: 'Sessions' }]
+    case 'session': return [live, car(r.slug), { href: `/cars/${r.slug}/sessions`, label: 'Sessions' }, { label: names.session || 'Session' }]
+    case 'manage': return [live, car(r.slug), { label: 'Manage' }]
+    case 'event': return [results, { label: names.event || r.id }]
+    case 'event-edit': return r.id === 'new'
+      ? [results, { label: 'New event' }]
+      : [results, { href: `/events/${r.id}`, label: names.event || r.id }, { label: 'Edit' }]
+    case 'compare': return [results, { label: 'Two laps compared' }]
+    case 'driver': return [{ href: '/drivers', label: 'Drivers' }, { label: names.driver || 'Driver' }]
+    case 'course': return [{ href: '/courses', label: 'Courses' }, { label: names.course || r.id }]
+    case 'course-edit': return r.id === 'new'
+      ? [{ href: '/courses', label: 'Courses' }, { label: 'New course' }]
+      : [{ href: '/courses', label: 'Courses' }, { href: `/courses/${r.id}`, label: names.course || r.id }, { label: 'Edit' }]
+    default: return []
+  }
+}

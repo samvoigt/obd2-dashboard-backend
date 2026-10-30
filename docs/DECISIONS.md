@@ -994,6 +994,11 @@ it's the course's own line that makes it the same for every car.
   the crew, who's driving. **The event page** counts the sessions being
   driven, their laps marked live, and asks again every 30 s while a part is
   on; results are held 10 s, emptied by any edit.
+- **The landing's list carries it too** (M36.1; Sam, 2026-10-22): `/api/cars`
+  gives a car that's streaming (live or behind) its page's view as
+  `standing`, the same JSON as its stream's `timing` frame, already public
+  there; a car not streaming has none. The "Now" card shows who's driving
+  without opening a stream per car.
 - **`complete` answers a repeat at once** (contract §23), one at a time per
   session, reading segments ahead.
 

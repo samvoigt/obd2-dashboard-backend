@@ -32,6 +32,14 @@
   import { color, translucent } from './lib/theme'
   import { fetchSeries, joined, type Series } from './lib/sessionPage'
   import { historySamples, lapSpeeds, seriesSamples, type LapSpeed } from './lib/lapSpeeds'
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { carName } from './lib/api'
+  import { lastSeenText, latestSession, sessionLine } from './lib/landing'
+  import { crumbs } from './lib/routes'
+  import { fetchDrives, type SessionItem } from './lib/sessions'
+  import { fetchMergedSeries, speedsAtPositions } from './lib/sessionPage'
+  import { setTitle } from './lib/title'
+  import { dayTime } from './lib/terms'
 
   let { slug }: { slug: string } = $props()
 
@@ -46,12 +54,22 @@
   let messages: CrewMessage[] = $state([])
   let reconnect: () => void = () => {}
 
+  // The car by name (M36.6), its slug until that comes; the slug stays in the URL only.
+  let name: string | null = $state(null)
+  $effect(() => { void carName(slug).then((n) => { name = n; if (n) setTitle(n, 'live') }) })
+
+  // The latest session when none is streaming (M36.7, below).
+  let past: SessionItem | null | undefined = $state.raw(undefined) // undefined: not known (yet)
+
   const fresh = $derived(freshness(live, now))
+  // Streaming: live or behind. Not `live.session`, which the stream keeps after the tablet goes (found in M36.7).
+  const streaming = $derived(fresh.state === 'live' || fresh.state === 'stale')
   // GPS lost (M24): moving by the car's own speed, but no position from the tablet for 30 s; only while live.
   const gpsLost = $derived(fresh.state === 'live' ? gpsLostLive(live.history, now - live.offsetMs) : null)
   const bannerText = $derived(
     fresh.state === 'stale'
       ? fresh.seconds === null ? 'Waiting for data' : `Last data ${fresh.seconds} s ago`
+      : fresh.state === 'offline' && past ? `${stateLabel.offline} · ${lastSeenText(past)}`
       : stateLabel[fresh.state],
   )
   const names = $derived(
@@ -102,6 +120,28 @@
     load()
     const timer = setInterval(load, 60_000) // usually a 304
     return () => { stopped = true; clearInterval(timer) }
+  })
+
+  // No session streaming (M36.7): the latest session, its line and links, and its route on the map instead of
+  // the world. Asked once the stream has said so, and again each time a session ends; a session starting takes over.
+  let pastSeries = $state.raw<Series | null>(null)
+  $effect(() => {
+    if (!connected || streaming) return
+    let stopped = false
+    void fetchDrives(slug).then(latestSession).then(async (s) => {
+      if (stopped) return
+      past = s
+      if (!s) return
+      // A merged session has no series of its own (M33.7): its members', joined.
+      const series = s.members?.length ? await fetchMergedSeries(s.members.map((id) => ({ id })), fetch, true) : await fetchSeries(s.id, fetch, true)
+      if (!stopped) pastSeries = series
+    }).catch(() => {})
+    return () => { stopped = true }
+  })
+  const pastMap = $derived.by(() => {
+    if (streaming || !pastSeries || pastSeries.positions.t.length === 0) return null
+    const p = pastSeries.positions
+    return { t: p.t.map((t) => pastSeries!.t0 + t), lat: p.lat, lon: p.lon, speeds: speedsAtPositions(pastSeries) }
   })
 
   // Laps (M19.4): the server's live run holds them; once it doesn't (the session complete), the series once.
@@ -215,7 +255,7 @@
 </script>
 
 <main>
-  <p class="back"><a href="/cars">← Cars</a><a href={`/cars/${slug}/sessions`}>Past sessions →</a></p>
+  <Breadcrumbs items={crumbs({ page: 'car', slug }, { car: name })}><a href={`/cars/${slug}/sessions`}>Past sessions →</a></Breadcrumbs>
 
   {#if notFound}
     <h1>No car “{slug}”</h1>
@@ -232,16 +272,24 @@
       </section>
     {/if}
 
-    <h1>{slug}</h1>
+    <h1>{name ?? slug}</h1>
     <div class="sessionline">
-      {#if live.session}
+      {#if live.session && streaming}
         {@const src = sourceLabel(live.session.source)}
         <p class="session muted">
           {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
-          Session started {new Date(String(live.session.started)).toLocaleString()}
+          Session started {dayTime(new Date(String(live.session.started)).getTime())}
           {#if live.session.app} · app {String(live.session.app)}{/if}
           {#if live.session.device} · device {String(live.session.device).slice(0, 8)}{/if}
         </p>
+      {/if}
+      {#if !streaming && past}
+        <p class="session muted">
+          Last session: {past.name ? `${past.name} · ` : ''}{sessionLine(past)}
+          · <a href={`/cars/${slug}/sessions/${past.id}`}>Open session</a> · <a href={`/cars/${slug}/sessions`}>Past sessions</a>
+        </p>
+      {:else if !streaming && past === null}
+        <p class="session muted">No sessions yet.</p>
       {/if}
       <span class="switches"><UnitsSwitch /><ThemeSwitch /></span>
     </div>
@@ -265,7 +313,12 @@
     <!-- Always there (M10): empty, they say nothing has come, where hidden they'd say nothing. -->
     <section class="dash where">
       <GMeter {trail} peaks={peak} stale={trail.length === 0} />
-      <SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />
+      <!-- Made afresh between the last route and the live trail: the map reads following once, as it's made. -->
+      {#if pastMap}
+        {#key `past:${past?.id}`}<SessionMap t={pastMap.t} lat={pastMap.lat} lon={pastMap.lon} speeds={pastMap.speeds} />{/key}
+      {:else}
+        {#key 'live'}<SessionMap t={positions.map((p) => p.t)} lat={positions.map((p) => p.rec.lat as number)} lon={positions.map((p) => p.rec.lon as number)} speeds={trailSpeeds} follow />{/key}
+      {/if}
     </section>
     <!-- Who's driving (M34.2): set here by the crew, so shown for a live session even before there's a standing. -->
     {#if live.standing || (crew && liveId)}
@@ -304,7 +357,7 @@
         {/if}
       </section>
 
-    {:else if connected}
+    {:else if connected && streaming}
       <p class="muted">No signals yet.</p>
     {/if}
   {/if}
@@ -312,7 +365,6 @@
 
 <style>
   .switches { display: inline-flex; gap: 8px; flex-wrap: wrap; }
-  .back { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 12px; }
   .sessionline { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 4px; }
   .sessionline .session { margin: 0; }
   .dash { display: grid; gap: 10px; margin: 12px 0; }
@@ -321,7 +373,6 @@
   .bars { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .where { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
   .statuses { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-  .back a { color: var(--muted); text-decoration: none; }
   .banner {
     display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 12px;
     font-size: 1.6rem; font-weight: 700; background: var(--panel); border: 2px solid var(--line);

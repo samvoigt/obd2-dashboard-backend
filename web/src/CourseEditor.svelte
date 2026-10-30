@@ -1,4 +1,9 @@
 <script lang="ts">
+  import HiddenBadge from './HiddenBadge.svelte'
+  import { isHidden } from './lib/access'
+  import { dayTime } from './lib/terms'
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import L from 'leaflet'
   import 'leaflet/dist/leaflet.css'
   import '@geoman-io/leaflet-geoman-free'
@@ -53,6 +58,9 @@
   let saving = $state(false)
   let dirty = $state(false) // the drawing changed since it was loaded or saved
   let savedName = $state('') // the name as loaded or saved; '' for a new course
+  // Hidden (M36.8): said here, where it's edited, not on the lists.
+  let hidden = $state(false)
+  $effect(() => { if (signedIn && !isNew) void isHidden('course', pathId).then((h) => (hidden = h)) })
   const changed = $derived(unsaved(dirty, name, savedName))
   let retiming: RetimingProgress | null = $state(null) // the latest save's re-timing (M13.4)
   let savedLayouts: string[] = $state([]) // the latest saved version's layout ids, which events name
@@ -448,7 +456,7 @@
 </script>
 
 <main>
-  <p class="back">{#if isNew}<a href="/courses">← Courses</a>{:else}<a href={`/courses/${pathId}`}>← {savedName || pathId}</a>{/if}</p>
+  <Breadcrumbs items={crumbs({ page: 'course-edit', id: pathId }, { course: savedName })}>{#if hidden}<HiddenBadge />{/if}</Breadcrumbs>
   {#if $signin.state === 'out'}
     <p>Sign in (top right) to edit.</p>
   {:else if signedIn}
@@ -603,12 +611,12 @@
           {#if guideSessions.length > 0}
             <select onchange={(e) => showGuide((e.currentTarget as HTMLSelectElement).value)}>
               <option value="">Session…</option>
-              {#each guideSessions as s (s.id)}<option value={s.id}>{day(s.started)} {new Date(s.started).toLocaleTimeString()}</option>{/each}
+              {#each guideSessions as s (s.id)}<option value={s.id}>{dayTime(s.started)}</option>{/each}
             </select>
           {/if}
         </div>
 
-        {#if may.share}<EditorsPanel kind="course" id={pathId} />{/if}
+        {#if may.share}<EditorsPanel kind="course" id={pathId} onhidden={(h) => (hidden = h)} />{/if}
         {#if may.delete && !readOnly}
           {#if removing}
             <p class="warn small">Every version goes, and tablets stop timing on it. A course a tablet timed laps on stays.</p>
@@ -632,7 +640,6 @@
 
 <style>
   main { max-width: 1400px; margin: 0 auto; padding: 16px; }
-  .back { margin: 0 0 8px; }
   .editor { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
   @media (max-width: 900px) { .editor { grid-template-columns: 1fr; } }
   .mapwrap { position: relative; }

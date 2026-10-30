@@ -2,6 +2,7 @@ package com.obd2dashboard.backend
 
 import com.obd2dashboard.backend.live.BrowserEvent
 import com.obd2dashboard.backend.live.CarStatus
+import com.obd2dashboard.backend.live.Freshness
 import com.obd2dashboard.backend.live.LiveHub
 import com.obd2dashboard.backend.live.LiveSnapshot
 import com.obd2dashboard.backend.live.LiveUpdate
@@ -43,6 +44,12 @@ data class CarSummary(
     /** Hidden (M25), said only to someone signed in. */
     @OptIn(ExperimentalSerializationApi::class) @EncodeDefault(EncodeDefault.Mode.NEVER)
     val hidden: Boolean = false,
+    /**
+     * Where it stands (M36.1), only while it streams: the same view as its
+     * stream's `timing` frame, already public there (decision 37).
+     */
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val standing: JsonObject? = null,
 )
 
 /**
@@ -50,14 +57,19 @@ data class CarSummary(
  * Public (decision 11). **Nothing here can carry a VIN**: records reach the hub
  * with it already removed (M4.1), and this adds no field that could hold one.
  */
-fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock, auth: CrewAuth, crew: CrewMessages) {
+fun Route.browserRoutes(registry: CarRegistry, hub: LiveHub, clock: Clock, auth: CrewAuth, crew: CrewMessages, timingPage: TimingPage) {
     get("/api/cars") {
         val now = clock.instant()
         val hidden = call.hidden()
         val marks = call.hiddenMarks()
         call.respond(
             registry.list().filterNot { hidden.car(it.slug.value) }
-                .map { CarSummary(it.slug.value, it.name, hub.status(it.slug.value).freshness(now).wire, marks.car(it.slug.value)) },
+                .map {
+                    val slug = it.slug.value
+                    val freshness = hub.status(slug).freshness(now)
+                    val streaming = freshness is Freshness.Live || freshness is Freshness.Stale
+                    CarSummary(slug, it.name, freshness.wire, marks.car(slug), if (streaming) timingPage.held(slug) else null)
+                },
         )
     }
 

@@ -5,7 +5,8 @@
 
   // Who else edits this (M23): its creator, or a master admin, chooses from the invited users. Shown only where
   // the admin list says you may share it; the server decides again.
-  let { kind, id }: { kind: Kind; id: string } = $props()
+  // [onhidden] hears whether it's hidden, as loaded and as changed here (M36.8: the page's badge follows).
+  let { kind, id, onhidden }: { kind: Kind; id: string; onhidden?: (hidden: boolean) => void } = $props()
 
   let sharing = $state<Sharing | null>(null)
   let editors: string[] = $state([])
@@ -19,6 +20,7 @@
     try {
       sharing = await api<Sharing>('GET', `/access/${kind}/${id}`)
       editors = [...sharing.editors].sort()
+      onhidden?.(sharing.hidden === true)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
@@ -48,6 +50,7 @@
     error = null
     try {
       sharing = await api<Sharing>('PUT', `/access/${kind}/${id}/hidden`, { hidden })
+      onhidden?.(sharing.hidden === true)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     } finally {

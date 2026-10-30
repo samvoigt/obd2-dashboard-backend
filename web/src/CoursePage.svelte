@@ -1,9 +1,10 @@
 <script lang="ts">
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import CourseMap from './CourseMap.svelte'
-  import HiddenBadge from './HiddenBadge.svelte'
   import { signin } from './lib/signin'
   import { allowedFor, NOTHING, type Allowed } from './lib/access'
   import { day, type CourseVersion, type CourseView } from './lib/admin'
@@ -55,11 +56,11 @@
 </script>
 
 <main>
-  <p class="back"><a href="/courses">← Courses</a></p>
+  <Breadcrumbs items={crumbs({ page: 'course', id }, { course: view?.name })} />
   {#if missing}
     <h1>No such course</h1>
   {:else if view && course}
-    <h1>{view.name}{#if view.hidden}<HiddenBadge />{/if}</h1>
+    <h1>{view.name}</h1>
     {#if may.edit}<p><a class="button" href={`/courses/${id}/edit`}>Edit</a></p>{/if}
     {#if signedIn}
       <p class="muted">
@@ -90,7 +91,6 @@
 
 <style>
   main { max-width: 1100px; margin: 0 auto; padding: 16px; }
-  .back { margin: 0 0 4px; }
   .layouts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
   button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
   button.chosen { border-color: var(--accent); color: var(--accent); font-weight: 700; }

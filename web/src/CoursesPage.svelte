@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import HiddenBadge from './HiddenBadge.svelte'
   import { signin } from './lib/signin'
   import type { CourseSummary } from './lib/admin'
 
@@ -16,7 +15,6 @@
 </script>
 
 <main>
-  <p class="back"><a href="/">← Home</a></p>
   <h1>Courses</h1>
   <!-- Signed in (M21.3): courses are made here, and edited from their own page. -->
   {#if $signin.state === 'in'}<p><a class="button" href="/courses/new">New course</a></p>{/if}
@@ -28,7 +26,7 @@
     <ul class="list">
       {#each courses as c (c.id)}
         <li>
-          <a href={`/courses/${c.id}`}><strong>{c.name}</strong></a>{#if c.hidden}<HiddenBadge />{/if}
+          <a href={`/courses/${c.id}`}><strong>{c.name}</strong></a>
           <span class="muted small">
             {c.layouts.map((l) => `${l.name}${l.sectors > 0 ? `, ${l.sectors} sector${l.sectors === 1 ? '' : 's'}` : ''}`).join(' · ')}
           </span>
@@ -40,7 +38,6 @@
 
 <style>
   main { max-width: 960px; margin: 0 auto; padding: 16px; }
-  .back { margin: 0 0 4px; }
   .list { list-style: none; padding: 0; display: grid; gap: 8px; }
   .list li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; }
   .small { font-size: 0.9rem; }

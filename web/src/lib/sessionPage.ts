@@ -377,7 +377,7 @@ export function joinSeries(series: readonly (Series | null)[]): Series | null {
  * full for those in [full] (the members a narrow view covers), then joined.
  * Each member's stays its own request, cached and tagged as ever (decision 41).
  */
-export async function fetchMergedSeries(members: readonly Member[], fetcher: typeof fetch = fetch, thin = false, full: ReadonlySet<string> = new Set()): Promise<Series | null> {
+export async function fetchMergedSeries(members: readonly Pick<Member, 'id'>[], fetcher: typeof fetch = fetch, thin = false, full: ReadonlySet<string> = new Set()): Promise<Series | null> {
   const each = await Promise.all(members.map((m) => fetchSeries(m.id, fetcher, thin && !full.has(m.id))))
   return joinSeries(each)
 }

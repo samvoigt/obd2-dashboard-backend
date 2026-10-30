@@ -1,5 +1,9 @@
 <script lang="ts">
+  import TermHelp from './widgets/TermHelp.svelte'
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import { setTitle } from './lib/title'
+  import { clockText } from './lib/terms'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import {
@@ -7,7 +11,6 @@
   } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
-  import HiddenBadge from './HiddenBadge.svelte'
   import { signin } from './lib/signin'
   import { allowedFor, mine, NOTHING, type Allowed } from './lib/access'
   import { lapLink } from './lib/laps'
@@ -45,7 +48,7 @@
     course: results!.event.course, layout: results!.event.layout, label: `${driverLabel(b.driver)} ${lapTime(b.lap.time)}`,
   })
   const carName = (slug: string) => results?.event.cars.find((c) => c.slug === slug)?.name ?? slug
-  const heard = (s: SessionResult) => new Date(s.heardFrom).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const heard = (s: SessionResult) => clockText(s.heardFrom)
 
   // Edit only for an event you may edit (M23): the admin list has only those.
   let may: Allowed = $state(NOTHING)
@@ -68,14 +71,14 @@
 </script>
 
 <main>
-  <p class="back"><a href="/events">← Events</a></p>
+  <Breadcrumbs items={crumbs({ page: 'event', id }, { event: results?.event.name })} />
   {#if missing}
     <h1>No such event</h1>
   {:else if error}
     <p class="error">Could not load the event: {error}</p>
   {:else if results}
     {@const e = results.event}
-    <h1>{e.name}{#if e.hidden}<HiddenBadge />{/if}</h1>
+    <h1>{e.name}</h1>
     {#if may.edit || yourCars.length > 0}
       <p>
         {#if may.edit}<a class="button" href={`/events/${id}/edit`}>Edit</a>{/if}
@@ -141,13 +144,13 @@
 </main>
 
 {#snippet analysis(rows: SectorRow[], consistency: DriverConsistency[], theoretical: number | null | undefined)}
-  {#if theoretical}<p class="small">Theoretical best <strong>{lapTime(theoretical)}</strong> <span class="muted">(the best of each sector added up)</span></p>{/if}
+  {#if theoretical}<p class="small"><TermHelp term="theoretical" /> <strong>{lapTime(theoretical)}</strong> <span class="muted">(the best of each sector added up)</span></p>{/if}
   {#if rows.length > 1 && rows[0]!.sectors.length > 0}
     <details>
       <summary>Sectors, driver by driver</summary>
       <div class="table-scroll">
         <table class="bests">
-        <thead><tr><th>Driver</th>{#each rows[0]!.sectors as _, i (i)}<th>S{i + 1}</th>{/each}<th>Theoretical</th></tr></thead>
+        <thead><tr><th>Driver</th>{#each rows[0]!.sectors as _, i (i)}<th>S{i + 1}</th>{/each}<th><TermHelp term="theoretical" word="Theoretical" /></th></tr></thead>
         <tbody>
           {#each rows as r (r.driver?.id ?? 'none')}
             <tr><td>{driverLabel(r.driver)}</td>
@@ -164,7 +167,7 @@
       <summary>Consistency (laps on track)</summary>
       <div class="table-scroll">
         <table class="bests">
-        <thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Median</th><th>Spread</th><th>Within 1%</th></tr></thead>
+        <thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th><TermHelp term="median" /></th><th><TermHelp term="spread" /></th><th><TermHelp term="withinOne" /></th></tr></thead>
         <tbody>
           {#each consistency as c (c.driver?.id ?? 'none')}
             <tr><td>{driverLabel(c.driver)}</td><td>{c.consistency.laps}</td><td>{lapTime(c.consistency.best)}</td>
@@ -211,7 +214,6 @@
 
 <style>
   main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
-  .back { margin: 0; }
   h1 { margin: 0; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
   h2 { margin: 0 0 8px; }

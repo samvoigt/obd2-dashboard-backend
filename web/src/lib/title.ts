@@ -21,7 +21,7 @@ export function setTitle(...parts: (string | null | undefined)[]): void {
 export function routeTitle(r: Route): string {
   switch (r.page) {
     case 'landing': return titleOf()
-    case 'cars': return titleOf('Cars')
+    case 'cars': return titleOf('Live')
     case 'car': return titleOf(r.slug, 'live')
     case 'manage': return titleOf('Manage', r.slug)
     case 'sessions': return titleOf('Sessions', r.slug)
@@ -29,7 +29,7 @@ export function routeTitle(r: Route): string {
     case 'courses': return titleOf('Courses')
     case 'course': return titleOf('Course')
     case 'course-edit': return titleOf(r.id === 'new' ? 'New course' : 'Edit course')
-    case 'events': return titleOf('Events')
+    case 'events': return titleOf('Results')
     case 'event': return titleOf('Event')
     case 'event-edit': return titleOf(r.id === 'new' ? 'New event' : 'Edit event')
     case 'drivers': return titleOf('Drivers')

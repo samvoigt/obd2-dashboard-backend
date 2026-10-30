@@ -29,8 +29,8 @@
   })
 
   const links = [
-    { href: '/cars', label: 'Cars', pages: ['cars', 'car', 'manage', 'sessions', 'session'] },
-    { href: '/events', label: 'Events', pages: ['events', 'event', 'event-edit'] },
+    { href: '/cars', label: 'Live', pages: ['cars', 'car', 'manage', 'sessions', 'session'] },
+    { href: '/events', label: 'Results', pages: ['events', 'event', 'event-edit'] },
     { href: '/drivers', label: 'Drivers', pages: ['drivers', 'driver'] },
     { href: '/courses', label: 'Courses', pages: ['courses', 'course', 'course-edit'] },
   ]
@@ -180,12 +180,12 @@
     display: grid; gap: 8px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
   }
   .menu a { color: var(--accent); text-decoration: none; }
-  /* A phone (M31.2): one row, the site's name dropped, the account in one control. */
+  /* A phone (M31.2): the site's name dropped, the account in one control. With the Crew button (M34.3) the
+     links and the buttons outgrow one row: the links take their own, under them (M36.4; they were cut off). */
   @media (max-width: 600px) {
-    header { flex-wrap: nowrap; gap: 10px; }
+    header { flex-wrap: wrap; gap: 6px 10px; }
     .home span { display: none; }
-    /* With the Crew button (M34.3) the links can outgrow the row: they scroll in their own space, never under the buttons. */
-    nav { gap: 10px; font-size: 0.95rem; flex-wrap: nowrap; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    nav { order: 3; flex-basis: 100%; gap: 18px; font-size: 1rem; flex-wrap: nowrap; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
     nav::-webkit-scrollbar { display: none; }
     .who { flex-shrink: 0; gap: 6px; }
     .wide { display: none; }

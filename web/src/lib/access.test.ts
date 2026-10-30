@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  accessOf, addable, addEditor, allowed, allowedFor, creatorText, editorProblem, editorsChanged, inviteProblem, mine, NOTHING,
+  accessOf, addable, addEditor, allowed, allowedFor, creatorText, editorProblem, editorsChanged, inviteProblem, isHidden, mine, NOTHING,
   removeEditor, roleText, thingLink, type InvitedUser, type Sharing,
 } from './access'
 
@@ -87,5 +87,24 @@ describe('the users page (M23)', () => {
     expect(thingLink('driver:d-0a1b2c3d')?.href).toBe('/drivers/d-0a1b2c3d')
     expect(thingLink('boat:x')).toBeNull()
     expect(thingLink('car:')).toBeNull()
+  })
+})
+
+describe('whether a thing is hidden, for its editor’s badge (M36.8)', () => {
+  const lists: Record<string, unknown[]> = {
+    '/api/cars': [{ slug: 'yaris', hidden: true }, { slug: 'zed' }],
+    '/api/events': [{ id: 'nhms', hidden: true }],
+    '/api/courses': [{ id: 'nhms' }],
+  }
+  const fake = (async (path: string) => new Response(JSON.stringify(lists[path] ?? []))) as unknown as typeof fetch
+  it('reads its public list, which says so only to someone signed in', async () => {
+    expect(await isHidden('car', 'yaris', fake)).toBe(true)
+    expect(await isHidden('car', 'zed', fake)).toBe(false)
+    expect(await isHidden('event', 'nhms', fake)).toBe(true)
+    expect(await isHidden('course', 'nhms', fake)).toBe(false)
+  })
+  it('is false when the list can’t be had', async () => {
+    expect(await isHidden('car', 'yaris', (async () => new Response('', { status: 500 })) as unknown as typeof fetch)).toBe(false)
+    expect(await isHidden('car', 'yaris', (async () => { throw new Error('offline') }) as unknown as typeof fetch)).toBe(false)
   })
 })

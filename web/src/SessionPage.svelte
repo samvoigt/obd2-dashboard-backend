@@ -1,4 +1,8 @@
 <script lang="ts">
+  import TermHelp from './widgets/TermHelp.svelte'
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
+  import { dayTime } from './lib/terms'
   import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { clockText, gpsGaps, lengthText } from './lib/gps'
@@ -76,7 +80,7 @@
   }
 
   // Its tab (M35.5): its name, or when it began, and the car.
-  $effect(() => { if (detail) setTitle(detail.session.name ?? `${dayOf(detail.session.started)}, ${clockOf(detail.session.started)}`, detail.carName) })
+  $effect(() => { if (detail) setTitle(detail.session.name || dayTime(detail.session.started), detail.carName) })
 
   // Who drove (M34.5): one timeline over the session's members (one, unless merged), edited in one block, each save
   // on the member its moment falls in (decision 49).
@@ -349,7 +353,7 @@
 </script>
 
 <main>
-  <p class="back"><a href={`/cars/${slug}/sessions`}>← Past sessions</a></p>
+  <Breadcrumbs items={crumbs({ page: 'session', slug, id: sid }, { car: detail?.carName, session: detail ? detail.session.name || dayTime(detail.session.started) : null })} />
 
   {#if missing}
     <h1>No such session</h1>
@@ -374,7 +378,7 @@
     {@const src = sourceLabel(s.source)}
     <p class="facts">
       <span>{duration(s.ended - s.started)}</span>
-      {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
+      {#if src}<span class={`source ${src.kind}`}>{#if src.kind === 'tablet'}<TermHelp term="tabletOnly" />{:else}{src.text}{/if}</span>{/if}
       {#if whereLabel(s)}<a href={`/courses/${s.track}`}>{whereLabel(s)}</a>{/if}
       {#if s.event}<a href={`/events/${s.event.id}`}>{s.event.name}, {s.event.part}</a>{/if}
       {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap})</span></span>{/if}
@@ -390,7 +394,7 @@
     {/each}
     {#if (detail.members ?? []).length > 0}
       {@const ms = detail.members ?? []}
-      <p class="members muted small">{ms.length} sessions merged: {ms.map((m) => clockOf(m.started)).join(', ')}</p>
+      <p class="members muted small">{ms.length} sessions <TermHelp term="merged" word="merged" />: {ms.map((m) => clockOf(m.started)).join(', ')}</p>
     {/if}
     {#if setter && drivers.length > 0}
       <section class="drivers" aria-label="Drivers">
@@ -526,8 +530,6 @@
 
 <style>
   .switches { display: inline-flex; gap: 8px; flex-wrap: wrap; }
-  .back { margin: 0 0 8px; }
-  .back a { color: var(--muted); text-decoration: none; }
   h1 { overflow-wrap: anywhere; }
   h2 { font-size: 1rem; margin: 0 0 10px; }
   .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 8px; }

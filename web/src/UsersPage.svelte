@@ -57,7 +57,6 @@
 </script>
 
 <main>
-  <p class="back"><a href="/">← Home</a></p>
   <h1>Users</h1>
   {#if $signin.state === 'unknown'}
     <Skeleton title={false} panels={[56, 56]} label="Loading the users" />
@@ -115,7 +114,6 @@
 </main>
 
 <style>
-  .back { margin: 0 0 8px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 12px 0; }
   .row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
   label { display: grid; gap: 4px; font-size: 0.95rem; flex: 1; min-width: 0; }

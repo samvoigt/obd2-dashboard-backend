@@ -6,6 +6,7 @@
 import { signin } from './signin'
 import type { ItemAccess } from './access'
 import { isState, stateLabel, type State } from './state'
+import { dayText, dayTime } from './terms'
 
 export interface AdminConfig {
   enabled: boolean
@@ -130,16 +131,14 @@ export function stateText(state: string): string {
   return isState(state) ? stateLabel[state as State] : 'Offline'
 }
 
-/** "26 Sep 2026", in the viewer's time zone. */
-export function day(ms: number, locale = 'en-GB', timeZone?: string): string {
-  return new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone })
+/** "Sat 26 Sep", in the viewer's time zone (M36.9's one format). */
+export function day(ms: number, timeZone?: string, now: number = Date.now()): string {
+  return dayText(ms, now, timeZone)
 }
 
-/** "26 Sept 2026, 14:05", in the viewer's time zone. */
-export function when(ms: number, locale = 'en-GB', timeZone?: string): string {
-  return new Date(ms).toLocaleString(locale, {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone,
-  })
+/** "Sat 26 Sep, 14:05", in the viewer's time zone (M36.9's one format). */
+export function when(ms: number, timeZone?: string, now: number = Date.now()): string {
+  return dayTime(ms, now, timeZone)
 }
 
 /** The server's plain words from an error response, or its status. */

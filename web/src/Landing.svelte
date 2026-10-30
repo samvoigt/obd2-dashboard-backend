@@ -5,10 +5,9 @@
   import type { CourseSummary, CourseView } from './lib/admin'
   import { fromGeoJSON, type EditCourse } from './lib/courseEdit'
   import { dateText, whereText, type PublicEvent } from './lib/eventResults'
-  import HiddenBadge from './HiddenBadge.svelte'
   import type { Driver } from './lib/events'
-  import { eventsShown, latestSession, layoutsLine, sessionLine, underWay } from './lib/landing'
-  import { badge, fetchDrives, type SessionItem } from './lib/sessions'
+  import { eventsShown, latestSession, layoutsLine, nowCard, sessionLine, underWay } from './lib/landing'
+  import { badge, fetchDrives, lapTime, type SessionItem } from './lib/sessions'
   import { stateLabel } from './lib/state'
   import logo from './assets/logo.webp'
 
@@ -86,14 +85,57 @@
     return () => { clearInterval(fast); clearInterval(slow) }
   })
 
+  // What's happening now (M36.3), above the rest: who's live, else the event under way, else the last time out.
+  const card = $derived(carsLoaded ? nowCard(cars, latest, events, now) : null)
+
   const defaultLayout = (c: EditCourse) => c.layouts.find((l) => l.default)?.id ?? c.layouts[0]?.id ?? null
 </script>
 
 <main>
   <img class="logo" src={logo} alt="Bad News Bears, 2026 World Tour" width="200" height="198" />
 
+  {#if card}
+    <section class="now" aria-label="Now">
+      {#if card.kind === 'live'}
+        {#each card.cars as car (car.slug)}
+          {@const st = car.standing}
+          <div class={`card ${car.state}`}>
+            <div class="facts">
+              <a class="title" href={`/cars/${car.slug}`}>{car.name}</a>
+              <span class="state"><span class={`dot ${car.state}`}></span>{stateLabel[car.state]}</span>
+              <span class="line">
+                {#if st?.driver?.name || st?.driver?.code}<span>Driving: <strong>{st.driver.name ?? st.driver.code}</strong></span>{:else}<span class="muted">Driver not set</span>{/if}
+                {#if st?.race}<span>Lap {st.race.lap}</span>{/if}
+                {#if st?.best}<span>Best {lapTime(st.best.time)}{st.best.driver ? ` (${st.best.driver})` : ''}</span>{/if}
+              </span>
+            </div>
+            <a class="go" href={`/cars/${car.slug}`}>Watch live</a>
+          </div>
+        {/each}
+      {:else if card.kind === 'event'}
+        <div class="card">
+          <div class="facts">
+            <a class="title" href={`/events/${card.event.id}`}>{card.event.name}</a>
+            <span class="state"><span class="dot live"></span>Under way</span>
+            <span class="line muted">{[dateText(card.event), whereText(card.event)].filter(Boolean).join(' · ')}</span>
+          </div>
+          <a class="go" href={`/events/${card.event.id}`}>Results</a>
+        </div>
+      {:else}
+        <div class="card">
+          <div class="facts">
+            <span class="muted">Nothing running. Last out:</span>
+            <a class="title" href={`/cars/${card.car.slug}`}>{card.car.name}</a>
+            <span class="line muted">{card.session.name ? `${card.session.name} · ` : ''}{sessionLine(card.session)}</span>
+          </div>
+          <a class="go" href={`/cars/${card.car.slug}/sessions/${card.session.id}`}>Open session</a>
+        </div>
+      {/if}
+    </section>
+  {/if}
+
   <section>
-    <h2><a href="/cars">Cars →</a></h2>
+    <h2><a href="/cars">Live →</a></h2>
     {#if carsError}
       <p class="error">Could not load the cars: {carsError}</p>
     {:else if carsLoaded && cars.length === 0}
@@ -105,7 +147,7 @@
         <li>
           <a href={`/cars/${car.slug}`}>
             <span class="top">
-              <span class="name">{car.name}{#if car.hidden}<HiddenBadge />{/if}</span>
+              <span class="name">{car.name}</span>
               <span class="state"><span class={`dot ${car.state}`}></span>{stateLabel[car.state]}</span>
             </span>
             {#if s}
@@ -121,7 +163,7 @@
   </section>
 
   <section>
-    <h2><a href="/events">Events →</a></h2>
+    <h2><a href="/events">Results →</a></h2>
     {#if eventsError}
       <p class="error">Could not load the events: {eventsError}</p>
     {:else if events && events.length === 0}
@@ -130,7 +172,7 @@
       <ul class="list">
         {#each eventsShown(events) as e (e.id)}
           <li>
-            <a href={`/events/${e.id}`}><strong>{e.name}</strong></a>{#if e.hidden}<HiddenBadge />{/if}
+            <a href={`/events/${e.id}`}><strong>{e.name}</strong></a>
             {#if underWay(e, now)}<span class="under-way"><span class="dot live"></span>Under way</span>{/if}
             <span class="muted small">{[dateText(e), whereText(e), e.cars.map((c) => c.name).join(', ')].filter(Boolean).join(' · ')}</span>
           </li>
@@ -169,7 +211,7 @@
             <a href={`/courses/${c.id}`}>
               <!-- A picture, not a map to move: the page scrolls past it, and the card is the link. -->
               <span class="mini" aria-hidden="true">{#if drawing}<CourseMap course={drawing} layout={defaultLayout(drawing)} />{/if}</span>
-              <strong>{c.name}{#if c.hidden}<HiddenBadge />{/if}</strong>
+              <strong>{c.name}</strong>
               <span class="muted small">{layoutsLine(c)}</span>
             </a>
           </li>
@@ -183,6 +225,21 @@
   main { max-width: 960px; }
   .logo { display: block; width: min(200px, 50vw); height: auto; margin: 4px auto 8px; }
   section { margin: 0 0 22px; }
+  .now { display: grid; gap: 8px; }
+  .card {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+    padding: 14px 16px; background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+  }
+  /* As the car page's banner (M8): live green, behind amber. */
+  .card.live { border-color: var(--in-range); }
+  .card.stale { border-color: var(--caution); }
+  .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; }
+  .facts .title { font-size: 1.25rem; font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
+  .facts .line { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 2px 14px; }
+  .go {
+    color: var(--accent); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 16px; font-weight: 700;
+    text-decoration: none; white-space: nowrap;
+  }
   h2 { font-size: 1.15rem; margin: 0 0 10px; }
   h2 a { text-decoration: none; }
   h2 a:hover { color: var(--accent); }

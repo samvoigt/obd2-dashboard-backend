@@ -80,6 +80,54 @@ badge "only on manage/edit pages".
   course editor (beside the title, to anyone signed in); off the landing and
   lists and the public detail pages.
 
+## Validated against the code (2026-10-29, after M32–M35)
+
+The plan was written before M32–M35; each step checked again:
+
+- **M36.1 holds.** `TimingPage.last` (`TimingPage.kt:19`) is private, so
+  `held(car)` is needed as planned. `TimingPage` is built inside `module`
+  (`Application.kt:134`), so a route test can't hold a standing without a
+  whole live course run: `module` gains `timingPage: TimingPage =
+  TimingPage(hub)` ("in memory unless given", like `users` and `access`),
+  and the test calls `standing(car, Standing(...))` on its own. `last` isn't
+  cleared when a car goes offline, so `/api/cars` reads it only for `live`
+  or `stale`, as planned. `browserRoutes` is at `Application.kt:162`.
+- **M36.2–3 hold.** `latestSession`, `sessionLine` and `underWay` are in
+  `lib/landing.ts`; the landing already keeps `latest` per car. A merged
+  session is one item in the drives (M33.5's `foldMerges`), so "Last out" is
+  a merge when the latest is one.
+- **M36.4:** also `routeTitle` (`lib/title.ts`, M35.5) says "Cars" and
+  "Events": they become "Live" and "Results". M35's leftover is folded in
+  here: signed out at 390 px, "Courses" is cut at the header's edge (it
+  scrolls); checked with the new words, fixed if still cut.
+- **M36.5:** `.back` is on 15 pages. The nine planned, plus the compare page
+  ("Results › Two laps compared"). The top-level pages' "← Home" (courses,
+  events, drivers, users) go too: the header's logo is home. The session
+  page's last crumb is its name, else "Sat 18 Oct, 12:00" (M36.9's format).
+- **M36.6:** also the tab title: `routeTitle` names the car page by slug
+  until the name comes, then `setTitle(name, 'live')`, as the session page
+  does.
+- **M36.7:** `fetchMergedSeries` takes `Member[]` but reads only the ids,
+  and a drive's merged item has only `members: string[]`, so its parameter
+  becomes `{ id }[]`. `SessionMap` reads `follow` once, at mount (the world
+  view), so the map is keyed on live or past and made afresh when a session
+  starts. Positions and speeds come as on the session page (`positions`,
+  `speedsAtPositions`). `no_session` (tablet connected, not recording) also
+  shows the last session, without "last seen" (it's being seen).
+- **M36.8 holds:** the 8 places are as listed. The editors get hidden state
+  from what they already load or can: the car's from `/api/cars` (`hidden`,
+  said to someone signed in), the event's and course's from their public
+  views (`hidden`, as the pages showed it).
+- **M36.9:** 25 places format a date or time in components and `lib/`.
+  `dayOf` says "Sat, 26 Sept 2026" (en-GB's "Sept"), so `terms.ts` builds the
+  words itself: "Sun 18 Oct, 14:14", with the year only when it isn't this
+  year. Clock-only times (the chart's axis, the race's hh:mm:ss, a lap's
+  time) are times, not dates, and stay. `--critical` is used 47 times: errors,
+  trouble codes and fault markers, destructive buttons, readings in their
+  critical range (decision 29's role), the crew's Pit and Box presets, the
+  over-length message count, and the course maps' pit lines. All are kept;
+  the test lists them, so a new use is a decision.
+
 ## The steps
 
 ### M36.1 — `standing` on `/api/cars` (server, tested)
@@ -183,3 +231,32 @@ timed again on a phone, against M31.7's baseline, into JOURNAL.
 ## Not in this milestone
 
 - (The glossary and one date format are M36.9.)
+
+## Built (2026-10-29), and checked on the dev server
+
+All nine steps, as planned except:
+
+- **The car page's "no session" test is the stream's freshness, not
+  `live.session`:** the stream keeps the last session's header after the
+  tablet goes, so an offline car still looked mid-session (the last route
+  never showed, and the old "Session started…" line stayed). Found by
+  starting a replay with the page open, the plan's own check.
+- **The header at phone width:** the four words, Crew and Sign in can't share
+  one row at 390 px, at any size that reads. The links take a row of their
+  own under the logo and buttons. The phone check now fails a header link that
+  is cut off (`CUT`), and counts `OVER` only for links level with the
+  buttons.
+- **The "?"** is a small circle inside a 44 px tap area (M31.5's rule made
+  it a tall oval). Its sentence is placed on the window, as a table's
+  scrolling box would cut it off.
+- **`--critical`** also colours the top of the map's speed scale (the logo's
+  hot pink), which the test lists with the rest.
+
+Checked on the dev server, Vite: the Now card live (driver, best, Watch
+live), with an event under way (Results) and last out (Open session); the
+car page offline (last seen, last session's line, its route), with a
+merged session last (both members' route, 6 laps), with no sessions ("No
+sessions yet", the world map), and taking over when a session starts;
+breadcrumbs and tab titles by name on every car page; one date format;
+the hidden car's badge only on its manage page; the phone check, every
+page fits, signed in and out.

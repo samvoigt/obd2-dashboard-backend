@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { route } from './routes'
+import { crumbs, route } from './routes'
 import { fetchCars } from './api'
 
 describe('route', () => {
@@ -63,9 +63,15 @@ describe('fetchCars', () => {
       { slug: 'odd', name: 'Odd', state: 'warp', hidden: true },
     ]))) as unknown as typeof fetch
     expect(await fetchCars(fake)).toEqual([
-      { slug: 'yaris', name: 'Yaris', state: 'live', hidden: false },
-      { slug: 'odd', name: 'Odd', state: 'offline', hidden: true }, // hidden: said only to someone signed in (M25)
+      { slug: 'yaris', name: 'Yaris', state: 'live', hidden: false, standing: null },
+      { slug: 'odd', name: 'Odd', state: 'offline', hidden: true, standing: null }, // hidden: said only to someone signed in (M25)
     ])
+  })
+  it("carries a streaming car's standing as its stream's timing is read (M36.1)", async () => {
+    const fake = (async () => new Response(JSON.stringify([
+      { slug: 'yaris', name: 'Yaris', state: 'live', standing: { driver: { name: 'Sam', code: 'SAM' }, race: { lap: 58 }, best: { time: 94.5 } } },
+    ]))) as unknown as typeof fetch
+    expect((await fetchCars(fake))[0]?.standing).toEqual({ driver: { name: 'Sam', code: 'SAM', since: undefined }, race: { lap: 58, leftPits: undefined }, best: { time: 94.5, driver: undefined } })
   })
   it('throws on a failed request', async () => {
     const fake = (async () => new Response('', { status: 500 })) as unknown as typeof fetch
@@ -89,3 +95,33 @@ describe('courses, public (M12.5)', () => {
   })
 })
 
+
+describe('breadcrumbs (M36.5)', () => {
+  const session = '7d4c9b1e-2f6a-4e8b-9c3d-5a1b2c3d4e5f'
+  const labels = (path: string, names = {}) => crumbs(route(path), names).map((c) => (c.href ? `${c.label}<${c.href}>` : c.label)).join(' › ')
+
+  it("names a car's pages by the car, its slug until the name comes", () => {
+    expect(labels('/cars/yaris', { car: 'Tha Bearmobile' })).toBe('Live</cars> › Tha Bearmobile')
+    expect(labels('/cars/yaris')).toBe('Live</cars> › yaris')
+    expect(labels('/cars/yaris/sessions', { car: 'Tha Bearmobile' })).toBe('Live</cars> › Tha Bearmobile</cars/yaris> › Sessions')
+    expect(labels(`/cars/yaris/sessions/${session}`, { car: 'Tha Bearmobile', session: 'Sun 18 Oct, 12:00' }))
+      .toBe('Live</cars> › Tha Bearmobile</cars/yaris> › Sessions</cars/yaris/sessions> › Sun 18 Oct, 12:00')
+    expect(labels(`/cars/yaris/sessions/${session}`)).toBe('Live</cars> › yaris</cars/yaris> › Sessions</cars/yaris/sessions> › Session')
+    expect(labels('/cars/yaris/manage', { car: 'Tha Bearmobile' })).toBe('Live</cars> › Tha Bearmobile</cars/yaris> › Manage')
+  })
+
+  it('puts events under Results, drivers and courses under theirs, editors under what they edit', () => {
+    expect(labels('/events/nhms', { event: 'NHMS October' })).toBe('Results</events> › NHMS October')
+    expect(labels('/events/nhms/edit', { event: 'NHMS October' })).toBe('Results</events> › NHMS October</events/nhms> › Edit')
+    expect(labels('/events/new')).toBe('Results</events> › New event')
+    expect(labels('/compare')).toBe('Results</events> › Two laps compared')
+    expect(labels('/drivers/d-0000000a', { driver: 'Sam Voigt' })).toBe('Drivers</drivers> › Sam Voigt')
+    expect(labels('/courses/nhms', { course: 'NHMS' })).toBe('Courses</courses> › NHMS')
+    expect(labels('/courses/nhms/edit')).toBe('Courses</courses> › nhms</courses/nhms> › Edit')
+    expect(labels('/courses/new')).toBe('Courses</courses> › New course')
+  })
+
+  it('has none on a top-level page', () => {
+    for (const path of ['/', '/cars', '/events', '/drivers', '/courses', '/users']) expect(crumbs(route(path))).toEqual([])
+  })
+})

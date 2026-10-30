@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import { setTitle } from './lib/title'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
@@ -42,7 +44,7 @@
 </script>
 
 <main>
-  <p class="back"><a href="/drivers">← Drivers</a></p>
+  <Breadcrumbs items={crumbs({ page: 'driver', id }, { driver: record?.driver.name })} />
   {#if missing}
     <h1>No such driver</h1>
   {:else if error}
@@ -99,7 +101,6 @@
 
 <style>
   main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
-  .back { margin: 0; }
   h1 { margin: 0; }
   h2 { margin: 0 0 8px; }
   h2 .small { font-size: 0.9rem; font-weight: 400; }

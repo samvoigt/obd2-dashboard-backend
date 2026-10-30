@@ -20,8 +20,8 @@ describe('words for past sessions', () => {
   })
   it('writes days and times', () => {
     const t = Date.UTC(2026, 8, 26, 14, 5)
-    expect(dayOf(t, 'en-GB', 'UTC')).toBe('Sat, 26 Sept 2026')
-    expect(clockOf(t, 'en-GB', 'UTC')).toBe('14:05')
+    expect(dayOf(t, 'UTC', Date.UTC(2026, 9, 29))).toBe('Sat 26 Sep')
+    expect(clockOf(t, 'UTC')).toBe('14:05')
   })
   it('badges only what is not simply finished', () => {
     expect(badge('live')).toEqual({ text: 'Live now', kind: 'live' })

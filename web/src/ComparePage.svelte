@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import Skeleton from './widgets/Skeleton.svelte'
   import L from 'leaflet'
   import 'leaflet/dist/leaflet.css'
@@ -122,7 +124,7 @@
 </script>
 
 <main>
-  <p class="back"><a href="/events">← Events</a></p>
+  <Breadcrumbs items={crumbs({ page: 'compare' })} />
   <h1>Two laps compared</h1>
   {#if error}
     <p class="error">{error}</p>
@@ -156,7 +158,6 @@
 
 <style>
   main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
-  .back { margin: 0; }
   h1 { margin: 0; }
   h2 { margin: 0 0 6px; font-size: 1.05rem; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }

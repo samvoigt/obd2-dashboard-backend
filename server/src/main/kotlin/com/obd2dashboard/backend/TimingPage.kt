@@ -25,6 +25,9 @@ class TimingPage(private val hub: LiveHub) {
         hub.publish(car, LiveUpdate.Timing(json))
     }
 
+    /** The page's view last published for [car], or null: the landing's "Now" card reads it (M36.1), not a stream. */
+    fun held(car: String): JsonObject? = last[car]
+
     companion object {
         /** The page's view of [s]; [offset] is the server's clock less the tablet's, null if not measured yet. */
         fun json(s: Standing, offset: Long?): JsonObject = buildJsonObject {

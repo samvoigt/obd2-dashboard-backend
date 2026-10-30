@@ -101,7 +101,6 @@
 </script>
 
 <main>
-  <p class="back"><a href="/">← Home</a></p>
   <h1>Drivers</h1>
   {#if error}
     <p class="error">Could not load the drivers: {error}</p>
@@ -150,7 +149,6 @@
 
 <style>
   main { max-width: 720px; margin: 0 auto; padding: 16px; }
-  .back { margin: 0 0 4px; }
   .list { list-style: none; padding: 0; display: grid; gap: 8px; margin-top: 16px; }
   .list li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }

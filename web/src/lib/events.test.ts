@@ -63,7 +63,7 @@ describe('an event in the editor (M14.3)', () => {
     expect(codeFrom('Sam Voigt')).toBe('SAM')
     expect(codeFrom('Él')).toBe('EL')
     const from = Date.UTC(2026, 9, 4, 13, 5)
-    expect(heardText({ id: 's', car: 'c', heardFrom: from, heardTo: from + 35 * 60_000, laps: 0 }, 'en-GB', 'UTC')).toBe('4 Oct, 13:05–13:40')
+    expect(heardText({ id: 's', car: 'c', heardFrom: from, heardTo: from + 35 * 60_000, laps: 0 }, 'UTC', Date.UTC(2026, 9, 29))).toBe('Sun 4 Oct, 13:05–13:40')
   })
 })
 

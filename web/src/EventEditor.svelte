@@ -1,4 +1,8 @@
 <script lang="ts">
+  import HiddenBadge from './HiddenBadge.svelte'
+  import { isHidden } from './lib/access'
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
   import Skeleton from './widgets/Skeleton.svelte'
   import { untrack } from 'svelte'
   import { signin } from './lib/signin'
@@ -27,6 +31,9 @@
   let revision = $state(0)
   let saved = $state('')
   let page: AdminEvent | null = $state.raw(null)
+  // Hidden (M36.8): said here, where it's edited, not on the lists.
+  let hidden = $state(false)
+  $effect(() => { if ($signin.state === 'in' && !isNew) void isHidden('event', pathId).then((h) => (hidden = h)) })
 
   let allCourses: CourseSummary[] = $state.raw([])
   let allCars: AdminCar[] = $state.raw([])
@@ -147,13 +154,13 @@
 </script>
 
 <main>
-  <p class="back">{#if isNew}<a href="/events">← Events</a>{:else}<a href={`/events/${pathId}`}>← {page?.event.name ?? pathId}</a>{/if}</p>
+  <Breadcrumbs items={crumbs({ page: 'event-edit', id: pathId }, { event: page?.event.name })} />
   {#if $signin.state === 'out'}
     <p>Sign in (top right) to edit.</p>
   {:else if !loaded}
     {#if message}<p class="error">{message}</p>{:else}<Skeleton title={false} panels={[360]} label="Loading the event" />{/if}
   {:else}
-    <h1>{isNew ? 'New event' : name}</h1>
+    <h1>{isNew ? 'New event' : name}{#if hidden}<HiddenBadge />{/if}</h1>
     <section class="panel form">
       <label><span>Name</span><input bind:value={name} placeholder="NHMS October" /></label>
       {#if isNew}
@@ -242,7 +249,7 @@
         {/if}
       </section>
     {/if}
-    {#if may.share}<EditorsPanel kind="event" id={pathId} />{/if}
+    {#if may.share}<EditorsPanel kind="event" id={pathId} onhidden={(h) => (hidden = h)} />{/if}
   {/if}
 </main>
 
@@ -255,7 +262,6 @@
 
 <style>
   main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
-  .back { margin: 0; }
   h1 { margin: 0; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
   .form { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }

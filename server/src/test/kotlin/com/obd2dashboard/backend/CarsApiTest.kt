@@ -15,7 +15,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.obd2dashboard.backend.live.CarStatus
 import com.obd2dashboard.backend.live.InMemoryLiveHub
+import com.obd2dashboard.backend.live.LiveHub
+import java.time.Instant
 import org.junit.Test
 
 class CarsApiTest {
@@ -45,13 +48,50 @@ class CarsApiTest {
 
         cars.size shouldBe 1
         // Fails the moment any field is added: making one public must be a decision.
-        // `state` was that decision, in M4 (the landing page shows who is live).
+        // `state` was that decision, in M4 (the landing page shows who is live); `standing`, only while streaming,
+        // in M36.1 (decision 37).
         cars.single().jsonObject.keys shouldBe setOf("slug", "name", "state")
         cars.single().jsonObject.getValue("state").jsonPrimitive.content shouldBe "offline"
         body shouldNotContain issued.token
         body shouldNotContain car.tokenHash
         body shouldNotContain car.tokenHint
         body shouldNotContain car.passcodeHash!!
+    }
+
+    /** A hub whose cars are as [statuses] say (offline otherwise), so a test needs no tablet. */
+    private fun hubWith(statuses: Map<String, CarStatus>): LiveHub {
+        val real = InMemoryLiveHub()
+        return object : LiveHub by real {
+            override suspend fun status(car: String): CarStatus = statuses[car] ?: real.status(car)
+        }
+    }
+
+    @Test
+    fun `a streaming car carries where it stands, as its page's timing frame, and one not streaming doesn't (M36_1)`() = testApplication {
+        runBlocking {
+            registry.addCar(Slug.parse("live-car"), "Alpha")
+            registry.addCar(Slug.parse("late-car"), "Bravo")
+            registry.addCar(Slug.parse("idle-car"), "Charlie")
+            registry.addCar(Slug.parse("gone-car"), "Delta")
+        }
+        val now = Instant.now()
+        val hub = hubWith(mapOf(
+            "live-car" to CarStatus(connected = true, inSession = true, lastDataAt = now),
+            "late-car" to CarStatus(connected = true, inSession = true, lastDataAt = now.minusSeconds(30)),
+            "idle-car" to CarStatus(connected = true, inSession = false, lastDataAt = now),
+        ))
+        val page = TimingPage(hub)
+        val standing = Standing("s1", CourseAt("nhms", 7, "road"), null, null, DriverNow("Sam Voigt", "SAM", null), RaceNow(58, null))
+        runBlocking { for (car in listOf("live-car", "late-car", "idle-car", "gone-car")) page.standing(car, standing) }
+        application { module(registry, testArchive(), hub, messages = testMessages(), courses = testCourses(), events = testEvents(), crewKey = testCrewKey(), timingPage = page) }
+
+        val cars = Json.parseToJsonElement(client.get("/api/cars").bodyAsText()).jsonArray.associateBy { it.jsonObject.getValue("slug").jsonPrimitive.content }
+        val expected = TimingPage.json(standing, null)
+        cars.getValue("live-car").jsonObject["standing"] shouldBe expected
+        cars.getValue("late-car").jsonObject["standing"] shouldBe expected // behind is still streaming
+        // Held from before, but not streaming now: none, as the page would show none.
+        cars.getValue("idle-car").jsonObject.keys shouldBe setOf("slug", "name", "state")
+        cars.getValue("gone-car").jsonObject.keys shouldBe setOf("slug", "name", "state")
     }
 
     @Test

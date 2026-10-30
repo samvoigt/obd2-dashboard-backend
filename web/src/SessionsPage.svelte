@@ -1,4 +1,8 @@
 <script lang="ts">
+  import Breadcrumbs from './Breadcrumbs.svelte'
+  import { crumbs } from './lib/routes'
+  import { carName } from './lib/api'
+  import { setTitle } from './lib/title'
   import { onMount } from 'svelte'
   import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, mergeBar, sourceLabel, trackOf, type Drive, type SessionItem } from './lib/sessions'
   import { signin } from './lib/signin'
@@ -6,6 +10,9 @@
   import { allowed, mine, NOTHING, type Allowed } from './lib/access'
 
   let { slug }: { slug: string } = $props()
+  // The car by name (M36.5), its slug until that comes.
+  let name: string | null = $state(null)
+  $effect(() => { void carName(slug).then((n) => { name = n; if (n) setTitle('Sessions', n) }) })
 
   let drives: Drive[] | null = $state([])
   let loaded = $state(false)
@@ -112,7 +119,7 @@
 </script>
 
 <main>
-  <p class="back"><a href={`/cars/${slug}`}>← {slug}, live</a>{#if may.edit}<a href={`/cars/${slug}/manage`}>Manage {slug} →</a>{/if}</p>
+  <Breadcrumbs items={crumbs({ page: 'sessions', slug }, { car: name })}>{#if may.edit}<a href={`/cars/${slug}/manage`}>Manage →</a>{/if}</Breadcrumbs>
   <h1>Past sessions</h1>
   {#if adminError}<p class="error" role="alert">{adminError}</p>{/if}
   {#if mergeError}<p class="error" role="alert">{mergeError}</p>{/if}
@@ -226,8 +233,6 @@
 </main>
 
 <style>
-  .back { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .back a { color: var(--muted); text-decoration: none; }
   .drive { margin: 18px 0; }
   h2 { font-size: 1.05rem; margin: 0 0 8px; }
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

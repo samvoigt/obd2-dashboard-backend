@@ -115,6 +115,8 @@ fun Application.module(
     users: UserStore = InMemoryUserStore(),
     /** Every car's, event's, course's and driver's creator and editors (M23); as for users. */
     access: AccessStore = InMemoryAccessStore(),
+    /** Where each car stands, for its page and the landing (M17.5, M36.1); a test holds one without a course run. */
+    timingPage: TimingPage = TimingPage(hub),
 ) {
     val crew = CrewMessages(messages, hub, this, clock)
     val downlink = CourseDownlink(courses)
@@ -131,7 +133,6 @@ fun Application.module(
     // The live run (M17.2) tells `timing` (M17.4) what changed; `timing` needs it to work out where a car stands.
     var timingDownlink: TimingDownlink? = null
     val liveTimings = LiveTimings(archive, this, clock) { car -> timingDownlink?.changed(car) }
-    val timingPage = TimingPage(hub)
     val timing = TimingDownlink(CarTimings(archive, courses, events, retiming, liveTimings, hub), hub, clock, this, standing = timingPage::standing)
     timingDownlink = timing
     val liveSeries = LiveSeries(archive, clock)
@@ -159,7 +160,7 @@ fun Application.module(
         // answers them with its own 404 before the request reaches us.
         get("/health") { call.respond(Health(status = "ok")) }
 
-        browserRoutes(registry, hub, clock, crewAuth, crew)
+        browserRoutes(registry, hub, clock, crewAuth, crew, timingPage)
         crewRoutes(registry, crewAuth, loginLimiter)
         val adminAuth = AdminAuth(crewKey, clock)
         // Who may do what (M23): every signed-in route asks it, through `call.may` and `call.signedIn`.
