@@ -1098,3 +1098,43 @@ UX review phase 3 (§3.B). Deployed as `00056` (the privacy fix, alone) and `000
   (the plan's "progress line" idea, deferred here until measured); and a
   merged session's `/laps` takes 1.6–1.8 s (its members' laps one after
   another, each 0.4–0.5 s), longer than its series.
+
+## M36 — Finding your way  ✅ 2026-10-29
+
+UX review phase 4 (§3.D) and its cross-cutting wording item. Deployed as `00058`.
+
+- **`standing` on `/api/cars`** (M36.1, decision 37): a streaming car (live
+  or behind) carries its page's timing view; one not streaming none, though
+  `TimingPage` still holds its last. `module(timingPage)` lets a test hold
+  one. A hidden car's standing never reaches someone signed out
+  (`HiddenTest`'s secrets gain its driver).
+- **The "Now" card** (M36.2–3, `nowCard`): each streaming car with its
+  driver, race lap and best and **Watch live**; else an event under way and
+  **Results**; else "Nothing running. Last out:" the latest session and
+  **Open session**.
+- **Live · Results · Drivers · Courses** (M36.4): the nav, the two pages'
+  headings, the landing's sections and the tab titles. At phone width the
+  links take their own row (they were cut off beside Crew and Sign in).
+- **Breadcrumbs** (M36.5, `Breadcrumbs.svelte`, `crumbs()`) on every page
+  under a section; "← Home" gone from the top-level ones. Car pages name
+  the car (`carName`, once a page load), in their tabs too (M36.6).
+- **The offline car page** (M36.7): "Offline · last seen Sun 18 Oct, 16:11",
+  the latest session's line with **Open session** and **Past sessions**, its
+  route on the map (a merged session's whole route), "No sessions yet" with
+  none. "Offline" is the stream's freshness, not `live.session`, which the
+  stream keeps after the tablet goes.
+- **The Hidden badge** only on the car's manage page and the event and
+  course editors (M36.8, `isHidden`, followed through `EditorsPanel`).
+- **One date format and a glossary** (M36.9): `lib/terms.ts` (`dayTime`
+  "Sun 18 Oct, 14:14", `dayRange` "Fri 16 – Sun 18 Oct", the year only when
+  not this one) behind every date helper; `docs/GLOSSARY.md` and `TERMS`,
+  explained by a "?" (`widgets/TermHelp.svelte`) on the event, race and
+  session pages; `--critical`'s uses listed by a test.
+- **The phone check** fails a header link cut off ("CUT"); "OVER" counts
+  only links level with the buttons.
+- **Tests:** `CarsApiTest` +1, `HiddenTest` (a standing); `landing.test.ts`
+  +4, `routes.test.ts` +4, `terms.test.ts` (3), `access.test.ts` +2,
+  `theme.test.ts` +1, dates in five suites. 692 Kotlin and 307 site tests.
+- **Open, for Sam:** the review's walk-throughs 1 and 3 (§5), timed on a
+  phone against M31.7's baseline; and the two questions from M35 (a
+  progress line for the first event visit; a merged session's `/laps`).

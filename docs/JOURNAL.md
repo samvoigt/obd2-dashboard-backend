@@ -776,3 +776,25 @@ footage.
   ("504 Outdated Optimize Dep") left every page empty under the dev server,
   and nothing empty is too wide. The check now fails a page that draws
   nothing, and one with no title of its own.
+
+## 2026-10-29 — M36: finding your way
+
+- **Deployed as `00058`** with a smoke car streaming live across it: two
+  1012 closes (the old revision drained on two instances), each reconnected
+  at once. On production after: the Now card names the streaming car;
+  Tha Bearmobile's page reads "Offline · last seen Sun 18 Oct, 16:11" over
+  Sunday's merged session (7 h 31 min, 223 laps) and draws its route; the
+  race still reads 8 stints, 460 laps.
+- **The stream keeps the last session's header after the tablet goes:** a
+  page testing `live.session` for "being driven" treats an offline car as
+  mid-session. Found only by the plan's check of a replay starting with
+  the page open; the first offline check passed because the dev car had
+  never streamed. Test both directions of a state change, after the state
+  has once been on.
+- **Four header words, Crew and Sign in don't fit 390 px in one row** at any
+  size that reads (about 60 px over). The links now have their own row on a
+  phone. The phone check hadn't caught the cut-off "Courses" (it scrolled,
+  so nothing was wide); it fails it now.
+- **The phones' 44 px rule** turns any small button into a tall oval: a
+  small control is drawn inside a full-size tap area, its margins taken
+  back.
