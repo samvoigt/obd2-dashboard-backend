@@ -3,11 +3,11 @@
   import Breadcrumbs from './Breadcrumbs.svelte'
   import { crumbs } from './lib/routes'
   import { setTitle } from './lib/title'
-  import { clockText } from './lib/terms'
+  import { clockText, dayTime } from './lib/terms'
   import Skeleton from './widgets/Skeleton.svelte'
   import { onMount, untrack } from 'svelte'
   import {
-    dateText, driverLabel, gap, partOn, REFRESH_MS, sectorGap, windowText, type DriverBest, type DriverConsistency, type EventResults, type SectorRow, type SessionResult,
+    dateText, driverLabel, gap, partOn, REFRESH_MS, sectorGap, sessionRows, windowText, type DriverBest, type DriverConsistency, type EventResults, type SectorRow, type SessionRow,
   } from './lib/eventResults'
   import { lapTime } from './lib/sessions'
   import RaceSection from './RaceSection.svelte'
@@ -48,7 +48,22 @@
     course: results!.event.course, layout: results!.event.layout, label: `${driverLabel(b.driver)} ${lapTime(b.lap.time)}`,
   })
   const carName = (slug: string) => results?.event.cars.find((c) => c.slug === slug)?.name ?? slug
-  const heard = (s: SessionResult) => clockText(s.heardFrom)
+  const heard = (s: { heardFrom: number }) => clockText(s.heardFrom)
+  const practiceParts = $derived.by(() => results?.parts.filter((p) => p.part.kind === 'practice') ?? [])
+  /** The race's sessions' rows, by id (M37.3): a stint's link reads its start. */
+  const raceRows = $derived.by(() => new Map<string, SessionRow>(
+    (results?.parts ?? []).filter((p) => p.part.kind === 'race').flatMap((p) => sessionRows(p.sessions)).map((r) => [r.id, r]),
+  ))
+  /** "08:40"; "Sun 18 Oct, 08:40" when the race's sessions fall on different days. */
+  function sessionTime(id: string): string {
+    const row = raceRows.get(id)
+    if (!row) return 'Session'
+    const days = new Set([...raceRows.values()].map((r) => new Date(r.heardFrom).toDateString()))
+    return days.size > 1 ? dayTime(row.heardFrom) : heard(row)
+  }
+  /** "Sam Voigt (SAM) 60 laps · Drew Blouch (DRB) 4 laps": who drove a session (M37.6). */
+  const stretchesText = (r: SessionRow) =>
+    r.stretches.map((s) => `${driverLabel(s.driver)} ${s.laps} lap${s.laps === 1 ? '' : 's'}`).join(' · ')
 
   // Edit only for an event you may edit (M23): the admin list has only those.
   let may: Allowed = $state(NOTHING)
@@ -93,51 +108,59 @@
       {/if}
     {/if}
     <p class="muted">
-      {dateText(e)}{#if e.course} · <a href={`/courses/${e.course}`}>{e.courseName}</a>, {e.layoutName}{/if}{#if e.cars.length} · {e.cars.map((c) => c.name).join(', ')}{/if}
+      {dateText(e)}{#if e.course}{' · '}<a href={`/courses/${e.course}`}>{e.courseName}</a>, {e.layoutName}{/if}{#if e.cars.length}{' · '}{e.cars.map((c) => c.name).join(', ')}{/if}
     </p>
 
-    {#if results.parts.some((p) => p.part.kind === 'practice')}
+    {#if results.race}
+      <RaceSection race={results.race} eventId={e.id} revision={e.revision} {carName} onChanged={load} course={e.course} layout={e.layout}
+        merged={results.merged} {sessionTime} />
+    {/if}
+
+    <!-- Practice once (M37.6): with several parts, all of it first, then each part's own. -->
+    {#if practiceParts.length > 1}
       <section class="panel">
         <h2>Practice, every part</h2>
         {@render bests(results.practiceBests, results.practiceBestSectors)}
         {@render analysis(results.practiceSectorRows, results.practiceConsistency, results.practiceTheoretical)}
       </section>
     {/if}
-
-    {#if results.race}
-      <RaceSection race={results.race} eventId={e.id} revision={e.revision} {carName} onChanged={load} course={e.course} layout={e.layout} />
-    {/if}
-
-    {#each results.parts as p (p.part.id)}
+    {#each practiceParts as p (p.part.id)}
       <section class="panel">
         <h2>{p.part.name} <span class="muted small">{windowText(p.part)}</span></h2>
-        {#if p.part.kind === 'race'}
-          <p class="muted small">The race as one timeline is above; its sessions are here.</p>
-        {:else}
-          {@render bests(p.bests, p.bestSectors)}
-          {@render analysis(p.sectorRows, p.consistency, p.theoretical)}
-        {/if}
-        {#if p.sessions.length === 0}
-          <p class="muted small">No sessions.</p>
-        {:else}
-          <h3>Sessions</h3>
-          <ul class="sessions">
-            {#each p.sessions as s (`${s.id}-${s.stretch ?? 0}`)}
-              <li>
-                <a href={`/cars/${s.car}/sessions/${s.id}`}>{#if s.name}{s.name} · {/if}{carName(s.car)}, {heard(s)}</a>
-                <span>{driverLabel(s.driver)}</span>
-                {#if s.live}<span class="live">live</span>{/if}
-                {#if s.otherLayout}
-                  <span class="muted">Timed on another layout ({s.otherLayout}): not counted here</span>
-                {:else}
-                  <span class="muted">{s.laps.length} lap{s.laps.length === 1 ? '' : 's'}{s.best ? `, best ${lapTime(s.best.time)}` : ''}{s.laps.some((l) => l.source === 'retimed') ? ' · re-timed' : ''}</span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
+        {@render bests(p.bests, p.bestSectors)}
+        {@render analysis(p.sectorRows, p.consistency, p.theoretical)}
       </section>
     {/each}
+
+    {#if results.parts.length > 0}
+      <section class="panel">
+        <h2>Sessions</h2>
+        {#each results.parts as p (p.part.id)}
+          {@const rows = sessionRows(p.sessions)}
+          <h3>{p.part.name} <span class="muted small">{windowText(p.part)}</span></h3>
+          {#if rows.length === 0}
+            <p class="muted small">No sessions.</p>
+          {:else}
+            <ul class="sessions">
+              {#each rows as s (s.id)}
+                <li>
+                  <span class="line">
+                    <a href={`/cars/${s.car}/sessions/${s.id}`}>{#if s.name}{s.name}{' · '}{/if}{carName(s.car)}, {heard(s)}</a>
+                    {#if s.live}<span class="live">live</span>{/if}
+                    {#if s.otherLayout}
+                      <span class="muted">Timed on another layout ({s.otherLayout}): not counted here</span>
+                    {:else}
+                      <span class="muted">{s.laps} lap{s.laps === 1 ? '' : 's'}{s.best ? ` · best ${lapTime(s.best.time)}` : ''}{s.retimed ? ' · re-timed' : ''}</span>
+                    {/if}
+                  </span>
+                  <span class="small">{stretchesText(s)}</span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        {/each}
+      </section>
+    {/if}
   {:else}
     <Skeleton panels={[24, 220, 320, 200]} label="Loading the event" />
   {/if}
@@ -226,6 +249,9 @@
   .bestsector { color: var(--in-range); font-weight: 700; }
   .sessions { list-style: none; padding: 0; display: grid; gap: 6px; }
   .sessions li { display: grid; gap: 2px; }
+  .sessions .line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  h3 { margin: 12px 0 4px; font-size: 1rem; }
+  h3 .small { font-weight: 400; }
   .error { color: var(--critical); }
   .live { color: var(--in-range); font-weight: 600; font-size: 0.85rem; }
 </style>

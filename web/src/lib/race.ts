@@ -130,3 +130,26 @@ export async function sendRaceEdit(path: string, body: unknown, fetcher: typeof 
   if (!r.ok) throw new Error([answer.message || `The server answered ${r.status}.`, ...(answer.problems ?? [])].join(' '))
   return answer.revision ?? 0
 }
+
+/** The stop that ended [stint] (M37.2): the one on its last lap, its in-lap; null for a stint that didn't end in the pits, or has no laps. */
+export function stopAfter(car: Pick<CarRace, 'stops'>, stint: Pick<RaceStint, 'lastLap'>): RaceStop | null {
+  if (stint.lastLap == null) return null
+  return car.stops.find((s) => s.lap === stint.lastLap) ?? null
+}
+
+/** "5:57", time in the pit lane. */
+export function pitTime(seconds: number): string {
+  const s = Math.round(seconds)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/**
+ * The session [stint] was driven in (M37.3): its first lap's, or the merged
+ * session that one is part of ([merged], member → merged id), so a link to it
+ * needs no redirect; null for a stint with no laps.
+ */
+export function stintSession(car: Pick<CarRace, 'laps'>, stint: Pick<RaceStint, 'firstLap'>, merged: Record<string, string> = {}): string | null {
+  if (stint.firstLap == null) return null
+  const session = car.laps.find((l) => l.number === stint.firstLap)?.session
+  return session === undefined ? null : (merged[session] ?? session)
+}

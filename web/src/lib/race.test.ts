@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { flagsAt, lapsIn, raceClock, racePath, sendRaceEdit, sessionStartingAt, stintsIn, timeOfDay, type CarRace, type RaceLap } from './race'
+import { flagsAt, lapsIn, pitTime, raceClock, racePath, sendRaceEdit, sessionStartingAt, stintSession, stintsIn, stopAfter, timeOfDay, type CarRace, type RaceLap } from './race'
 
 const lap = (number: number, start: number): RaceLap =>
   ({ number, session: 's', start, end: start + 70_000, time: 70, sectors: [], pitIn: false, pitOut: false, source: 'tablet', stint: 1 })
@@ -53,5 +53,34 @@ describe('a race in sessions (M26)', () => {
     expect(flagsAt(weekend, 4)).toEqual({ green: true, flag: false })
     // Before M26, a car's race has no sessions: its own flags.
     expect(flagsAt({ ...weekend, sessions: undefined, flagLap: 5 }, 5)).toEqual({ green: false, flag: true })
+  })
+})
+
+describe('the stints table (M37)', () => {
+  const stint = (firstLap: number | null, lastLap: number | null) => ({ firstLap, lastLap })
+  const car = {
+    laps: [lap(1, 0), lap(2, 70_000), { ...lap(3, 140_000), session: 'm2' }, { ...lap(4, 210_000), session: 'other' }],
+    stops: [{ lap: 2, entry: 1, exit: 2, seconds: 357.4 }, { lap: 4, entry: 3 }],
+  }
+
+  it('the stop that ended each stint, at the race’s end in the pits too, and none for the rest', () => {
+    expect(stopAfter(car, stint(1, 2))?.seconds).toBe(357.4)
+    expect(stopAfter(car, stint(3, 4))).toEqual({ lap: 4, entry: 3 })
+    expect(stopAfter(car, stint(1, 1))).toBeNull()
+    expect(stopAfter(car, stint(null, null))).toBeNull()
+  })
+
+  it('time in the pit lane as minutes and seconds', () => {
+    expect(pitTime(357.4)).toBe('5:57')
+    expect(pitTime(59.6)).toBe('1:00')
+    expect(pitTime(1139.1)).toBe('18:59')
+  })
+
+  it('each stint’s session, the merged one for a member, none for a stint with no laps', () => {
+    const merged = { m2: 'merge-1' }
+    expect(stintSession(car, stint(1, 2), merged)).toBe('s')
+    expect(stintSession(car, stint(3, 3), merged)).toBe('merge-1')
+    expect(stintSession(car, stint(4, 4))).toBe('other')
+    expect(stintSession(car, stint(null, null), merged)).toBeNull()
   })
 })

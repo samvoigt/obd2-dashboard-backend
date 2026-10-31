@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dateText, driverLabel, gap, sectorGap, windowText, partOn, whereText } from './eventResults'
+import { dateText, driverLabel, gap, sectorGap, sessionRows, windowText, partOn, whereText, type SessionResult } from './eventResults'
 
 describe('an event’s results (M14.5)', () => {
   it('the gap to the fastest, to the millisecond', () => {
@@ -46,5 +46,38 @@ describe('an event’s days (M26)', () => {
     expect(dateText({ date: '2026-10-04' }, Date.UTC(2026, 9, 29))).toBe('Sun 4 Oct')
     expect(dateText({ date: '2026-10-04', endDate: '2026-10-04' }, Date.UTC(2026, 9, 29))).toBe('Sun 4 Oct')
     expect(dateText({ date: '2026-10-02', endDate: '2026-10-04' }, Date.UTC(2026, 9, 29))).toBe('Fri 2 – Sun 4 Oct')
+  })
+})
+
+describe('one row per session (M37.1)', () => {
+  const lap = (n: number, time: number, source: 'tablet' | 'retimed' = 'tablet') =>
+    ({ lap: n, start: n * 100_000, end: n * 100_000 + time * 1000, time, sectors: [], pitIn: false, pitOut: false, source }) as SessionResult['laps'][number]
+  const sam = { id: 'd-sam', name: 'Sam', code: 'SAM' }
+  const alex = { id: 'd-alex', name: 'Alex', code: 'ALX' }
+  const row = (id: string, heardFrom: number, more: Partial<SessionResult> = {}): SessionResult =>
+    ({ id, car: 'outback', heardFrom, laps: [], ...more })
+
+  it('a session with no driver changes is one row with one stretch', () => {
+    const rows = sessionRows([row('a', 1, { driver: sam, laps: [lap(1, 71), lap(2, 70)], best: lap(2, 70) })])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ id: 'a', laps: 2, best: { time: 70 }, live: false, retimed: false })
+    expect(rows[0]!.stretches).toEqual([{ driver: sam, laps: 2, best: lap(2, 70) }])
+  })
+
+  it('three stretches fold into one row, the best of all of them; a merged session’s too, under the merge’s id', () => {
+    const rows = sessionRows([
+      row('m', 5, { driver: sam, laps: [lap(1, 72)], best: lap(1, 72), stretch: 0, name: 'Sunday' }),
+      row('a', 1, { driver: alex, laps: [lap(1, 75)], best: lap(1, 75), stretch: 0 }),
+      row('m', 5, { driver: alex, laps: [lap(2, 69, 'retimed'), lap(3, 70)], best: lap(2, 69), stretch: 1, name: 'Sunday' }),
+      row('m', 5, { driver: sam, laps: [], best: null, stretch: 2, name: 'Sunday' }),
+    ])
+    expect(rows.map((r) => r.id)).toEqual(['a', 'm'])
+    expect(rows[1]).toMatchObject({ name: 'Sunday', laps: 3, best: { time: 69 }, retimed: true })
+    expect(rows[1]!.stretches.map((s) => [s.driver?.code, s.laps])).toEqual([['SAM', 1], ['ALX', 2], ['SAM', 0]])
+  })
+
+  it('carries live and another layout', () => {
+    const rows = sessionRows([row('a', 1, { otherLayout: 'oval' }), row('b', 2, { live: true, stretch: 0 }), row('b', 2, { stretch: 1 })])
+    expect(rows.map((r) => [r.otherLayout ?? null, r.live])).toEqual([['oval', false], [null, true]])
   })
 })

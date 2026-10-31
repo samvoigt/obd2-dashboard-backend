@@ -17,6 +17,40 @@ stints are read-only and link to their sessions.
 > merge's id, and `merged` (member id → merged session id). Revised the
 > same day for §7: no stint editor here.
 
+## Validated against the code (2026-10-31, after M36)
+
+Each step re-read against the code as it stands after M32–M36:
+
+- **The stint editor is gone (M32):** `RaceSection.svelte` has only the
+  flags form (`{#if anyone}`); the "as set by hand" / "Split at every stop"
+  lines are already gone, replaced by "A stint is one driver's run, from who
+  drove each session: set on the session's page." M37.3 drops that line too,
+  since each stint now links to its session; M37.4 only hides the flags form.
+- **`merged` is sent but not typed:** the server's `EventResults.merged`
+  (`EventResults.kt:148`, member id → merged id, M33.6) isn't in the site's
+  `EventResults` type. M37.3 adds it. Race laps' `session` is the **member's**
+  id (the race is built from records, `EventResults.kt:356`), so
+  `stintSession` maps through `merged`, as planned.
+- **The Session column** shows today only for a race in sessions, as the
+  part's name. It now shows always, as the session's start ("08:40", or
+  "Sun 18 Oct, 08:40" when the race's sessions are on different days, the
+  M36.9 format), from that session's row in `results.parts` (`heardFrom`;
+  a merged row carries the merge's id and its first member's time). Passed
+  to `RaceSection` as a `sessionTime(id)` function.
+- **The M36 terms:** `TermHelp` already sits on Stint, Median, Spread,
+  Theoretical best and Stops; Stops moves to the new Stop column's header.
+- **No duration on a session row:** `SessionResult` has `heardFrom` and laps,
+  not an end. The Sessions panel (M37.6) shows the time, the laps and the
+  best instead of a duration.
+- **`LapChart`'s `driverName`** is used only by the stints sentence M37.5
+  removes, so the prop goes too. The idle legend's value functions are
+  extracted to `lib/lapChart.ts` (`lapLegend`, `carLegend`) and tested.
+- **Several practice parts:** each part's own bests are its own, not a
+  repeat of "Practice, every part", so each part's panel keeps them; with one
+  practice part only its panel shows.
+- **"Edit the race"** goes after the chart (under the standings and their
+  chart), so the button doesn't split the table from its chart.
+
 ---
 
 ## What exists, and what it means for this (checked 2026-10-22)
@@ -149,6 +183,30 @@ event (one practice, two race sessions) and against a copy of NHMS's shape:
 practice once, each session once (a merged one once), nothing else lost
 (count the laps and sessions before and after); the phone check (M31)
 passes for the event.
+
+## Built (2026-10-31)
+
+- **M37.1–M37.6 built** as validated above. Site tests 307 → 314
+  (`sessionRows`, `stopAfter`, `pitTime`, `stintSession`, the legend).
+- **Checked on production's data, signed out** (the new site through a
+  local Vite pointed at the public API, read only): the race first, the
+  practice table once (6 tables → 3), 3 session rows for 3 sessions (12
+  before), 8 stints, each with its stop ("5:58", "ended in the pits" where a
+  day ended in the pit lane) and its session's link; laps 460 before and
+  after; no form control; the legend reads "Hover a lap".
+- **On the dev server:** a race of four sessions, two of them merged: the
+  merged session is one row and its stints link to the merged page; signed
+  in, "Edit the race" opens the flags and they save; signed out, no button.
+- **A stint with no laps no longer happens:** since M32/M34, a driver
+  change snaps to a lap end, a second change at the same end replaces the
+  first, a change after the last lap makes no stint, and a session with no
+  laps makes no run. The filter and its count line stay as a cheap guard
+  and are never seen.
+- **Fixed in passing:** the facts line and a named session's link lost the
+  space before "·" (Svelte trims a block's leading text), now `{' · '}`.
+- **Process:** two Vite servers sharing `node_modules/.vite` leave the
+  second's dependency cache stale ("504 Outdated Optimize Dep"), and the
+  course editor drew nothing until the dev Vite was restarted.
 
 ## Acceptance
 

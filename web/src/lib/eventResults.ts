@@ -111,6 +111,44 @@ export interface EventResults {
   practiceTheoretical?: number | null
   practiceSectorRows: SectorRow[]
   practiceConsistency: DriverConsistency[]
+  /** Each merged session's members (M33.6): member id → the merged session's id, whose row and page stand for it. */
+  merged?: Record<string, string>
+}
+
+/** One session as the Sessions panel lists it (M37.1): its drivers' stretches folded into one row. */
+export interface SessionRow {
+  id: string
+  car: string
+  name?: string | null
+  heardFrom: number
+  live: boolean
+  otherLayout?: string | null
+  /** Any of its laps re-timed by the server. */
+  retimed: boolean
+  laps: number
+  best?: StandingLap | null
+  stretches: { driver?: Driver | null; laps: number; best?: StandingLap | null }[]
+}
+
+/**
+ * The server's rows (one per driver's stretch, M27; a merged session's under
+ * the merge's id, M33.6) as one row per session, in the order first heard.
+ */
+export function sessionRows(rows: readonly SessionResult[]): SessionRow[] {
+  const byId = new Map<string, SessionRow>()
+  for (const r of rows) {
+    let row = byId.get(r.id)
+    if (!row) {
+      row = { id: r.id, car: r.car, name: r.name, heardFrom: r.heardFrom, live: false, otherLayout: r.otherLayout, retimed: false, laps: 0, best: null, stretches: [] }
+      byId.set(r.id, row)
+    }
+    row.live ||= r.live === true
+    row.retimed ||= r.laps.some((l) => l.source === 'retimed')
+    row.laps += r.laps.length
+    if (r.best && (!row.best || r.best.time < row.best.time)) row.best = r.best
+    row.stretches.push({ driver: r.driver, laps: r.laps.length, best: r.best })
+  }
+  return [...byId.values()].sort((a, b) => a.heardFrom - b.heardFrom)
 }
 
 /** "+0.123" behind the best of all; "best" for the best itself; blank for none. */

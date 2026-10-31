@@ -2,14 +2,14 @@
   import uPlot from 'uplot'
   import 'uplot/dist/uPlot.min.css'
   import { onDestroy, onMount } from 'svelte'
-  import { lapChartData } from './lib/lapChart'
+  import { carLegend, lapChartData, lapLegend } from './lib/lapChart'
   import type { CarRace } from './lib/race'
   import { lapTime } from './lib/sessions'
   import { themeState } from './lib/themeState.svelte'
   import { color, seriesColors, translucent } from './lib/theme'
 
   // The race's lap times (M16.3): by lap number, a line per car; stints shaded, stops and flags marked.
-  let { cars, carName, driverName }: { cars: CarRace[]; carName: (slug: string) => string; driverName: (id: string | null) => string } = $props()
+  let { cars, carName }: { cars: CarRace[]; carName: (slug: string) => string } = $props()
 
   let box: HTMLDivElement
   let plot: uPlot | null = null
@@ -57,14 +57,14 @@
         { stroke: muted, grid: { stroke: line }, ticks: { stroke: line }, size: 70, values: (_u, ticks) => ticks.map((t) => lapTime(t)) },
       ],
       series: [
-        { label: 'Lap', value: (_u: uPlot, v: number | null) => (v == null ? '--' : String(v)) },
+        { label: 'Lap', value: (_u: uPlot, v: number | null) => lapLegend(v) },
         ...cars.map((c, i) => ({
           label: carName(c.car),
           stroke: COLORS[i % COLORS.length],
           width: 2,
           points: { show: true, size: 6 },
           value: (_u: uPlot, v: number | null, _s: number, idx: number | null) =>
-            v == null ? '--' : `${lapTime(v)}${idx != null && chart.capped[i]?.includes(chart.x[idx]!) ? ' (slower, off the scale)' : ''}`,
+            carLegend(v, idx != null && chart.capped[i]?.includes(chart.x[idx]!) === true),
         })),
       ],
     }
@@ -101,10 +101,7 @@
 
 <div class="lapchart" bind:this={box}></div>
 {#if chart.stints.length > 0}
-  <p class="muted small">
-    Stints, shaded in turn: {chart.stints.map((s, i) => `${i + 1} ${driverName(s.driver)} (laps ${s.from}–${s.to})`).join(' · ')}.
-    Dashed lines are stops; laps over 130% of the best are drawn at the top.
-  </p>
+  <p class="muted small">Shaded bands are stints; dashed lines are stops. Laps over 130% of the best are drawn at the top.</p>
 {/if}
 
 <style>

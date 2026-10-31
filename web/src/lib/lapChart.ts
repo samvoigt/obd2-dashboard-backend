@@ -4,6 +4,7 @@
  * a restart) are drawn at that cap, so the racing laps keep the scale. Pure.
  */
 import type { CarRace, RaceLap } from './race'
+import { lapTime } from './sessions'
 
 /** How far over its best a lap may be before it's drawn at the cap. */
 export const CAP = 1.3
@@ -50,4 +51,14 @@ export function lapChartData(cars: readonly CarRace[]): LapChartData {
     ...(first?.flagLap != null ? [{ lap: first.flagLap, kind: 'flag' as const }] : []),
   ]
   return { x, ys, capped, stints, marks }
+}
+
+/** The legend's lap (M37.5): "Hover a lap" until a lap is hovered. */
+export function lapLegend(v: number | null): string {
+  return v == null ? 'Hover a lap' : String(v)
+}
+
+/** The legend's time for a car (M37.5): blank until a lap is hovered, or where the car has no such lap. */
+export function carLegend(v: number | null, capped: boolean): string {
+  return v == null ? '' : `${lapTime(v)}${capped ? ' (slower, off the scale)' : ''}`
 }

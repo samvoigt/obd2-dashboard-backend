@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lapChartData } from './lapChart'
+import { carLegend, lapChartData, lapLegend } from './lapChart'
 import type { CarRace, RaceLap } from './race'
 
 const lap = (number: number, time: number, more: Partial<RaceLap> = {}): RaceLap =>
@@ -51,5 +51,15 @@ describe('the lap-time chart (M16.3)', () => {
 
   it('nothing to draw for no cars', () => {
     expect(lapChartData([])).toEqual({ x: [], ys: [], capped: [], stints: [], marks: [] })
+  })
+})
+
+describe('the chart’s legend (M37.5)', () => {
+  it('asks for a hover until there is one, and says nothing for the cars meanwhile', () => {
+    expect(lapLegend(null)).toBe('Hover a lap')
+    expect(lapLegend(12)).toBe('12')
+    expect(carLegend(null, false)).toBe('')
+    expect(carLegend(90.2, false)).toBe('1:30.200')
+    expect(carLegend(117.3, true)).toBe('1:57.300 (slower, off the scale)')
   })
 })
