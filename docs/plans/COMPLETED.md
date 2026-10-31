@@ -1138,3 +1138,38 @@ UX review phase 4 (§3.D) and its cross-cutting wording item. Deployed as `00058
 - **Open, for Sam:** the review's walk-throughs 1 and 3 (§5), timed on a
   phone against M31.7's baseline; and the two questions from M35 (a
   progress line for the first event visit; a merged session's `/laps`).
+
+## M37 — The event page  ✅ 2026-10-31
+
+UX review phase 5 (§3.E). Deployed as `00059`.
+
+- **Results first** (M37.6): the race (standings, lap chart, each car's
+  stints, every lap), then practice, then one **Sessions** panel grouped by
+  part. Race parts have no panel of their own; "The race as one timeline is
+  above" is gone.
+- **Practice once:** one practice part, only its panel; several, "Practice,
+  every part" and then each part's own bests. NHMS's practice table showed
+  twice; now once.
+- **One row per session** (M37.1, `sessionRows`): a session's drivers'
+  stretches folded into one row ("Hugh Enxing (HUG) 60 laps · Drew Blouch
+  (DRE) 57 laps · …"), a merged session's under its merge's id, with its
+  laps, best, live and re-timed. NHMS: 12 rows → 3.
+- **The stints table** (M37.2–3, `stopAfter`, `pitTime`, `stintSession`):
+  a **Session** column always, the session's start ("Sat 17 Oct, 09:26"
+  when the race spans days) linking to it, through `merged` (now typed on
+  the site) to a merged session's page; a **Stop** column ("5:58", "ended
+  in the pits"); stints with no laps hidden, with a count line; the "Stops:
+  lap 22, …" sentence gone. One line per stint on a phone, the table
+  scrolling.
+- **"Edit the race"** (M37.4): the flags form and their times behind one
+  button, shown to whoever may set them; signed out, no form on the page.
+  One public line keeps "Every lap counts, before the green flag and after
+  the flag too."
+- **The chart's words** (M37.5, `lapLegend`, `carLegend`): the idle legend
+  reads "Hover a lap", nothing for the cars; one caption, "Shaded bands are
+  stints; dashed lines are stops."; `LapChart` loses `driverName`.
+- **Fixed in passing:** the facts line and a named session's link lost the
+  space before "·".
+- **Tests:** `eventResults.test.ts` +3, `race.test.ts` +3,
+  `lapChart.test.ts` +1. 692 Kotlin and 314 site tests.
+

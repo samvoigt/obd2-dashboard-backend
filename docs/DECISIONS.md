@@ -1300,6 +1300,10 @@ nothing about the car, so the rule in `CLAUDE.md` holds.
   precedence rules are gone.** The races that had edited stints had them
   moved into their sessions' drivers once (M32.6), checked lap for lap
   against the race this rule works out.
+- **The event page only reads stints** (M37): each names its session and
+  links to it (a merged session's page for a member), where who drove is
+  edited. A stint with no laps can't arise under these rules (a correction
+  replaces; a session with no laps makes no run); the page hides one anyway.
 
 **Why.** The same fact had several addresses, and rules decided silently
 between them: edited stints won over the crew's driver change, so it "didn't

@@ -798,3 +798,26 @@ footage.
 - **The phones' 44 px rule** turns any small button into a tall oval: a
   small control is drawn inside a full-size tap area, its margins taken
   back.
+
+## 2026-10-31 — M37: the event page
+
+- **Deployed as `00059`** with a smoke car streaming live across it: two
+  1006 drops during the build and a 1012 at the switch, each reconnected
+  (the last at once). On production after, signed out, the NHMS event page
+  reads as checked before the deploy: the race first, practice once (6
+  tables → 3), 3 session rows for 3 sessions (12 before), 8 stints with
+  their stops and links, 460 laps, no form control; the phone check passes.
+- **Checking a page on production's data before deploying:** the new site
+  served by a local Vite whose `/api` goes to the public site, read only and
+  signed out. It showed the real race (stops, a merged weekend) that the
+  dev server's synthetic box course can't (no pit lane, so no stops), and
+  the before/after counts came from the same page.
+- **Two Vite servers share `node_modules/.vite`:** the second one's
+  dependency scan left the first's cache stale ("504 Outdated Optimize
+  Dep"), and the course editor drew nothing. Restarting the one in use
+  fixed it; the phone check's "nothing drawn" caught it.
+- **A stint with no laps no longer happens** (decision 48: a correction
+  replaces; a session with no laps makes no run), so M37's hiding of them
+  is a guard nobody sees. Tried on the dev server: two changes in one lap
+  became one; a change after the last lap made no stint.
+
