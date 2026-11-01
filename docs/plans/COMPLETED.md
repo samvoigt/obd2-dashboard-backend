@@ -1173,3 +1173,40 @@ UX review phase 5 (§3.E). Deployed as `00059`.
 - **Tests:** `eventResults.test.ts` +3, `race.test.ts` +3,
   `lapChart.test.ts` +1. 692 Kotlin and 314 site tests.
 
+## M38 — The session page and the sessions list  ✅ 2026-11-01
+
+UX review phase 6 (§3.F). Deployed as `00060`.
+
+- **The order** (M38.4): facts → drivers → **map → laps → chart** → what
+  happened, a merged session's page too; the map's and the chart's
+  placeholders where their panels go, the laps outside the series' gate as
+  M35.3 left them. The map's note: "The dot follows the chart's cursor,
+  below."
+- **Pick two** (M38.1–3, `lib/lapCompare.ts`: `toggleTick`, `compareBar`,
+  `heldHere`; Sam's answer 6): a checkbox per lap ("Compare lap 72", in a
+  44 px `label.check`) where the server's laps name a course; a bar under
+  the table: two ticked, "Compare lap 72 with lap 107" (the earlier first,
+  across a merge's members); one, "Compare with the best lap (214)" and
+  "Keep for another page"; a pick held from another page on the same course
+  and layout shows as "Held: … · Let go", and ticking a lap offers "Compare
+  lap 72 with {it}", which lets it go. A third tick drops the oldest. The
+  per-row "Compare…" and "vs best" are gone here; the event, race and driver
+  pages keep `ComparePick`, and the pick passes between them both ways.
+- **Readable signal names** (M38.5): the session page's pickers and every
+  chart's legend through `label()` ("engine · rpm"; `Chart`'s `labels`), the
+  car page's legend too.
+- **Units in the heads:** "Top mph", "Low mph", "Avg mph". Re-timing notes in
+  the muted colour.
+- **"Name" / "Rename"** beside the title, for whoever may (M38.6).
+- **"50 laps · best 1:30.200"** (`lapsLine`, shared with the landing's
+  `sessionLine`) on the session page's facts and the list, never the
+  tablet's lap count; **"Trouble code P0037"** (`faultsText`) in both; the
+  course id and the line count on the list only for whoever edits the car
+  (M38.7).
+- **Tests:** `lapCompare.test.ts` (5), `sessions.test.ts` +2. 692 Kotlin
+  and 321 site tests.
+- **Open, for Sam (M38.8):** open Sunday's session and say whether the best
+  lap, who drove and the route are found without scrolling past the chart,
+  and whether pick-two is quicker than the old buttons; and, still, M36's
+  walk-throughs and M35's two questions.
+

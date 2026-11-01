@@ -821,3 +821,21 @@ footage.
   is a guard nobody sees. Tried on the dev server: two changes in one lap
   became one; a change after the last lap made no stint.
 
+## 2026-11-01 — M38: the session page and the sessions list
+
+- **Deployed as `00060`** with a smoke car streaming live across it: two
+  1012 closes, each reconnected at once. On production after, signed out:
+  the list reads "223 laps · best 1:30.200 · Trouble code P0037" with no
+  line counts; Sunday's merged session reads map → laps → chart → what
+  happened, "engine · rpm" in the pickers and legend, 223 laps each with a
+  checkbox; ticking 72 and 107 offers "Compare lap 72 with lap 107". The
+  phone check passes on both.
+- **On a merged session the checkboxes come 1.4 s after the table:** the
+  thinned series (1.0 s) gives the table its laps first, and compare waits
+  for the server's laps (2.4 s, `/laps` on four members). A check that
+  waits for the chart reads the page too early; wait for what's being
+  checked. It is M35's open question about a merged session's `/laps`.
+- **The session page had no button look of its own:** a button outside a
+  styled block draws in the browser's grey. Each page styles its own; a
+  shared one in `app.css` would end that.
+
