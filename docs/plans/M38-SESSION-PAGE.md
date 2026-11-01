@@ -15,6 +15,42 @@ checkbox per row, one Compare bar, "vs best" once, the per-row buttons go).
 > member; the list's Select checkboxes and Merge bar), so it builds on
 > those as they stand.
 
+## Validated against the code (2026-11-01, after M37)
+
+Each step re-read against the code as it stands:
+
+- **The page's order** (`SessionPage.svelte:355–528`): breadcrumbs (M36),
+  title, "Name this session" on its own line, the facts, GPS-lost notes, a
+  merged session's members line, the Drivers block (only for whoever may set
+  it; others get "Driven by …"), the state note, then behind `{#if !view}`
+  the chart and the map, **the laps outside the gate** (M35.3), and "What
+  happened" behind `view`. As the plan read it. M38.4 splits the one
+  skeleton into the map's (above the laps) and the chart's (below).
+- **Laps:** `loadSessionData` (`lib/sessionPage.ts:397`) asks for the
+  server's laps only for a complete session, merged ones included, so
+  `standing` (and so compare) is as planned. Each `LapRow` carries its
+  member (`session`) on a merged page; `pickOf` already names it.
+- **Compare:** `ComparePick` per row (`:498–504`, `{#if standing}`), the
+  click stopped. `pickAction`, `picking`, `setPick` as the plan says. The
+  other three pages keep `ComparePick`.
+- **Signal names:** the session page's pickers show raw names (`:450`); the
+  **car page's already use `label()`** (`CarPage.svelte:344`), so M38.5 adds
+  only the legend there. `Chart.svelte:102` labels series by `names`.
+- **Speed heads** (`:479`) and `.note.flag` in `--caution` (`:558`): as planned.
+- **The session page's facts line** has the list's problem too: "Best
+  1:30.200 (lap 214)" (`:384`), the tablet's count. M38.6 makes it
+  `lapsLine(s)` as well ("50 laps · best 1:30.200").
+- **The sessions list** (`SessionsPage.svelte:155–168`): the inline "(lap
+  {n} of {laps})", `trackOf`, bare `.fault` codes and the line count, as
+  planned. M33.8's Select boxes show only to whoever edits the car, so
+  "neither page has both kinds of checkbox" holds.
+- **`sessionLine`** (`lib/landing.ts:20`) builds "12 laps · best 1:34.532"
+  inline; M38.7's `lapsLine` moves that wording to `lib/sessions.ts` and
+  `sessionLine` uses it.
+- **Checking:** the dev server's box course gives complete sessions with
+  laps, and two merged (as for M37). The Sunday 12:56 look (M38.8) is Sam's,
+  on production after the deploy.
+
 ---
 
 ## What exists, and what it means for this (checked 2026-10-22)
@@ -226,6 +262,28 @@ Deployed with a live stream across it, as usual. Sam opens Sunday 12:56 and
 says whether the best lap, who drove and the route are found without
 scrolling past the chart, and whether pick-two is quicker than the old
 buttons. What he says goes to JOURNAL.
+
+## Built (2026-11-01)
+
+- **M38.1–M38.7 built** as validated. Site tests 314 → 321
+  (`lapCompare.test.ts` 5, `sessions.test.ts` +2); `sessionLine` now uses
+  `lapsLine`.
+- **Checked on the dev server** (the box course, a race of four sessions,
+  two merged): the order is map → laps → chart; the pickers and legend read
+  "engine · rpm", on the car page's legend too; heads "Top mph"; the facts
+  line "11 laps · best 1:10.000"; one tick offers "Compare with the best
+  lap (1)" and "Keep for another page", two "Compare lap 2 with lap 9"
+  (across the merge's two members), a third drops the oldest; a row click
+  still zooms and sets `?from=&to=`; a kept lap shows on another session as
+  "Held: …", and ticking a lap there compares the two and lets it go; the
+  event page's "Compare…" offers "Compare with Dev car lap 3"; "Name" then
+  "Rename" beside the title signed in, nothing signed out; the list shows
+  "4 laps · best 1:10.000", the course id and line count only signed in. The
+  phone check passes on the list, both sessions and the event.
+- **The bar's buttons** needed the page's own button look (the session page
+  had none: the browser's grey), as the sessions list styles its own.
+- **Not checkable here:** trouble codes (synthetic sessions have none; the
+  words are unit-tested), and M38.8's look by Sam.
 
 ## Where the code differs from the review
 

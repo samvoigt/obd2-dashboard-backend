@@ -125,3 +125,17 @@ export function trackOf(s: SessionItem): string | null {
   if (!s.track) return null
   return s.layout ? `${s.track} · ${s.layout}` : s.track
 }
+
+/** "50 laps · best 1:30.200" (M38.7): a session's laps, as the list, its page and the landing say them; "" with none. */
+export function lapsLine(s: Pick<SessionItem, 'laps' | 'bestLap'>): string {
+  const parts: string[] = []
+  if (s.laps > 0) parts.push(`${s.laps} lap${s.laps === 1 ? '' : 's'}`)
+  if (s.bestLap) parts.push(`best ${lapTime(s.bestLap.time)}`)
+  return parts.join(' · ')
+}
+
+/** "Trouble code P0037", "Trouble codes P0037, P0171" (M38.7); "" with none. */
+export function faultsText(codes: readonly string[]): string {
+  if (codes.length === 0) return ''
+  return `Trouble code${codes.length === 1 ? '' : 's'} ${codes.join(', ')}`
+}

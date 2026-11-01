@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, sourceLabel, trackOf, type SessionItem, mergeBar } from './sessions'
+import { badge, clockOf, dayOf, duration, faultsText, fetchDrives, lapsLine, lapTime, sourceLabel, trackOf, type SessionItem, mergeBar } from './sessions'
 
 describe('words for past sessions', () => {
   it('writes durations', () => {
@@ -70,5 +70,19 @@ describe('the Merge bar (M33.8)', () => {
     expect(mergeBar(new Set(['m1', 'm2']), items)).toEqual({ kind: 'refused', message: 'Two merged sessions can\'t be merged: unmerge one first.' })
     // Ticked rows no longer listed (merged meanwhile) don't count.
     expect(mergeBar(new Set(['a', 'gone']), items)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('a session’s laps and trouble codes in words (M38.7)', () => {
+  it('says the laps and the best, never the tablet’s lap number', () => {
+    expect(lapsLine({ laps: 50, bestLap: { lap: 214, time: 90.2 } })).toBe('50 laps · best 1:30.200')
+    expect(lapsLine({ laps: 1, bestLap: { lap: 1, time: 58.12 } })).toBe('1 lap · best 58.120')
+    expect(lapsLine({ laps: 3, bestLap: null })).toBe('3 laps')
+    expect(lapsLine({ laps: 0, bestLap: null })).toBe('')
+  })
+  it('names trouble codes, one or several, and nothing for none', () => {
+    expect(faultsText(['P0037'])).toBe('Trouble code P0037')
+    expect(faultsText(['P0037', 'P0171'])).toBe('Trouble codes P0037, P0171')
+    expect(faultsText([])).toBe('')
   })
 })

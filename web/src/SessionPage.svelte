@@ -15,7 +15,8 @@
     type LapRow, type Member, type Series, type SessionLaps, type SessionMessage,
   } from './lib/sessionPage'
   import { fromGeoJSON } from './lib/courseEdit'
-  import { badge, clockOf, dayOf, duration, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
+  import { badge, clockOf, dayOf, duration, faultsText, lapsLine, lapTime, sourceLabel, trackOf, type SessionItem } from './lib/sessions'
+  import { label } from './lib/live'
   import { setSessionName, whoCanSet, type Driver, type DriverSetter } from './lib/events'
   import {
     changeAt, changeEntry, driverOfLap, driversText, driverTimeline, removeEntry, replacedText, saveDriverChanges, saveSessionDriver,
@@ -24,7 +25,8 @@
   import { signin } from './lib/signin'
   import { indexesIn, readWindow, withWindow } from './lib/laps'
   import type { LapPick } from './lib/comparePick'
-  import ComparePick from './ComparePick.svelte'
+  import { picking, setPick } from './lib/comparePickState.svelte'
+  import { compareBar, heldHere, isTicked, toggleTick, type BarAction, type Tick } from './lib/lapCompare'
   import { merge } from './lib/merge'
   import { columnShown, shownUnit, toShown } from './lib/units'
   import { lapSpeeds, seriesSamples } from './lib/lapSpeeds'
@@ -339,6 +341,23 @@
     return { ref: { car: slug, session: lap.session ?? sid, start: lap.start, end: lap.end }, course: on.course, layout: on.layout, label: `${detail?.carName ?? slug} lap ${lap.lap}, ${lapTime(lap.time)}` }
   }
 
+  // Pick two (M38.2): laps ticked to compare, and a pick held from another page on this course and layout (M38.3).
+  let ticked: Tick[] = $state.raw([])
+  const tickOf = (lap: LapRow, on: SessionLaps): Tick => ({ pick: pickOf(lap, on), lap: lap.lap })
+  const held = $derived.by(() => (standing ? heldHere(picking.pending, standing.course, standing.layout) : null))
+  const bestTick = $derived.by(() => { const f = laps.find((l) => l.best); return f && standing ? tickOf(f, standing) : null })
+  const barActions = $derived(compareBar(ticked, bestTick, held))
+
+  function onBar(a: BarAction) {
+    if (a.kind === 'keep') {
+      if (ticked[0]) setPick(ticked[0].pick)
+      ticked = []
+    } else {
+      if (a.held) setPick(null)
+      window.location.assign(a.href)
+    }
+  }
+
   /** The map to [w] (or everything), and the address with it, so what's shown can be shared (M16.1). */
   function showWindow(w: [number, number] | null) {
     focus = w
@@ -362,7 +381,10 @@
   {:else if detail}
     {@const s = detail.session}
     {@const b = badge(s.state)}
-    <h1>{#if s.name}{s.name} <span class="muted">· {detail.carName}, {dayOf(s.started)}, {clockOf(s.started)}</span>{:else}{detail.carName} <span class="muted">· {dayOf(s.started)}, {clockOf(s.started)}</span>{/if}</h1>
+    <div class="title">
+      <h1>{#if s.name}{s.name} <span class="muted">· {detail.carName}, {dayOf(s.started)}, {clockOf(s.started)}</span>{:else}{detail.carName} <span class="muted">· {dayOf(s.started)}, {clockOf(s.started)}</span>{/if}</h1>
+      {#if setter && !naming}<button class="small" onclick={() => { nameDraft = s.name ?? ''; nameError = null; naming = true }}>{s.name ? 'Rename' : 'Name'}</button>{/if}
+    </div>
     {#if setter}
       {#if naming}
         <form class="naming" onsubmit={(e) => { e.preventDefault(); saveName() }}>
@@ -371,8 +393,6 @@
           <button type="button" onclick={() => (naming = false)}>Cancel</button>
           {#if nameError}<span class="error">{nameError}</span>{/if}
         </form>
-      {:else}
-        <p class="naming"><button class="link" onclick={() => { nameDraft = s.name ?? ''; nameError = null; naming = true }}>{s.name ? 'Rename' : 'Name this session'}</button></p>
       {/if}
     {/if}
     {@const src = sourceLabel(s.source)}
@@ -381,8 +401,8 @@
       {#if src}<span class={`source ${src.kind}`}>{#if src.kind === 'tablet'}<TermHelp term="tabletOnly" />{:else}{src.text}{/if}</span>{/if}
       {#if whereLabel(s)}<a href={`/courses/${s.track}`}>{whereLabel(s)}</a>{/if}
       {#if s.event}<a href={`/events/${s.event.id}`}>{s.event.name}, {s.event.part}</a>{/if}
-      {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap})</span></span>{/if}
-      {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
+      {#if lapsLine(s)}<span>{lapsLine(s)}</span>{/if}
+      {#if s.faults.length > 0}<span class="fault">{faultsText(s.faults)}</span>{/if}
       {#if b}<span class={`badge ${b.kind}`}><span class={`dot ${b.kind}`}></span>{b.text}</span>{/if}
       {#if s.state === 'live'}<a href={`/cars/${slug}`}>Watch live →</a>{/if}
       <span class="spacer"></span><span class="switches"><UnitsSwitch /><ThemeSwitch /></span>
@@ -439,31 +459,15 @@
       <p class="muted small">Being driven now: this follows it live. The shaded part is live data the archive doesn't cover yet; it fills in as the tablet uploads.</p>
     {/if}
 
+    <!-- The order (M38.4): the map, the laps, then the chart; the laps outside the series' gate (M35.3). -->
     {#if !view}
-      <Skeleton title={false} panels={[340, 400]} label="Loading the session's chart and map" />
+      <Skeleton title={false} panels={[400]} label="Loading the session's map" />
     {:else}
-      <section class="panel">
-        <div class="pickers">
-          {#each [0, 1] as i (i)}
-            <select value={names[i] ?? ''} onchange={(e) => pick(i, (e.currentTarget as HTMLSelectElement).value)}>
-              {#if i > 0}<option value="">(none)</option>{/if}
-              {#each numbers as n (n)}<option value={n}>{n}</option>{/each}
-            </select>
-          {/each}
-          <span class="muted small">Drag across the chart to zoom in; double-click to zoom out.</span>
-        </div>
-        {#if data && data[0].length > 0}
-          <Chart {data} {names} units={chartUnits} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} onRange={(a, b) => (viewed = [a, b])} />
-        {:else}
-          <p class="muted">No readings to chart.</p>
-        {/if}
-      </section>
-
       {#if positions.length > 0}
         <section class="panel">
           <h2>Where it went</h2>
           <SessionMap t={mapT} lat={mapLat} lon={mapLon} speeds={mapSpeeds} {cursor} focusKey={focus ? focus.join('-') : ''} />
-          <p class="muted small">Coloured by speed, blue slow to pink fast. The dot follows the chart's cursor.</p>
+          <p class="muted small">Coloured by speed, blue slow to pink fast. The dot follows the chart's cursor, below.</p>
           {#if (view?.positions.dropped ?? 0) > 0}{@const n = view?.positions.dropped ?? 0}<p class="muted small">{n.toLocaleString()} GPS position{n === 1 ? '' : 's'} that didn’t fit with the one before (too far, too soon) {n === 1 ? 'is' : 'are'} left out.</p>{/if}
         </section>
       {/if}
@@ -476,10 +480,16 @@
           <h2>Laps</h2>
           <div class="table-scroll">
           <table class="laps">
-            <thead><tr><th>Lap</th>{#if timeline.length > 1}<th>Driver</th>{/if}<th>Time</th>{#each sectorBests as _, i (i)}<th>S{i + 1}</th>{/each}{#if hasSpeeds}{@const u = shownUnit('km/h', units.system)}<th title="Top speed, {u}">Top</th><th title="Lowest speed, {u}">Low</th><th title="Average speed, {u}">Avg</th>{/if}<th></th></tr></thead>
+            <thead><tr>{#if standing}<th><span class="sr-only">Compare</span></th>{/if}<th>Lap</th>{#if timeline.length > 1}<th>Driver</th>{/if}<th>Time</th>{#each sectorBests as _, i (i)}<th>S{i + 1}</th>{/each}{#if hasSpeeds}{@const u = shownUnit('km/h', units.system)}<th>Top {u}</th><th>Low {u}</th><th>Avg {u}</th>{/if}<th></th></tr></thead>
             <tbody>
               {#each laps as lap (lap.end)}
                 <tr class:best={lap.best} class:chosen={chosenLap === lap.end} onclick={() => showLap(lap)}>
+                  {#if standing}
+                    {@const on = standing}
+                    <td class="tick" onclick={(e) => e.stopPropagation()}>
+                      <label class="check"><input type="checkbox" checked={isTicked(ticked, pickOf(lap, on))} onchange={() => (ticked = toggleTick(ticked, tickOf(lap, on)))} aria-label={`Compare lap ${lap.lap}`} /></label>
+                    </td>
+                  {/if}
                   <td>{lap.lap}</td>
                   {#if timeline.length > 1}<td>{driverOfLap(timeline, lap.end)?.code ?? '—'}</td>{/if}
                   <td class="time">{lapTime(lap.time)}</td>
@@ -495,21 +505,48 @@
                     {lap.best ? 'Best' : lap.pitIn ? 'Into the pits' : lap.pitOut ? 'Out of the pits' : ''}
                     {#if lapNote(lap)}<span class="note" class:flag={!!lap.flag}>{lapNote(lap)}</span>{/if}
                   </td>
-                  {#if standing}
-                    {@const on = standing}
-                    {@const fastest = laps.find((l) => l.best)}
-                    <td onclick={(e) => e.stopPropagation()}>
-                      <ComparePick lap={pickOf(lap, on)} best={fastest ? pickOf(fastest, on) : null} />
-                    </td>
-                  {/if}
                 </tr>
               {/each}
             </tbody>
           </table>
           </div>
-          <p class="muted small">{#if hasSpeeds}Top, lowest and average speed in {shownUnit('km/h', units.system)}.{/if} Choose a lap to zoom the chart to it. {#if chosenLap !== null || focus !== null}<button class="link" onclick={showAll}>Show the whole session</button>{/if}</p>
+          {#if standing && (barActions.length > 0 || held)}
+            <div class="compare-bar" role="region" aria-label="Compare laps">
+              {#if held && !isTicked(ticked, held)}
+                <span class="held">Held: {held.label}{#if ticked.length === 0}<span class="muted">{' · '}tick a lap to compare with it</span>{/if}</span>
+                <button onclick={() => setPick(null)}>Let go</button>
+              {/if}
+              {#each barActions as a (a.label)}
+                <button class:primary={a.kind === 'compare'} onclick={() => onBar(a)}>{a.label}</button>
+              {/each}
+              {#if ticked.length > 0}<button onclick={() => (ticked = [])}>Clear</button>{/if}
+            </div>
+          {/if}
+          <p class="muted small">{#if standing}Tick two laps to compare them.{' '}{/if}Choose a lap to zoom the chart to it. {#if chosenLap !== null || focus !== null}<button class="link" onclick={showAll}>Show the whole session</button>{/if}</p>
         </section>
       {/if}
+
+    {#if !view}
+      <Skeleton title={false} panels={[340]} label="Loading the session's chart" />
+    {:else}
+      <section class="panel">
+        <div class="pickers">
+          {#each [0, 1] as i (i)}
+            <select value={names[i] ?? ''} onchange={(e) => pick(i, (e.currentTarget as HTMLSelectElement).value)}>
+              {#if i > 0}<option value="">(none)</option>{/if}
+              {#each numbers as n (n)}<option value={n}>{label(n)}</option>{/each}
+            </select>
+          {/each}
+          <span class="muted small">Drag across the chart to zoom in; double-click to zoom out.</span>
+        </div>
+        {#if data && data[0].length > 0}
+          <Chart {data} {names} labels={names.map(label)} units={chartUnits} zoom {range} {markers} {bands} onCursor={(t) => (cursor = t === null ? null : t * 1000)} onRange={(a, b) => (viewed = [a, b])} />
+        {:else}
+          <p class="muted">No readings to chart.</p>
+        {/if}
+      </section>
+
+    {/if}
 
     {#if view}
       {#if happened.length > 0}
@@ -555,7 +592,16 @@
   .drivers .name { color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
   .driver { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
   .laps .note { display: block; font-size: 0.8rem; white-space: nowrap; }
-  .laps .note.flag { color: var(--caution); }
+  .laps .note.flag { color: var(--muted); }
+  .laps td.tick { padding: 0 4px; }
+  .title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .title h1 { margin: 0.4em 0; }
+  .compare-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  .compare-bar .held { margin-right: auto; }
+  .compare-bar button, .title button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 0.95rem; }
+  .compare-bar button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .title button { font-size: 0.85rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.95rem; }
   .events li.fault { color: var(--critical); }
   .gps-lost { color: var(--caution); border: 1px solid var(--caution); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }

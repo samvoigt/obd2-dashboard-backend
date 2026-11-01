@@ -5,7 +5,7 @@
 import type { CarSummary } from './api'
 import type { CourseSummary } from './admin'
 import type { PublicEvent } from './eventResults'
-import { duration, lapTime, type Drive, type SessionItem } from './sessions'
+import { duration, lapsLine, type Drive, type SessionItem } from './sessions'
 import { dayTime } from './terms'
 
 /** Events shown before "All events →". */
@@ -20,10 +20,8 @@ export function latestSession(drives: readonly Drive[] | null): SessionItem | nu
 
 /** "Sat 26 Sep, 14:05 · 23 min · 12 laps · best 1:34.532", as the sessions page says them. */
 export function sessionLine(s: SessionItem, now: number = Date.now(), timeZone?: string): string {
-  const parts = [dayTime(s.started, now, timeZone), duration(s.ended - s.started)]
-  if (s.laps > 0) parts.push(`${s.laps} lap${s.laps === 1 ? '' : 's'}`)
-  if (s.bestLap) parts.push(`best ${lapTime(s.bestLap.time)}`)
-  return parts.join(' · ')
+  const laps = lapsLine(s)
+  return [dayTime(s.started, now, timeZone), duration(s.ended - s.started), ...(laps ? [laps] : [])].join(' · ')
 }
 
 /** Whether one of the event's parts is going on at [now]. */

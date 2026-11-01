@@ -15,6 +15,7 @@
     onRange,
     markers = [],
     bands = [],
+    labels,
   }: {
     data: [number[], ...(number | null | undefined)[][]]
     names: string[]
@@ -31,6 +32,8 @@
     markers?: { t: number; color: string }[]
     /** Shaded stretches, in seconds: live data the archive doesn't cover yet (M7.6). */
     bands?: { from: number; to: number; color: string }[]
+    /** The legend's words for each series (M38.5), "engine · rpm"; else its name. */
+    labels?: string[]
   } = $props()
 
   let box: HTMLDivElement
@@ -99,7 +102,7 @@
             v == null ? '--' : new Date(v * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }),
         },
         ...names.map((n, i) => ({
-          label: units[i] ? `${n} (${units[i]})` : n,
+          label: units[i] ? `${labels?.[i] ?? n} (${units[i]})` : (labels?.[i] ?? n),
           stroke: COLORS[i % COLORS.length],
           width: 2,
           scale: twoScales && i === 1 ? 'b' : 'a',

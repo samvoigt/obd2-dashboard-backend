@@ -350,7 +350,7 @@
           </span>
         </div>
         {#if chartNames.length > 0}
-          <Chart data={chartData} names={chartNames} units={chartUnits} zoom={whole} bands={chartBands} />
+          <Chart data={chartData} names={chartNames} labels={chartNames.map(label)} units={chartUnits} zoom={whole} bands={chartBands} />
         {/if}
         {#if whole && chartBands.length > 0}
           <p class="muted small">Shaded: live, not yet in the archive. It fills in as the tablet uploads, every 2 minutes.</p>

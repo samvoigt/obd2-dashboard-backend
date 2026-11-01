@@ -4,7 +4,7 @@
   import { carName } from './lib/api'
   import { setTitle } from './lib/title'
   import { onMount } from 'svelte'
-  import { badge, clockOf, dayOf, duration, fetchDrives, lapTime, mergeBar, sourceLabel, trackOf, type Drive, type SessionItem } from './lib/sessions'
+  import { badge, clockOf, dayOf, duration, faultsText, fetchDrives, lapsLine, mergeBar, sourceLabel, trackOf, type Drive, type SessionItem } from './lib/sessions'
   import { signin } from './lib/signin'
   import { AdminError, api, confirmed, deleteBlocked, sessionConfirmation, sessionStateText, type AdminSession } from './lib/admin'
   import { allowed, mine, NOTHING, type Allowed } from './lib/access'
@@ -161,13 +161,14 @@
                 {#if src}<span class={`source ${src.kind}`}>{src.text}</span>{/if}
               </span>
               <span class="facts">
-                {#if trackOf(s)}<span>{trackOf(s)}</span>{/if}
+                <!-- The course's id and the line count are for whoever edits the car (M38.7). -->
+                {#if may.edit && trackOf(s)}<span class="muted">{trackOf(s)}</span>{/if}
                 <!-- The row is a link to the session, so the event is named, not linked. -->
                 {#if s.event}<span>{s.event.name}, {s.event.part}</span>{/if}
-                {#if s.bestLap}<span>Best <strong>{lapTime(s.bestLap.time)}</strong> <span class="muted">(lap {s.bestLap.lap} of {s.laps})</span></span>{/if}
-                {#if s.faults.length > 0}<span class="fault">{s.faults.join(', ')}</span>{/if}
+                {#if lapsLine(s)}<span>{lapsLine(s)}</span>{/if}
+                {#if s.faults.length > 0}<span class="fault">{faultsText(s.faults)}</span>{/if}
                 {#if isMerged(s)}<span class="merged">{s.members!.length} sessions merged</span>{/if}
-                {#if s.lines > 0}<span class="muted">{s.lines.toLocaleString()} lines</span>{/if}
+                {#if may.edit && s.lines > 0}<span class="muted">{s.lines.toLocaleString()} lines</span>{/if}
               </span>
             </a>
             {#if signedIn && may.edit && isMerged(s)}
